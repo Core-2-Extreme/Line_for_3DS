@@ -1,4 +1,4 @@
-﻿#include <3ds.h>
+#include <3ds.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -169,12 +169,12 @@ void Get_log(void* arg)
 					message_log_short[i] = "";
 				}
 				update_progress++;
-				message_log_cache[0] = strtok((char*)line_log_buffer, "");
+				message_log_cache[0] = strtok((char*)line_log_buffer, "");
 				message_log[0] = message_log_cache[0];
 				number_of_message++;
 				for (int i = 1; i <= 299; i++)
 				{
-					message_log_cache[i] = strtok(NULL, "");
+					message_log_cache[i] = strtok(NULL, "");
 					if (message_log_cache[i] == NULL)
 					{
 						message_log[i] = "";
