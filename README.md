@@ -9,7 +9,7 @@ Line for 3DS
 ## Summary
 
 # [Video](https://www.youtube.com/watch?v=5K2fCr0lyoM)
-# ver0.1.0
+# ver0.2.0
 * Send text ✅
 * Send picture ❌ (I will try add it)
 * Send video ❌
@@ -21,8 +21,9 @@ Line for 3DS
 * Receive (Play) sound ❌
 * Receive (View) stamp ❌ (I will try add it)
 * View old log ✅ (Until max 300 logs)
-* Auto update ❌(add soon)
+* Auto update ✅ (v0.2.0)
 * Group chat ✅
+* Night mode ✅ (v0.2.0)
 
 ## How to use
 Please view gbatemp
