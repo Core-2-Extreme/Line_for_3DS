@@ -31,3 +31,5 @@ Please view gbatemp
 
 ## Credit
 [Core_2_Extreme](https://twitter.com/toshi800348)
+Discord
+https://discord.gg/EqK3Kpb
