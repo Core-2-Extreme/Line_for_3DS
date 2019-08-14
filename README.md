@@ -8,11 +8,11 @@ Line for 3DS
 * [Credit](https://github.com/Core-2-Extreme/Line_for_3DS#credit)
 
 ## Patch note
-# v0.3.0
-# Add- Save log to SD card  
-# Add- Password 
-# Fix- Another text remain
-# Fix- Some bugs
+* v0.3.0
+* Add- Save log to SD card  
+* Add- Password 
+* Fix- Another text remain
+* Fix- Some bugs
 
 ## Summary
 
