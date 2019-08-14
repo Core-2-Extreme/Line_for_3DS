@@ -11,6 +11,7 @@ Line for 3DS
 * v0.3.0
 * Add- Save log to SD card  
 * Add- Password 
+* Add- Text copy
 * Fix- Another text remain
 * Fix- Some bugs
 
