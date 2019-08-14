@@ -9,21 +9,23 @@ Line for 3DS
 ## Summary
 
 # [Video](https://www.youtube.com/watch?v=5K2fCr0lyoM)
-# ver0.2.0
+# ver0.3.0
 * Send text ✅
-* Send picture ❌ (I will try add it)
+* Send picture ❌
 * Send video ❌
 * Send sound ❌
-* Send stamp ❌ (I will try add it)
+* Send stamp ❌
 * Receive text ✅
-* Receive (View) picture ❌ (I will try add it)
+* Receive (View) picture ❌
 * Receive (Play) video ❌
 * Receive (Play) sound ❌
-* Receive (View) stamp ❌ (I will try add it)
+* Receive (View) stamp ❌
 * View old log ✅ (Until max 300 logs)
 * Auto update ✅ (v0.2.0)
 * Group chat ✅
 * Night mode ✅ (v0.2.0)
+* Password ✅ (v0.3.0)
+* Save log to SD card ✅ (v0.3.0)
 
 ## How to use
 Please view gbatemp
