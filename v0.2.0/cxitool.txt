@@ -1,0 +1,1 @@
+Please download cxitool from https://github.com/devkitPro/3dstools/releases
