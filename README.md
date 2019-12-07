@@ -1,5 +1,4 @@
 # Line for 3DS
-Line for 3DS
 
 ## Official Discord 
 https://discord.gg/EqK3Kpb
