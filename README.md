@@ -1,6 +1,9 @@
 # Line for 3DS
 Line for 3DS
 
+## Official Discord 
+https://discord.gg/EqK3Kpb
+
 ## Index
 * [Patch-note](https://github.com/Core-2-Extreme/Line_for_3DS#Patch-note)
 * [Summary](https://github.com/Core-2-Extreme/Line_for_3DS#summary)
@@ -8,17 +11,14 @@ Line for 3DS
 * [Credit](https://github.com/Core-2-Extreme/Line_for_3DS#credit)
 
 ## Patch note
-* v0.3.0
-* Add- Save log to SD card  
-* Add- Password 
-* Add- Text copy
-* Fix- Another text remain
+# This release is expected some issues 
+* v1.0.0
+* Add- other app(Google translation etc)
 * Fix- Some bugs
 
 ## Summary
 
 # [Video](https://www.youtube.com/watch?v=5K2fCr0lyoM)
-# ver0.3.0
 * Send text ✅
 * Send picture ❌
 * Send video ❌
@@ -39,8 +39,3 @@ Line for 3DS
 ## How to use
 Please view gbatemp
 # [GBAtemp](https://gbatemp.net/threads/line-for-3ds.539530)
-
-## Credit
-[Core_2_Extreme](https://twitter.com/toshi800348)
-Discord
-https://discord.gg/EqK3Kpb
