@@ -7,7 +7,6 @@ https://discord.gg/EqK3Kpb
 * [Patch-note](https://github.com/Core-2-Extreme/Line_for_3DS#Patch-note)
 * [Summary](https://github.com/Core-2-Extreme/Line_for_3DS#summary)
 * [How-to-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-use)
-* [Credit](https://github.com/Core-2-Extreme/Line_for_3DS#credit)
 
 ## Patch note
 # This release is expected some issues 
