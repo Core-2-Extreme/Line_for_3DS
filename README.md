@@ -9,9 +9,9 @@ https://discord.gg/EqK3Kpb
 * [How-to-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-use)
 
 ## Patch note
-# This release is expected some issues 
-* v1.0.0
-* Add- other app(Google translation etc)
+# New setup steps incompatible with v0.1.0-v1.0.1
+* v1.1.0
+* Fix- Reduce setup steps
 * Fix- Some bugs
 
 ## Summary
