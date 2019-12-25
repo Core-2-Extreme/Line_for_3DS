@@ -1,4 +1,4 @@
-﻿#include <3ds.h>
+#include <3ds.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
@@ -261,178 +261,6 @@ void Share_function_test(void)
 		}
 	}
 
-	/*
-#define SAMPLERATE 22050
-#define SAMPLESPERBUF (SAMPLERATE / 30)
-#define BYTESPERSAMPLE 4
-
-//----------------------------------------------------------------------------
-void fill_buffer(void* audioBuffer, size_t offset, size_t size, int frequency)
-{
-	//----------------------------------------------------------------------------
-
-	u32* dest = (u32*)audioBuffer;
-
-	for (int i = 0; i < size; i++) {
-
-		s16 sample = INT16_MAX * sin(frequency * (2 * M_PI) * (offset + i) / SAMPLERATE);
-
-		dest[i] = (sample << 16) | (sample & 0xffff);
-	}
-
-	DSP_FlushDataCache(audioBuffer, size);
-
-}
-
-void Share_bgm(void *arg)
-{
-	ndspInit();
-
-	ndspWaveBuf waveBuf;
-	u32* audioBuffer = (u32*)linearAlloc(SAMPLESPERBUF * BYTESPERSAMPLE * 2);
-
-	std::string debug_music;
-	debug_music = Share_load_from_file("music.wav", "/Line", music_h, music_fs_a);
-
-	audioBuffer = (u32*)debug_music.c_str();
-
-	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
-
-	ndspChnSetInterp(0, NDSP_INTERP_LINEAR);
-	ndspChnSetRate(0, SAMPLERATE);
-	ndspChnSetFormat(0, NDSP_FORMAT_STEREO_PCM16);
-
-	int notefreq[] = {
-		261, 261, 392, 392, 440, 440,
-		392, 349, 349, 329, 329, 294, 294, 261, 261
-	};
-
-	memset(&waveBuf, 0, sizeof(waveBuf));
-	waveBuf.data_vaddr = &audioBuffer[0];
-	waveBuf.nsamples = SAMPLESPERBUF;
-
-	size_t stream_offset = 0;
-
-	fill_buffer(audioBuffer, stream_offset, SAMPLESPERBUF * 2, notefreq[0]);
-
-	stream_offset += SAMPLESPERBUF;
-
-	ndspChnWaveBufAdd(0, &waveBuf);
-
-	for (int i = 0; i < 15; i++) {
-		for (int note = 0; note < 10; note++) {
-
-			if (waveBuf.status == NDSP_WBUF_DONE) {
-
-				fill_buffer(waveBuf.data_pcm16, stream_offset, waveBuf.nsamples, notefreq[i]);
-				ndspChnWaveBufAdd(0, &waveBuf);
-				stream_offset += waveBuf.nsamples;
-			}
-			usleep(20000);
-
-		}
-	}
-
-
-	linearFree(audioBuffer);
-	ndspExit();
-}*/
-
-	/*
-
-	std::string debug_music;
-	debug_music = Share_load_from_file("music.wav", "/Line", music_h, music_fs_a);
-
-	function_result = ndspInit();
-	Share_app_log_save("debug", "ndspInit();", function_result, true);
-
-	ndspChnWaveBufClear(0x0);
-	ndspChnReset(0x0);
-	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
-	ndspChnSetInterp(0x0, NDSP_INTERP_NONE);
-	ndspChnSetRate(0x0, 22050);
-	ndspChnSetFormat(0x0, NDSP_FORMAT_STEREO_PCM16);
-
-	u32* audio_buffer = (u32*)linearAlloc((22050 / 30) * 22050 * 2);
-
-	ndspWaveBuf audio_wave_buffer[2];
-
-//	memcpy(audio_buffer, (void*)debug_music.c_str(), (22050 / 30));
-	Share_app_log_save("debug", "size = " + std::to_string(debug_music.length()), function_result, true);
-	usleep(1000000);
-
-	//memset(audio_wave_buffer, 0, sizeof(audio_buffer));
-	audio_wave_buffer[0].data_vaddr = (void*)debug_music.c_str();
-	audio_wave_buffer[0].nsamples = (22050 / 30);
-	//audio_wave_buffer[1].data_vaddr = &audio_buffer[(22050 / 30)];
-	//audio_wave_buffer[1].nsamples = (22050 / 30);
-
-	usleep(1000000);
-	DSP_FlushDataCache(audio_buffer, (22050 / 30) * 2);
-
-	ndspChnWaveBufAdd(0, &audio_wave_buffer[0]);*/
-	//ndspChnWaveBufAdd(0, &audio_wave_buffer[1]);*/
-	/*
-		if (audio_wave_buffer[0].status == NDSP_WBUF_DONE)
-		{
-			DSP_FlushDataCache(&audio_wave_buffer, (22050 / 30) * 2);
-			ndspChnWaveBufAdd(0, &audio_wave_buffer[0]);
-		}*/
-	
-
-	/*
-	Handle share_connect_to_ap;
-	svcCreateEvent(&share_connect_to_ap, RESET_ONESHOT);
-
-	char share_result_char[512];
-	Share_app_log_save("Debug", "", 1234567890, true);
-	Handle share_ac_handle;
-	char* share_ssid;
-	char* share_mac_address;
-	share_ssid = (char*)malloc(0x100);
-	share_mac_address = (char*)malloc(0x100);
-	sprintf(share_ssid, "└(՞ةڼ◔)」_Free_WiFi");
-	sprintf(share_mac_address, "0xFF 0xFF 0xFF 0xFF 0xFF 0xFF");
-	srvGetServiceHandle(&share_ac_handle, "nwm::INF");
-	//c8a06c0c
-	u32* cache_buffer = getThreadCommandBuffer();
-	cache_buffer[0] = 0x00080302;//IPC_MakeHeader(0x36, 0, 0); // 0x00360000
-	cache_buffer[1] = (u32)share_ssid;
-	cache_buffer[9] = strlen(share_ssid);
-	cache_buffer[10] = 0;// (u32)share_mac_address;
-	cache_buffer[14] = 0;//share_connect_to_ap;
-
-	svcSendSyncRequest(share_ac_handle);
-	svcCloseHandle(share_ac_handle);
-
-	for (int i = 1; i <= 8; i++)
-	{
-		sprintf(share_result_char, "%ld, 0x%lx, %s", cache_buffer[i], cache_buffer[i], std::to_string(cache_buffer[i]).c_str());
-		Share_app_log_save("Debug", share_result_char, 1234567890, false);
-	}
-	*/
-	/*
-		char share_result_char[512];
-		Share_app_log_save("Debug", "", 1234567890, true);
-		Handle share_ac_handle;
-
-		srvGetServiceHandle(&share_ac_handle, "nwm::INF");
-
-		u32* cache_buffer = getThreadCommandBuffer();
-		cache_buffer[0] = 0x00080302;//IPC_MakeHeader(0x36, 0, 0); // 0x00360000
-		cache_buffer[1] = (u32)".Wi2_Free_at_[SK.GROUP]";
-		cache_buffer[9] = strlen(".Wi2_Free_at_[SK.GROUP]");
-		cache_buffer[10] = 0xFF;
-
-		svcSendSyncRequest(share_ac_handle);
-		svcCloseHandle(share_ac_handle);
-
-		for (int i = 1; i <= 8; i++)
-		{
-			sprintf(share_result_char, "%ld, 0x%lx, %s", cache_buffer[i], cache_buffer[i], std::to_string(cache_buffer[i]).c_str());
-			Share_app_log_save("Debug", share_result_char, 1234567890, false);
-		}*/
-
 }
 
 std::string Share_text_sort(std::string sorce_part_string[8192])
@@ -442,7 +270,7 @@ std::string Share_text_sort(std::string sorce_part_string[8192])
 	std::string result_string = "";
 	for (int i = 0; i <= 8191; i++)
 	{
-		for (int j = 0; j < 235; j++) //arabic
+		for (int j = 0; j < 235; j++)
 		{
 			arabic_found = false;
 			if (memcmp((void*)sorce_part_string[i].c_str(), (void*)share_arabic_right_to_left_sample[j].c_str(), 0x2) == 0)//arabic文字検出時
@@ -456,7 +284,7 @@ std::string Share_text_sort(std::string sorce_part_string[8192])
 			}
 		}
 
-		if (!arabic_found)//arabic文字非検出時
+		if (!arabic_found)
 		{
 			result_string += sorce_part_string[i];
 			arabic_pos = -1;
@@ -477,21 +305,21 @@ void Share_text_parse(std::string sorce_string, std::string part_string[8192])
 	memset(sorce_string_char, 0x0, 0x10000);
 	memcpy(sorce_string_char, (void*)sorce_string.c_str(), sorce_string_length);
 	for (int i = 0; i <= 8191; i++)
-		part_string[i] = ""; //空白により初期化
+		part_string[i] = ""; 
 
 	while (true)
 	{
 		parse_string_length = mblen(&sorce_string_char[i], 16);
 
-		if (i >= sorce_string_length)//源文字長を超過した場合終了
+		if (i >= sorce_string_length)
 			break;
-		else if (parse_string_length >= 1)//mblen成功時1文字ずつ抜き出す
+		else if (parse_string_length >= 1)
 		{
 			part_string[std_num] = sorce_string.substr(i, parse_string_length);
 			i += parse_string_length;
 			std_num++;
 		}
-		else//mblen失敗時1文字場所をずらす
+		else
 			i++;
 	}
 }
