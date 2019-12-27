@@ -94,7 +94,7 @@ extern u32 share_connect_test_response_code;
 extern u64 share_thread_exit_time_out;
 
 extern int share_afk_time;
-extern int share_afk_lcd_bridgeness;
+extern int share_afk_lcd_brightness;
 extern int share_app_log_num;
 extern int share_app_log_view_num_cache;
 extern int share_num_of_app_start;
@@ -116,7 +116,7 @@ extern int share_touch_pos_y_move_left;
 
 extern int share_app_log_view_num;
 extern int share_fps;
-extern int share_lcd_bridgeness;
+extern int share_lcd_brightness;
 extern int share_time_to_enter_afk;
 extern float share_setting_menu_y_offset;
 extern float share_frame_time_point[270];

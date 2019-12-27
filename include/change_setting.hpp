@@ -1,6 +1,6 @@
 #pragma once
 
-int Change_bridgeness(bool top_screen, bool bottom_screen, int bridgeness);
+int Change_brightness(bool top_screen, bool bottom_screen, int brightness);
 
 int Wifi_disable();
 

@@ -1,21 +1,21 @@
 #include <3ds.h>
 
-int Change_bridgeness(bool top_screen, bool bottom_screen, int bridgeness)
+int Change_brightness(bool top_screen, bool bottom_screen, int brightness)
 {
 	gspLcdInit();
 	Result function_result;
 
 	if (top_screen && bottom_screen)
 	{
-		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_BOTH, bridgeness);
+		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_BOTH, brightness);
 	}
 	else if (top_screen)
 	{
-		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_TOP, bridgeness);
+		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_TOP, brightness);
 	}
 	else if (bottom_screen)
 	{
-		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_BOTTOM, bridgeness);
+		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_BOTTOM, brightness);
 	}
 	else
 	{

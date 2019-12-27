@@ -497,9 +497,9 @@ void Init(void)
 
 	if (!share_setting_load_failed)
 	{
-		share_lcd_bridgeness = stoi(share_setting[2]);
+		share_lcd_brightness = stoi(share_setting[2]);
 		share_time_to_enter_afk = stoi(share_setting[3]);
-		share_afk_lcd_bridgeness = stoi(share_setting[4]);
+		share_afk_lcd_brightness = stoi(share_setting[4]);
 		if (share_setting[5] == "true")
 			share_system_setting_menu_show = true;
 		else
@@ -785,9 +785,9 @@ int main()
 	share_connect_test_thread_run = false;
 
 	share_app_log_num_return = Share_app_log_save("Main/Fs", "Share_save_to_file(Setting.txt)...", 1234567890, true);
-	share_setting[2] = std::to_string(share_lcd_bridgeness);
+	share_setting[2] = std::to_string(share_lcd_brightness);
 	share_setting[3] = std::to_string(share_time_to_enter_afk);
-	share_setting[4] = std::to_string(share_afk_lcd_bridgeness);
+	share_setting[4] = std::to_string(share_afk_lcd_brightness);
 	if (share_system_setting_menu_show)
 		share_setting[5] = "true";
 	else

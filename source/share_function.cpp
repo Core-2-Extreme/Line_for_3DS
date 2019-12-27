@@ -92,7 +92,7 @@ u64 share_thread_exit_time_out = 3000000000; //3s
 
 
 int share_afk_time = 0;
-int share_afk_lcd_bridgeness = 0;
+int share_afk_lcd_brightness = 0;
 int share_app_log_num = 0;
 int share_app_log_view_num_cache = 0;
 int share_num_of_app_start = 0;
@@ -114,7 +114,7 @@ int share_touch_pos_y_move_left = 0;
 
 int share_app_log_view_num = 0;
 int share_fps;
-int share_lcd_bridgeness = 50;
+int share_lcd_brightness = 50;
 int share_time_to_enter_afk = 30;
 int share_sleeped_time = 0;
 float share_setting_menu_y_offset = 0;
@@ -135,7 +135,7 @@ std::string share_square_string = "\u25A0";
 std::string share_circle_string = "\u25CF";
 std::string share_connect_check_url = "https://connectivitycheck.gstatic.com/generate_204";
 std::string share_battery_level_string = "?";
-std::string share_setting[10]; //0 sorce data, 1 language, 2 screen bridgeness when normal, 3 time to enter afk, 4 screen bridgeness when afk , 5 setting menu show, 6 scroll speed, 7 allow send app info, 8 number of app start
+std::string share_setting[10]; //0 sorce data, 1 language, 2 screen brightness when normal, 3 time to enter afk, 4 screen brightness when afk , 5 setting menu show, 6 scroll speed, 7 allow send app info, 8 number of app start
 std::string share_speed_test_ver = "v1.0.1";
 std::string share_google_translation_ver = "v1.0.0";
 std::string share_line_ver = "v1.1.0";
@@ -306,7 +306,7 @@ void Share_update_thread(void* arg)
 		//screen control
 		share_afk_time++;
 		if (share_disabled_enter_afk_mode)
-			Change_bridgeness(true, true, share_lcd_bridgeness);
+			Change_brightness(true, true, share_lcd_brightness);
 		else
 		{
 			if (share_afk_time > (share_time_to_enter_afk + 100))
@@ -314,12 +314,12 @@ void Share_update_thread(void* arg)
 			else if (share_afk_time >= share_time_to_enter_afk)
 			{
 				Change_screen_state(true, true, true);
-				Change_bridgeness(true, true, share_afk_lcd_bridgeness);
+				Change_brightness(true, true, share_afk_lcd_brightness);
 			}
 			else if (share_afk_time <= (share_time_to_enter_afk - 1))
 			{
 				Change_screen_state(true, true, true);
-				Change_bridgeness(true, true, share_lcd_bridgeness);
+				Change_brightness(true, true, share_lcd_brightness);
 			}
 		}
 	}
@@ -587,11 +587,11 @@ void Share_scan_hid(void* arg)
 				else if (share_touch_pos_x >= 60 && share_touch_pos_x <= 130 && share_touch_pos_y >= 10 + share_setting_menu_y_offset && share_touch_pos_y <= 30 + share_setting_menu_y_offset)
 					share_setting[1] = "jp";
 				else if (share_touch_pos_x >= 0 && share_touch_pos_x <= 320 && share_touch_pos_y >= 50 + share_setting_menu_y_offset && share_touch_pos_y <= 70 + share_setting_menu_y_offset)
-					share_lcd_bridgeness = share_touch_pos_x / 2;
+					share_lcd_brightness = share_touch_pos_x / 2;
 				else if (share_touch_pos_x >= 0 && share_touch_pos_x <= 320 && share_touch_pos_y >= 90 + share_setting_menu_y_offset && share_touch_pos_y <= 110 + share_setting_menu_y_offset)
 					share_time_to_enter_afk = share_touch_pos_x * 10;
 				else if (share_touch_pos_x >= 0 && share_touch_pos_x <= 320 && share_touch_pos_y >= 130 + share_setting_menu_y_offset && share_touch_pos_y <= 150 + share_setting_menu_y_offset)
-					share_afk_lcd_bridgeness = share_touch_pos_x / 2;
+					share_afk_lcd_brightness = share_touch_pos_x / 2;
 				else if (share_touch_pos_x >= 0 && share_touch_pos_x <= 320 && share_touch_pos_y >= 170 + share_setting_menu_y_offset && share_touch_pos_y <= 190 + share_setting_menu_y_offset)
 					share_scroll_speed = (double)share_touch_pos_x / 300;
 				else if (share_touch_pos_x >= 0 && share_touch_pos_x <= 64 && share_touch_pos_y >= 210 + share_setting_menu_y_offset && share_touch_pos_y <= 230 + share_setting_menu_y_offset)
@@ -616,8 +616,8 @@ void Share_scan_hid(void* arg)
 			{
 				if (share_touch_pos_x > 0 && share_touch_pos_x < 300 && share_touch_pos_y > 0 && share_touch_pos_y < 30)
 				{
-					share_lcd_bridgeness = (share_touch_pos_x + 20) / 2;
-					Change_bridgeness(true, true, share_lcd_bridgeness);
+					share_lcd_brightness = (share_touch_pos_x + 20) / 2;
+					Change_brightness(true, true, share_lcd_brightness);
 				}
 			}
 			if (kDown & KEY_TOUCH)

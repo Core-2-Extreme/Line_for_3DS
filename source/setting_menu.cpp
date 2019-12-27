@@ -16,9 +16,9 @@ void Setting_menu_main(void)
 	osTickCounterUpdate(&share_total_frame_time);
 
 	setting_string[0] = "Language : " + share_setting[1];
-	setting_string[1] = "Screen bridgeness : " + std::to_string(share_lcd_bridgeness);
+	setting_string[1] = "Screen brightness : " + std::to_string(share_lcd_brightness);
 	setting_string[2] = "Time to enter sleep mode : " + std::to_string(share_time_to_enter_afk / 10) + "s";
-	setting_string[3] = "Screen bridgeness when sleep : " + std::to_string(share_afk_lcd_bridgeness);
+	setting_string[3] = "Screen brightness when sleep : " + std::to_string(share_afk_lcd_brightness);
 	setting_string[5] = "Scroll speed : " + std::to_string(share_scroll_speed);
 	if (share_allow_send_app_info)
 		setting_string[6] = "Allow send app info : allow";
@@ -64,9 +64,9 @@ void Setting_menu_main(void)
 	else
 		Draw("allow", 80.0, 210.0 + share_setting_menu_y_offset, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0);
 
-	Draw_texture(Setting_bar_image, 0, (share_lcd_bridgeness * 2), 55.0 + share_setting_menu_y_offset, 4.0, 20.0);
+	Draw_texture(Setting_bar_image, 0, (share_lcd_brightness * 2), 55.0 + share_setting_menu_y_offset, 4.0, 20.0);
 	Draw_texture(Setting_bar_image, 0, (share_time_to_enter_afk / 10), 95.0 + share_setting_menu_y_offset, 4.0, 20.0);
-	Draw_texture(Setting_bar_image, 0, (share_afk_lcd_bridgeness * 2), 135.0 + share_setting_menu_y_offset, 4.0, 20.0);
+	Draw_texture(Setting_bar_image, 0, (share_afk_lcd_brightness * 2), 135.0 + share_setting_menu_y_offset, 4.0, 20.0);
 	Draw_texture(Setting_bar_image, 0, (share_scroll_speed * 300), 175.0 + share_setting_menu_y_offset, 4.0, 20.0);
 
 	Draw_texture(Background_image, 1, 0.0, 225.0, 320.0, 15.0);
