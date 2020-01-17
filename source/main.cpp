@@ -1,17 +1,17 @@
-#include <3ds.h>
+﻿#include <3ds.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
 #include <stdlib.h>
 #include <string>
 #include "citro2d.h"
-#include "stb_image.h"
 
 #include "draw.hpp"
 #include "file.hpp"
 #include "change_setting.hpp"
 #include "share_function.hpp"
 #include "speedtest.hpp"
+#include "image_viewer.hpp"
 #include "line.hpp"
 #include "setting_menu.hpp"
 #include "google_translation.hpp"
@@ -20,12 +20,13 @@
 
 
 //Debug cache
+
 bool share_wifi_connected = false;
-bool debug_unknown_char = false;
+//bool debug_unknown_char = false;
 
 u32 wifi_connection_succes;
 
-float texture_size_x = 1.0;
+/*float texture_size_x = 1.0;
 float texture_size_y = 1.0;
 float debug_string_x = 0.0;
 float debug_string_y = 0.0;
@@ -35,10 +36,8 @@ int debug_string_length = 0;
 int debug_parse_string_length = 0;
 int debug_sample_num = 0;
 
-char* debug_string_char;
 std::string debug_string;
-std::string debug_part_string[8192];
-
+std::string debug_part_string[8192];*/
 
 //#0020~#007F Invalid #007F
 std::string share_font_english_sample[96] = { "\u0000",
@@ -161,16 +160,16 @@ Handle Share_fs_handle, Share_log_fs_handle;
 FS_Archive Share_fs_archive, Share_log_fs_archive;
 
 //Main menu
-std::string main_menu_menu_string[10] = {"\nLine", "  Google \ntranslation", "    Speed test"};
+std::string main_menu_menu_string[10] = {"Line", "  Google \ntranslation", "    Speed test", "      Image viewer"};
 
 
-Thread bgm_thread, hid_thread, share_update_thread, share_send_app_info_thread;
+Thread hid_thread, share_update_thread, share_send_app_info_thread;
 Result function_result;
 
 Handle music_h;
 FS_Archive music_fs_a;
 /**/
-
+/*
 s32 function_test_as_root(void)
 {
 	//memset((void*)0x1FF81066, 0x0, 0x4);
@@ -260,9 +259,8 @@ void Share_function_test(void)
 			current_text_x_pos += (100 + 10) * texture_size_x / 2;
 		}
 	}
-
 }
-
+*/
 std::string Share_text_sort(std::string sorce_part_string[8192])
 {
 	int arabic_pos = -1;
@@ -326,11 +324,15 @@ void Share_text_parse(std::string sorce_string, std::string part_string[8192])
 
 void Init(void)
 {
+	u8* init_buffer;
+	u32 init_read_size = 0;
 	int init_log_num_return;
 	Result_with_string init_result;
 	init_result.code = 0;
 	init_result.string = "[Success] ";
 	osTickCounterStart(&share_tick_counter_up_time);
+	init_buffer = (u8*)malloc(0x1000);
+	memset(init_buffer, 0x0, 0x1000);
 	Share_app_log_save("Main/Init", "Initializing...", 1234567890, false);
 	Share_app_log_save("Main/Init/ver", share_app_ver, 1234567890, false);
 
@@ -342,8 +344,8 @@ void Init(void)
 
 	Draw_init();
 	Draw_set_draw_mode(1);
-	Draw_screen_ready_to_draw(0, true, 0);
-	Draw_screen_ready_to_draw(1, true, 0);
+	Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
+	Draw_screen_ready_to_draw(1, true, 0, 1.0, 1.0, 1.0);
 
 	osTickCounterStart(&share_total_frame_time);
 
@@ -434,7 +436,7 @@ void Init(void)
 	else
 		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
 
-	init_log_num_return = Share_app_log_save("Main/Init/apt", "APT_SetAppCpuTimeLimit...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init/apt", "APT_SetAppCpuTimeLimit_30...", 1234567890, true);
 	init_result.code = APT_SetAppCpuTimeLimit(30);
 	if (init_result.code == 0)
 	{
@@ -444,8 +446,6 @@ void Init(void)
 		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
 
 	aptSetSleepAllowed(true);
-
-	share_connected_ssid = (char*)malloc(0x200);
 
 	init_log_num_return = Share_app_log_save("Main/Init/nwm", "Wifi_enable...", 1234567890, true);
 	init_result.code = Wifi_enable();
@@ -458,14 +458,11 @@ void Init(void)
 	share_wifi_enabled = true;
 
 	init_log_num_return = Share_app_log_save("Main/Init/fs", "Share_load_from_file...", 1234567890, true);
-	init_result = Share_load_from_file("Setting.txt", "/Line/", Share_fs_handle, Share_fs_archive);
-	if (init_result.code == 0)
-	{
-		share_setting[0] = init_result.string;
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
-	}
-	else
-		Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);
+	init_result = Share_load_from_file("Setting.txt", init_buffer, 0x1000, &init_read_size, "/Line/", Share_fs_handle, Share_fs_archive);
+	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);
+	
+	if(init_result.code == 0)
+		share_setting[0] = (char*)init_buffer;
 
 	for (int i = 0; i <= 7; i++)
 	{
@@ -497,9 +494,9 @@ void Init(void)
 
 	if (!share_setting_load_failed)
 	{
-		share_lcd_bridgeness = stoi(share_setting[2]);
+		share_lcd_brightness = stoi(share_setting[2]);
 		share_time_to_enter_afk = stoi(share_setting[3]);
-		share_afk_lcd_bridgeness = stoi(share_setting[4]);
+		share_afk_lcd_brightness = stoi(share_setting[4]);
 		if (share_setting[5] == "true")
 			share_system_setting_menu_show = true;
 		else
@@ -537,8 +534,8 @@ void Init(void)
 	init_result = Draw_load_texture("romfs:/gfx/battery_charge.t3x", Battery_charge_icon_texture, Battery_charge_icon_image, 1);
 	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);
 
-	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (bar.t3x)...", 1234567890, true);
-	init_result = Draw_load_texture("romfs:/gfx/bar.t3x", Setting_bar_texture, Setting_bar_image, 1);
+	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (common.t3x)...", 1234567890, true);
+	init_result = Draw_load_texture("romfs:/gfx/common.t3x", Square_texture, Square_image, 14);
 	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);
 
 	/*
@@ -555,8 +552,6 @@ void Init(void)
 	memset(wifi_state, 0xff, 0x1);
 	wifi_state_internet_sample = (u8*)malloc(0x1);
 	memset(wifi_state_internet_sample, 0x2, 0x1);
-	debug_string_char = (char*)malloc(0x2048);
-	memset(debug_string_char, 0x0, 0x2048);
 
 	if (share_allow_send_app_info)
 	{
@@ -569,6 +564,7 @@ void Init(void)
 			}
 		}
 	}
+	free(init_buffer);
 
 	Share_app_log_save("Main/Init", "Initialized.", 1234567890, false);
 }
@@ -580,7 +576,7 @@ int main()
 	// Main loop
 	while (aptMainLoop())
 	{
-		hid_disabled = false;
+		share_hid_disabled = false;
 		share_app_log_x = app_log_x_cache;
 		share_app_log_view_num = share_app_log_view_num_cache;
 		Share_get_system_info();
@@ -589,8 +585,31 @@ int main()
 		
 		if (share_menu_main_run)
 		{
-			Draw_set_draw_mode(1);
-			Draw_screen_ready_to_draw(0, true, 1);			
+			float text_red;
+			float text_green;
+			float text_blue;
+			float text_alpha;
+
+			if (share_night_mode)
+			{
+				text_red = 1.0f;
+				text_green = 1.0f;
+				text_blue = 1.0f;
+				text_alpha = 0.75f;
+			}
+			else
+			{
+				text_red = 0.0f;
+				text_green = 0.0f;
+				text_blue = 0.0f;
+				text_alpha = 1.0f;
+			}
+
+			Draw_set_draw_mode(share_draw_vsync_mode);
+			if (share_night_mode)
+				Draw_screen_ready_to_draw(0, true, 1, 0.0, 0.0, 0.0);
+			else
+				Draw_screen_ready_to_draw(0, true, 1, 1.0, 1.0, 1.0);
 
 			Draw_texture(Background_image, 0, 0.0, 0.0, 400.0, 15.0);
 			Draw_texture(Wifi_icon_image, share_wifi_signal, 360.0, 0.0, 15.0, 15.0);
@@ -600,42 +619,54 @@ int main()
 			Draw(share_status, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
 			Draw(share_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
 
-			/*Draw("Key A press : " + std::to_string(share_key_A_press) + " Key A held : " + std::to_string(share_key_A_held), 0.0, 50.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			Draw("Key B press : " + std::to_string(share_key_B_press) + " Key B held : " + std::to_string(share_key_B_held), 0.0, 60.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			Draw("Key X press : " + std::to_string(share_key_X_press) + " Key X held : " + std::to_string(share_key_X_held), 0.0, 70.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			Draw("Key Y press : " + std::to_string(share_key_Y_press) + " Key Y held : " + std::to_string(share_key_Y_held), 0.0, 80.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			Draw("Key CPAD DOWN held : " + std::to_string(share_key_CPAD_DOWN_held) + " Key CPAD UP held : " + std::to_string(share_key_CPAD_UP_held), 0.0, 90.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			Draw("Key CPAD RIGHT held : " + std::to_string(share_key_CPAD_RIGHT_held) + " Key CPAD LEFT held : " + std::to_string(share_key_CPAD_LEFT_held), 0.0, 100.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			Draw("Touch pos x : " + std::to_string(share_touch_pos_x) + " Touch pos y : " + std::to_string(share_touch_pos_y), 0.0, 110.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			Draw("X moved value : " + std::to_string(share_touch_pos_x_moved) + " Y moved value : " + std::to_string(share_touch_pos_y_moved), 0.0, 120.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			Draw("Held time : " + std::to_string(share_held_time), 0.0, 130.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			Draw("Drawing time : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 160.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			*/
-
+			if (share_debug_mode)
+			{
+				Draw_texture(Square_image, 9, 0.0, 50.0, 230.0, 140.0);
+				Draw("Key A press : " + std::to_string(share_key_A_press) + " Key A held : " + std::to_string(share_key_A_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key B press : " + std::to_string(share_key_B_press) + " Key B held : " + std::to_string(share_key_B_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key X press : " + std::to_string(share_key_X_press) + " Key X held : " + std::to_string(share_key_X_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key Y press : " + std::to_string(share_key_Y_press) + " Key Y held : " + std::to_string(share_key_Y_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key CPAD DOWN held : " + std::to_string(share_key_CPAD_DOWN_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key CPAD RIGHT held : " + std::to_string(share_key_CPAD_RIGHT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key CPAD UP held : " + std::to_string(share_key_CPAD_UP_held), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key CPAD LEFT held : " + std::to_string(share_key_CPAD_LEFT_held), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Touch pos x : " + std::to_string(share_touch_pos_x) + " Touch pos y : " + std::to_string(share_touch_pos_y), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("X moved value : " + std::to_string(share_touch_pos_x_moved) + " Y moved value : " + std::to_string(share_touch_pos_y_moved), 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Held time : " + std::to_string(share_held_time), 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Drawing time(CPU/per frame) : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Drawing time(GPU/per frame) : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0.0, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Free RAM (estimate) " + std::to_string(share_free_ram) + " MB", 0.0f, 180.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+			}
 			if (share_app_logs_show)
 			{
-				int y_i = 0;
-				for (int i = share_app_log_view_num; i < share_app_log_view_num + 23; i++)
-				{
-					Draw(share_app_logs[i], share_app_log_x, 10.0f + (y_i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
-					y_i++;
-				}
+				for (int i = 0; i < 23; i++)
+					Draw(share_app_logs[share_app_log_view_num + i], share_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
 			}
 
-			Draw_screen_ready_to_draw(1, true, 1);
-			Draw(debug_string, debug_legacy_string_x + 0.0, debug_legacy_string_y + 150.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+			if (share_night_mode)
+				Draw_screen_ready_to_draw(1, true, 1, 0.0, 0.0, 0.0);
+			else
+				Draw_screen_ready_to_draw(1, true, 1, 1.0, 1.0, 1.0);
+			//Draw(debug_string, debug_legacy_string_x + 0.0, debug_legacy_string_y + 150.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0);
 
-			Share_function_test();
+			for (int i = 0; i <= 3; i++)
+				Draw_texture(Square_image, 11, (80.0 * i), 0.0, 60.0, 60.0);
 
-			//menu draw
-			for (int i = 0; i <= 2; i++)
-			{
-				Draw("■", -5.0 + (i * 80), -15.0, 3.0, 3.0, 0.0, 0.0, 0.0, 0.25);
-				Draw(main_menu_menu_string[i], 20.0 + (i * 65), 17.5, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			}
+			Draw(main_menu_menu_string[0], 20.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			Draw(main_menu_menu_string[1], 85.0, 15.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			Draw(main_menu_menu_string[2], 150.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			Draw(main_menu_menu_string[3], 215.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+
+
 			Draw("■", 252.5, 162.5, 3.0, 3.0, 0.0, 0.0, 0.0, 0.25);
-			Draw("Setting", 270.0, 205.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
+			Draw("Setting", 270.0, 205.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 			
+			if(share_line_already_init)
+				Draw("X", 50.0, 0.0, 0.65, 0.5, 1.0, 0.0, 0.0, 0.5);
+
+			if (share_image_viewer_already_init)
+				Draw("X", 290.0, 0.0, 0.65, 0.5, 1.0, 0.0, 0.0, 0.5);
+
 			Draw_texture(Background_image, 1, 0.0, 225.0, 320.0, 15.0);
 			Draw(share_bot_button_string, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
 
@@ -647,7 +678,7 @@ int main()
 			osTickCounterUpdate(&share_total_frame_time);
 			share_frame_time_point[0] = osTickCounterRead(&share_total_frame_time);	
 
-			if (share_key_DUP_held)
+			/*if (share_key_DUP_held)
 				debug_string_y -= 1.0;
 			else if (share_key_DDOWN_held)
 				debug_string_y += 1.0;
@@ -675,9 +706,6 @@ int main()
 				debug_legacy_string_x += 5.0;
 			else if (share_key_CPAD_LEFT_held)
 				debug_legacy_string_x -= 5.0;
-
-			if (share_key_X_press)
-				Line_exit();
 
 			if (share_key_A_press)
 			{
@@ -710,8 +738,8 @@ int main()
 				swkbdSetLearningData(&share_swkb, &share_swkb_learn_data, true, true);
 				swkbdInputText(&share_swkb, share_swkb_input_text, 1024);
 				debug_string = share_swkb_input_text;
-			}
-			else if (share_key_ZL_press)
+			}*/
+			if (share_key_SELECT_press)
 			{
 				if (share_app_logs_show)
 					share_app_logs_show = false;
@@ -724,8 +752,10 @@ int main()
 					break;
 			}
 			else if (share_key_touch_press)
-			{
-				if (share_touch_pos_x > 0 && share_touch_pos_x < 55 && share_touch_pos_y > 0 && share_touch_pos_y < 60)
+			{				
+				if (share_touch_pos_x > 50 && share_touch_pos_x < 60 && share_touch_pos_y > 0 && share_touch_pos_y < 10 && share_line_already_init)
+					Line_exit();
+				else if (share_touch_pos_x > 0 && share_touch_pos_x < 60 && share_touch_pos_y > 0 && share_touch_pos_y < 60)
 				{
 					share_line_thread_suspend = false;
 					share_line_main_run = true;
@@ -733,25 +763,31 @@ int main()
 					if (!share_line_already_init)
 						Line_init();
 				}
-				else if (share_touch_pos_x > 80 && share_touch_pos_x < 135 && share_touch_pos_y > 0 && share_touch_pos_y < 60)
+				else if (share_touch_pos_x > 80 && share_touch_pos_x < 140 && share_touch_pos_y > 0 && share_touch_pos_y < 60)
 				{
 					share_google_tr_thread_suspend = false;
 					share_google_tr_main_run = true;
 					share_menu_main_run = false;
 					if (!share_google_tr_already_init)
-					{
-						Share_app_log_save("Google tr/init", "Initializing...", 1234567890, true);
 						Google_tr_init();
-						Share_app_log_save("Google tr/init", "Initialized", 1234567890, true);
-					}
 				}
-				else if (share_touch_pos_x > 160 && share_touch_pos_x < 215 && share_touch_pos_y > 0 && share_touch_pos_y < 60)
+				else if (share_touch_pos_x > 160 && share_touch_pos_x < 220 && share_touch_pos_y > 0 && share_touch_pos_y < 60)
 				{
 					share_speed_test_thread_suspend = false;
 					share_speed_test_main_run = true;
 					share_menu_main_run = false;
 					if (!share_speed_test_already_init)
 						Speed_test_init();
+				}
+				else if (share_touch_pos_x > 290 && share_touch_pos_x < 300 && share_touch_pos_y > 0 && share_touch_pos_y < 10 && share_image_viewer_already_init)
+					Image_viewer_exit();
+				else if (share_touch_pos_x > 240 && share_touch_pos_x < 300 && share_touch_pos_y > 0 && share_touch_pos_y < 60)
+				{
+					share_image_viewer_thread_suspend = false;
+					share_image_viewer_main_run = true;
+					share_menu_main_run = false;
+					if (!share_image_viewer_already_init)
+						Image_viewer_init();
 				}
 				else if (share_touch_pos_x > 250 && share_touch_pos_x < 320 && share_touch_pos_y > 175 && share_touch_pos_y < 240)
 				{
@@ -768,26 +804,30 @@ int main()
 			Setting_menu_main();
 		else if (share_speed_test_main_run)
 			Speed_test_main();
+		else if (share_image_viewer_main_run)
+			Image_viewer_main();
 
 		Share_key_flag_reset();
-		hid_disabled = true;
+		share_hid_disabled = true;
 	}
+
+	if (share_line_already_init)
+		Line_exit();
+	if (share_image_viewer_already_init)
+		Image_viewer_exit();
 
 	Result_with_string exit_result;
 
-	u64 time_out = 3000000000; //3s
+	u64 time_out = 5000000000; //5s
 	share_line_thread_suspend = false;
 	share_google_tr_tr_thread_run = false;
-	//share_line_update_thread_run = false;
-	//share_line_message_send_thread_run = false;
-	//share_line_log_download_thread_run = false;
 	share_hid_thread_run = false;
 	share_connect_test_thread_run = false;
 
 	share_app_log_num_return = Share_app_log_save("Main/Fs", "Share_save_to_file(Setting.txt)...", 1234567890, true);
-	share_setting[2] = std::to_string(share_lcd_bridgeness);
+	share_setting[2] = std::to_string(share_lcd_brightness);
 	share_setting[3] = std::to_string(share_time_to_enter_afk);
-	share_setting[4] = std::to_string(share_afk_lcd_bridgeness);
+	share_setting[4] = std::to_string(share_afk_lcd_brightness);
 	if (share_system_setting_menu_show)
 		share_setting[5] = "true";
 	else
@@ -802,7 +842,7 @@ int main()
 
 	share_setting[0] = "<0" + share_setting[1] + "0>" + "<1" + share_setting[2] + "1>" + "<2" + share_setting[3] + "2>" + "<3" + share_setting[4] + "3>"
 		+ "<4" + share_setting[5] + "4>" + "<5" + share_setting[6] + "5>" + "<6" + share_setting[7] + "6>" + "<7" + share_setting[8] + "7>";
-	exit_result = Share_save_to_file("Setting.txt", share_setting[0], "/Line/", true, Share_fs_handle, Share_fs_archive);
+	exit_result = Share_save_to_file("Setting.txt", (u8*)share_setting[0].c_str(), share_setting[0].length(), "/Line/", true, Share_fs_handle, Share_fs_archive);
 	Share_app_log_add_result(share_app_log_num_return, exit_result.string, exit_result.code, true);
 
 	//exit

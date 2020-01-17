@@ -19,6 +19,7 @@ void Draw(std::string text, float x, float y, float text_size_x, float text_size
 
 Result_with_string Draw_load_texture(std::string file_name, C2D_SpriteSheet sheet_texture, C2D_Image return_image[], int num_of_array)
 {
+	size_t num_of_images;
 	bool function_fail = false;
 	Result_with_string load_texture_result;
 	load_texture_result.code = 0;
@@ -34,8 +35,21 @@ Result_with_string Draw_load_texture(std::string file_name, C2D_SpriteSheet shee
 
 	if (!function_fail)
 	{
+		num_of_images = C2D_SpriteSheetCount(sheet_texture);
+		if ((int)num_of_images < num_of_array)
+		{
+			load_texture_result.code = -2;
+			load_texture_result.string = "[Error] num_of_arry " + std::to_string(num_of_array) + " is bigger than spritesheet has num of image(s) " + std::to_string(num_of_images) + " ";
+			function_fail = true;
+		}
+	}
+
+	if (!function_fail)
+	{
 		for (int i = 0; i <= (num_of_array - 1); i++)
+		{
 			return_image[i] = C2D_SpriteSheetGetImage(sheet_texture, i);
+		}
 	}
 
 	return load_texture_result;
@@ -108,7 +122,7 @@ void Draw_set_draw_mode(int mode)
 		C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 }
 
-void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_ver)
+void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_ver, float red, float green, float blue)
 {
 	if (screen == 0)
 	{
@@ -116,9 +130,9 @@ void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_v
 		if (screen_clear)
 		{
 			if (screen_clear_ver == 1)
-				Draw(screen_clear_text, -30.0, -100.0, 20.0, 17.5, 1.0, 1.0, 1.0, 1.0);
+				Draw(screen_clear_text, -30.0, -100.0, 20.0, 17.5, red, green, blue, 1.0);
 			else
-				C2D_TargetClear(Screen_top_, C2D_Color32f(0, 0, 0, 0));
+				C2D_TargetClear(Screen_top_, C2D_Color32f(red, green, blue, 0));
 		}
 			
 	}
@@ -128,9 +142,9 @@ void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_v
 		if (screen_clear)
 		{
 			if (screen_clear_ver == 1)
-				Draw(screen_clear_text, -30.0, -100.0, 20.0, 17.5, 1.0, 1.0, 1.0, 1.0);
+				Draw(screen_clear_text, -30.0, -100.0, 20.0, 17.5, red, green, blue, 1.0);
 			else
-				C2D_TargetClear(Screen_bot_, C2D_Color32f(0, 0, 0, 0));
+				C2D_TargetClear(Screen_bot_, C2D_Color32f(red, green, blue, 0));
 		}
 	}
 }

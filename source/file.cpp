@@ -4,16 +4,23 @@
 #include <stdlib.h>
 #include "share_function.hpp"
 
-char read_data[0x800000];
-
-Result_with_string Share_save_to_file(std::string file_name, std::string data, std::string dir_path, bool over_write, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string Share_save_to_file(std::string file_name, u8* write_data, int size, std::string dir_path, bool over_write, Handle fs_handle, FS_Archive fs_archive)
 {
+	u8* read_data;
 	u32 written_size = 0;
 	u32 read_size = 0;
 	bool function_fail = false;
 	std::string file_path = dir_path + file_name;
-	memset(read_data, 0x0, strlen(read_data));
 	Result_with_string save_file_result;
+
+	if (!over_write)
+	{
+		read_data = (u8*)malloc(0x300000);
+		memset(read_data, 0x0, 0x300000);
+	}
+	else
+		read_data = NULL;
+
 	save_file_result.code = 0;
 	save_file_result.string = "[Success] ";
 
@@ -64,7 +71,7 @@ Result_with_string Share_save_to_file(std::string file_name, std::string data, s
 	{
 		if (!over_write)
 		{
-			save_file_result.code = FSFILE_Read(fs_handle, &read_size, 0, read_data, 0x800000);
+			save_file_result.code = FSFILE_Read(fs_handle, &read_size, 0, read_data, 0x300000);
 			if (save_file_result.code != 0)
 			{
 				read_size = 0;
@@ -76,7 +83,7 @@ Result_with_string Share_save_to_file(std::string file_name, std::string data, s
 
 	if (!function_fail)
 	{
-		save_file_result.code = FSFILE_Write(fs_handle, &written_size, read_size, data.c_str(), data.length(), FS_WRITE_FLUSH);
+		save_file_result.code = FSFILE_Write(fs_handle, &written_size, read_size, write_data, size, FS_WRITE_FLUSH);
 		if (save_file_result.code != 0)
 		{
 			save_file_result.string = "[Error] FSFILE_Write failed. ";
@@ -85,19 +92,19 @@ Result_with_string Share_save_to_file(std::string file_name, std::string data, s
 	}
 	
 	FSFILE_Close(fs_handle);
+	free(read_data);
+	read_data = NULL;
 
 	return save_file_result;
 }
 
-Result_with_string Share_load_from_file(std::string file_name, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string Share_load_from_file(std::string file_name, u8* read_data, int max_size, u32* read_size, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
 {
-	u32 read_size = 0;
 	bool function_fail = false;
 	std::string file_path = dir_path + file_name;
 	Result_with_string load_file_result;
 	load_file_result.code = 0;
 	load_file_result.string = "";
-	memset(read_data, 0x0, strlen(read_data));
 
 	load_file_result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if (load_file_result.code != 0)
@@ -118,14 +125,12 @@ Result_with_string Share_load_from_file(std::string file_name, std::string dir_p
 	
 	if (!function_fail)
 	{
-		load_file_result.code = FSFILE_Read(fs_handle, &read_size, 0, read_data, 0x800000);
+		load_file_result.code = FSFILE_Read(fs_handle, read_size, 0, read_data, max_size);
 		if (load_file_result.code != 0)
 		{
 			load_file_result.string = "[Error] FSFILE_Read failed. ";
 			function_fail = true;
 		}
-		else
-			load_file_result.string = read_data;
 	}
 
 	FSFILE_Close(fs_handle);

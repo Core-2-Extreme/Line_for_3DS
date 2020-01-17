@@ -27,14 +27,33 @@ void Speed_test_init(void)
 
 void Speed_test_main(void)
 {
-	//using UTF-8 value to prevent garbled
-	std::string speed_test_data_size_string[8] = { "\u30C7\u30FC\u30BF\u91CF\u9078\u629E", "\u7D041MB\u304C\u8CBB\u3084\u3055\u308C\u307E\u3059",  "\u7D042MB\u304C\u8CBB\u3084\u3055\u308C\u307E\u3059", "\u7D044MB\u304C\u8CBB\u3084\u3055\u308C\u307E\u3059", "\u7D048MB\u304C\u8CBB\u3084\u3055\u308C\u307E\u3059", "\u7D0415MB\u304C\u8CBB\u3084\u3055\u308C\u307E\u3059", "\u7D0430MB\u304C\u8CBB\u3084\u3055\u308C\u307E\u3059", "\u7D0460MB\u304C\u8CBB\u3084\u3055\u308C\u307E\u3059" };
-	std::string speed_test_start_string = "\u958B\u59CB";
+	float text_red;
+	float text_green;
+	float text_blue;
+	float text_alpha;
+
+	if (share_night_mode)
+	{
+		text_red = 1.0f;
+		text_green = 1.0f;
+		text_blue = 1.0f;
+		text_alpha = 0.75f;
+	}
+	else
+	{
+		text_red = 0.0f;
+		text_green = 0.0f;
+		text_blue = 0.0f;
+		text_alpha = 1.0f;
+	}
 
 	osTickCounterUpdate(&share_total_frame_time);
 
-	Draw_set_draw_mode(1);
-	Draw_screen_ready_to_draw(0, true, 1);
+	Draw_set_draw_mode(share_draw_vsync_mode);
+	if (share_night_mode)
+		Draw_screen_ready_to_draw(0, true, 1, 0.0, 0.0, 0.0);
+	else
+		Draw_screen_ready_to_draw(0, true, 1, 1.0, 1.0, 1.0);
 
 	Draw_texture(Background_image, 0, 0.0, 0.0, 400.0, 15.0);
 	Draw_texture(Wifi_icon_image, share_wifi_signal, 360.0, 0.0, 15.0, 15.0);
@@ -44,22 +63,74 @@ void Speed_test_main(void)
 	Draw(share_status, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
 	Draw(share_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
 
-	Draw("Downloaded size : " + std::to_string(speed_test_total_download_size / (1024 * 1024)) + "MB(" + std::to_string(speed_test_total_download_size / 1024) + "KB)", 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-	Draw("Download time : " + std::to_string(speed_test_total_download_time) + " ms", 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-	Draw("Speed : " + std::to_string((speed_test_test_result / (1024 * 1024)) * 8) + "Mbps", 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
-
-	Draw_screen_ready_to_draw(1, true, 1);
-	Draw(share_speed_test_ver, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
-	Draw(speed_test_data_size_string[0], 107.5, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
-
-	for (int i = 1; i <= 7; i++)
+	if (share_setting[1] == "en")
 	{
-		if ((speed_test_data_size + 1) == i)
-			Draw(speed_test_data_size_string[i], 100.0, 20.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
-		else
-			Draw(speed_test_data_size_string[i], 100.0, 20.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
+		Draw(share_speedtest_message_en[0] + std::to_string(speed_test_total_download_size / (1024 * 1024)) + "MB(" + std::to_string(speed_test_total_download_size / 1024) + "KB)", 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(share_speedtest_message_en[1] + std::to_string(speed_test_total_download_time) + " ms", 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(share_speedtest_message_en[2] + std::to_string((speed_test_test_result / (1024 * 1024)) * 8) + "Mbps", 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
 	}
-	Draw(speed_test_start_string, 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+	else if (share_setting[1] == "jp")
+	{
+		Draw(share_speedtest_message_jp[0] + std::to_string(speed_test_total_download_size / (1024 * 1024)) + "MB(" + std::to_string(speed_test_total_download_size / 1024) + "KB)", 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(share_speedtest_message_jp[1] + std::to_string(speed_test_total_download_time) + " ms", 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(share_speedtest_message_jp[2] + std::to_string((speed_test_test_result / (1024 * 1024)) * 8) + "Mbps", 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
+	}
+
+	if (share_debug_mode)
+	{
+		Draw_texture(Square_image, 9, 0.0, 50.0, 230.0, 140.0);
+		Draw("Key A press : " + std::to_string(share_key_A_press) + " Key A held : " + std::to_string(share_key_A_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key B press : " + std::to_string(share_key_B_press) + " Key B held : " + std::to_string(share_key_B_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key X press : " + std::to_string(share_key_X_press) + " Key X held : " + std::to_string(share_key_X_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key Y press : " + std::to_string(share_key_Y_press) + " Key Y held : " + std::to_string(share_key_Y_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD DOWN held : " + std::to_string(share_key_CPAD_DOWN_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD RIGHT held : " + std::to_string(share_key_CPAD_RIGHT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD UP held : " + std::to_string(share_key_CPAD_UP_held), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD LEFT held : " + std::to_string(share_key_CPAD_LEFT_held), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Touch pos x : " + std::to_string(share_touch_pos_x) + " Touch pos y : " + std::to_string(share_touch_pos_y), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("X moved value : " + std::to_string(share_touch_pos_x_moved) + " Y moved value : " + std::to_string(share_touch_pos_y_moved), 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Held time : " + std::to_string(share_held_time), 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Drawing time(CPU/per frame) : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Drawing time(GPU/per frame) : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0.0, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Free RAM (estimate) " + std::to_string(share_free_ram) + " MB", 0.0f, 180.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+	}
+	if (share_app_logs_show)
+	{
+		for (int i = 0; i < 23; i++)
+			Draw(share_app_logs[share_app_log_view_num + i], share_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
+	}
+
+	if (share_night_mode)
+		Draw_screen_ready_to_draw(1, true, 1, 0.0, 0.0, 0.0);
+	else
+		Draw_screen_ready_to_draw(1, true, 1, 1.0, 1.0, 1.0);
+
+	Draw(share_speed_test_ver, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
+
+	if (share_setting[1] == "en")
+	{
+		Draw(share_speedtest_message_en[3], 70.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
+		for (int i = 1; i <= 7; i++)
+		{
+			if ((speed_test_data_size + 1) == i)
+				Draw(share_speedtest_message_en[3 + i], 125.0, 20.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
+			else
+				Draw(share_speedtest_message_en[3 + i], 125.0, 20.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
+		}
+		Draw(share_speedtest_message_en[11], 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+	}
+	else if (share_setting[1] == "jp")
+	{
+		Draw(share_speedtest_message_jp[3], 75.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
+		for (int i = 1; i <= 7; i++)
+		{
+			if ((speed_test_data_size + 1) == i)
+				Draw(share_speedtest_message_jp[3 + i], 135.0, 20.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
+			else
+				Draw(share_speedtest_message_jp[3 + i], 135.0, 20.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
+		}
+		Draw(share_speedtest_message_jp[11], 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+	}
 
 	Draw_texture(Background_image, 1, 0.0, 225.0, 320.0, 15.0);
 	Draw(share_bot_button_string, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
@@ -98,6 +169,8 @@ void Speed_test_main(void)
 
 void Speed_test_network(void* arg)
 {
+	Share_app_log_save("Speedtest/Speedtest thread", "Thread started.", 1234567890, false);
+
 	u8* speed_test_httpc_buffer;
 	u32 speed_test_download_size_u32;
 	int speed_test_log_num_return;
@@ -158,7 +231,7 @@ void Speed_test_network(void* arg)
 				if(!function_fail)
 				{
 					httpcAddRequestHeaderField(&speed_test_httpc, "Connection", "Keep-Alive");
-					httpcAddRequestHeaderField(&speed_test_httpc, "User-Agent", " Mozilla/5.0 (iPhone; CPU iPhone OS 7_1_2 like Mac OS X) AppleWebKit/537.51.2 (KHTML, like Gecko) Version/7.0 Mobile/11D257 Safari/9537.53");
+					httpcAddRequestHeaderField(&speed_test_httpc, "User-Agent", share_httpc_user_agent.c_str());
 					httpcAddRequestHeaderField(&speed_test_httpc, "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3");
 					httpcAddRequestHeaderField(&speed_test_httpc, "Accept-Encoding", "en,en-US;q=1,ja;q=0.9");
 					httpcAddRequestHeaderField(&speed_test_httpc, "Accept-Language", "gzip, deflate, br");
@@ -189,12 +262,13 @@ void Speed_test_network(void* arg)
 				speed_test_test_result = speed_test_total_download_size / (speed_test_total_download_time / 1000);
 
 				httpcCloseContext(&speed_test_httpc);
-				Share_app_log_add_result(speed_test_log_num_return, speed_test_result.string, speed_test_result.code, true);
+				Share_app_log_add_result(speed_test_log_num_return, speed_test_result.string, speed_test_result.code, false);
 			}
 			speed_test_start_request = false;
 			free(speed_test_httpc_buffer);
 		}
 	}
+	Share_app_log_save("Speedtest/Speedtest thread", "Thread exit.", 1234567890, false);
 }
 
 void Speed_test_exit(void)
@@ -202,4 +276,3 @@ void Speed_test_exit(void)
 	share_speed_test_already_init = false;
 	share_speed_test_thread_run = false;
 }
-//191

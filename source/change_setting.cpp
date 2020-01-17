@@ -1,26 +1,18 @@
 #include <3ds.h>
 
-int Change_bridgeness(bool top_screen, bool bottom_screen, int bridgeness)
+int Change_brightness(bool top_screen, bool bottom_screen, int brightness)
 {
 	gspLcdInit();
 	Result function_result;
 
 	if (top_screen && bottom_screen)
-	{
-		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_BOTH, bridgeness);
-	}
+		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_BOTH, brightness);
 	else if (top_screen)
-	{
-		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_TOP, bridgeness);
-	}
+		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_TOP, brightness);
 	else if (bottom_screen)
-	{
-		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_BOTTOM, bridgeness);
-	}
+		function_result = GSPLCD_SetBrightnessRaw(GSPLCD_SCREEN_BOTTOM, brightness);
 	else
-	{
 		function_result = -1;
-	}
 
 	gspLcdExit();
 	return function_result;
@@ -56,40 +48,26 @@ int Change_screen_state(bool top_screen, bool bottom_screen, bool state)
 	if (top_screen && bottom_screen)
 	{
 		if (state)
-		{
 			function_result = GSPLCD_PowerOnBacklight(GSPLCD_SCREEN_BOTH);
-		}
 		else
-		{
 			function_result = GSPLCD_PowerOffBacklight(GSPLCD_SCREEN_BOTH);
-		}
 	}
 	else if (top_screen)
 	{
 		if (state)
-		{
 			function_result = GSPLCD_PowerOnBacklight(GSPLCD_SCREEN_TOP);
-		}
 		else
-		{
 			function_result = GSPLCD_PowerOffBacklight(GSPLCD_SCREEN_TOP);
-		}
 	}
 	else if (bottom_screen)
 	{
 		if (state)
-		{
 			function_result = GSPLCD_PowerOnBacklight(GSPLCD_SCREEN_BOTTOM);
-		}
 		else
-		{
 			function_result = GSPLCD_PowerOffBacklight(GSPLCD_SCREEN_BOTTOM);
-		}
 	}
 	else
-	{
 		function_result = -1;
-	}
 
 	gspLcdExit();
 	return function_result;

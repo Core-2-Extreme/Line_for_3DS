@@ -18,6 +18,8 @@ Thread google_tr_translation_thread;
 
 void Google_tr_translation(void* arg)
 {
+	Share_app_log_save("Google tr/Thread", "Google tr translation thread started.", 1234567890, false);
+
 	u8* google_tr_httpc_buffer;
 	u32 google_tr_download_size;
 	char* google_tr_moved_url;
@@ -29,7 +31,6 @@ void Google_tr_translation(void* arg)
 	google_tr_httpc_buffer = (u8*)malloc(0x10000);
 	google_tr_moved_url = (char*)malloc(0x500);
 
-	Share_app_log_save("Google tr/Thread", "Google tr translation thread start", 1234567890, true);
 	while (share_google_tr_tr_thread_run)
 	{
 		if (share_google_tr_thread_suspend)
@@ -44,7 +45,7 @@ void Google_tr_translation(void* arg)
 			httpcSetKeepAlive(&httpc_google_tr, HTTPC_KEEPALIVE_ENABLED);
 			httpcAddRequestHeaderField(&httpc_google_tr, "Connection", "Keep-Alive");
 			httpcAddRequestHeaderField(&httpc_google_tr, "Content-Type", "application/json");
-			httpcAddRequestHeaderField(&httpc_google_tr, "User-Agent", "Google trnslation for 3DS v1.0.0");
+			httpcAddRequestHeaderField(&httpc_google_tr, "User-Agent", share_httpc_user_agent.c_str());
 			httpcAddPostDataRaw(&httpc_google_tr, (u32*)google_tr_send_data, strlen(google_tr_send_data));
 			google_tr_function_result = httpcBeginRequest(&httpc_google_tr);
 			if(google_tr_function_result != 0)
@@ -60,7 +61,7 @@ void Google_tr_translation(void* arg)
 			httpcSetSSLOpt(&httpc_google_tr, SSLCOPT_DisableVerify);
 			httpcSetKeepAlive(&httpc_google_tr, HTTPC_KEEPALIVE_ENABLED);
 			httpcAddRequestHeaderField(&httpc_google_tr, "Connection", "Keep-Alive");
-			httpcAddRequestHeaderField(&httpc_google_tr, "User-Agent", "Google trnslation for 3DS v1.0.0");
+			httpcAddRequestHeaderField(&httpc_google_tr, "User-Agent", share_httpc_user_agent.c_str());
 			google_tr_function_result = httpcBeginRequest(&httpc_google_tr);
 			if (google_tr_function_result != 0)
 				Share_app_log_save("Google tr/Network", "httpcBeginRequest=", google_tr_function_result, false);
@@ -80,14 +81,16 @@ void Google_tr_translation(void* arg)
 		}
 		usleep(100000);
 	}
-	Share_app_log_save("Google tr/Thread", "Google tr translation thread exit", 1234567890, true);
+	Share_app_log_save("Google tr/Thread", "Google tr translation thread exit.", 1234567890, false);
 }
 
 void Google_tr_init(void)
 {
-	share_google_tr_already_init = true;
+	Share_app_log_save("Google tr/init", "Initializing...", 1234567890, true);
 	share_google_tr_tr_thread_run = true;
 	google_tr_translation_thread = threadCreate(Google_tr_translation, (void*)(""), STACKSIZE, 0x26, -1, true);
+	share_google_tr_already_init = true;
+	Share_app_log_save("Google tr/init", "Initialized", 1234567890, true);
 }
 
 void Google_tr_exit(void)
@@ -102,9 +105,32 @@ void Google_tr_exit(void)
 
 void Google_translation_main(void)
 {
+	float text_red;
+	float text_green;
+	float text_blue;
+	float text_alpha;
+
+	if (share_night_mode)
+	{
+		text_red = 1.0f;
+		text_green = 1.0f;
+		text_blue = 1.0f;
+		text_alpha = 0.75f;
+	}
+	else
+	{
+		text_red = 0.0f;
+		text_green = 0.0f;
+		text_blue = 0.0f;
+		text_alpha = 1.0f;
+	}
+
 	osTickCounterUpdate(&share_total_frame_time);
-	Draw_set_draw_mode(1);
-	Draw_screen_ready_to_draw(0, true, 1);
+	Draw_set_draw_mode(share_draw_vsync_mode);
+	if (share_night_mode)
+		Draw_screen_ready_to_draw(0, true, 1, 0.0, 0.0, 0.0);
+	else
+		Draw_screen_ready_to_draw(0, true, 1, 1.0, 1.0, 1.0);
 
 	Draw_texture(Background_image, 0, 0.0, 0.0, 400.0, 15.0);
 	Draw_texture(Wifi_icon_image, share_wifi_signal, 360.0, 0.0, 15.0, 15.0);
@@ -115,13 +141,35 @@ void Google_translation_main(void)
 	Draw(share_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
 
 	Draw(google_tr_history[google_tr_current_history_num], google_tr_text_x, 20.0, 0.45, 0.45, 0.25, 0.0, 0.5, 1.0);
+	if (share_debug_mode)
+	{
+		Draw_texture(Square_image, 9, 0.0, 50.0, 230.0, 140.0);
+		Draw("Key A press : " + std::to_string(share_key_A_press) + " Key A held : " + std::to_string(share_key_A_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key B press : " + std::to_string(share_key_B_press) + " Key B held : " + std::to_string(share_key_B_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key X press : " + std::to_string(share_key_X_press) + " Key X held : " + std::to_string(share_key_X_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key Y press : " + std::to_string(share_key_Y_press) + " Key Y held : " + std::to_string(share_key_Y_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD DOWN held : " + std::to_string(share_key_CPAD_DOWN_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD RIGHT held : " + std::to_string(share_key_CPAD_RIGHT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD UP held : " + std::to_string(share_key_CPAD_UP_held), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD LEFT held : " + std::to_string(share_key_CPAD_LEFT_held), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Touch pos x : " + std::to_string(share_touch_pos_x) + " Touch pos y : " + std::to_string(share_touch_pos_y), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("X moved value : " + std::to_string(share_touch_pos_x_moved) + " Y moved value : " + std::to_string(share_touch_pos_y_moved), 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Held time : " + std::to_string(share_held_time), 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Drawing time(CPU/per frame) : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Drawing time(GPU/per frame) : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0.0, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Free RAM (estimate) " + std::to_string(share_free_ram) + " MB", 0.0f, 180.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+	}
 	if (share_app_logs_show)
 	{
-		for (int i = share_app_log_view_num; i < share_app_log_view_num + 23; i++)
-			Draw(share_app_logs[i], share_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
+		for (int i = 0; i < 23; i++)
+			Draw(share_app_logs[share_app_log_view_num + i], share_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
 	}
 
-	Draw_screen_ready_to_draw(1, true, 1);
+	if (share_night_mode)
+		Draw_screen_ready_to_draw(1, true, 1, 0.0, 0.0, 0.0);
+	else
+		Draw_screen_ready_to_draw(1, true, 1, 1.0, 1.0, 1.0);
+
 	Draw(share_google_translation_ver, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
 	for (int i = 0; i <= 15; i++)
 	{
