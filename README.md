@@ -23,7 +23,7 @@ https://discord.gg/EqK3Kpb
 * Send sound ❌
 * Send stamp ❌
 * Receive text ✅
-* Receive (View) picture ❌
+* Receive (View) picture ✅ (v1.2.0)
 * Receive (Play) video ❌
 * Receive (Play) sound ❌
 * Receive (View) stamp ❌
