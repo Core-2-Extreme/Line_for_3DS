@@ -18,6 +18,6 @@ void Draw_exit(void);
 
 void Draw_set_draw_mode(int mode);
 
-void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_ver);
+void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_ver, float red, float green, float blue);
 
 void Draw_apply_draw(void);
