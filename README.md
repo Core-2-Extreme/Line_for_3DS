@@ -12,7 +12,7 @@ https://discord.gg/EqK3Kpb
 * v1.2.0
 * Fix- Some crashes
 * Fix- Some settings do not work
-* Fix- Log download (GAS processing) speed has been improved(Need GAS update)
+* Fix- Log download (GAS processing) speed has been improved(GAS update required)
 * Add- Image viewer
 ## Summary
 
