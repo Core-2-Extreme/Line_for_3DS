@@ -41,14 +41,20 @@ GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 GFXBUILD	:=	$(ROMFS)/gfx
 #---------------------------------------------------------------------------------
+VERSION_MAJOR				:= 1
+VERSION_MINOR				:= 2
+VERSION_MICRO				:= 0
+
 APP_TITLE					:= Line for 3DS
 APP_DESCRIPTION				:= Line for 3DS
 APP_AUTHOR					:= Core_2_Extreme
-APP_PRODUCT_CODE			:= CTR-Line
-APP_UNIQUE_ID				:= 000400000E49300F
-APP_ENCRYPTED				:= false
+PRODUCT_CODE				:= CTR-Line
+UNIQUE_ID					:= 000400000E49300F
 
-ICON        := resource/icon.png
+BANNER_AUDIO				:= resource/banner.wav
+BANNER_IMAGE				:= resource/banner.png
+ICON        				:= resource/icon.png
+RSF_PATH					:= resource/app.rsf
 
 #---------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------
@@ -198,7 +204,13 @@ endif
 #---------------------------------------------------------------------------------
 
 all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+	@echo Building 3dsx...
+	@$(MAKE) -j -s --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+	@echo
+	@echo Building cia...
+	@$(BANNERTOOL) makebanner $(BANNER_IMAGE_ARG) $(BANNER_IMAGE) $(BANNER_AUDIO_ARG) $(BANNER_AUDIO) -o $(BUILD)/banner.bnr
+	@$(BANNERTOOL) makesmdh -s $(APP_TITLE) -l $(APP_DESCRIPTION) -p $(APP_AUTHOR) -i $(APP_ICON) -o $(BUILD)/icon.icn
+	@$(MAKEROM) -f cia -o $(OUTPUT).cia -target t -exefslogo $(MAKEROM_ARGS)
 
 $(BUILD):
 	@mkdir -p $@
@@ -216,7 +228,7 @@ endif
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(GFXBUILD)
+	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(TARGET).cia $(GFXBUILD)
 
 #---------------------------------------------------------------------------------
 $(GFXBUILD)/%.t3x	$(BUILD)/%.h	:	%.t3s
