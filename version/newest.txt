@@ -10,7 +10,7 @@
 <patch_note>【App】 Ver 1.2.1
 【App】 Changed title id to 000400000EC95000
 【Setting】 Add- Fonts setting 
-【Setting】 Add- scroll bar
+【Setting】 Add- Scroll bar
 【Line】 Ver 1.2.1
 【Line】 Fix- Auto update was destroyed 
 【Line】 Add- Hide ID
