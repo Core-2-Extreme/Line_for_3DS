@@ -4,7 +4,7 @@
 <cia_64mb_ram_available>1</cia_64mb_ram_available>
 <cia_72mb_ram_available>1</cia_72mb_ram_available>
 <cia_80mb_ram_available>1</cia_80mb_ram_available>
-<cia_96mb_ram_available>1</cia_96mb_ram_available>
+<cia_96mb_ram_available>0</cia_96mb_ram_available>
 <cia_124mb_ram_available>1</cia_124mb_ram_available>
 <cia_178mb_ram_available>0</cia_178mb_ram_available>
 <patch_note>【App】 Ver 1.2.1
