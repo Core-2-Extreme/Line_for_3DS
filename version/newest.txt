@@ -7,14 +7,14 @@
 <cia_96mb_ram_available>1</cia_96mb_ram_available>
 <cia_124mb_ram_available>1</cia_124mb_ram_available>
 <cia_178mb_ram_available>0</cia_178mb_ram_available>
-<patch_note>【App】 ver 1.2.1
-【App】 Change title id 000400000EC9500F -> 000400000EC95000
+<patch_note>【App】 Ver 1.2.1
+【App】 Changed title id to 000400000EC95000
 【Setting】 Add- Fonts setting 
 【Setting】 Add- scroll bar
-【Line】 ver 1.2.1
+【Line】 Ver 1.2.1
 【Line】 Fix- Auto update was destroyed 
-【Line】 Add- hide ID
-【Line】 Add- scroll bar
-【Image viewer】 ver 1.0.1
+【Line】 Add- Hide ID
+【Line】 Add- Scroll bar
+【Image viewer】 Ver 1.0.1
 【Image viewer】 Fix- clipboard
 【Pull requests】 Fix- #2</patch_note>
