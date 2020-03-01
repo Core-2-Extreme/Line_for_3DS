@@ -3,4 +3,4 @@
 make
 echo Press any key to rebuild.
 pause
-goto start
+goto start 
