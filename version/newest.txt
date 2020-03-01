@@ -8,7 +8,7 @@
 <cia_124mb_ram_available>1</cia_124mb_ram_available>
 <cia_178mb_ram_available>0</cia_178mb_ram_available>
 <gas_ver>2</gas_ver>
-<patch_note> 【App】 Ver 1.2.1
+<patch_note>【App】 Ver 1.2.1
 【App】 Changed title id to 000400000EC95000
 【Setting】 Add- Fonts setting 
 【Setting】 Add- Scroll bar
