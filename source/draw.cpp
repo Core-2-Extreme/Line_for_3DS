@@ -3,8 +3,9 @@
 #include "share_function.hpp"
 
 C2D_Font Share_fonts[6];
-C3D_RenderTarget* Screen_top_;
-C3D_RenderTarget* Screen_bot_;
+C3D_RenderTarget* Screen_top;
+C3D_RenderTarget* Screen_bot;
+C2D_SpriteSheet sheet_texture[128];
 std::string screen_clear_text = "\u25a0";//Å°
 
 void Draw(std::string text, float x, float y, float text_size_x, float text_size_y, float r, float g, float b, float a)
@@ -17,7 +18,7 @@ void Draw(std::string text, float x, float y, float text_size_x, float text_size
 	C2D_TextBufDelete(c2d_buf);
 }
 
-Result_with_string Draw_load_texture(std::string file_name, C2D_SpriteSheet sheet_texture, C2D_Image return_image[], int num_of_array)
+Result_with_string Draw_load_texture(std::string file_name, int sheet_map_num, C2D_Image return_image[], int start_num, int num_of_array)
 {
 	size_t num_of_images;
 	bool function_fail = false;
@@ -25,21 +26,21 @@ Result_with_string Draw_load_texture(std::string file_name, C2D_SpriteSheet shee
 	load_texture_result.code = 0;
 	load_texture_result.string = "[Success] ";
 
-	sheet_texture = C2D_SpriteSheetLoad(file_name.c_str());
-	if (sheet_texture == NULL)
+	sheet_texture[sheet_map_num] = C2D_SpriteSheetLoad(file_name.c_str());
+	if (sheet_texture[sheet_map_num] == NULL)
 	{
 		load_texture_result.code = -1;
-		load_texture_result.string = "[Error] Can't load texture file : " + file_name + " ";
+		load_texture_result.string = "[Error] Couldn't load texture file : " + file_name + " ";
 		function_fail = true;
 	}
 
 	if (!function_fail)
 	{
-		num_of_images = C2D_SpriteSheetCount(sheet_texture);
+		num_of_images = C2D_SpriteSheetCount(sheet_texture[sheet_map_num]);
 		if ((int)num_of_images < num_of_array)
 		{
 			load_texture_result.code = -2;
-			load_texture_result.string = "[Error] num_of_arry " + std::to_string(num_of_array) + " is bigger than spritesheet has num of image(s) " + std::to_string(num_of_images) + " ";
+			load_texture_result.string = "[Error] num of arry " + std::to_string(num_of_array) + " is bigger than spritesheet has num of image(s) " + std::to_string(num_of_images) + " ";
 			function_fail = true;
 		}
 	}
@@ -48,20 +49,19 @@ Result_with_string Draw_load_texture(std::string file_name, C2D_SpriteSheet shee
 	{
 		for (int i = 0; i <= (num_of_array - 1); i++)
 		{
-			return_image[i] = C2D_SpriteSheetGetImage(sheet_texture, i);
+			return_image[start_num + i] = C2D_SpriteSheetGetImage(sheet_texture[sheet_map_num], i);
 		}
 	}
-
 	return load_texture_result;
 }
 
-void Draw_texture(C2D_Image image[], int num, float x, float y, float x_size, float y_size)
+void Draw_texture(C2D_Image image[], C2D_ImageTint tint, int num, float x, float y, float x_size, float y_size)
 {
-	C2D_DrawParams custom_font_c2d_parameter =
+	C2D_DrawParams c2d_parameter =
 	{
 		{
 			x,
-			y,
+			y, 
 			x_size,
 			y_size
 		},
@@ -73,8 +73,14 @@ void Draw_texture(C2D_Image image[], int num, float x, float y, float x_size, fl
 		0.0f
 	};
 
-	if(!(image[num].tex == NULL))
-		C2D_DrawImage(image[num], &custom_font_c2d_parameter, NULL);
+	if (!(image[num].tex == NULL))
+	{
+		if(tint.corners[0].color == dammy_tint.corners[0].color)
+			C2D_DrawImage(image[num], &c2d_parameter, NULL);
+		else
+			C2D_DrawImage(image[num], &c2d_parameter, &tint);
+
+	}
 }
 
 void Draw_with_specific_language(std::string text, int lang_num, float x, float y, float text_size_x, float text_size_y, float r, float g, float b, float a)
@@ -93,25 +99,53 @@ void Draw_with_specific_language(std::string text, int lang_num, float x, float 
 void Draw_init(void)
 {
 	C2D_Prepare();
-	Screen_top_ = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
-	Screen_bot_ = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
-	C2D_TargetClear(Screen_top_, C2D_Color32f(0, 0, 0, 0));
-	C2D_TargetClear(Screen_bot_, C2D_Color32f(0, 0, 0, 0));	
+	Screen_top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
+	Screen_bot = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+	C2D_TargetClear(Screen_top, C2D_Color32f(0, 0, 0, 0));
+	C2D_TargetClear(Screen_bot, C2D_Color32f(0, 0, 0, 0));	
 }
 
-void Draw_load_system_fonts(void)
+void Draw_load_system_font(int system_font_num)
 {
-	Share_fonts[0] = C2D_FontLoadSystem(CFG_REGION_JPN);
-	Share_fonts[1] = C2D_FontLoadSystem(CFG_REGION_CHN);
-	Share_fonts[2] = C2D_FontLoadSystem(CFG_REGION_KOR);
-	Share_fonts[3] = C2D_FontLoadSystem(CFG_REGION_TWN);
+	if (system_font_num == 0)
+		Share_fonts[0] = C2D_FontLoadSystem(CFG_REGION_JPN);
+	else if (system_font_num == 1)
+		Share_fonts[1] = C2D_FontLoadSystem(CFG_REGION_CHN);
+	else if (system_font_num == 2)
+		Share_fonts[2] = C2D_FontLoadSystem(CFG_REGION_KOR);
+	else if (system_font_num == 3)
+		Share_fonts[3] = C2D_FontLoadSystem(CFG_REGION_TWN);
+}
+
+void Draw_free_system_font(int system_font_num)
+{
+	if (system_font_num >= 0 && system_font_num <= 3)
+	{
+		if (Share_fonts[system_font_num] != NULL)
+		{
+			C2D_FontFree(Share_fonts[system_font_num]);
+			Share_fonts[system_font_num] = NULL;
+		}
+	}
+}
+
+void Draw_free_texture(int sheet_map_num)
+{
+	if (sheet_texture[sheet_map_num] != NULL)
+	{
+		C2D_SpriteSheetFree(sheet_texture[sheet_map_num]);
+		sheet_texture[sheet_map_num] = NULL;
+	}
 }
 
 void Draw_exit(void)
 {
+//	C2D_SpriteSheetFree((C2D_SpriteSheet)font_textures[0]);
 	//C2D_SpriteSheetFree(sheet_texture);
-	for (int i = 0; i >= 3; i++)
-		C2D_FontFree(Share_fonts[i]);
+	for (int i = 0; i < 128; i++)
+		Draw_free_texture(i);
+	for (int i = 0; i < 4; i++)
+		Draw_free_system_font(i);
 }
 
 void Draw_set_draw_mode(int mode)
@@ -126,25 +160,25 @@ void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_v
 {
 	if (screen == 0)
 	{
-		C2D_SceneBegin(Screen_top_);
+		C2D_SceneBegin(Screen_top);
 		if (screen_clear)
 		{
 			if (screen_clear_ver == 1)
 				Draw(screen_clear_text, -30.0, -100.0, 20.0, 17.5, red, green, blue, 1.0);
 			else
-				C2D_TargetClear(Screen_top_, C2D_Color32f(red, green, blue, 0));
+				C2D_TargetClear(Screen_top, C2D_Color32f(red, green, blue, 0));
 		}
 			
 	}
 	else if(screen == 1)
 	{
-		C2D_SceneBegin(Screen_bot_);
+		C2D_SceneBegin(Screen_bot);
 		if (screen_clear)
 		{
 			if (screen_clear_ver == 1)
 				Draw(screen_clear_text, -30.0, -100.0, 20.0, 17.5, red, green, blue, 1.0);
 			else
-				C2D_TargetClear(Screen_bot_, C2D_Color32f(red, green, blue, 0));
+				C2D_TargetClear(Screen_bot, C2D_Color32f(red, green, blue, 0));
 		}
 	}
 }

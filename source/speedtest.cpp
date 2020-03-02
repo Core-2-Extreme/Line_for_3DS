@@ -6,6 +6,7 @@
 #include "draw.hpp"
 #include "speedtest.hpp"
 #include "share_function.hpp"
+#define STACKSIZE (24 * 1024)
 
 bool speed_test_start_request = false;
 int speed_test_data_size = 0;
@@ -18,9 +19,9 @@ Thread speed_test_network_thread;
 void Speed_test_init(void)
 {
 	Share_app_log_save("Speedtest/Init", "Initializing...", 1234567890, true);
-	share_speed_test_already_init = true;
+	s_spt_already_init = true;
 
-	share_speed_test_thread_run = true;
+	s_spt_thread_run = true;
 	speed_test_network_thread = threadCreate(Speed_test_network, (void*)(""), STACKSIZE, 0x26, -1, true);
 	Share_app_log_save("Speedtest/Init", "Initialized.", 1234567890, true);
 }
@@ -32,7 +33,7 @@ void Speed_test_main(void)
 	float text_blue;
 	float text_alpha;
 
-	if (share_night_mode)
+	if (s_night_mode)
 	{
 		text_red = 1.0f;
 		text_green = 1.0f;
@@ -47,123 +48,123 @@ void Speed_test_main(void)
 		text_alpha = 1.0f;
 	}
 
-	osTickCounterUpdate(&share_total_frame_time);
+	osTickCounterUpdate(&s_tcount_frame_time);
 
-	Draw_set_draw_mode(share_draw_vsync_mode);
-	if (share_night_mode)
+	Draw_set_draw_mode(s_draw_vsync_mode);
+	if (s_night_mode)
 		Draw_screen_ready_to_draw(0, true, 1, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(0, true, 1, 1.0, 1.0, 1.0);
 
-	Draw_texture(Background_image, 0, 0.0, 0.0, 400.0, 15.0);
-	Draw_texture(Wifi_icon_image, share_wifi_signal, 360.0, 0.0, 15.0, 15.0);
-	Draw_texture(Battery_level_icon_image, share_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
-	if (share_battery_charge)
-		Draw_texture(Battery_charge_icon_image, 0, 310.0, 0.0, 20.0, 15.0);
-	Draw(share_status, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
-	Draw(share_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
+	Draw_texture(Background_image, dammy_tint, 0, 0.0, 0.0, 400.0, 15.0);
+	Draw_texture(Wifi_icon_image, dammy_tint, s_wifi_signal, 360.0, 0.0, 15.0, 15.0);
+	Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
+	if (s_battery_charge)
+		Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 310.0, 0.0, 20.0, 15.0);
+	Draw(s_status, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
+	Draw(s_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
 
-	if (share_setting[1] == "en")
+	if (s_setting[1] == "en")
 	{
-		Draw(share_speedtest_message_en[0] + std::to_string(speed_test_total_download_size / (1024 * 1024)) + "MB(" + std::to_string(speed_test_total_download_size / 1024) + "KB)", 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(share_speedtest_message_en[1] + std::to_string(speed_test_total_download_time) + " ms", 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(share_speedtest_message_en[2] + std::to_string((speed_test_test_result / (1024 * 1024)) * 8) + "Mbps", 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(s_spt_message_en[0] + std::to_string(speed_test_total_download_size / (1024 * 1024)) + "MB(" + std::to_string(speed_test_total_download_size / 1024) + "KB)", 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(s_spt_message_en[1] + std::to_string(speed_test_total_download_time) + " ms", 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(s_spt_message_en[2] + std::to_string((speed_test_test_result / (1024 * 1024)) * 8) + "Mbps", 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
 	}
-	else if (share_setting[1] == "jp")
+	else if (s_setting[1] == "jp")
 	{
-		Draw(share_speedtest_message_jp[0] + std::to_string(speed_test_total_download_size / (1024 * 1024)) + "MB(" + std::to_string(speed_test_total_download_size / 1024) + "KB)", 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(share_speedtest_message_jp[1] + std::to_string(speed_test_total_download_time) + " ms", 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(share_speedtest_message_jp[2] + std::to_string((speed_test_test_result / (1024 * 1024)) * 8) + "Mbps", 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(s_spt_message_jp[0] + std::to_string(speed_test_total_download_size / (1024 * 1024)) + "MB(" + std::to_string(speed_test_total_download_size / 1024) + "KB)", 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(s_spt_message_jp[1] + std::to_string(speed_test_total_download_time) + " ms", 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(s_spt_message_jp[2] + std::to_string((speed_test_test_result / (1024 * 1024)) * 8) + "Mbps", 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
 	}
 
-	if (share_debug_mode)
+	if (s_debug_mode)
 	{
-		Draw_texture(Square_image, 9, 0.0, 50.0, 230.0, 140.0);
-		Draw("Key A press : " + std::to_string(share_key_A_press) + " Key A held : " + std::to_string(share_key_A_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key B press : " + std::to_string(share_key_B_press) + " Key B held : " + std::to_string(share_key_B_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key X press : " + std::to_string(share_key_X_press) + " Key X held : " + std::to_string(share_key_X_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key Y press : " + std::to_string(share_key_Y_press) + " Key Y held : " + std::to_string(share_key_Y_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD DOWN held : " + std::to_string(share_key_CPAD_DOWN_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD RIGHT held : " + std::to_string(share_key_CPAD_RIGHT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD UP held : " + std::to_string(share_key_CPAD_UP_held), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD LEFT held : " + std::to_string(share_key_CPAD_LEFT_held), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Touch pos x : " + std::to_string(share_touch_pos_x) + " Touch pos y : " + std::to_string(share_touch_pos_y), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("X moved value : " + std::to_string(share_touch_pos_x_moved) + " Y moved value : " + std::to_string(share_touch_pos_y_moved), 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Held time : " + std::to_string(share_held_time), 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, 9, 0.0, 50.0, 230.0, 140.0);
+		Draw("Key A press : " + std::to_string(s_key_A_press) + " Key A held : " + std::to_string(s_key_A_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key B press : " + std::to_string(s_key_B_press) + " Key B held : " + std::to_string(s_key_B_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key X press : " + std::to_string(s_key_X_press) + " Key X held : " + std::to_string(s_key_X_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key Y press : " + std::to_string(s_key_Y_press) + " Key Y held : " + std::to_string(s_key_Y_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD DOWN held : " + std::to_string(s_key_CPAD_DOWN_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD RIGHT held : " + std::to_string(s_key_CPAD_RIGHT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD UP held : " + std::to_string(s_key_CPAD_UP_held), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD LEFT held : " + std::to_string(s_key_CPAD_LEFT_held), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Touch pos x : " + std::to_string(s_touch_pos_x) + " Touch pos y : " + std::to_string(s_touch_pos_y), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("X moved value : " + std::to_string(s_touch_pos_x_moved) + " Y moved value : " + std::to_string(s_touch_pos_y_moved), 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Held time : " + std::to_string(s_held_time), 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 		Draw("Drawing time(CPU/per frame) : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 		Draw("Drawing time(GPU/per frame) : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0.0, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Free RAM (estimate) " + std::to_string(share_free_ram) + " MB", 0.0f, 180.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Free RAM (estimate) " + std::to_string(s_free_ram) + " MB", 0.0f, 180.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
 	}
-	if (share_app_logs_show)
+	if (s_app_logs_show)
 	{
 		for (int i = 0; i < 23; i++)
-			Draw(share_app_logs[share_app_log_view_num + i], share_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
+			Draw(s_app_logs[s_app_log_view_num + i], s_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
 	}
 
-	if (share_night_mode)
+	if (s_night_mode)
 		Draw_screen_ready_to_draw(1, true, 1, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(1, true, 1, 1.0, 1.0, 1.0);
 
-	Draw(share_speed_test_ver, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
+	Draw(s_spt_ver, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
 
-	if (share_setting[1] == "en")
+	if (s_setting[1] == "en")
 	{
-		Draw(share_speedtest_message_en[3], 70.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
+		Draw(s_spt_message_en[3], 70.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
 		for (int i = 1; i <= 7; i++)
 		{
 			if ((speed_test_data_size + 1) == i)
-				Draw(share_speedtest_message_en[3 + i], 125.0, 20.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
+				Draw(s_spt_message_en[3 + i], 125.0, 20.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
 			else
-				Draw(share_speedtest_message_en[3 + i], 125.0, 20.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
+				Draw(s_spt_message_en[3 + i], 125.0, 20.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
 		}
-		Draw(share_speedtest_message_en[11], 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+		Draw(s_spt_message_en[11], 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
 	}
-	else if (share_setting[1] == "jp")
+	else if (s_setting[1] == "jp")
 	{
-		Draw(share_speedtest_message_jp[3], 75.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
+		Draw(s_spt_message_jp[3], 75.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
 		for (int i = 1; i <= 7; i++)
 		{
 			if ((speed_test_data_size + 1) == i)
-				Draw(share_speedtest_message_jp[3 + i], 135.0, 20.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
+				Draw(s_spt_message_jp[3 + i], 135.0, 20.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
 			else
-				Draw(share_speedtest_message_jp[3 + i], 135.0, 20.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
+				Draw(s_spt_message_jp[3 + i], 135.0, 20.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
 		}
-		Draw(share_speedtest_message_jp[11], 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+		Draw(s_spt_message_jp[11], 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
 	}
 
-	Draw_texture(Background_image, 1, 0.0, 225.0, 320.0, 15.0);
-	Draw(share_bot_button_string, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
-	if (share_key_touch_held)
-		Draw(share_circle_string, touch_pos.px, touch_pos.py, 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
+	Draw_texture(Background_image, dammy_tint, 1, 0.0, 225.0, 320.0, 15.0);
+	Draw(s_bot_button_string[1], 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
+	if (s_key_touch_held)
+		Draw(s_circle_string, s_touch_pos_x, s_touch_pos_y, 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
 
 	Draw_apply_draw();
-	share_fps += 1;
-	share_frame_time_point[0] = osTickCounterRead(&share_total_frame_time);
-	if (share_key_A_press || (share_touch_pos_x >= 150 && share_touch_pos_x <= 170 && share_touch_pos_y >= 190 && share_touch_pos_y <= 209))
+	s_fps += 1;
+	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
+	if (s_key_A_press || (s_touch_pos_x >= 150 && s_touch_pos_x <= 170 && s_touch_pos_y >= 190 && s_touch_pos_y <= 209))
 		speed_test_start_request = true;
-	if (share_key_touch_held)
+	if (s_key_touch_held)
 	{
-		if (share_touch_pos_x >= 100 && share_touch_pos_x <= 230 && share_touch_pos_y >= 40 && share_touch_pos_y <= 59)
+		if (s_touch_pos_x >= 100 && s_touch_pos_x <= 230 && s_touch_pos_y >= 40 && s_touch_pos_y <= 59)
 			speed_test_data_size = 0;
-		else if (share_touch_pos_x >= 100 && share_touch_pos_x <= 230 && share_touch_pos_y >= 60 && share_touch_pos_y <= 79)
+		else if (s_touch_pos_x >= 100 && s_touch_pos_x <= 230 && s_touch_pos_y >= 60 && s_touch_pos_y <= 79)
 			speed_test_data_size = 1;
-		else if (share_touch_pos_x >= 100 && share_touch_pos_x <= 230 && share_touch_pos_y >= 80 && share_touch_pos_y <= 99)
+		else if (s_touch_pos_x >= 100 && s_touch_pos_x <= 230 && s_touch_pos_y >= 80 && s_touch_pos_y <= 99)
 			speed_test_data_size = 2;
-		else if (share_touch_pos_x >= 100 && share_touch_pos_x <= 230 && share_touch_pos_y >= 100 && share_touch_pos_y <= 119)
+		else if (s_touch_pos_x >= 100 && s_touch_pos_x <= 230 && s_touch_pos_y >= 100 && s_touch_pos_y <= 119)
 			speed_test_data_size = 3;
-		else if (share_touch_pos_x >= 100 && share_touch_pos_x <= 230 && share_touch_pos_y >= 120 && share_touch_pos_y <= 139)
+		else if (s_touch_pos_x >= 100 && s_touch_pos_x <= 230 && s_touch_pos_y >= 120 && s_touch_pos_y <= 139)
 			speed_test_data_size = 4;
-		else if (share_touch_pos_x >= 100 && share_touch_pos_x <= 230 && share_touch_pos_y >= 140 && share_touch_pos_y <= 159)
+		else if (s_touch_pos_x >= 100 && s_touch_pos_x <= 230 && s_touch_pos_y >= 140 && s_touch_pos_y <= 159)
 			speed_test_data_size = 5;
-		else if (share_touch_pos_x >= 100 && share_touch_pos_x <= 230 && share_touch_pos_y >= 160 && share_touch_pos_y <= 179)
+		else if (s_touch_pos_x >= 100 && s_touch_pos_x <= 230 && s_touch_pos_y >= 160 && s_touch_pos_y <= 179)
 			speed_test_data_size = 6;
 	}
-	if (share_key_START_press || (share_key_touch_press && share_touch_pos_x >= 110 && share_touch_pos_x <= 230 && share_touch_pos_y >= 220 && share_touch_pos_y <= 240))
+	if (s_key_START_press || (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 230 && s_touch_pos_y >= 220 && s_touch_pos_y <= 240))
 	{
-		share_speed_test_thread_suspend = true;
-		share_menu_main_run = true;
-		share_speed_test_main_run = false;
+		s_spt_thread_suspend = true;
+		s_menu_main_run = true;
+		s_spt_main_run = false;
 	}
 }
 
@@ -181,9 +182,9 @@ void Speed_test_network(void* arg)
 	httpcContext speed_test_httpc;
 	TickCounter speed_test_time;
 
-	while (share_speed_test_thread_run)
+	while (s_spt_thread_run)
 	{
-		if (share_speed_test_thread_suspend || (!speed_test_start_request))
+		if (s_spt_thread_suspend || (!speed_test_start_request))
 			usleep(500000);
 		else
 		{
@@ -231,7 +232,7 @@ void Speed_test_network(void* arg)
 				if(!function_fail)
 				{
 					httpcAddRequestHeaderField(&speed_test_httpc, "Connection", "Keep-Alive");
-					httpcAddRequestHeaderField(&speed_test_httpc, "User-Agent", share_httpc_user_agent.c_str());
+					httpcAddRequestHeaderField(&speed_test_httpc, "User-Agent", s_httpc_user_agent.c_str());
 					httpcAddRequestHeaderField(&speed_test_httpc, "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3");
 					httpcAddRequestHeaderField(&speed_test_httpc, "Accept-Encoding", "en,en-US;q=1,ja;q=0.9");
 					httpcAddRequestHeaderField(&speed_test_httpc, "Accept-Language", "gzip, deflate, br");
@@ -273,6 +274,6 @@ void Speed_test_network(void* arg)
 
 void Speed_test_exit(void)
 {
-	share_speed_test_already_init = false;
-	share_speed_test_thread_run = false;
+	s_spt_already_init = false;
+	s_spt_thread_run = false;
 }

@@ -12,12 +12,12 @@
 
 u8* image_buffer;
 u32 image_size;
-int clipboard_select_num = 1;
 int pic_height = 0;
 int pic_width = 0;
 int image_download_progress = 0;
 bool pic_download_request = false;
 bool pic_parse_request = false;
+bool parse_thread_started = false;
 std::string image_url;
 
 Thread image_viewer_parse_thread, image_viewer_download_thread;
@@ -118,8 +118,8 @@ Result_with_string Draw_C3DTexToC2DImage(C3D_Tex* c3d_tex[], Tex3DS_SubTexture* 
 
 void Image_viewer_init(void)
 {
-	Share_app_log_save("Image viewer/Init", "Initializing...", 1234567890, true);
-	share_image_viewer_already_init = true;
+	Share_app_log_save("Imv/Init", "Initializing...", 1234567890, true);
+	s_imv_already_init = true;
 
 	for (int i = 0; i <= 15; i++)
 	{
@@ -130,12 +130,21 @@ void Image_viewer_init(void)
 	image_buffer = (u8*)malloc(0x100000);
 	memset(image_buffer, 0x0, 0x100000);
 
-	share_image_viewer_download_thread_run = true;
-	share_image_viewer_parse_thread_run = true;
+	s_imv_download_thread_run = true;
+	s_imv_parse_thread_run = true;
 	image_viewer_download_thread = threadCreate(Image_viewer_download_thread, (void*)(""), STACKSIZE, 0x30, -1, true);
-	image_viewer_parse_thread = threadCreate(Image_viewer_parse_thread, (void*)(""), STACKSIZE, 0x32, -1, true);
+	image_viewer_parse_thread = threadCreate(Image_viewer_parse_thread, (void*)(""), STACKSIZE, 0x28, -1, true);
+	/*for (int i = 0; i < 200; i++)//2s
+	{
+		usleep(10000);
+		if (parse_thread_started)
+			break;
+	}
 
-	Share_app_log_save("Image viewer/Init", "Initialized.", 1234567890, true);
+	if(!parse_thread_started)
+		image_viewer_parse_thread = threadCreate(Image_viewer_parse_thread, (void*)(""), STACKSIZE, 0x28, 1, true);
+	*/
+	Share_app_log_save("Imv/Init", "Initialized.", 1234567890, true);
 }
 
 void Image_viewer_main(void)
@@ -155,7 +164,7 @@ void Image_viewer_main(void)
 	SwkbdStatusData main_swkbd_status;
 	Result_with_string main_result;
 
-	if (share_night_mode)
+	if (s_night_mode)
 	{
 		text_red = 1.0f;
 		text_green = 1.0f;
@@ -180,14 +189,14 @@ void Image_viewer_main(void)
 	else
 		pic_size_y = pic_height / 10;
 
-	pic_size_x *= share_image_viewer_image_zoom;
-	pic_size_y *= share_image_viewer_image_zoom;
+	pic_size_x *= s_imv_image_zoom;
+	pic_size_y *= s_imv_image_zoom;
 
-	osTickCounterUpdate(&share_total_frame_time);
+	osTickCounterUpdate(&s_tcount_frame_time);
 
-	Draw_set_draw_mode(share_draw_vsync_mode);
+	Draw_set_draw_mode(s_draw_vsync_mode);
 
-	if(share_night_mode)
+	if(s_night_mode)
 		Draw_screen_ready_to_draw(0, true, 1, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(0, true, 1, 1.0, 1.0, 1.0);
@@ -200,43 +209,43 @@ void Image_viewer_main(void)
 			pic_pos_y_cache += pic_size_y;
 		}
 		pic_pos_x_cache += pic_size_x;
-		Draw_texture(Downloaded_image, i, (share_image_viewer_image_pos_x + pic_pos_x_cache), (share_image_viewer_image_pos_y + pic_pos_y_cache), pic_size_x, pic_size_y);
+		Draw_texture(Downloaded_image, dammy_tint, i, (s_imv_image_pos_x + pic_pos_x_cache), (s_imv_image_pos_y + pic_pos_y_cache), pic_size_x, pic_size_y);
 	}
 
-	Draw_texture(Background_image, 0, 0.0, 0.0, 400.0, 15.0);
-	Draw_texture(Wifi_icon_image, share_wifi_signal, 360.0, 0.0, 15.0, 15.0);
-	Draw_texture(Battery_level_icon_image, share_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
-	if (share_battery_charge)
-		Draw_texture(Battery_charge_icon_image, 0, 310.0, 0.0, 20.0, 15.0);
-	Draw(share_status, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
-	Draw(share_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
-	Draw_texture(Square_image, 10, 0.0, 15.0, 50 * image_download_progress, 3.5);
+	Draw_texture(Background_image, dammy_tint, 0, 0.0, 0.0, 400.0, 15.0);
+	Draw_texture(Wifi_icon_image, dammy_tint, s_wifi_signal, 360.0, 0.0, 15.0, 15.0);
+	Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
+	if (s_battery_charge)
+		Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 310.0, 0.0, 20.0, 15.0);
+	Draw(s_status, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
+	Draw(s_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
+	Draw_texture(Square_image, dammy_tint, 10, 0.0, 15.0, 50 * image_download_progress, 3.5);
 
-	if (share_debug_mode)
+	if (s_debug_mode)
 	{
-		Draw_texture(Square_image, 9, 0.0, 50.0, 230.0, 140.0);
-		Draw("Key A press : " + std::to_string(share_key_A_press) + " Key A held : " + std::to_string(share_key_A_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key B press : " + std::to_string(share_key_B_press) + " Key B held : " + std::to_string(share_key_B_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key X press : " + std::to_string(share_key_X_press) + " Key X held : " + std::to_string(share_key_X_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key Y press : " + std::to_string(share_key_Y_press) + " Key Y held : " + std::to_string(share_key_Y_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD DOWN held : " + std::to_string(share_key_CPAD_DOWN_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD RIGHT held : " + std::to_string(share_key_CPAD_RIGHT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD UP held : " + std::to_string(share_key_CPAD_UP_held), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD LEFT held : " + std::to_string(share_key_CPAD_LEFT_held), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Touch pos x : " + std::to_string(share_touch_pos_x) + " Touch pos y : " + std::to_string(share_touch_pos_y), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("X moved value : " + std::to_string(share_touch_pos_x_moved) + " Y moved value : " + std::to_string(share_touch_pos_y_moved), 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Held time : " + std::to_string(share_held_time), 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, 9, 0.0, 50.0, 230.0, 140.0);
+		Draw("Key A press : " + std::to_string(s_key_A_press) + " Key A held : " + std::to_string(s_key_A_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key B press : " + std::to_string(s_key_B_press) + " Key B held : " + std::to_string(s_key_B_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key X press : " + std::to_string(s_key_X_press) + " Key X held : " + std::to_string(s_key_X_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key Y press : " + std::to_string(s_key_Y_press) + " Key Y held : " + std::to_string(s_key_Y_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD DOWN held : " + std::to_string(s_key_CPAD_DOWN_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD RIGHT held : " + std::to_string(s_key_CPAD_RIGHT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD UP held : " + std::to_string(s_key_CPAD_UP_held), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD LEFT held : " + std::to_string(s_key_CPAD_LEFT_held), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Touch pos x : " + std::to_string(s_touch_pos_x) + " Touch pos y : " + std::to_string(s_touch_pos_y), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("X moved value : " + std::to_string(s_touch_pos_x_moved) + " Y moved value : " + std::to_string(s_touch_pos_y_moved), 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Held time : " + std::to_string(s_held_time), 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 		Draw("Drawing time(CPU/per frame) : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 		Draw("Drawing time(GPU/per frame) : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0.0, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Free RAM (estimate) " + std::to_string(share_free_ram) + " MB", 0.0f, 180.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Free RAM (estimate) " + std::to_string(s_free_ram) + " MB", 0.0f, 180.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
 	}
-	if (share_app_logs_show)
+	if (s_app_logs_show)
 	{
 		for (int i = 0; i < 23; i++)
-			Draw(share_app_logs[share_app_log_view_num + i], share_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
+			Draw(s_app_logs[s_app_log_view_num + i], s_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
 	}
 
-	if (share_night_mode)
+	if (s_night_mode)
 		Draw_screen_ready_to_draw(1, true, 1, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(1, true, 1, 1.0, 1.0, 1.0);
@@ -251,112 +260,105 @@ void Image_viewer_main(void)
 			pic_pos_y_cache += pic_size_y;
 		}
 		pic_pos_x_cache += pic_size_x;
-		Draw_texture(Downloaded_image, i, (share_image_viewer_image_pos_x + pic_pos_x_cache - 40), (share_image_viewer_image_pos_y + pic_pos_y_cache - 240), pic_size_x, pic_size_y);
+		Draw_texture(Downloaded_image, dammy_tint, i, (s_imv_image_pos_x + pic_pos_x_cache - 40), (s_imv_image_pos_y + pic_pos_y_cache - 240), pic_size_x, pic_size_y);
 	}
 
-	Draw(share_image_viewer_ver, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
-	Draw_texture(Square_image, 11, 15.0, 175.0, 50.0, 20.0);
-	Draw_texture(Square_image, 11, 75.0, 175.0, 50.0, 20.0);
-	Draw_texture(Square_image, 11, 135.0, 175.0, 50.0, 20.0);
-	Draw_texture(Square_image, 11, 195.0, 175.0, 50.0, 20.0);
-	Draw_texture(Square_image, 11, 255.0, 175.0, 50.0, 20.0);
-	Draw_texture(Square_image, 11, 145.0, 200.0, 75.0, 20.0);
-	Draw_texture(Square_image, 11, 245.0, 200.0, 75.0, 20.0);
+	Draw(s_imv_ver, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
+	Draw_texture(Square_image, dammy_tint, 11, 15.0, 175.0, 50.0, 20.0);
+	Draw_texture(Square_image, dammy_tint, 11, 75.0, 175.0, 50.0, 20.0);
+	Draw_texture(Square_image, dammy_tint, 11, 135.0, 175.0, 50.0, 20.0);
+	Draw_texture(Square_image, dammy_tint, 11, 195.0, 175.0, 50.0, 20.0);
+	Draw_texture(Square_image, dammy_tint, 11, 255.0, 175.0, 50.0, 20.0);
+	Draw_texture(Square_image, dammy_tint, 11, 145.0, 200.0, 75.0, 20.0);
+	Draw_texture(Square_image, dammy_tint, 11, 245.0, 200.0, 75.0, 20.0);
 
-	if (share_setting[1] == "en")
+	if (s_setting[1] == "en")
 	{
-		Draw(share_image_viewer_message_en[0], 17.5, 175.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_en[1], 77.5, 175.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_en[2], 137.5, 175.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_en[3], 197.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_en[4], 257.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_en[5], 147.5, 200.0, 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_en[6], 247.5, 200.0, 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_en[7] + std::to_string(clipboard_select_num) + "\n" + share_clipboard[clipboard_select_num], 0.0, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_en[0], 17.5, 175.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_en[1], 77.5, 175.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_en[2], 137.5, 175.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_en[3], 197.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_en[4], 257.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_en[5], 147.5, 200.0, 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_en[6], 247.5, 200.0, 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_en[7] + std::to_string(s_imv_clipboard_select_num) + "\n" + s_clipboards[s_imv_clipboard_select_num], 0.0, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 	}
-	else if (share_setting[1] == "jp")
+	else if (s_setting[1] == "jp")
 	{
-		Draw(share_image_viewer_message_jp[0], 17.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_jp[1], 77.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_jp[2], 137.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_jp[3], 197.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_jp[4], 257.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_jp[5], 147.5, 200.0, 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_jp[6], 247.5, 200.0, 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
-		Draw(share_image_viewer_message_jp[7] + std::to_string(clipboard_select_num) + "\n" + share_clipboard[clipboard_select_num], 0.0, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_jp[0], 17.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_jp[1], 77.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_jp[2], 137.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_jp[3], 197.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_jp[4], 257.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_jp[5], 147.5, 200.0, 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_jp[6], 247.5, 200.0, 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
+		Draw(s_imv_message_jp[7] + std::to_string(s_imv_clipboard_select_num) + "\n" + s_clipboards[s_imv_clipboard_select_num], 0.0, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 	}
 
-	Draw_texture(Background_image, 1, 0.0, 225.0, 320.0, 15.0);
-	Draw(share_bot_button_string, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
-	if (share_key_touch_held)
-		Draw(share_circle_string, touch_pos.px, touch_pos.py, 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
+	Draw_texture(Background_image, dammy_tint, 1, 0.0, 225.0, 320.0, 15.0);
+	Draw(s_bot_button_string[1], 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
+	if (s_key_touch_held)
+		Draw(s_circle_string, s_touch_pos_x, s_touch_pos_y, 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
 
 	Draw_apply_draw();
-	share_fps += 1;
-	share_frame_time_point[0] = osTickCounterRead(&share_total_frame_time);
+	s_fps += 1;
+	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 
-	share_hid_disabled = true;
-	if (share_key_A_press || (share_key_touch_press && share_touch_pos_x > 15 && share_touch_pos_x < 65 && share_touch_pos_y > 175 && share_touch_pos_y < 195))
+	s_hid_disabled = true;
+	if (s_key_A_press || (s_key_touch_press && s_touch_pos_x > 15 && s_touch_pos_x < 65 && s_touch_pos_y > 175 && s_touch_pos_y < 195))
 		pic_parse_request = true;
-	if (share_key_B_press || (share_key_touch_press && share_touch_pos_x > 75 && share_touch_pos_x < 125 && share_touch_pos_y > 175 && share_touch_pos_y < 195))
+	if (s_key_B_press || (s_key_touch_press && s_touch_pos_x > 75 && s_touch_pos_x < 125 && s_touch_pos_y > 175 && s_touch_pos_y < 195))
 		pic_download_request = true;
-	if (share_key_Y_press || (share_key_touch_press && share_touch_pos_x > 135 && share_touch_pos_x < 185 && share_touch_pos_y > 175 && share_touch_pos_y < 195))
+	if (s_key_Y_press || (s_key_touch_press && s_touch_pos_x > 135 && s_touch_pos_x < 185 && s_touch_pos_y > 175 && s_touch_pos_y < 195))
 	{
-		memset(share_swkb_input_text, 0x0, 8192);
+		memset(s_swkb_input_text, 0x0, 8192);
 		swkbdInit(&main_swkbd, SWKBD_TYPE_NORMAL, 2, 8192);
 		swkbdSetHintText(&main_swkbd, "‰æ‘œURL‚ð“ü—Í / Type image url here.");
 		swkbdSetValidation(&main_swkbd, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
 		swkbdSetFeatures(&main_swkbd, SWKBD_PREDICTIVE_INPUT);
-		swkbdSetInitialText(&main_swkbd, share_clipboard[clipboard_select_num].c_str());
+		swkbdSetInitialText(&main_swkbd, s_clipboards[s_imv_clipboard_select_num].c_str());
 
 		swkbdSetStatusData(&main_swkbd, &main_swkbd_status, true, true);
-		swkbdSetLearningData(&main_swkbd, &share_swkb_learn_data, true, true);
-		share_swkb_press_button = swkbdInputText(&main_swkbd, share_swkb_input_text, 8192);
-		if (share_swkb_press_button == SWKBD_BUTTON_RIGHT)
-			share_clipboard[clipboard_select_num] = share_swkb_input_text;
+		swkbdSetLearningData(&main_swkbd, &s_swkb_learn_data, true, true);
+		s_swkb_press_button = swkbdInputText(&main_swkbd, s_swkb_input_text, 8192);
+		if (s_swkb_press_button == SWKBD_BUTTON_RIGHT)
+			s_clipboards[s_imv_clipboard_select_num] = s_swkb_input_text;
 	}
-	if (share_key_DUP_press || (share_key_touch_press && share_touch_pos_x > 195 && share_touch_pos_x < 245 && share_touch_pos_y > 175 && share_touch_pos_y < 195))
-	{
-		clipboard_select_num++;
-		if (clipboard_select_num > 15)
-			clipboard_select_num = 15;
-	}
-	if (share_key_DDOWN_press || (share_key_touch_press && share_touch_pos_x > 255 && share_touch_pos_x < 305 && share_touch_pos_y > 175 && share_touch_pos_y < 195))
-	{
-		clipboard_select_num--;
-		if (clipboard_select_num < 0)
-			clipboard_select_num = 0;
-	}
-	if (share_key_START_press || (share_key_touch_press && share_touch_pos_x >= 110 && share_touch_pos_x <= 230 && share_touch_pos_y >= 220 && share_touch_pos_y <= 240))
-	{
-		share_image_viewer_thread_suspend = true;
-		share_menu_main_run = true;
-		share_image_viewer_main_run = false;
-	}
+
 }
 
 void Image_viewer_parse_thread(void* arg)
 {
-	Share_app_log_save("Image viewer/Parse thread", "Thread started.", 1234567890, false);
+	Share_app_log_save("Imv/Parse thread", "Thread started.", 1234567890, false);
+	parse_thread_started = true;
 	int pic_parse_log_num_return;
 	int pic_parse_start_pos_x;
 	int pic_parse_start_pos_y;
 	const char* failed_msg = (char*)malloc(0x100);
 	Result_with_string pic_parse_result;
 
-	while (share_image_viewer_parse_thread_run)
+	while (s_imv_parse_thread_run)
 	{
-		if (share_image_viewer_thread_suspend)
+		if (s_imv_thread_suspend)
 			usleep(500000);
 		else
 		{
 			if (pic_parse_request)
 			{
+				pic_parse_log_num_return = Share_app_log_save("Imv/Parse thread", "APT_SetAppCpuTimeLimit_80...", 1234567890, false);
+				pic_parse_result.code = APT_SetAppCpuTimeLimit(80);
+				if (pic_parse_result.code == 0)
+				{
+					Share_app_log_add_result(pic_parse_log_num_return, "[Success] ", pic_parse_result.code, false);
+				}
+				else
+					Share_app_log_add_result(pic_parse_log_num_return, "[Error] ", pic_parse_result.code, false);
+
 				pic_parse_request = false;
 				pic_height = 0;
 				pic_width = 0;
 
-				pic_parse_log_num_return = Share_app_log_save("Image viewer/Parse thread", "Pic data size : " + std::to_string(image_size / 1024) + "KB" + " (" + std::to_string(image_size) + "B)", 1234567890, false);
+				pic_parse_log_num_return = Share_app_log_save("Imv/Parse thread", "Pic data size : " + std::to_string(image_size / 1024) + "KB" + " (" + std::to_string(image_size) + "B)", 1234567890, false);
 				free(stbi_image);
 				stbi_image = NULL;
 				stbi_image = stbi_load_from_memory((stbi_uc const*)image_buffer, (int)image_size, &pic_width, &pic_height, NULL, STBI_rgb_alpha);
@@ -367,9 +369,9 @@ void Image_viewer_parse_thread(void* arg)
 				{
 					failed_msg = stbi_failure_reason();
 					if (failed_msg == NULL)
-						Share_app_log_save("Image viewer/Parse thread", "unknown error", 1234567890, false);
+						Share_app_log_save("Imv/Parse thread", "unknown error", 1234567890, false);
 					else
-						Share_app_log_save("Image viewer/Parse thread", failed_msg, 1234567890, false);
+						Share_app_log_save("Imv/Parse thread", failed_msg, 1234567890, false);
 				}
 				else
 				{
@@ -387,7 +389,7 @@ void Image_viewer_parse_thread(void* arg)
 
 					for (int i = 0; i < 16; i++)
 					{
-						pic_parse_log_num_return = Share_app_log_save("Image viewer/Parse thread", "Draw_C3DTexToC2DImage...", 1234567890, false);
+						pic_parse_log_num_return = Share_app_log_save("Imv/Parse thread", "Draw_C3DTexToC2DImage...", 1234567890, false);
 						pic_parse_result = Draw_C3DTexToC2DImage(c3d_cache_tex, c3d_cache_subtex, i, i, stbi_image, (u32)(pic_width * pic_height * 4), (u32)pic_width, (u32)pic_height, pic_parse_start_pos_x, pic_parse_start_pos_y, 512, GPU_RGBA8);
 						Share_app_log_add_result(pic_parse_log_num_return, pic_parse_result.string, pic_parse_result.code, false);
 
@@ -400,16 +402,25 @@ void Image_viewer_parse_thread(void* arg)
 					}
 
 				}
+				pic_parse_log_num_return = Share_app_log_save("Imv/Parse thread", "APT_SetAppCpuTimeLimit_30...", 1234567890, false);
+				pic_parse_result.code = APT_SetAppCpuTimeLimit(30);
+				if (pic_parse_result.code == 0)
+				{
+					Share_app_log_add_result(pic_parse_log_num_return, "[Success] ", pic_parse_result.code, false);
+				}
+				else
+					Share_app_log_add_result(pic_parse_log_num_return, "[Error] ", pic_parse_result.code, false);
 			}
 		}
 		usleep(100000);
 	}
-	Share_app_log_save("Image viewer/Parse thread", "Thread exit.", 1234567890, false);
+	parse_thread_started = false;
+	Share_app_log_save("Imv/Parse thread", "Thread exit.", 1234567890, false);
 }
 
 void Image_viewer_download_thread(void* arg)
 {
-	Share_app_log_save("Image viewer/Download thread", "Thread started.", 1234567890, false);
+	Share_app_log_save("Imv/Download thread", "Thread started.", 1234567890, false);
 	u8* downloaded_image_buffer;
 	u32 downloaded_image_size;
 	int image_download_log_num_return;
@@ -423,16 +434,16 @@ void Image_viewer_download_thread(void* arg)
 	//Handle image_download_fs_handle = 0;
 	Result_with_string pic_download_result;
 
-	while (share_image_viewer_download_thread_run)
+	while (s_imv_download_thread_run)
 	{
-		if (share_image_viewer_thread_suspend)
+		if (s_imv_thread_suspend)
 			usleep(250000);
 		else
 		{
 			if (pic_download_request)
 			{
 				function_fail = false;
-				url = share_clipboard[clipboard_select_num];
+				url = s_clipboards[s_imv_clipboard_select_num];
 
 				moved_url = (char*)malloc(0x1000);
 				downloaded_image_buffer = (u8*)malloc(0x500000);
@@ -445,8 +456,8 @@ void Image_viewer_download_thread(void* arg)
 					redirect = false;
 					pic_download_result.code = 0;
 					pic_download_result.string = "[Success] ";
-					image_download_log_num_return = Share_app_log_save("Image viewer/Download thread/httpc", "Downloading image...", 1234567890, false);
-					usleep(100000);
+					image_download_log_num_return = Share_app_log_save("Imv/Download thread/httpc", "Downloading image...", 1234567890, false);
+					usleep(25000);
 
 					pic_download_result.code = httpcOpenContext(&image_viewer_httpc, HTTPC_METHOD_GET, url.c_str(), 0);
 					if (pic_download_result.code != 0)
@@ -481,7 +492,7 @@ void Image_viewer_download_thread(void* arg)
 					if (!function_fail)
 					{
 						httpcAddRequestHeaderField(&image_viewer_httpc, "Connection", "Keep-Alive");
-						httpcAddRequestHeaderField(&image_viewer_httpc, "User-Agent", share_httpc_user_agent.c_str());
+						httpcAddRequestHeaderField(&image_viewer_httpc, "User-Agent", s_httpc_user_agent.c_str());
 						pic_download_result.code = httpcBeginRequest(&image_viewer_httpc);
 						if (pic_download_result.code != 0)
 						{
@@ -539,8 +550,8 @@ void Image_viewer_download_thread(void* arg)
 					image_size = downloaded_image_size;
 					memcpy(image_buffer, downloaded_image_buffer, downloaded_image_size);
 				}
-				/*image_download_log_num_return = Share_app_log_save("Image viewer/Download thread/fs", "Save_to_file...", 1234567890, false);
-				pic_download_result = Share_save_to_file(std::to_string(share_month) + "_" + std::to_string(share_day) + "_" + std::to_string(share_hours) + "_" + std::to_string(share_minutes) + "_" + std::to_string(share_seconds) + ".jpg", image_buffer, (int)downloaded_image_size, "/Line/images/", true, image_download_fs_handle, image_download_fs_archive);
+				/*image_download_log_num_return = Share_app_log_save("Imv/Download thread/fs", "Save_to_file...", 1234567890, false);
+				pic_download_result = Share_save_to_file(std::to_string(s_months) + "_" + std::to_string(s_days) + "_" + std::to_string(s_hours) + "_" + std::to_string(s_minutes) + "_" + std::to_string(s_seconds) + ".jpg", image_buffer, (int)downloaded_image_size, "/Line/images/", true, image_download_fs_handle, image_download_fs_archive);
 				Share_app_log_add_result(image_download_log_num_return, pic_download_result.string, pic_download_result.code, false);*/
 				
 				image_download_progress++;
@@ -552,12 +563,12 @@ void Image_viewer_download_thread(void* arg)
 			usleep(100000);
 		}
 	}
-	Share_app_log_save("Image viewer/Download thread", "Thread exit.", 1234567890, false);
+	Share_app_log_save("Imv/Download thread", "Thread exit.", 1234567890, false);
 }
 
 void Image_viewer_exit(void)
 {
-	Share_app_log_save("Image viewer/Exit", "Exiting...", 1234567890, true);
+	Share_app_log_save("Imv/Exit", "Exiting...", 1234567890, true);
 	u64 time_out = 10000000000;
 	int exit_log_num_return;
 	bool function_fail = false;
@@ -565,11 +576,11 @@ void Image_viewer_exit(void)
 	exit_result.code = 0;
 	exit_result.string = "[Success] ";
 
-	share_image_viewer_already_init = false;
-	share_image_viewer_download_thread_run = false;
-	share_image_viewer_parse_thread_run = false;
+	s_imv_already_init = false;
+	s_imv_download_thread_run = false;
+	s_imv_parse_thread_run = false;
 
-	exit_log_num_return = Share_app_log_save("Image viewer/Exit", "Thread exiting(0/1)...", 1234567890, true);
+	exit_log_num_return = Share_app_log_save("Imv/Exit", "Thread exiting(0/1)...", 1234567890, true);
 	exit_result.code = threadJoin(image_viewer_download_thread, time_out);
 	if (exit_result.code == 0)
 		Share_app_log_add_result(exit_log_num_return, "[Success] ", exit_result.code, true);
@@ -579,7 +590,7 @@ void Image_viewer_exit(void)
 		Share_app_log_add_result(exit_log_num_return, "[Error] ", exit_result.code, true);
 	}
 
-	exit_log_num_return = Share_app_log_save("Image viewer/Exit", "Thread exiting(1/1)...", 1234567890, true);
+	exit_log_num_return = Share_app_log_save("Imv/Exit", "Thread exiting(1/1)...", 1234567890, true);
 	exit_result.code = threadJoin(image_viewer_parse_thread, time_out);
 	if (exit_result.code == 0)
 		Share_app_log_add_result(exit_log_num_return, "[Success] ", exit_result.code, true);
@@ -604,7 +615,7 @@ void Image_viewer_exit(void)
 	stbi_image = NULL;
 
 	if (function_fail)
-		Share_app_log_save("Image viewer/Exit", "[Warn] Some function returned error.", 1234567890, true);
+		Share_app_log_save("Imv/Exit", "[Warn] Some function returned error.", 1234567890, true);
 
-	Share_app_log_save("Image viewer/Exit", "Exited.", 1234567890, true);
+	Share_app_log_save("Imv/Exit", "Exited.", 1234567890, true);
 }
