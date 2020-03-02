@@ -16,4 +16,4 @@
 【Line】 Add- Hide ID
 【Line】 Add- Scroll bar
 【Image viewer】 Fix- clipboard
-【Pull requests】 Fix- #2</patch_note>
+【Pull requests】 Fix- #3</patch_note>
