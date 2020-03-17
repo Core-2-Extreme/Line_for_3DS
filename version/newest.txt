@@ -10,6 +10,9 @@
 <gas_ver>2</gas_ver>
 <patch_note>【App】 Ver 1.2.2
 【Setting】 Added- RAM allocation control menu.
-【Line】 Fixed- Now, some errors have been handled.
-【Image viewer】 Fixed- Now, some errors have been handled.
-【Speedtest】 Fixed- Now, some errors have been handled.</patch_note>
+【Line】
+Fixed- Now, some errors have been handled.
+【Image viewer】
+Fixed- Now, some errors have been handled.
+【Speedtest】
+Fixed- Now, some errors have been handled.</patch_note>
