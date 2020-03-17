@@ -194,6 +194,8 @@ std::string message_jp[87] = {
 	"Line log fs bufferのサイズ : ",
 	"Spt spt httpc bufferのサイズ : ",
 	"Imv image httpc bufferのサイズ : ",
+	"増やす",
+	"減らす",
 };
 
 Thread check_update_thread;
