@@ -1,4 +1,4 @@
-<newest>7</newest>
+<newest>8</newest>
 <3dsx_available>1</3dsx_available>
 <cia_32mb_ram_available>0</cia_32mb_ram_available>
 <cia_64mb_ram_available>1</cia_64mb_ram_available>
@@ -8,12 +8,8 @@
 <cia_124mb_ram_available>1</cia_124mb_ram_available>
 <cia_178mb_ram_available>0</cia_178mb_ram_available>
 <gas_ver>2</gas_ver>
-<patch_note>【App】 Ver 1.2.1
-【App】 Changed title id to 000400000EC95000
-【Setting】 Add- Fonts setting 
-【Setting】 Add- Scroll bar
-【Line】 Fix- Auto update was destroyed 
-【Line】 Add- Hide ID
-【Line】 Add- Scroll bar
-【Image viewer】 Fix- clipboard
-【Pull requests】 Fix- #3</patch_note>
+<patch_note>【App】 Ver 1.2.2
+【Setting】 Added- RAM allocation control menu.
+【Line】 Fixed- Now, some errors have been handled.
+【Image viewer】 Fixed- Now, some errors have been handled.
+【Speedtest】 Fixed- Now, some errors have been handled.</patch_note>
