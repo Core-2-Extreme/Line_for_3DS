@@ -9,11 +9,11 @@ https://discord.gg/EqK3Kpb
 * [How-to-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-use)
 
 ## Patch note
-* v1.2.0
-* Fix- Some crashes
-* Fix- Some settings do not work
-* Fix- Log download (GAS processing) speed has been improved(GAS update required)
-* Add- Image viewer
+* 【App】 Ver 1.2.2
+* 【Setting】 Added- RAM allocation control menu.
+* 【Line】 Fixed- Now, some errors have been handled.
+* 【Image viewer】 Fixed- Now, some errors have been handled.
+* 【Speedtest】 Fixed- Now, some errors have been handled.
 ## Summary
 
 # [Video](https://www.youtube.com/watch?v=5K2fCr0lyoM)
