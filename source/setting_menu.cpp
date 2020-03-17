@@ -888,7 +888,7 @@ void Setting_menu_update_check(void* arg)
 						if (s_current_app_ver < newest_ver)
 						{
 							new_version_available = true;
-							Share_app_log_save("Sem/Check update thread", "New version available " + std::to_string((int)check_update_buffer), 1234567890, false);
+							Share_app_log_save("Sem/Check update thread", "New version available " + std::to_string(newest_ver), 1234567890, false);
 						}
 						else
 						{
