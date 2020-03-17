@@ -1,9 +1,9 @@
 #pragma once
 
-void Speed_test_init(void);
+void Speedtest_init(void);
 
-void Speed_test_main(void);
+void Speedtest_main(void);
 
-void Speed_test_network(void* arg);
+void Speedtest_network(void* arg);
 
-void Speed_test_exit(void);
+void Speedtest_exit(void);

@@ -1,3 +1,4 @@
+#pragma once
 
 void Setting_menu_init(void);
 

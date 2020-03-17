@@ -12,6 +12,6 @@ void Image_viewer_main(void);
 
 void Image_viewer_parse_thread(void* arg);
 
-void Image_viewer_download_thread(void* arg);
+void Image_viewer_dl_thread(void* arg);
 
 void Image_viewer_exit(void);

@@ -1,3 +1,4 @@
+#pragma once
 
 void Google_tr_init(void);
 

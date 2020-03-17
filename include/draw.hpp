@@ -25,3 +25,5 @@ void Draw_set_draw_mode(int mode);
 void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_ver, float red, float green, float blue);
 
 void Draw_apply_draw(void);
+
+//bool Moded_C3D_TexInitWithParams(C3D_Tex* tex, C3D_TexCube* cube, C3D_TexInitParams p);

@@ -1,3 +1,4 @@
+#pragma once
 //https://github.com/smealum/3ds_hb_menu/blob/master/source/utils.h
 
 static inline void unicodeToChar(char* dst, u16* src, int max)

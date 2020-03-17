@@ -1,11 +1,14 @@
 #pragma once
 #include "citro2d.h"
-
 #define STACKSIZE (24 * 1024)
+#define OUT_OF_MEMORY -1
+#define BUFFER_SIZE_IS_TOO_SMALL -2
+
 
 struct Result_with_string
 {
 	std::string string;
+	std::string error_description;
 	Result code;
 };
 
@@ -33,6 +36,8 @@ extern bool s_key_DUP_press;
 extern bool s_key_DDOWN_press;
 extern bool s_key_DRIGHT_press;
 extern bool s_key_DLEFT_press;
+extern bool s_key_L_press;
+extern bool s_key_R_press;
 extern bool s_key_ZL_press;
 extern bool s_key_ZR_press;
 extern bool s_key_START_press;
@@ -52,6 +57,8 @@ extern bool s_key_DRIGHT_held;
 extern bool s_key_DLEFT_held;
 extern bool s_key_L_held;
 extern bool s_key_R_held;
+extern bool s_key_ZL_held;
+extern bool s_key_ZR_held;
 extern bool s_key_touch_held;
 
 //Already init flag
@@ -76,12 +83,15 @@ extern bool s_hid_thread_run;
 extern bool s_imv_download_thread_run;
 extern bool s_imv_parse_thread_run;
 extern bool s_line_log_download_thread_run;
+extern bool s_line_log_load_thread_run;
 extern bool s_line_log_parse_thread_run;
 extern bool s_line_message_send_thread_run;
 extern bool s_line_update_thread_run;
 extern bool s_spt_thread_run;
 extern bool s_update_thread_run;
 extern bool s_update_check_thread_run;
+extern bool s_launch_app_thread_run;
+extern bool s_destroy_app_thread_run;
 
 //Thread suspend flag
 extern bool s_gtr_thread_suspend;
@@ -93,10 +103,22 @@ extern bool s_sem_thread_suspend;
 extern bool s_allow_send_app_info;
 extern bool s_debug_mode;
 extern bool s_connect_test_succes;
+extern bool s_debug_slow;
+extern bool s_gtr_type_text_request;
 extern bool s_use_specific_system_font;
 extern bool s_use_external_font[47];
-
+extern bool s_imv_adjust_url_request;
+extern bool s_imv_image_dl_request;
+extern bool s_imv_image_parse_request;
+extern bool s_line_auto_update_mode;
 extern bool s_line_hide_id;
+extern bool s_line_log_load_request;
+extern bool s_line_log_update_request;
+extern bool s_line_message_send_check;
+extern bool s_line_message_send_request;
+extern bool s_line_type_id_request;
+extern bool s_line_type_message_request;
+extern bool s_line_type_main_url_request;
 extern bool s_app_logs_show;
 extern bool s_wifi_enabled;
 extern bool s_disabled_enter_afk_mode;
@@ -110,6 +132,8 @@ extern bool s_sem_show_newest_ver_data;
 extern bool s_sem_select_ver;
 extern bool s_sem_available_ver[8]; 
 extern bool s_sem_file_download_request;
+extern bool s_spt_start_request;
+extern bool s_error_display;
 
 extern float message_select_num;
 extern float text_x_cache;
@@ -118,6 +142,7 @@ extern float text_size_cache;
 extern float text_interval_cache;
 extern float app_log_x_cache;
 extern float s_line_bottom_y;
+extern float s_gtr_text_x;
 
 extern u8 s_wifi_signal;
 extern u8 s_battery_level;
@@ -129,9 +154,13 @@ extern int s_afk_time;
 extern int s_afk_lcd_brightness;
 extern int s_app_log_num;
 extern int s_app_log_view_num_cache;
+extern int s_circle_pos_x;
+extern int s_circle_pos_y;
 extern int s_num_of_app_start;
 extern int s_fps_show;
 extern int s_free_ram;
+extern int s_free_linear_ram;
+extern int s_gtr_selected_history_num;
 extern int s_hours;
 extern int s_minutes;
 extern int s_seconds;
@@ -142,7 +171,10 @@ extern int s_imv_image_pos_y;
 extern int s_imv_clipboard_select_num;
 extern int s_lang_select_num;
 extern int s_line_menu_mode;
+extern int s_line_room_select_num;
 extern int s_held_time;
+extern int s_circle_pos_x;
+extern int s_circle_pos_y;
 extern int s_touch_pos_x;
 extern int s_touch_pos_y;
 extern int s_touch_pos_x_before;
@@ -157,6 +189,13 @@ extern int s_time_to_enter_afk;
 extern int s_current_app_ver;
 extern int s_current_gas_ver;
 extern int s_sem_selected_edition_num;
+extern int s_line_log_httpc_buffer_size;
+extern int s_line_log_fs_buffer_size;
+extern int s_spt_spt_httpc_buffer_size;
+extern int s_imv_image_httpc_buffer_size;
+extern int s_spt_data_size;
+extern int s_font_characters[46];
+extern int s_font_start_num[46];
 extern float s_touch_pos_x_move_left;
 extern float s_touch_pos_y_move_left;
 extern float s_imv_image_zoom;
@@ -221,9 +260,15 @@ extern std::string s_bot_button_string[2];
 extern std::string s_square_string;
 extern std::string s_circle_string;
 extern std::string s_battery_level_string;
+extern std::string s_error_summary;
+extern std::string s_error_description;
+extern std::string s_error_place;
+extern std::string s_error_code;
+extern std::string s_gtr_history[17];;
 extern std::string s_setting[20];
 extern std::string s_line_message_en[21];
 extern std::string s_line_message_jp[21];
+extern std::string s_line_message_log[300];
 extern std::string s_spt_message_en[12];
 extern std::string s_spt_message_jp[12];
 extern std::string s_imv_message_en[8];
@@ -234,6 +279,7 @@ extern std::string s_imv_ver;
 extern std::string s_line_ver;
 extern std::string s_app_ver;
 extern std::string s_httpc_user_agent;
+
 
 extern std::string s_arabic_sample[255];
 extern std::string s_arabic_right_to_left_sample[235];
@@ -339,6 +385,14 @@ int Share_app_log_save(std::string type, std::string text, Result result, bool d
 void Share_app_log_add_result(int add_log_num, std::string add_text, Result result, bool draw);
 
 void Share_key_flag_reset(void);
+
+std::string Share_dec_to_hex_string(long dec);
+
+void Share_clear_error_message(void);
+
+void Share_set_error_message(std::string summary, std::string description, std::string place, long error_code);
+
+void Share_draw_error(void);
 
 void Share_scan_hid_thread(void* arg);
 
