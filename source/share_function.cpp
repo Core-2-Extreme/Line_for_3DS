@@ -5,6 +5,8 @@
 #include "change_setting.hpp"
 #include "share_function.hpp"
 #include "draw.hpp"
+#include "line.hpp"
+#include "image_viewer.hpp"
 
 //Svc init result flag
 bool s_ac_success = false;
@@ -77,12 +79,15 @@ bool s_hid_thread_run = false;
 bool s_imv_download_thread_run = false;
 bool s_imv_parse_thread_run = false;
 bool s_line_log_download_thread_run = false;
+bool s_line_log_load_thread_run = false;
 bool s_line_log_parse_thread_run = false;
 bool s_line_message_send_thread_run = false;
 bool s_line_update_thread_run = false;
 bool s_spt_thread_run = false;
 bool s_update_thread_run = false;
 bool s_update_check_thread_run = false;
+bool s_launch_app_thread_run = false;
+bool s_destroy_app_thread_run = false;
 
 //Thread suspend flag
 bool s_gtr_thread_suspend = false;
@@ -94,9 +99,22 @@ bool s_sem_thread_suspend = false;
 bool s_allow_send_app_info = false;
 bool s_debug_mode = false;
 bool s_connect_test_succes = false;
+bool s_debug_slow = false;
+bool s_gtr_type_text_request = false;
 bool s_use_specific_system_font = false;
 bool s_use_external_font[47];
+bool s_imv_adjust_url_request = false;
+bool s_imv_image_dl_request = false;
+bool s_imv_image_parse_request = false;
+bool s_line_auto_update_mode = false;
 bool s_line_hide_id = false;
+bool s_line_log_load_request = false;
+bool s_line_log_update_request = false;
+bool s_line_message_send_check = false;
+bool s_line_message_send_request = false;
+bool s_line_type_id_request = false;
+bool s_line_type_message_request = false;
+bool s_line_type_main_url_request = false;
 bool s_app_logs_show = false;
 bool s_wifi_enabled = false;
 bool s_disabled_enter_afk_mode = false;
@@ -110,6 +128,8 @@ bool s_sem_show_newest_ver_data = false;
 bool s_sem_select_ver = false;
 bool s_sem_available_ver[8]; // 3dsx, 32mb, 64mb, 72mb, 80mb, 96mb, 124mb, 178mb
 bool s_sem_file_download_request = false;
+bool s_spt_start_request = false;
+bool s_error_display = false;
 
 float message_select_num = 0.0f;
 float text_x_cache = 40.0;
@@ -118,6 +138,7 @@ float text_size_cache = 0.66;
 float text_interval_cache = 35.0;
 float app_log_x_cache = 0.0;
 float s_line_bottom_y = 0.0;
+float s_gtr_text_x = 0.0f;
 
 u8 s_wifi_signal = -1;
 u8 s_battery_level = -1;
@@ -132,6 +153,8 @@ int s_app_log_view_num_cache = 0;
 int s_num_of_app_start = 0;
 int s_fps_show = 0;
 int s_free_ram = 0;
+int s_free_linear_ram = 0;
+int s_gtr_selected_history_num = 0;
 int s_hours = -1;
 int s_minutes = -1;
 int s_seconds = -1;
@@ -142,6 +165,7 @@ int s_imv_image_pos_y = 20;
 int s_imv_clipboard_select_num = 1;
 int s_lang_select_num = 0;
 int s_line_menu_mode = 0;
+int s_line_room_select_num = 0;
 int s_held_time = 0;
 int s_touch_pos_x = 0;
 int s_touch_pos_y = 0;
@@ -157,6 +181,11 @@ int s_time_to_enter_afk = 300;
 int s_current_app_ver = 7;
 int s_current_gas_ver = 2;
 int s_sem_selected_edition_num = 0;
+int s_line_log_httpc_buffer_size = 0x200000;
+int s_line_log_fs_buffer_size = 0x200000;
+int s_spt_spt_httpc_buffer_size = 0x700000;
+int s_imv_image_httpc_buffer_size = 0x200000;
+int s_spt_data_size = 0;
 /*
    0 ~   94   (95) Basic latin
   95 ~  222  (128) Latin 1 supplement
@@ -393,6 +422,11 @@ std::string s_bot_button_string[2] = { "<                \u25BD                >
 std::string s_square_string = "\u25A0";
 std::string s_circle_string = "\u25CF";
 std::string s_battery_level_string = "?";
+std::string s_error_summary = "";
+std::string s_error_description = "";
+std::string s_error_place = "";
+std::string s_error_code = "";
+std::string s_gtr_history[17] = { "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a" };
 std::string s_setting[20]; //0 sorce data, 1 language, 2 screen brightness when normal, 3 time to enter afk, 4 screen brightness when afk , 5 setting menu show, 6 scroll speed, 7 allow send app info, 8 number of app start
 std::string s_line_message_en[21] = {
 	" Message(s) found. (",
@@ -440,6 +474,7 @@ std::string s_line_message_jp[21] = {
 	"新規ID追加\n (Yキー)",
 	"メインURL変更\n (Xキー)"
 };
+std::string s_line_message_log[300];
 std::string s_spt_message_en[12] = {
 	"Downloaded size : ",
 	"Download time : ",
@@ -488,11 +523,11 @@ std::string s_imv_message_jp[8] = {
 	"サイズを大きく(Rキー)",
 	"選択されたクリップボード番号 ",
 };
-std::string s_spt_ver = "v1.0.2";
+std::string s_spt_ver = "v1.0.3";
 std::string s_gtr_ver = "v1.0.1";
 std::string s_imv_ver = "v1.0.1";
-std::string s_line_ver = "v1.2.1";
-std::string s_app_ver = "v1.2.1";
+std::string s_line_ver = "v1.2.2";
+std::string s_app_ver = "v1.2.2";
 std::string s_httpc_user_agent = "Line for 3DS " + s_app_ver;
 
 //#0600~#06FF
@@ -1373,7 +1408,21 @@ void Share_get_system_info(void)
 	}
 	else
 	{
-		s_battery_level = 0;
+		PTMU_GetBatteryLevel(&s_battery_level);
+		
+		if((int)s_battery_level == 0)
+			s_battery_level = 0;
+		else if((int)s_battery_level == 1)
+			s_battery_level = 5;
+		else if ((int)s_battery_level == 2)
+			s_battery_level = 10;
+		else if ((int)s_battery_level == 3)
+			s_battery_level = 30;
+		else if ((int)s_battery_level == 4)
+			s_battery_level = 60;
+		else if ((int)s_battery_level == 5)
+			s_battery_level = 100;
+
 		s_battery_level_string = "?";
 	}
 
@@ -1415,9 +1464,7 @@ int Share_check_free_ram(void)
 	{
 		malloc_check[count] = (u8*)malloc(0x100000);// 1MB
 		if (malloc_check[count] == NULL)
-		{
 			break;
-		}
 	}
 
 	for (int i = 0; i <= count; i++)
@@ -1462,12 +1509,15 @@ void Share_update_thread(void* arg)
 		usleep(50000);
 		update_thread_count++;
 
-		if (update_thread_count >= 20)
+		if ((update_thread_count == 10 || update_thread_count == 20) && s_debug_mode)
 		{
 			//check free RAM
-			if (s_debug_mode)
-				s_free_ram = Share_check_free_ram();
+			s_free_ram = Share_check_free_ram();
+			s_free_linear_ram = linearSpaceFree() / 1024 / 1024;
+		}
 
+		if (update_thread_count >= 20)
+		{
 			//fps
 			s_fps_show = s_fps;
 			s_fps = 0;
@@ -1621,6 +1671,48 @@ void Share_key_flag_reset(void)
 	s_touch_pos_y = 0;
 }
 
+std::string Share_dec_to_hex_string(long dec)
+{
+	char hex_string[128];
+	sprintf(hex_string, "0x%lx", dec);
+	return hex_string;
+}
+
+void Share_clear_error_message(void)
+{
+	s_error_summary = "N/A";
+	s_error_description = "N/A";
+	s_error_place = "N/A";
+	s_error_code = Share_dec_to_hex_string(0);
+}
+
+void Share_set_error_message(std::string summary, std::string description, std::string place, long error_code)
+{
+	s_error_summary = summary;
+	s_error_description = description;
+	s_error_place = place;
+	if(error_code == 1234567890)
+		s_error_code = "N/A";
+	else
+		s_error_code = Share_dec_to_hex_string(error_code);
+}
+
+void Share_draw_error(void)
+{
+	Draw_texture(Square_image, dammy_tint, 10, 20.0, 30.0, 280.0, 150.0);
+	Draw_texture(Square_image, dammy_tint, 5, 150.0, 150.0, 20.0, 20.0);
+
+	Draw("Summary : ", 22.5, 40.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+	Draw(s_error_summary, 22.5, 50.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+	Draw("Description : ", 22.5, 60.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+	Draw(s_error_description, 22.5, 70.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
+	Draw("Place : ", 22.5, 90.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+	Draw(s_error_place, 22.5, 100.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+	Draw("Error code : ", 22.5, 110.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+	Draw(s_error_code, 22.5, 120.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+	Draw("OK", 152.5, 152.5, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+}
+
 void Share_scan_hid_thread(void* arg)
 {
 	Share_app_log_save("Share/Scan hid thread", "Thread started.", 1234567890, false);
@@ -1628,6 +1720,7 @@ void Share_scan_hid_thread(void* arg)
 	int scan_hid_log_num_return;
 	int scan_hid_load_font_num;
 	bool scroll_bar_selected = false;
+	bool bar_selected[4] = { false, false, false, false, };
 	bool scroll_mode = false;
 	u32 kDown;
 	u32 kHeld;
@@ -1637,8 +1730,6 @@ void Share_scan_hid_thread(void* arg)
 
 	while (s_hid_thread_run)
 	{
-		scan_hid_result.code = 0;
-		scan_hid_result.string = "[Success] ";
 		if (s_hid_disabled)
 			Share_key_flag_reset();
 
@@ -1647,6 +1738,7 @@ void Share_scan_hid_thread(void* arg)
 		hidCircleRead(&circle_pos);
 		kHeld = hidKeysHeld();
 		kDown = hidKeysDown();
+
 
 		if (kDown & KEY_A)
 			s_key_A_press = true;
@@ -1829,7 +1921,12 @@ void Share_scan_hid_thread(void* arg)
 			}
 		}
 
-		if (s_sem_main_run && !s_hid_disabled)
+		if (s_error_display)
+		{
+			if (s_key_touch_press && s_key_touch_press && s_touch_pos_x >= 150 && s_touch_pos_x <= 170 && s_touch_pos_y >= 150 && s_touch_pos_y < 170)
+				s_error_display = false;
+		}
+		else if (s_sem_main_run && !s_hid_disabled)
 		{
 			if (s_key_START_press || (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 230 && s_touch_pos_y >= 220 && s_touch_pos_y <= 240))
 			{
@@ -1868,298 +1965,359 @@ void Share_scan_hid_thread(void* arg)
 					}
 				}
 			}
-			else if (s_key_touch_press || s_key_touch_held)
+			else
 			{
-				s_touch_pos_x_move_left = 0;
-				s_touch_pos_y_move_left = 0;
-
-				if (s_key_touch_press && s_touch_pos_x >= 305 && s_touch_pos_x <= 320 && s_touch_pos_y >= 15 && s_touch_pos_y <= 220)
-					scroll_bar_selected = true;
-				else if (scroll_bar_selected)
-					s_sem_y_offset = -1300.0 * ((s_touch_pos_y - 15.0) / 195.0);
-				else if (scroll_mode)
+				if (s_key_touch_press || s_key_touch_held)
 				{
-					s_touch_pos_x_move_left += s_touch_pos_x_moved;
-					s_touch_pos_y_move_left += s_touch_pos_y_moved;
-				}
-				else if (s_touch_pos_y <= 219)
-				{
-					if (s_key_touch_press && s_touch_pos_x >= 10 && s_touch_pos_x <= 209 && s_touch_pos_y >= 15 + s_sem_y_offset && s_touch_pos_y <= 34 + s_sem_y_offset)
-					{
-						s_sem_update_check_request = true;
-						s_sem_show_newest_ver_data = true;
-					}
-					else if (s_key_touch_press && s_touch_pos_x >= 10 && s_touch_pos_x <= 100 && s_touch_pos_y >= 55 + s_sem_y_offset && s_touch_pos_y <= 74 + s_sem_y_offset)
-						s_setting[1] = "en";
-					else if (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 200 && s_touch_pos_y >= 55 + s_sem_y_offset && s_touch_pos_y <= 74 + s_sem_y_offset)
-						s_setting[1] = "jp";
+					s_touch_pos_x_move_left = 0;
+					s_touch_pos_y_move_left = 0;
 
-					/*else if (s_key_touch_press && s_touch_pos_x >= 130 && s_touch_pos_x <= 180 && s_touch_pos_y >= 45 + s_sem_y_offset && s_touch_pos_y <= 54 + s_sem_y_offset)
+					if (scroll_bar_selected)
+						s_sem_y_offset = -1500.0 * ((s_touch_pos_y - 15.0) / 195.0);
+					else if (scroll_mode)
 					{
-						if (s_sem_help_mode_num == 0)
-							s_sem_help_mode_num = -1;
-						else
-							s_sem_help_mode_num = 0;
-					}*/
-					else if (s_key_touch_press && s_touch_pos_x >= 10 && s_touch_pos_x <= 100 && s_touch_pos_y >= 95 + s_sem_y_offset && s_touch_pos_y <= 114 + s_sem_y_offset)
-					{
-						C2D_PlainImageTint(&texture_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.75), true);
-						s_night_mode = true;
+						s_touch_pos_x_move_left += s_touch_pos_x_moved;
+						s_touch_pos_y_move_left += s_touch_pos_y_moved;
 					}
-					else if (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 200 && s_touch_pos_y >= 95 + s_sem_y_offset && s_touch_pos_y <= 114 + s_sem_y_offset)
-					{
-						C2D_PlainImageTint(&texture_tint, C2D_Color32f(0.0, 0.0, 0.0, 1.0), true);
-						s_night_mode = false;
-					}
-					else if (s_key_touch_press && s_touch_pos_x >= 210 && s_touch_pos_x <= 250 && s_touch_pos_y >= 95 + s_sem_y_offset && s_touch_pos_y <= 114 + s_sem_y_offset)
-					{
-						if (s_flash_mode)
-							s_flash_mode = false;
-						else
-							s_flash_mode = true;
-					}
-					/*else if (s_key_touch_press && s_touch_pos_x >= 130 && s_touch_pos_x <= 180 && s_touch_pos_y >= 125 + s_sem_y_offset && s_touch_pos_y <= 134 + s_sem_y_offset)
-					{
-						if (s_sem_help_mode_num == 1)
-							s_sem_help_mode_num = -1;
-						else
-							s_sem_help_mode_num = 1;
-					}*/
-					else if (s_key_touch_press && s_touch_pos_x >= 10 && s_touch_pos_x <= 100 && s_touch_pos_y >= 135 + s_sem_y_offset && s_touch_pos_y <= 154 + s_sem_y_offset)
-						s_draw_vsync_mode = true;
-					else if (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 200 && s_touch_pos_y >= 135 + s_sem_y_offset && s_touch_pos_y <= 154 + s_sem_y_offset)
-						s_draw_vsync_mode = false;
-					/*else if (s_key_touch_press && s_touch_pos_x >= 150 && s_touch_pos_x <= 200 && s_touch_pos_y >= 155 + s_sem_y_offset && s_touch_pos_y <= 164 + s_sem_y_offset)
-					{
-						if (s_sem_help_mode_num == 2)
-							s_sem_help_mode_num = -1;
-						else
-							s_sem_help_mode_num = 2;
-					}*/
-					else if (s_key_touch_press && s_touch_pos_x >= 0 && s_touch_pos_x <= 320 && s_touch_pos_y >= 170 + s_sem_y_offset && s_touch_pos_y <= 189 + s_sem_y_offset)
+					else if (bar_selected[0])
 						s_lcd_brightness = (s_touch_pos_x / 2) + 10;
-					/*else if (s_key_touch_press && s_touch_pos_x >= 240 && s_touch_pos_x <= 290 && s_touch_pos_y >= 205 + s_sem_y_offset && s_touch_pos_y <= 214 + s_sem_y_offset)
-					{
-						if (s_sem_help_mode_num == 3)
-							s_sem_help_mode_num = -1;
-						else
-							s_sem_help_mode_num = 3;
-					}*/
-					else if (s_key_touch_press && s_touch_pos_x >= 0 && s_touch_pos_x <= 320 && s_touch_pos_y >= 210 + s_sem_y_offset && s_touch_pos_y <= 229 + s_sem_y_offset)
+					else if (bar_selected[1])
 						s_time_to_enter_afk = s_touch_pos_x * 10;
-					/*else if (s_key_touch_press && s_touch_pos_x >= 240 && s_touch_pos_x <= 290 && s_touch_pos_y >= 245 + s_sem_y_offset && s_touch_pos_y <= 254 + s_sem_y_offset)
-					{
-						if (s_sem_help_mode_num == 4)
-							s_sem_help_mode_num = -1;
-						else
-							s_sem_help_mode_num = 4;
-					}*/
-					else if (s_key_touch_press && s_touch_pos_x >= 0 && s_touch_pos_x <= 320 && s_touch_pos_y >= 250 + s_sem_y_offset && s_touch_pos_y <= 269 + s_sem_y_offset)
+					else if (bar_selected[2])
 						s_afk_lcd_brightness = (s_touch_pos_x / 2) + 10;
-					else if (s_key_touch_press && s_touch_pos_x >= 0 && s_touch_pos_x <= 320 && s_touch_pos_y >= 290 + s_sem_y_offset && s_touch_pos_y <= 309 + s_sem_y_offset)
+					else if (bar_selected[3])
 						s_scroll_speed = (double)s_touch_pos_x / 300;
-					else if (s_key_touch_press && s_touch_pos_x >= 10 && s_touch_pos_x <= 100 && s_touch_pos_y >= 330 + s_sem_y_offset && s_touch_pos_y <= 349 + s_sem_y_offset)
-						s_allow_send_app_info = true;
-					else if (s_key_touch_press && s_touch_pos_x >= 100 && s_touch_pos_x <= 200 && s_touch_pos_y >= 330 + s_sem_y_offset && s_touch_pos_y <= 349 + s_sem_y_offset)
-						s_allow_send_app_info = false;
-					else if (s_key_touch_press && s_touch_pos_x >= 10 && s_touch_pos_x <= 100 && s_touch_pos_y >= 370 + s_sem_y_offset && s_touch_pos_y <= 389 + s_sem_y_offset)
-						s_debug_mode = true;
-					else if (s_key_touch_press && s_touch_pos_x >= 100 && s_touch_pos_x <= 200 && s_touch_pos_y >= 370 + s_sem_y_offset && s_touch_pos_y <= 389 + s_sem_y_offset)
-						s_debug_mode = false;
-					else if (s_key_touch_press && s_touch_pos_x >= 10 && s_touch_pos_x <= 100 && s_touch_pos_y >= 420 + s_sem_y_offset && s_touch_pos_y <= 439 + s_sem_y_offset)
+					else if (s_key_touch_press && s_touch_pos_y <= 219)
 					{
-						s_use_specific_system_font = false;
-						s_use_external_font[0] = false;
-					}
-					else if (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 200 && s_touch_pos_y >= 420 + s_sem_y_offset && s_touch_pos_y <= 439 + s_sem_y_offset)
-					{
-						s_use_specific_system_font = false;
-						s_use_external_font[0] = true;
-					}
-					else if (s_key_touch_press && s_touch_pos_x >= 210 && s_touch_pos_x <= 300 && s_touch_pos_y >= 420 + s_sem_y_offset && s_touch_pos_y <= 439 + s_sem_y_offset)
-					{
-						s_use_specific_system_font = true;
-						s_use_external_font[0] = false;
-					}
-					else if (s_key_touch_press && s_touch_pos_x >= 10 && s_touch_pos_x <= 80 && s_touch_pos_y >= 460 + s_sem_y_offset && s_touch_pos_y <= 479 + s_sem_y_offset)
-					{
-						Draw_free_system_font(s_lang_select_num);
-						Draw_load_system_font(0);
-						s_lang_select_num = 0;
-					}
-					else if (s_key_touch_press && s_touch_pos_x >= 85 && s_touch_pos_x <= 155 && s_touch_pos_y >= 460 + s_sem_y_offset && s_touch_pos_y <= 479 + s_sem_y_offset)
-					{
-						Draw_free_system_font(s_lang_select_num);
-						Draw_load_system_font(1);
-						s_lang_select_num = 1;
-					}
-					else if (s_key_touch_press && s_touch_pos_x >= 160 && s_touch_pos_x <= 230 && s_touch_pos_y >= 460 + s_sem_y_offset && s_touch_pos_y <= 479 + s_sem_y_offset)
-					{
-						Draw_free_system_font(s_lang_select_num);
-						Draw_load_system_font(2);
-						s_lang_select_num = 2;
-					}
-					else if (s_key_touch_press && s_touch_pos_x >= 235 && s_touch_pos_x <= 305 && s_touch_pos_y >= 460 + s_sem_y_offset && s_touch_pos_y <= 479 + s_sem_y_offset)
-					{
-						Draw_free_system_font(s_lang_select_num);
-						Draw_load_system_font(3);
-						s_lang_select_num = 3;
-					}
-					else if (s_key_touch_press && s_touch_pos_x >= 10 && s_touch_pos_x <= 200 && s_touch_pos_y >= 520 + s_sem_y_offset && s_touch_pos_y <= 1439 + s_sem_y_offset)
-					{
-						scan_hid_load_font_num = -1;
-						for (int i = 0; i < 46; i++)
+						if (s_touch_pos_x >= 305 && s_touch_pos_x <= 320 && s_touch_pos_y >= 15)
+							scroll_bar_selected = true;
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 209 && s_touch_pos_y >= 15 + s_sem_y_offset && s_touch_pos_y <= 34 + s_sem_y_offset)
 						{
-							if (s_touch_pos_y >= 520 + s_sem_y_offset + (i * 20) && s_touch_pos_y <= 539 + s_sem_y_offset + (i * 20))
-								scan_hid_load_font_num = i;
+							s_sem_update_check_request = true;
+							s_sem_show_newest_ver_data = true;
 						}
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 99 && s_touch_pos_y >= 55 + s_sem_y_offset && s_touch_pos_y <= 74 + s_sem_y_offset)
+							s_setting[1] = "en";
+						else if (s_touch_pos_x >= 110 && s_touch_pos_x <= 199 && s_touch_pos_y >= 55 + s_sem_y_offset && s_touch_pos_y <= 74 + s_sem_y_offset)
+							s_setting[1] = "jp";
 
-						if (scan_hid_load_font_num != -1)
+						/*else if (s_touch_pos_x >= 130 && s_touch_pos_x <= 180 && s_touch_pos_y >= 45 + s_sem_y_offset && s_touch_pos_y <= 54 + s_sem_y_offse)
 						{
-							if (s_use_external_font[scan_hid_load_font_num + 1])
-							{
-								Draw_free_texture(5 + scan_hid_load_font_num);
-								for (int i = s_font_start_num[scan_hid_load_font_num]; i < s_font_characters[scan_hid_load_font_num]; i++)
-									font_images[i].tex = NULL;
-
-								s_use_external_font[scan_hid_load_font_num + 1] = false;
-							}
+							if (s_sem_help_mode_num == 0)
+								s_sem_help_mode_num = -1;
 							else
+								s_sem_help_mode_num = 0;
+						}*/
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 99 && s_touch_pos_y >= 95 + s_sem_y_offset && s_touch_pos_y <= 114 + s_sem_y_offset)
+						{
+							C2D_PlainImageTint(&texture_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.75), true);
+							s_night_mode = true;
+						}
+						else if (s_touch_pos_x >= 110 && s_touch_pos_x <= 199 && s_touch_pos_y >= 95 + s_sem_y_offset && s_touch_pos_y <= 114 + s_sem_y_offset)
+						{
+							C2D_PlainImageTint(&texture_tint, C2D_Color32f(0.0, 0.0, 0.0, 1.0), true);
+							s_night_mode = false;
+						}
+						else if (s_touch_pos_x >= 210 && s_touch_pos_x <= 249 && s_touch_pos_y >= 95 + s_sem_y_offset && s_touch_pos_y <= 114 + s_sem_y_offset)
+						{
+							if (s_flash_mode)
+								s_flash_mode = false;
+							else
+								s_flash_mode = true;
+						}
+						/*else if (s_touch_pos_x >= 130 && s_touch_pos_x <= 180 && s_touch_pos_y >= 125 + s_sem_y_offset && s_touch_pos_y <= 134 + s_sem_y_offse)
+						{
+							if (s_sem_help_mode_num == 1)
+								s_sem_help_mode_num = -1;
+							else
+								s_sem_help_mode_num = 1;
+						}*/
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 99 && s_touch_pos_y >= 135 + s_sem_y_offset && s_touch_pos_y <= 154 + s_sem_y_offset)
+							s_draw_vsync_mode = true;
+						else if (s_touch_pos_x >= 110 && s_touch_pos_x <= 199 && s_touch_pos_y >= 135 + s_sem_y_offset && s_touch_pos_y <= 154 + s_sem_y_offset)
+							s_draw_vsync_mode = false;
+						/*else if (s_touch_pos_x >= 150 && s_touch_pos_x <= 200 && s_touch_pos_y >= 155 + s_sem_y_offset && s_touch_pos_y <= 164 + s_sem_y_offset)
+						{
+							if (s_sem_help_mode_num == 2)
+								s_sem_help_mode_num = -1;
+							else
+								s_sem_help_mode_num = 2;
+						}*/
+						else if (s_touch_pos_x >= 0 && s_touch_pos_x <= 319 && s_touch_pos_y >= 170 + s_sem_y_offset && s_touch_pos_y <= 189 + s_sem_y_offset)
+							bar_selected[0] = true;
+						/*else if (s_touch_pos_x >= 240 && s_touch_pos_x <= 290 && s_touch_pos_y >= 205 + s_sem_y_offset && s_touch_pos_y <= 214 + s_sem_y_offset)
+						{
+							if (s_sem_help_mode_num == 3)
+								s_sem_help_mode_num = -1;
+							else
+								s_sem_help_mode_num = 3;
+						}*/
+						else if (s_touch_pos_x >= 0 && s_touch_pos_x <= 319 && s_touch_pos_y >= 210 + s_sem_y_offset && s_touch_pos_y <= 229 + s_sem_y_offset)
+							bar_selected[1] = true;
+						/*else if (s_touch_pos_x >= 240 && s_touch_pos_x <= 290 && s_touch_pos_y >= 245 + s_sem_y_offset && s_touch_pos_y <= 254 + s_sem_y_offset)
+						{
+							if (s_sem_help_mode_num == 4)
+								s_sem_help_mode_num = -1;
+							else
+								s_sem_help_mode_num = 4;
+						}*/
+						else if (s_touch_pos_x >= 0 && s_touch_pos_x <= 319 && s_touch_pos_y >= 250 + s_sem_y_offset && s_touch_pos_y <= 269 + s_sem_y_offset)
+							bar_selected[2] = true;
+						else if (s_touch_pos_x >= 0 && s_touch_pos_x <= 319 && s_touch_pos_y >= 290 + s_sem_y_offset && s_touch_pos_y <= 309 + s_sem_y_offset)
+							bar_selected[3] = true;
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 99 && s_touch_pos_y >= 335 + s_sem_y_offset && s_touch_pos_y <= 354 + s_sem_y_offset)
+							s_allow_send_app_info = true;
+						else if (s_touch_pos_x >= 100 && s_touch_pos_x <= 199 && s_touch_pos_y >= 335 + s_sem_y_offset && s_touch_pos_y <= 354 + s_sem_y_offset)
+							s_allow_send_app_info = false;
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 99 && s_touch_pos_y >= 375 + s_sem_y_offset && s_touch_pos_y <= 394 + s_sem_y_offset)
+							s_debug_mode = true;
+						else if (s_touch_pos_x >= 100 && s_touch_pos_x <= 199 && s_touch_pos_y >= 375 + s_sem_y_offset && s_touch_pos_y <= 394 + s_sem_y_offset)
+							s_debug_mode = false;
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 99 && s_touch_pos_y >= 415 + s_sem_y_offset && s_touch_pos_y <= 434 + s_sem_y_offset)
+						{
+							s_use_specific_system_font = false;
+							s_use_external_font[0] = false;
+						}
+						else if (s_touch_pos_x >= 110 && s_touch_pos_x <= 199 && s_touch_pos_y >= 415 + s_sem_y_offset && s_touch_pos_y <= 434 + s_sem_y_offset)
+						{
+							s_use_specific_system_font = false;
+							s_use_external_font[0] = true;
+						}
+						else if (s_touch_pos_x >= 210 && s_touch_pos_x <= 299 && s_touch_pos_y >= 415 + s_sem_y_offset && s_touch_pos_y <= 434 + s_sem_y_offset)
+						{
+							s_use_specific_system_font = true;
+							s_use_external_font[0] = false;
+						}
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 79 && s_touch_pos_y >= 455 + s_sem_y_offset && s_touch_pos_y <= 474 + s_sem_y_offset)
+						{
+							Draw_free_system_font(s_lang_select_num);
+							Draw_load_system_font(0);
+							s_lang_select_num = 0;
+						}
+						else if (s_touch_pos_x >= 85 && s_touch_pos_x <= 154 && s_touch_pos_y >= 455 + s_sem_y_offset && s_touch_pos_y <= 474 + s_sem_y_offset)
+						{
+							Draw_free_system_font(s_lang_select_num);
+							Draw_load_system_font(1);
+							s_lang_select_num = 1;
+						}
+						else if (s_touch_pos_x >= 160 && s_touch_pos_x <= 229 && s_touch_pos_y >= 455 + s_sem_y_offset && s_touch_pos_y <= 474 + s_sem_y_offset)
+						{
+							Draw_free_system_font(s_lang_select_num);
+							Draw_load_system_font(2);
+							s_lang_select_num = 2;
+						}
+						else if (s_touch_pos_x >= 235 && s_touch_pos_x <= 304 && s_touch_pos_y >= 455 + s_sem_y_offset && s_touch_pos_y <= 474 + s_sem_y_offset)
+						{
+							Draw_free_system_font(s_lang_select_num);
+							Draw_load_system_font(3);
+							s_lang_select_num = 3;
+						}
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 209 && s_touch_pos_y >= 515 + s_sem_y_offset && s_touch_pos_y <= 1434 + s_sem_y_offset)
+						{
+							scan_hid_load_font_num = -1;
+							for (int i = 0; i < 46; i++)
 							{
-								scan_hid_log_num_return = Share_app_log_save("Share/Scan hid/c2d", "Loading texture (" + s_font_file_name[scan_hid_load_font_num] + "_font.t3x)...", 1234567890, false);
-								scan_hid_result = Draw_load_texture("romfs:/gfx/font/" + s_font_file_name[scan_hid_load_font_num] + "_font.t3x", scan_hid_load_font_num + 5, font_images, s_font_start_num[scan_hid_load_font_num], s_font_characters[scan_hid_load_font_num]);
-								Share_app_log_add_result(scan_hid_log_num_return, scan_hid_result.string, scan_hid_result.code, false);
+								if (s_touch_pos_y >= 515 + s_sem_y_offset + (i * 20) && s_touch_pos_y <= 534 + s_sem_y_offset + (i * 20))
+									scan_hid_load_font_num = i;
+							}
 
-								if (scan_hid_result.code == 0)
-									s_use_external_font[scan_hid_load_font_num + 1] = true;
-								else
+							if (scan_hid_load_font_num != -1)
+							{
+								if (s_use_external_font[scan_hid_load_font_num + 1])
 								{
 									Draw_free_texture(5 + scan_hid_load_font_num);
 									for (int i = s_font_start_num[scan_hid_load_font_num]; i < s_font_characters[scan_hid_load_font_num]; i++)
 										font_images[i].tex = NULL;
+
+									s_use_external_font[scan_hid_load_font_num + 1] = false;
+								}
+								else
+								{
+									scan_hid_log_num_return = Share_app_log_save("Share/Scan hid/c2d", "Loading texture (" + s_font_file_name[scan_hid_load_font_num] + "_font.t3x)...", 1234567890, false);
+									scan_hid_result = Draw_load_texture("romfs:/gfx/font/" + s_font_file_name[scan_hid_load_font_num] + "_font.t3x", scan_hid_load_font_num + 5, font_images, s_font_start_num[scan_hid_load_font_num], s_font_characters[scan_hid_load_font_num]);
+									Share_app_log_add_result(scan_hid_log_num_return, scan_hid_result.string, scan_hid_result.code, false);
+
+									if (scan_hid_result.code == 0)
+										s_use_external_font[scan_hid_load_font_num + 1] = true;
+									else
+									{
+										Draw_free_texture(5 + scan_hid_load_font_num);
+										for (int i = s_font_start_num[scan_hid_load_font_num]; i < s_font_characters[scan_hid_load_font_num]; i++)
+											font_images[i].tex = NULL;
+									}
 								}
 							}
 						}
-					}
-					else if (s_key_touch_press && s_touch_pos_x >= 10 && s_touch_pos_x <= 104 && s_touch_pos_y >= 500 + s_sem_y_offset && s_touch_pos_y <= 519 + s_sem_y_offset)
-					{
-						for (int j = 0; j < 46; j++)
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 109 && s_touch_pos_y >= 495 + s_sem_y_offset && s_touch_pos_y <= 514 + s_sem_y_offset)
 						{
-							if (!s_use_external_font[j + 1])
+							for (int j = 0; j < 46; j++)
 							{
-								scan_hid_log_num_return = Share_app_log_save("Share/Scan hid/c2d", "Loading texture (" + s_font_file_name[j] + "_font.t3x)...", 1234567890, false);
-								scan_hid_result = Draw_load_texture("romfs:/gfx/font/" + s_font_file_name[j] + "_font.t3x", j + 5, font_images, s_font_start_num[j], s_font_characters[j]);
-								Share_app_log_add_result(scan_hid_log_num_return, scan_hid_result.string, scan_hid_result.code, false);
+								if (!s_use_external_font[j + 1])
+								{
+									scan_hid_log_num_return = Share_app_log_save("Share/Scan hid/c2d", "Loading texture (" + s_font_file_name[j] + "_font.t3x)...", 1234567890, false);
+									scan_hid_result = Draw_load_texture("romfs:/gfx/font/" + s_font_file_name[j] + "_font.t3x", j + 5, font_images, s_font_start_num[j], s_font_characters[j]);
+									Share_app_log_add_result(scan_hid_log_num_return, scan_hid_result.string, scan_hid_result.code, false);
 
-								if (scan_hid_result.code == 0)
-									s_use_external_font[j + 1] = true;
-								else
+									if (scan_hid_result.code == 0)
+										s_use_external_font[j + 1] = true;
+									else
+									{
+										Draw_free_texture(5 + j);
+										for (int i = s_font_start_num[j]; i < s_font_characters[j]; i++)
+											font_images[i].tex = NULL;
+									}
+								}
+							}
+						}
+						else if (s_touch_pos_x >= 110 && s_touch_pos_x <= 209 && s_touch_pos_y >= 495 + s_sem_y_offset && s_touch_pos_y <= 514 + s_sem_y_offset)
+						{
+							for (int j = 0; j < 46; j++)
+							{
+								if (s_use_external_font[j + 1])
 								{
 									Draw_free_texture(5 + j);
 									for (int i = s_font_start_num[j]; i < s_font_characters[j]; i++)
 										font_images[i].tex = NULL;
+
+									s_use_external_font[j + 1] = false;
 								}
 							}
 						}
-
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 99 && s_touch_pos_y >= 1450 + s_sem_y_offset && s_touch_pos_y <= 1469 + s_sem_y_offset)
+							s_line_log_httpc_buffer_size += 0x100000;
+						else if (s_touch_pos_x >= 110 && s_touch_pos_x <= 199 && s_touch_pos_y >= 1450 + s_sem_y_offset && s_touch_pos_y <= 1469 + s_sem_y_offset)
+							s_line_log_httpc_buffer_size -= 0x100000;
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 99 && s_touch_pos_y >= 1490 + s_sem_y_offset && s_touch_pos_y <= 1509 + s_sem_y_offset)
+							s_line_log_fs_buffer_size += 0x100000;
+						else if (s_touch_pos_x >= 110 && s_touch_pos_x <= 199 && s_touch_pos_y >= 1490 + s_sem_y_offset && s_touch_pos_y <= 1509 + s_sem_y_offset)
+							s_line_log_fs_buffer_size -= 0x100000;
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 99 && s_touch_pos_y >= 1530 + s_sem_y_offset && s_touch_pos_y <= 1549 + s_sem_y_offset)
+							s_spt_spt_httpc_buffer_size += 0x100000;
+						else if (s_touch_pos_x >= 110 && s_touch_pos_x <= 199 && s_touch_pos_y >= 1530 + s_sem_y_offset && s_touch_pos_y <= 1549 + s_sem_y_offset)
+							s_spt_spt_httpc_buffer_size -= 0x100000;
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 99 && s_touch_pos_y >= 1570 + s_sem_y_offset && s_touch_pos_y <= 1589 + s_sem_y_offset)
+							s_imv_image_httpc_buffer_size += 0x100000;
+						else if (s_touch_pos_x >= 110 && s_touch_pos_x <= 199 && s_touch_pos_y >= 1570 + s_sem_y_offset && s_touch_pos_y <= 1589 + s_sem_y_offset)
+							s_imv_image_httpc_buffer_size -= 0x100000;
+						else
+							scroll_mode = true;
 					}
-					else if (s_key_touch_press && s_touch_pos_x >= 105 && s_touch_pos_x <= 200 && s_touch_pos_y >= 500 + s_sem_y_offset && s_touch_pos_y <= 519 + s_sem_y_offset)
-					{
-						for (int j = 0; j < 46; j++)
-						{
-							if (s_use_external_font[j + 1])
-							{
-								Draw_free_texture(5 + j);
-								for (int i = s_font_start_num[j]; i < s_font_characters[j]; i++)
-									font_images[i].tex = NULL;
-
-								s_use_external_font[j + 1] = false;
-							}
-						}
-					}
-					else if (s_key_touch_press)
-						scroll_mode = true;
 				}
-			}
-			else
-			{
-				scroll_mode = false;
-				scroll_bar_selected = false;
-				s_touch_pos_x_move_left -= (s_touch_pos_x_move_left * 0.025);
-				s_touch_pos_y_move_left -= (s_touch_pos_y_move_left * 0.025);
-				if (s_touch_pos_x_move_left < 0.5 && s_touch_pos_x_move_left > -0.5)
-					s_touch_pos_x_move_left = 0;
-				if (s_touch_pos_y_move_left < 0.5 && s_touch_pos_y_move_left > -0.5)
-					s_touch_pos_y_move_left = 0;
-			}
+				else
+				{
+					for (int i = 0; i < 4; i++)
+						bar_selected[i] = false;
 
-			if (s_key_CPAD_DOWN_held || s_key_CPAD_UP_held)
-				s_sem_y_offset += ((float)circle_pos.dy * s_scroll_speed) * 0.0625;
-			
-			s_sem_y_offset -= (s_touch_pos_y_move_left * s_scroll_speed);
+					scroll_mode = false;
+					scroll_bar_selected = false;
+					s_touch_pos_x_move_left -= (s_touch_pos_x_move_left * 0.025);
+					s_touch_pos_y_move_left -= (s_touch_pos_y_move_left * 0.025);
+					if (s_touch_pos_x_move_left < 0.5 && s_touch_pos_x_move_left > -0.5)
+						s_touch_pos_x_move_left = 0;
+					if (s_touch_pos_y_move_left < 0.5 && s_touch_pos_y_move_left > -0.5)
+						s_touch_pos_y_move_left = 0;
+				}
 
-			if (s_sem_y_offset >= 0)
-				s_sem_y_offset = 0;
-			if (s_sem_y_offset <= -1300)
-				s_sem_y_offset = -1300;
+				if (s_key_CPAD_DOWN_held || s_key_CPAD_UP_held)
+					s_sem_y_offset += ((float)circle_pos.dy * s_scroll_speed) * 0.0625;
+
+				s_sem_y_offset -= (s_touch_pos_y_move_left * s_scroll_speed);
+
+				if (s_line_log_httpc_buffer_size > 0x1000000)
+					s_line_log_httpc_buffer_size = 0x1000000;
+				else if (s_line_log_httpc_buffer_size < 0x100000)
+					s_line_log_httpc_buffer_size = 0x100000;
+				if (s_line_log_fs_buffer_size > 0x1000000)
+					s_line_log_fs_buffer_size = 0x1000000;
+				else if (s_line_log_fs_buffer_size < 0x100000)
+					s_line_log_fs_buffer_size = 0x100000;
+				if (s_spt_spt_httpc_buffer_size > 0x1000000)
+					s_spt_spt_httpc_buffer_size = 0x1000000;
+				else if (s_spt_spt_httpc_buffer_size < 0x100000)
+					s_spt_spt_httpc_buffer_size = 0x100000;
+				if (s_imv_image_httpc_buffer_size > 0x1000000)
+					s_imv_image_httpc_buffer_size = 0x1000000;
+				else if (s_imv_image_httpc_buffer_size < 0x100000)
+					s_imv_image_httpc_buffer_size = 0x100000;
+				if (s_sem_y_offset >= 0)
+					s_sem_y_offset = 0;
+				else if (s_sem_y_offset <= -1500)
+					s_sem_y_offset = -1500;
+			}
 		}
 		else if (s_line_main_run && !s_hid_disabled)
 		{
-			if (s_line_menu_mode == 1)
+			if (s_key_START_press || (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 230 && s_touch_pos_y >= 220 && s_touch_pos_y <= 240))
 			{
-				if (s_key_DUP_press || (s_key_touch_press && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
-					message_select_num += 0.5f;
-				if (s_key_DDOWN_press || (s_key_touch_press && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
-					message_select_num -= 0.5f;
-
-				if (s_key_DUP_held || (s_key_touch_held && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
-				{
-					if (s_held_time > 180)
-						message_select_num += 1.0f;
-					else
-						message_select_num += 0.0625f;
-				}
-
-				if (s_key_DDOWN_held || (s_key_touch_held && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
-				{
-					if (s_held_time > 180)
-						message_select_num -= 1.0f;
-					else
-						message_select_num -= 0.0625f;
-				}
-
-				if ((int)message_select_num > 299)
-					message_select_num = 299.0;
-				else if ((int)message_select_num < 0)
-					message_select_num = 0.0;
-
-			}
-			else if (s_line_menu_mode == 2)
-			{
-				if (s_key_DUP_held || (s_key_touch_held && s_touch_pos_x > 20 && s_touch_pos_x < 80 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
-					text_interval_cache += 0.5;
-				if (s_key_DDOWN_held || (s_key_touch_held && s_touch_pos_x > 90 && s_touch_pos_x < 150 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
-					text_interval_cache -= 0.5;
-
-				if (s_key_L_held || (s_key_touch_held && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
-					text_size_cache -= 0.003f;
-				if (s_key_R_held || (s_key_touch_held && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
-					text_size_cache += 0.003f;
-
-				if (text_interval_cache > 250)
-					text_interval_cache = 250;
-				else if (text_interval_cache < 10)
-					text_interval_cache = 10;
-
-				if (text_size_cache > 3.0)
-					text_size_cache = 3.0f;
-				else if (text_size_cache < 0.25)
-					text_size_cache = 0.25f;
+				s_line_main_run = false;
+				s_menu_main_run = true;
+				s_line_thread_suspend = true;
 			}
 
-			if (s_key_CPAD_DOWN_held || s_key_CPAD_UP_held)
+			if (s_line_message_send_check)
 			{
-				if (!s_app_logs_show)
+				if (s_key_A_press)
+				{
+					s_line_message_send_request = true;
+					s_line_message_send_check = false;
+				}
+				if (s_key_B_press)
+					s_line_message_send_check = false;
+			}
+			else
+			{
+				if (s_key_touch_press || s_key_touch_held)
+				{
+					s_touch_pos_x_move_left = 0;
+					s_touch_pos_y_move_left = 0;
+
+					if (scroll_bar_selected)
+					{
+						s_touch_pos_x_move_left = 0;
+						s_touch_pos_y_move_left = 0;
+						text_y_cache = s_line_bottom_y * ((s_touch_pos_y - 15.0) / 195.0);
+					}
+					else if (scroll_mode)
+					{
+						s_touch_pos_x_move_left += s_touch_pos_x_moved;
+						s_touch_pos_y_move_left += s_touch_pos_y_moved;
+					}
+					else if (s_key_touch_press && s_touch_pos_y <= 219)
+					{
+						if (s_touch_pos_x >= 305 && s_touch_pos_x <= 320 && s_touch_pos_y >= 15 && s_touch_pos_y < 220)
+							scroll_bar_selected = true;
+						else if (s_touch_pos_x > 260 && s_touch_pos_x < 300 && s_touch_pos_y > 140 && s_touch_pos_y < 150 && s_line_menu_mode != 1)
+						{
+							if (s_line_hide_id)
+								s_line_hide_id = false;
+							else
+								s_line_hide_id = true;
+						}	
+						else if (s_touch_pos_x > 10 && s_touch_pos_x < 60 && s_touch_pos_y > 170 && s_touch_pos_y < 180)
+							s_line_menu_mode = 0;
+						else if (s_touch_pos_x > 60 && s_touch_pos_x < 110 && s_touch_pos_y > 170 && s_touch_pos_y < 180)
+							s_line_menu_mode = 1;
+						else if (s_touch_pos_x > 110 && s_touch_pos_x < 210 && s_touch_pos_y > 170 && s_touch_pos_y < 180)
+							s_line_menu_mode = 2;
+						else if (s_touch_pos_x > 210 && s_touch_pos_x < 310 && s_touch_pos_y > 170 && s_touch_pos_y < 180)
+							s_line_menu_mode = 3;
+						else if (s_touch_pos_y <= 169)
+							scroll_mode = true;
+					}
+				}
+				else
+				{
+					scroll_mode = false;
+					scroll_bar_selected = false;
+					s_touch_pos_x_move_left -= (s_touch_pos_x_move_left * 0.025);
+					s_touch_pos_y_move_left -= (s_touch_pos_y_move_left * 0.025);
+					if (s_touch_pos_x_move_left < 0.5 && s_touch_pos_x_move_left > -0.5)
+						s_touch_pos_x_move_left = 0;
+					if (s_touch_pos_y_move_left < 0.5 && s_touch_pos_y_move_left > -0.5)
+						s_touch_pos_y_move_left = 0;
+				}
+
+				if (s_key_CPAD_DOWN_held || s_key_CPAD_UP_held)
 				{
 					if (s_held_time > 600)
 						text_y_cache += ((float)circle_pos.dy * s_scroll_speed) * 0.5;
@@ -2168,62 +2326,161 @@ void Share_scan_hid_thread(void* arg)
 					else
 						text_y_cache += ((float)circle_pos.dy * s_scroll_speed) * 0.0625;
 				}
-			}
-			if (s_key_CPAD_LEFT_held || s_key_CPAD_RIGHT_held)
-			{
-				if (!s_app_logs_show)
+				if (s_key_CPAD_LEFT_held || s_key_CPAD_RIGHT_held)
 				{
 					if (s_held_time > 240)
 						text_x_cache -= ((float)circle_pos.dx * s_scroll_speed) * 0.125;
 					else
 						text_x_cache -= ((float)circle_pos.dx * s_scroll_speed) * 0.0625;
 				}
-			}
-
-			if (s_key_touch_press || s_key_touch_held)
-			{
-				s_touch_pos_x_move_left = 0;
-				s_touch_pos_y_move_left = 0;
-
-				if (s_key_touch_press && s_touch_pos_x >= 305 && s_touch_pos_x <= 320 && s_touch_pos_y >= 15 && s_touch_pos_y <= 220)
-					scroll_bar_selected = true;
-				else if (s_key_touch_press && s_touch_pos_y <= 169)
-					scroll_mode = true;
-				else if (scroll_bar_selected)
+				if (s_key_DRIGHT_press || (s_key_touch_press && s_touch_pos_x >= 210 && s_touch_pos_x <= 320 && s_touch_pos_y >= 220 && s_touch_pos_y <= 240))
 				{
-					s_touch_pos_x_move_left = 0;
-					s_touch_pos_y_move_left = 0;
-					text_y_cache = s_line_bottom_y * ((s_touch_pos_y - 15.0) / 195.0);
+					s_line_room_select_num += 1;
+					if (s_line_room_select_num > 99)
+						s_line_room_select_num = 99;
+
+					s_line_log_load_request = true;
 				}
-				else if (scroll_mode)
+				if (s_key_DLEFT_press || (s_key_touch_press && s_touch_pos_x >= 0 && s_touch_pos_x <= 110 && s_touch_pos_y >= 220 && s_touch_pos_y <= 240))
 				{
-					s_touch_pos_x_move_left += s_touch_pos_x_moved;
-					s_touch_pos_y_move_left += s_touch_pos_y_moved;
+					s_line_room_select_num -= 1;
+					if (s_line_room_select_num < 0)
+						s_line_room_select_num = 0;
+
+					s_line_log_load_request = true;
+				}
+
+				if (s_line_menu_mode == 0)
+				{
+					if ((s_key_A_press || (s_key_touch_press && s_touch_pos_x > 20 && s_touch_pos_x < 100 && s_touch_pos_y > 185 && s_touch_pos_y < 215)))
+						s_line_type_message_request = true;
+					if ((s_key_B_press || (s_key_touch_press && s_touch_pos_x > 120 && s_touch_pos_x < 200 && s_touch_pos_y > 185 && s_touch_pos_y < 215)))
+						s_line_log_update_request = true;
+					if ((s_key_touch_press && s_touch_pos_x > 220 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					{
+						if (s_line_auto_update_mode)
+							s_line_auto_update_mode = false;
+						else
+							s_line_auto_update_mode = true;
+					}
+				}
+				else if (s_line_menu_mode == 1)
+				{
+					if (s_key_DUP_press || (s_key_touch_press && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						message_select_num += 0.5f;
+					if (s_key_DDOWN_press || (s_key_touch_press && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						message_select_num -= 0.5f;
+					if (s_key_DUP_held || (s_key_touch_held && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					{
+						if (s_held_time > 180)
+							message_select_num += 1.0f;
+						else
+							message_select_num += 0.0625f;
+					}
+					if (s_key_DDOWN_held || (s_key_touch_held && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					{
+						if (s_held_time > 180)
+							message_select_num -= 1.0f;
+						else
+							message_select_num -= 0.0625f;
+					}
+					if ((s_key_ZR_press || (s_key_touch_press && s_touch_pos_x > 20 && s_touch_pos_x < 150 && s_touch_pos_y > 185 && s_touch_pos_y < 215)))
+						s_clipboards[0] = s_line_message_log[(int)message_select_num];
+
+					if ((int)message_select_num > 299)
+						message_select_num = 299.0;
+					else if ((int)message_select_num < 0)
+						message_select_num = 0.0;
+				}
+				else if (s_line_menu_mode == 2)
+				{
+					if (s_key_DUP_held || (s_key_touch_held && s_touch_pos_x > 20 && s_touch_pos_x < 80 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						text_interval_cache += 0.5;
+					if (s_key_DDOWN_held || (s_key_touch_held && s_touch_pos_x > 90 && s_touch_pos_x < 150 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						text_interval_cache -= 0.5;
+					if (s_key_L_held || (s_key_touch_held && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						text_size_cache -= 0.003f;
+					if (s_key_R_held || (s_key_touch_held && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						text_size_cache += 0.003f;
+
+					if (text_interval_cache > 250)
+						text_interval_cache = 250;
+					else if (text_interval_cache < 10)
+						text_interval_cache = 10;
+					if (text_size_cache > 3.0)
+						text_size_cache = 3.0f;
+					else if (text_size_cache < 0.25)
+						text_size_cache = 0.25f;
+				}
+				else if (s_line_menu_mode == 3)
+				{
+					if (s_key_Y_press || (s_key_touch_press && s_touch_pos_x > 30 && s_touch_pos_x < 150 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						s_line_type_id_request = true;
+					if (s_key_X_press || (s_key_touch_press && s_touch_pos_x > 160 && s_touch_pos_x < 290 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						s_line_type_main_url_request = true;
+				}
+
+				text_x_cache -= (s_touch_pos_x_move_left * s_scroll_speed);
+				text_y_cache -= (s_touch_pos_y_move_left * s_scroll_speed);
+
+				if (text_y_cache > 0.0)
+					text_y_cache = 0.0;
+				if (text_y_cache < s_line_bottom_y)
+					text_y_cache = s_line_bottom_y;
+				if (text_x_cache > 40.0)
+					text_x_cache = 40.0f;
+				if (text_x_cache < -500.0)
+					text_x_cache = -500.0f;
+			}
+		}
+		else if (s_gtr_main_run && !s_hid_disabled)
+		{
+			if (s_key_START_press || (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 230 && s_touch_pos_y >= 220 && s_touch_pos_y <= 240))
+			{
+				s_gtr_thread_suspend = true;
+				s_menu_main_run = true;
+				s_gtr_main_run = false;
+			}
+			if (s_key_A_press)
+				s_gtr_type_text_request = true;
+			if (s_key_DRIGHT_held)
+				s_gtr_text_x -= 1.0;
+			if (s_key_DLEFT_held)
+				s_gtr_text_x += 1.0;
+			if (s_key_DUP_press)
+			{
+				s_gtr_selected_history_num--;
+				if (s_gtr_selected_history_num <= -1)
+					s_gtr_selected_history_num = 0;
+			}
+			if (s_key_DDOWN_press)
+			{
+				s_gtr_selected_history_num++;
+				if (s_gtr_selected_history_num >= 16)
+					s_gtr_selected_history_num = 15;
+			}
+			if (s_key_ZL_press)
+				s_clipboards[0] = s_gtr_history[s_gtr_selected_history_num];
+
+		}
+		else if (s_spt_main_run && !s_hid_disabled)
+		{
+			if (s_key_START_press || (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 230 && s_touch_pos_y >= 220 && s_touch_pos_y <= 240))
+			{
+				s_spt_thread_suspend = true;
+				s_menu_main_run = true;
+				s_spt_main_run = false;
+			}
+			if (s_key_touch_press)
+			{
+				for (int i = 0; i < 7; i++)
+				{
+					if (s_touch_pos_x >= 100 && s_touch_pos_x <= 230 && s_touch_pos_y >= 40 + (i * 20) && s_touch_pos_y <= 59 + (i * 20))
+						s_spt_data_size = i;
 				}
 			}
-			else
-			{
-				scroll_mode = false;
-				scroll_bar_selected = false;
-				s_touch_pos_x_move_left -= (s_touch_pos_x_move_left * 0.025);
-				s_touch_pos_y_move_left -= (s_touch_pos_y_move_left * 0.025);
-				if (s_touch_pos_x_move_left < 0.5 && s_touch_pos_x_move_left > -0.5)
-					s_touch_pos_x_move_left = 0;
-				if (s_touch_pos_y_move_left < 0.5 && s_touch_pos_y_move_left > -0.5)
-					s_touch_pos_y_move_left = 0;
-			}
-
-			text_x_cache -= (s_touch_pos_x_move_left * s_scroll_speed);
-			text_y_cache -= (s_touch_pos_y_move_left * s_scroll_speed);
-
-			if (text_y_cache > 0.0)
-				text_y_cache = 0.0;
-			if (text_y_cache < s_line_bottom_y)
-				text_y_cache = s_line_bottom_y;
-			if (text_x_cache > 40.0)
-				text_x_cache = 40.0f;
-			if (text_x_cache < -500.0)
-				text_x_cache = -500.0f;
+			if (s_key_A_press || (s_touch_pos_x >= 150 && s_touch_pos_x <= 170 && s_touch_pos_y >= 190 && s_touch_pos_y <= 209))
+				s_spt_start_request = true;
 		}
 		else if (s_imv_main_run && !s_hid_disabled)
 		{
@@ -2233,18 +2490,18 @@ void Share_scan_hid_thread(void* arg)
 				s_menu_main_run = true;
 				s_imv_main_run = false;
 			}
-			else if (s_key_touch_press || s_key_touch_held)
+			if (s_key_touch_press || s_key_touch_held)
 			{
 				s_touch_pos_x_move_left = 0;
 				s_touch_pos_y_move_left = 0;
 
-				if (s_key_touch_press && s_touch_pos_y <= 219)
-					scroll_mode = true;
-				else if (scroll_mode)
+				if (scroll_mode)
 				{
 					s_touch_pos_x_move_left += s_touch_pos_x_moved;
 					s_touch_pos_y_move_left += s_touch_pos_y_moved;
 				}
+				else if (s_key_touch_press && s_touch_pos_y <= 219)
+					scroll_mode = true;
 			}
 			else
 			{
@@ -2256,12 +2513,17 @@ void Share_scan_hid_thread(void* arg)
 				if (s_touch_pos_y_move_left < 0.5 && s_touch_pos_y_move_left > -0.5)
 					s_touch_pos_y_move_left = 0;
 			}
-
+			
+			if (s_key_A_press || (s_key_touch_press && s_touch_pos_x > 15 && s_touch_pos_x < 65 && s_touch_pos_y > 175 && s_touch_pos_y < 195))
+				s_imv_image_parse_request = true;
+			if (s_key_B_press || (s_key_touch_press && s_touch_pos_x > 75 && s_touch_pos_x < 125 && s_touch_pos_y > 175 && s_touch_pos_y < 195))
+				s_imv_image_dl_request = true;
+			if (s_key_Y_press || (s_key_touch_press && s_touch_pos_x > 135 && s_touch_pos_x < 185 && s_touch_pos_y > 175 && s_touch_pos_y < 195))
+				s_imv_adjust_url_request = true;
 			if (s_key_DUP_press || (s_key_touch_press && s_touch_pos_x > 195 && s_touch_pos_x < 245 && s_touch_pos_y > 175 && s_touch_pos_y < 195))
 				s_imv_clipboard_select_num++;
-			else if (s_key_DDOWN_press || (s_key_touch_press && s_touch_pos_x > 255 && s_touch_pos_x < 305 && s_touch_pos_y > 175 && s_touch_pos_y < 195))
+			if (s_key_DDOWN_press || (s_key_touch_press && s_touch_pos_x > 255 && s_touch_pos_x < 305 && s_touch_pos_y > 175 && s_touch_pos_y < 195))
 				s_imv_clipboard_select_num--;
-
 			if (s_key_CPAD_UP_held || s_key_CPAD_DOWN_held)
 				s_imv_image_pos_y += ((float)circle_pos.dy * s_scroll_speed) * 0.0625;
 			if (s_key_CPAD_LEFT_held || s_key_CPAD_RIGHT_held)
@@ -2275,7 +2537,6 @@ void Share_scan_hid_thread(void* arg)
 			if (s_key_R_held || (s_key_touch_held && s_touch_pos_x > 245 && s_touch_pos_x < 320 && s_touch_pos_y > 200 && s_touch_pos_y < 220))
 				s_imv_image_zoom += 0.05f;
 
-			
 			s_imv_image_pos_x -= (s_touch_pos_x_move_left * s_scroll_speed);
 			s_imv_image_pos_y -= (s_touch_pos_y_move_left * s_scroll_speed);
 			if (s_imv_clipboard_select_num < 0)

@@ -39,8 +39,8 @@ void Init(void)
 	init_result.code = 0;
 	init_result.string = "[Success] ";
 	osTickCounterStart(&s_tcount_up_time);
-	init_buffer = (u8*)malloc(0x1000);
-	memset(init_buffer, 0x0, 0x1000);
+	init_buffer = (u8*)malloc(0x2000);
+	memset(init_buffer, 0x0, 0x2000);
 	Share_app_log_save("Main/Init", "Initializing...", 1234567890, false);
 	Share_app_log_save("Main/Init/ver", s_app_ver, 1234567890, false);
 
@@ -58,133 +58,132 @@ void Init(void)
 	osTickCounterStart(&s_tcount_frame_time);
 
 	//Init svc
-	init_log_num_return = Share_app_log_save("Main/Init", "fsInit...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init", "fsInit...", 1234567890, s_debug_slow);
 	init_result.code = fsInit();
 	if (init_result.code == 0)
 	{
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_fs_success = true;
 	}
 	else
-		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = Share_app_log_save("Main/Init", "acInit...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init", "acInit...", 1234567890, s_debug_slow);
 	init_result.code = acInit();
 	if (init_result.code == 0)
 	{
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_ac_success = true;
 	}
 	else
-		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = Share_app_log_save("Main/Init", "aptInit...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init", "aptInit...", 1234567890, s_debug_slow);
 	init_result.code = aptInit();
 	if (init_result.code == 0)
 	{
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_apt_success = true;
 	}
 	else
-		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = Share_app_log_save("Main/Init", "mcuInit...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init", "mcuInit...", 1234567890, s_debug_slow);
 	init_result.code = mcuHwcInit();
 	if (init_result.code == 0)
 	{
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_mcu_success = true;
 	}
 	else
-		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = Share_app_log_save("Main/Init", "ptmuInit...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init", "ptmuInit...", 1234567890, s_debug_slow);
 	init_result.code = ptmuInit();
 	if (init_result.code == 0)
 	{
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_ptmu_success = true;
 	}
 	else
-		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
-	init_log_num_return = Share_app_log_save("Main/Init", "httpcInit...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init", "httpcInit...", 1234567890, s_debug_slow);
 	init_result.code = httpcInit(0x100000);
 	if (init_result.code == 0)
 	{
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_httpc_success = true;
 	}
 	else
-		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = Share_app_log_save("Main/Init", "romfsInit...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init", "romfsInit...", 1234567890, s_debug_slow);
 	init_result.code = romfsInit();
 	if (init_result.code == 0)
 	{
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_rom_success = true;
 	}
 	else
-		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = Share_app_log_save("Main/Init", "cfguInit...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init", "cfguInit...", 1234567890, s_debug_slow);
 	init_result.code = cfguInit();
 	if (init_result.code == 0)
 	{
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_cfg_success = true;
 	}
 	else
-		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
-	init_log_num_return = Share_app_log_save("Main/Init", "amInit...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init", "amInit...", 1234567890, s_debug_slow);
 	init_result.code = amInit();
 	if (init_result.code == 0)
 	{
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_am_success = true;
 	}
 	else
-		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
-	init_log_num_return = Share_app_log_save("Main/Init/apt", "APT_SetAppCpuTimeLimit_30...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init/apt", "APT_SetAppCpuTimeLimit_30...", 1234567890, s_debug_slow);
 	init_result.code = APT_SetAppCpuTimeLimit(30);
 	if (init_result.code == 0)
 	{
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 	}
 	else
-		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 	aptSetSleepAllowed(true);
 
-	init_log_num_return = Share_app_log_save("Main/Init/nwm", "Wifi_enable...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init/nwm", "Wifi_enable...", 1234567890, s_debug_slow);
 	init_result.code = Wifi_enable();
 	if (init_result.code == 0)
 	{
-		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 	}
 	else
-		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, true);
+		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 	s_wifi_enabled = true;
 
-	init_log_num_return = Share_app_log_save("Main/Init/fs", "Share_load_from_file...", 1234567890, true);
-	init_result = Share_load_from_file("Setting.txt", init_buffer, 0x1000, &init_read_size, "/Line/", init_fs_handle, init_fs_archive);
-	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);
+	init_log_num_return = Share_app_log_save("Main/Init/fs", "Share_load_from_file...", 1234567890, s_debug_slow);
+	init_result = Share_load_from_file("Setting.txt", init_buffer, 0x2000, &init_read_size, "/Line/", init_fs_handle, init_fs_archive);
 
 	if (init_result.code == 0)
 		s_setting[0] = (char*)init_buffer;
 
-	for (int i = 1; i <= 13; i++)
+	for (int i = 1; i <= 17; i++)
 	{
-		init_log_num_return = Share_app_log_save("Main/Init/fs", "setting value" + std::to_string(i) + " : ", 1234567890, false);
+		init_log_num_return = Share_app_log_save("Main/Init/fs", "setting value" + std::to_string(i) + " : ", 1234567890, s_debug_slow);
 		init_setting_parse_start_text = "<" + std::to_string(i - 1) + ">";
 		init_setting_parse_start_num = s_setting[0].find(init_setting_parse_start_text);
 		init_setting_parse_end_text = "</" + std::to_string(i - 1) + ">";
@@ -192,7 +191,7 @@ void Init(void)
 
 		if (init_setting_parse_end_num == -1 || init_setting_parse_start_num == -1)
 		{
-			Share_app_log_save("Main/Init/fs", "Failed to load settings. Default values has been applied.", 1234567890, false);
+			Share_app_log_save("Main/Init/fs", "Failed to load settings. Default values has been applied.", 1234567890, s_debug_slow);
 
 			if (i <= 1)
 				s_setting[1] = "en";
@@ -220,61 +219,22 @@ void Init(void)
 				s_setting[12] = "0.65";
 			if (i <= 13)
 				s_setting[13] = "35.0";
+			if (i <= 14)
+				s_setting[14] = std::to_string(0x200000);
+			if (i <= 15)
+				s_setting[15] = std::to_string(0x200000);
+			if (i <= 16)
+				s_setting[16] = std::to_string(0x700000);
+			if (i <= 17)
+				s_setting[17] = std::to_string(0x200000);
 
 			break;
 		}
 		init_setting_parse_start_num += init_setting_parse_start_text.length();
 		init_setting_parse_end_num -= init_setting_parse_start_num;
 		s_setting[i] = s_setting[0].substr(init_setting_parse_start_num, init_setting_parse_end_num);
-		Share_app_log_add_result(init_log_num_return, s_setting[i], 1234567890, true);
+		Share_app_log_add_result(init_log_num_return, s_setting[i], 1234567890, s_debug_slow);
 	}
-
-	/*for (int i = 1; i <= 13; i++)
-	{
-		init_log_num_return = Share_app_log_save("Main/Init/fs", "setting value" + std::to_string(i) + " : ", 1234567890, false);
-		init_setting_parse_text = "<" + std::to_string(i - 1) + ">";
-		init_setting_parse_start_num = s_setting[0].find(init_setting_parse_text);
-		init_setting_parse_text = "</" + std::to_string(i - 1) + ">";
-		init_setting_parse_end_num = s_setting[0].find(init_setting_parse_text);
-
-		if (init_setting_parse_end_num == -1 || init_setting_parse_start_num == -1)
-		{
-			Share_app_log_save("Main/Init/fs", "Failed to load settings. Default values has been applied.", 1234567890, false);
-
-			if(i <= 1)
-				s_setting[1] = "en";
-			if (i <= 2)
-				s_setting[2] = "100";
-			if (i <= 3)
-				s_setting[3] = "1500";
-			if (i <= 4)
-				s_setting[4] = "10";
-			if (i <= 5)
-				s_setting[5] = "false";
-			if (i <= 6)
-				s_setting[6] = "0.5";
-			if (i <= 7)
-				s_setting[7] = "deny";
-			if (i <= 8)
-				s_setting[8] = "0";
-			if (i <= 9)
-				s_setting[9] = "false";
-			if (i <= 10)
-				s_setting[10] = "true";
-			if (i <= 11)
-				s_setting[11] = "false";
-			if (i <= 12)
-				s_setting[12] = "0.65";
-			if (i <= 13)
-				s_setting[13] = "35.0";
-
-			break;
-		}
-		init_setting_parse_end_num -= init_setting_parse_start_num;
-		init_setting_parse_start_num += init_setting_parse_text.length();
-		s_setting[i] = s_setting[0].substr(init_setting_parse_start_num, init_setting_parse_end_num - init_setting_parse_text.length());
-		Share_app_log_add_result(init_log_num_return, s_setting[i], 1234567890, true);
-	}*/
 
 	s_lcd_brightness = stoi(s_setting[2]);
 	s_time_to_enter_afk = stoi(s_setting[3]);
@@ -309,39 +269,69 @@ void Init(void)
 
 	text_size_cache = stod(s_setting[12]);
 	text_interval_cache = stod(s_setting[13]);
+	s_line_log_httpc_buffer_size = stoi(s_setting[14]);
+	s_line_log_fs_buffer_size = stoi(s_setting[15]);
+	s_spt_spt_httpc_buffer_size = stoi(s_setting[16]);
+	s_imv_image_httpc_buffer_size = stoi(s_setting[17]);
+
+	if (text_size_cache > 3.0)
+		text_size_cache = 3.0;
+	else if (text_size_cache < 0.25)
+		text_size_cache = 0.25;
+	if (text_interval_cache > 250)
+		text_interval_cache = 250;
+	else if (text_interval_cache < 10)
+		text_interval_cache = 10;
+	if (s_line_log_httpc_buffer_size > 0x1000000)
+		s_line_log_httpc_buffer_size = 0x1000000;
+	else if (s_line_log_httpc_buffer_size < 0x100000)
+		s_line_log_httpc_buffer_size = 0x100000;
+	if (s_line_log_fs_buffer_size > 0x1000000)
+		s_line_log_fs_buffer_size = 0x1000000;
+	else if (s_line_log_fs_buffer_size < 0x100000)
+		s_line_log_fs_buffer_size = 0x100000;
+	if (s_spt_spt_httpc_buffer_size > 0x1000000)
+		s_spt_spt_httpc_buffer_size = 0x1000000;
+	else if (s_spt_spt_httpc_buffer_size < 0x100000)
+		s_spt_spt_httpc_buffer_size = 0x100000;
+	if (s_imv_image_httpc_buffer_size > 0x1000000)
+		s_imv_image_httpc_buffer_size = 0x1000000;
+	else if (s_imv_image_httpc_buffer_size < 0x100000)
+		s_imv_image_httpc_buffer_size = 0x100000;
 
 	svcSetThreadPriority(CUR_THREAD_HANDLE, 0x26);
 
 	s_update_thread_run = true;
-	s_update_thread = threadCreate(Share_update_thread, (void*)(""), STACKSIZE, 0x24, -1, true);
 	s_hid_thread_run = true;
-	s_hid_thread = threadCreate(Share_scan_hid_thread, (void*)(""), STACKSIZE, 0x25, -1, true);
 	s_connect_test_thread_run = true;
-	s_connect_test_thread = threadCreate(Share_connectivity_check_thread, (void*)(""), STACKSIZE, 0x30, -1, true);
-	
-	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (background.t3x)...", 1234567890, true);
+
+	s_update_thread = threadCreate(Share_update_thread, (void*)(""), STACKSIZE, 0x24, -1, true);
+	s_hid_thread = threadCreate(Share_scan_hid_thread, (void*)(""), STACKSIZE, 0x25, -1, true);
+	s_connect_test_thread = threadCreate(Share_connectivity_check_thread, (void*)(""), STACKSIZE, 0x30, -1, true);	
+
+	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (background.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/background.t3x", 0, Background_image, 0, 2);
-	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);
+	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 
-	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (wifi_signal.t3x)...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (wifi_signal.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/wifi_signal.t3x", 1, Wifi_icon_image, 0, 9);
-	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);
+	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 
-	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (battery_level.t3x)...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (battery_level.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/battery_level.t3x", 2, Battery_level_icon_image, 0, 21);
-	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);
+	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 
-	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (battery_charge.t3x)...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (battery_charge.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/battery_charge.t3x", 3, Battery_charge_icon_image, 0, 1);
-	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);
+	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 
-	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (common.t3x)...", 1234567890, true);
+	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (common.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/common.t3x", 4, Square_image, 0, 14);
-	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);
+	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 
-	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (sem_help.t3x)...", 1234567890, true);
+	/*init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (sem_help.t3x)...", 1234567890, true);
 	init_result = Draw_load_texture("romfs:/gfx/sem_help.t3x", 51, sem_help_image, 0, 7);
-	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);
+	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);*/
 
 	for (int i = 0; i < 46; i++)
 		s_use_external_font[i] = false;
@@ -420,21 +410,22 @@ int main()
 
 			if (s_debug_mode)
 			{
-				Draw_texture(Square_image, dammy_tint, 9, 0.0, 50.0, 230.0, 140.0);
-				Draw("Key A press : " + std::to_string(s_key_A_press) + " Key A held : " + std::to_string(s_key_A_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Key B press : " + std::to_string(s_key_B_press) + " Key B held : " + std::to_string(s_key_B_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Key X press : " + std::to_string(s_key_X_press) + " Key X held : " + std::to_string(s_key_X_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Key Y press : " + std::to_string(s_key_Y_press) + " Key Y held : " + std::to_string(s_key_Y_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Key CPAD DOWN held : " + std::to_string(s_key_CPAD_DOWN_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Key CPAD RIGHT held : " + std::to_string(s_key_CPAD_RIGHT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Key CPAD UP held : " + std::to_string(s_key_CPAD_UP_held), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Key CPAD LEFT held : " + std::to_string(s_key_CPAD_LEFT_held), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Touch pos x : " + std::to_string(s_touch_pos_x) + " Touch pos y : " + std::to_string(s_touch_pos_y), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("X moved value : " + std::to_string(s_touch_pos_x_moved) + " Y moved value : " + std::to_string(s_touch_pos_y_moved), 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Held time : " + std::to_string(s_held_time), 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Drawing time(CPU/per frame) : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Drawing time(GPU/per frame) : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0.0, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-				Draw("Free RAM (estimate) " + std::to_string(s_free_ram) + " MB", 0.0f, 180.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw_texture(Square_image, dammy_tint, 9, 0.0, 30.0, 230.0, 150.0);
+				Draw("Key A press : " + std::to_string(s_key_A_press) + " Key A held : " + std::to_string(s_key_A_held), 0.0, 30.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key B press : " + std::to_string(s_key_B_press) + " Key B held : " + std::to_string(s_key_B_held), 0.0, 40.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key X press : " + std::to_string(s_key_X_press) + " Key X held : " + std::to_string(s_key_X_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key Y press : " + std::to_string(s_key_Y_press) + " Key Y held : " + std::to_string(s_key_Y_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key CPAD DOWN held : " + std::to_string(s_key_CPAD_DOWN_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key CPAD RIGHT held : " + std::to_string(s_key_CPAD_RIGHT_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key CPAD UP held : " + std::to_string(s_key_CPAD_UP_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Key CPAD LEFT held : " + std::to_string(s_key_CPAD_LEFT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Touch pos x : " + std::to_string(s_touch_pos_x) + " Touch pos y : " + std::to_string(s_touch_pos_y), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("X moved value : " + std::to_string(s_touch_pos_x_moved) + " Y moved value : " + std::to_string(s_touch_pos_y_moved), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Held time : " + std::to_string(s_held_time), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Drawing time(CPU/per frame) : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Drawing time(GPU/per frame) : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Free RAM (estimate) " + std::to_string(s_free_ram) + " MB", 0.0f, 160.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw("Free linear RAM (estimate) " + std::to_string(s_free_linear_ram) + " MB", 0.0f, 170.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
 			}
 
 
@@ -465,6 +456,9 @@ int main()
 			if (s_imv_already_init)
 				Draw("X", 290.0, 0.0, 0.65, 0.5, 1.0, 0.0, 0.0, 0.5);
 
+			if (s_error_display)
+				Share_draw_error();
+
 			Draw_texture(Background_image, dammy_tint, 1, 0.0, 225.0, 320.0, 15.0);
 			Draw(s_bot_button_string[1], 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
 
@@ -491,15 +485,18 @@ int main()
 			}
 			else if (s_key_touch_press)
 			{				
-				if (s_touch_pos_x > 50 && s_touch_pos_x < 60 && s_touch_pos_y > 0 && s_touch_pos_y < 10 && s_line_already_init)
+				if (s_touch_pos_x > 50 && s_touch_pos_x < 60 && s_touch_pos_y > 0 && s_touch_pos_y < 15 && s_line_already_init)
 					Line_exit();
 				else if (s_touch_pos_x > 0 && s_touch_pos_x < 60 && s_touch_pos_y > 0 && s_touch_pos_y < 60)
 				{
-					s_line_thread_suspend = false;
-					s_line_main_run = true;
-					s_menu_main_run = false;
-					if (!s_line_already_init)
+					if(!s_line_already_init)
 						Line_init();
+					else
+					{
+						s_line_thread_suspend = false;
+						s_line_main_run = true;
+						s_menu_main_run = false;
+					}
 				}
 				else if (s_touch_pos_x > 80 && s_touch_pos_x < 140 && s_touch_pos_y > 0 && s_touch_pos_y < 60)
 				{
@@ -515,17 +512,20 @@ int main()
 					s_spt_main_run = true;
 					s_menu_main_run = false;
 					if (!s_spt_already_init)
-						Speed_test_init();
+						Speedtest_init();
 				}
-				else if (s_touch_pos_x > 290 && s_touch_pos_x < 300 && s_touch_pos_y > 0 && s_touch_pos_y < 10 && s_imv_already_init)
+				else if (s_touch_pos_x > 290 && s_touch_pos_x < 300 && s_touch_pos_y > 0 && s_touch_pos_y < 15 && s_imv_already_init)
 					Image_viewer_exit();
 				else if (s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 0 && s_touch_pos_y < 60)
 				{
-					s_imv_thread_suspend = false;
-					s_imv_main_run = true;
-					s_menu_main_run = false;
 					if (!s_imv_already_init)
 						Image_viewer_init();
+					else
+					{
+						s_imv_thread_suspend = false;
+						s_imv_main_run = true;
+						s_menu_main_run = false;
+					}
 				}
 				else if (s_touch_pos_x > 250 && s_touch_pos_x < 320 && s_touch_pos_y > 175 && s_touch_pos_y < 240)
 				{
@@ -544,7 +544,7 @@ int main()
 		else if(s_sem_main_run)
 			Setting_menu_main();
 		else if (s_spt_main_run)
-			Speed_test_main();
+			Speedtest_main();
 		else if (s_imv_main_run)
 			Image_viewer_main();
 
@@ -556,6 +556,8 @@ int main()
 		Line_exit();
 	if (s_imv_already_init)
 		Image_viewer_exit();
+	if (s_sem_already_init)
+		Setting_menu_exit();
 
 	u64 time_out = 5000000000; //5s
 	int exit_app_log_num_return;
@@ -564,12 +566,12 @@ int main()
 	Result_with_string exit_result;
 
 	s_spt_thread_run = false;
-	s_update_thread_run = false;
 	s_gtr_tr_thread_run = false;
+	s_update_thread_run = false;
 	s_hid_thread_run = false;
 	s_connect_test_thread_run = false;
 
-	exit_app_log_num_return = Share_app_log_save("Main/Fs", "Share_save_to_file(Setting.txt)...", 1234567890, true);
+	exit_app_log_num_return = Share_app_log_save("Main/Fs", "Share_save_to_file(Setting.txt)...", 1234567890, s_debug_slow);
 	s_setting[2] = std::to_string(s_lcd_brightness);
 	s_setting[3] = std::to_string(s_time_to_enter_afk);
 	s_setting[4] = std::to_string(s_afk_lcd_brightness);
@@ -602,43 +604,49 @@ int main()
 
 	s_setting[12] = std::to_string(text_size_cache);
 	s_setting[13] = std::to_string(text_interval_cache);
+	s_setting[14] = std::to_string(s_line_log_httpc_buffer_size);
+	s_setting[15] = std::to_string(s_line_log_fs_buffer_size);
+	s_setting[16] = std::to_string(s_spt_spt_httpc_buffer_size);
+	s_setting[17] = std::to_string(s_imv_image_httpc_buffer_size);
 
-	s_setting[0] = "<0>" + s_setting[1] + "</0>" + "<1>" + s_setting[2] + "</1>" + "<2>" + s_setting[3] + "</2>" + "<3>" + s_setting[4] + "</3>"
-		+ "<4>" + s_setting[5] + "</4>" + "<5>" + s_setting[6] + "</5>" + "<6>" + s_setting[7] + "</6>" + "<7>" + s_setting[8] + "</7>" + "<8>" + s_setting[9] + "</8>" 
-		+ "<9>" + s_setting[10] + "</9>" + "<10>" + s_setting[11] + "</10>" + "<11>" + s_setting[12] + "</11>" + "<12>" + s_setting[13] + "</12>";
+	s_setting[0] = "";
+
+	for (int i = 0; i < 18; i++)
+		s_setting[0] += "<" + std::to_string(i) + ">" + s_setting[i + 1] + "</" + std::to_string(i) + ">";
+
 	exit_result = Share_save_to_file("Setting.txt", (u8*)s_setting[0].c_str(), s_setting[0].length(), "/Line/", true, exit_fs_handle, exit_fs_archive);
-	Share_app_log_add_result(exit_app_log_num_return, exit_result.string, exit_result.code, true);
+	Share_app_log_add_result(exit_app_log_num_return, exit_result.string, exit_result.code, s_debug_slow);
 
 	//exit
-	Share_app_log_save("Main", "Exiting...", 1234567890, true);
+	Share_app_log_save("Main", "Exiting...", 1234567890, s_debug_slow);
 
-	exit_app_log_num_return = Share_app_log_save("Main/Thread", "Scan hid thread exit...", 1234567890, true);
-	exit_result.code = threadJoin(s_hid_thread, time_out);
-	Share_app_log_add_result(exit_app_log_num_return, "", exit_result.code, true);
-	exit_app_log_num_return = Share_app_log_save("Main/Thread", "Update thread exit...", 1234567890, true);
+	Share_app_log_add_result(exit_app_log_num_return, "", exit_result.code, s_debug_slow);
+	exit_app_log_num_return = Share_app_log_save("Main/Thread", "Update thread exit...", 1234567890, s_debug_slow);
 	exit_result.code = threadJoin(s_update_thread, time_out);
-	Share_app_log_add_result(exit_app_log_num_return, "", exit_result.code, true);
-	exit_app_log_num_return = Share_app_log_save("Main/Thread", "Connect test thread exit...", 1234567890, true);
+	exit_app_log_num_return = Share_app_log_save("Main/Thread", "Scan hid thread exit...", 1234567890, s_debug_slow);
+	exit_result.code = threadJoin(s_hid_thread, time_out);
+	Share_app_log_add_result(exit_app_log_num_return, "", exit_result.code, s_debug_slow);
+	exit_app_log_num_return = Share_app_log_save("Main/Thread", "Connect test thread exit...", 1234567890, s_debug_slow);
 	exit_result.code = threadJoin(s_connect_test_thread, time_out);
-	Share_app_log_add_result(exit_app_log_num_return, "", exit_result.code, true);
+	Share_app_log_add_result(exit_app_log_num_return, "", exit_result.code, s_debug_slow);
 
-	Share_app_log_save("Main/Svc", "amExit...", 1234567890, true);
+	Share_app_log_save("Main/Svc", "amExit...", 1234567890, s_debug_slow);
 	amExit();
-	Share_app_log_save("Main/Svc", "aptExit...", 1234567890, true);
+	Share_app_log_save("Main/Svc", "aptExit...", 1234567890, s_debug_slow);
 	aptExit();
-	Share_app_log_save("Main/Svc", "acExit...", 1234567890, true);
+	Share_app_log_save("Main/Svc", "acExit...", 1234567890, s_debug_slow);
 	acExit();
-	Share_app_log_save("Main/Svc", "mcuExit...", 1234567890, true);
+	Share_app_log_save("Main/Svc", "mcuExit...", 1234567890, s_debug_slow);
 	mcuHwcExit();
-	Share_app_log_save("Main/Svc", "ptmuExit...", 1234567890, true);
+	Share_app_log_save("Main/Svc", "ptmuExit...", 1234567890, s_debug_slow);
 	ptmuExit();
-	Share_app_log_save("Main/Svc", "nsExit...", 1234567890, true);
+	Share_app_log_save("Main/Svc", "nsExit...", 1234567890, s_debug_slow);
 	nsExit();
-	Share_app_log_save("Main/Svc", "httpcExit...", 1234567890, true);
+	Share_app_log_save("Main/Svc", "httpcExit...", 1234567890, s_debug_slow);
 	httpcExit();
-	Share_app_log_save("Main/Svc", "fsExit...", 1234567890, true);
+	Share_app_log_save("Main/Svc", "fsExit...", 1234567890, s_debug_slow);
 	fsExit();
-	Share_app_log_save("Main/Svc", "", 1234567890, true);
+	Share_app_log_save("Main/Svc", "", 1234567890, s_debug_slow);
 	Draw_exit();
 	C2D_Fini();
 	C3D_Fini();

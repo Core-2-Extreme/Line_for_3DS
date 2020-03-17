@@ -187,3 +187,60 @@ void Draw_apply_draw(void)
 {
 	C3D_FrameEnd(0);
 }
+
+/*static inline size_t fmtSize(GPU_TEXCOLOR fmt)
+{
+	switch (fmt)
+	{
+	case GPU_RGBA8:
+		return 32;
+	case GPU_RGB8:
+		return 24;
+	case GPU_RGBA5551:
+	case GPU_RGB565:
+	case GPU_RGBA4:
+	case GPU_LA8:
+	case GPU_HILO8:
+		return 16;
+	case GPU_L8:
+	case GPU_A8:
+	case GPU_LA4:
+	case GPU_ETC1A4:
+		return 8;
+	case GPU_L4:
+	case GPU_A4:
+	case GPU_ETC1:
+		return 4;
+	default:
+		return 0;
+	}
+}
+
+bool Moded_C3D_TexInitWithParams(C3D_Tex* tex, C3D_TexCube* cube, C3D_TexInitParams p)
+{
+	u32 size = fmtSize(p.format);
+	if (!size) return false;
+	size *= (u32)p.width * p.height / 8;
+	u32 total_size = C3D_TexCalcTotalSize(size, p.maxLevel);
+	
+	s_error_description = std::to_string(total_size);
+	s_error_display = true;
+	
+	tex->data = malloc(total_size);
+	if (!tex->data) return false;
+
+	tex->width = p.width;
+	tex->height = p.height;
+	tex->param = GPU_TEXTURE_MODE(p.type);
+	if (p.format == GPU_ETC1)
+		tex->param |= GPU_TEXTURE_ETC1_PARAM;
+	if (p.type == GPU_TEX_SHADOW_2D || p.type == GPU_TEX_SHADOW_CUBE)
+		tex->param |= GPU_TEXTURE_SHADOW_PARAM;
+	tex->fmt = p.format;
+	tex->size = size;
+	tex->border = 0;
+	tex->lodBias = 0;
+	tex->maxLevel = p.maxLevel;
+	tex->minLevel = 0;
+	return true;
+}*/

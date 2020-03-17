@@ -10,9 +10,6 @@ char google_tr_language_sorce[16] = "en";
 char google_tr_language_target[16] = "ja";
 bool google_tr_translation_request = false;
 int google_tr_current_history_num = -1;
-int google_tr_select_history_num = 0;
-float google_tr_text_x = 0.0f;
-std::string google_tr_history[17] = { "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a" };
 
 Thread google_tr_translation_thread;
 
@@ -75,7 +72,7 @@ void Google_tr_translation(void* arg)
 			google_tr_current_history_num++;
 			if (google_tr_current_history_num >= 16)
 				google_tr_current_history_num = 0;
-			google_tr_history[google_tr_current_history_num] = (char*)google_tr_httpc_buffer;			
+			s_gtr_history[google_tr_current_history_num] = (char*)google_tr_httpc_buffer;			
 
 			google_tr_translation_request = false;
 		}
@@ -86,11 +83,11 @@ void Google_tr_translation(void* arg)
 
 void Google_tr_init(void)
 {
-	Share_app_log_save("Google tr/init", "Initializing...", 1234567890, true);
+	Share_app_log_save("Google tr/init", "Initializing...", 1234567890, s_debug_slow);
 	s_gtr_tr_thread_run = true;
 	google_tr_translation_thread = threadCreate(Google_tr_translation, (void*)(""), STACKSIZE, 0x26, -1, true);
 	s_gtr_already_init = true;
-	Share_app_log_save("Google tr/init", "Initialized", 1234567890, true);
+	Share_app_log_save("Google tr/init", "Initialized", 1234567890, s_debug_slow);
 }
 
 void Google_tr_exit(void)
@@ -140,24 +137,25 @@ void Google_translation_main(void)
 	Draw(s_status, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
 	Draw(s_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
 
-	Draw(google_tr_history[google_tr_current_history_num], google_tr_text_x, 20.0, 0.45, 0.45, 0.25, 0.0, 0.5, 1.0);
+	Draw(s_gtr_history[google_tr_current_history_num], s_gtr_text_x, 20.0, 0.45, 0.45, 0.25, 0.0, 0.5, 1.0);
 	if (s_debug_mode)
 	{
-		Draw_texture(Square_image, dammy_tint, 9, 0.0, 50.0, 230.0, 140.0);
-		Draw("Key A press : " + std::to_string(s_key_A_press) + " Key A held : " + std::to_string(s_key_A_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key B press : " + std::to_string(s_key_B_press) + " Key B held : " + std::to_string(s_key_B_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key X press : " + std::to_string(s_key_X_press) + " Key X held : " + std::to_string(s_key_X_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key Y press : " + std::to_string(s_key_Y_press) + " Key Y held : " + std::to_string(s_key_Y_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD DOWN held : " + std::to_string(s_key_CPAD_DOWN_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD RIGHT held : " + std::to_string(s_key_CPAD_RIGHT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD UP held : " + std::to_string(s_key_CPAD_UP_held), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD LEFT held : " + std::to_string(s_key_CPAD_LEFT_held), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Touch pos x : " + std::to_string(s_touch_pos_x) + " Touch pos y : " + std::to_string(s_touch_pos_y), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("X moved value : " + std::to_string(s_touch_pos_x_moved) + " Y moved value : " + std::to_string(s_touch_pos_y_moved), 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Held time : " + std::to_string(s_held_time), 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Drawing time(CPU/per frame) : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Drawing time(GPU/per frame) : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0.0, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Free RAM (estimate) " + std::to_string(s_free_ram) + " MB", 0.0f, 180.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, 9, 0.0, 30.0, 230.0, 150.0);
+		Draw("Key A press : " + std::to_string(s_key_A_press) + " Key A held : " + std::to_string(s_key_A_held), 0.0, 30.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key B press : " + std::to_string(s_key_B_press) + " Key B held : " + std::to_string(s_key_B_held), 0.0, 40.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key X press : " + std::to_string(s_key_X_press) + " Key X held : " + std::to_string(s_key_X_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key Y press : " + std::to_string(s_key_Y_press) + " Key Y held : " + std::to_string(s_key_Y_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD DOWN held : " + std::to_string(s_key_CPAD_DOWN_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD RIGHT held : " + std::to_string(s_key_CPAD_RIGHT_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD UP held : " + std::to_string(s_key_CPAD_UP_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Key CPAD LEFT held : " + std::to_string(s_key_CPAD_LEFT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Touch pos x : " + std::to_string(s_touch_pos_x) + " Touch pos y : " + std::to_string(s_touch_pos_y), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("X moved value : " + std::to_string(s_touch_pos_x_moved) + " Y moved value : " + std::to_string(s_touch_pos_y_moved), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Held time : " + std::to_string(s_held_time), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Drawing time(CPU/per frame) : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Drawing time(GPU/per frame) : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Free RAM (estimate) " + std::to_string(s_free_ram) + " MB", 0.0f, 160.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw("Free linear RAM (estimate) " + std::to_string(s_free_linear_ram) + " MB", 0.0f, 170.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
 	}
 	if (s_app_logs_show)
 	{
@@ -173,10 +171,10 @@ void Google_translation_main(void)
 	Draw(s_gtr_ver, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
 	for (int i = 0; i <= 15; i++)
 	{
-		if(i == google_tr_select_history_num)
-			Draw(google_tr_history[i], google_tr_text_x, 20.0 + (i * 10), 0.45, 0.45, 0.25, 0.0, 0.5, 1.0);
+		if(i == s_gtr_selected_history_num)
+			Draw(s_gtr_history[i], s_gtr_text_x, 20.0 + (i * 10), 0.45, 0.45, 0.25, 0.0, 0.5, 1.0);
 		else
-			Draw(google_tr_history[i], google_tr_text_x, 20.0 + (i * 10), 0.45, 0.45, 0.75, 0.5, 0.0, 1.0);
+			Draw(s_gtr_history[i], s_gtr_text_x, 20.0 + (i * 10), 0.45, 0.45, 0.75, 0.5, 0.0, 1.0);
 	}
 	Draw_texture(Background_image, dammy_tint, 1, 0.0, 225.0, 320.0, 15.0);
 	Draw(s_bot_button_string[1], 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
@@ -188,7 +186,8 @@ void Google_translation_main(void)
 	s_fps += 1;
 	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 
-	if (s_key_A_press)
+	s_hid_disabled = true;
+	if (s_gtr_type_text_request)
 	{
 		memset(s_swkb_input_text, 0x0, 8192);
 		swkbdInit(&s_swkb, SWKBD_TYPE_NORMAL, 2, 8192);
@@ -196,44 +195,12 @@ void Google_translation_main(void)
 		swkbdSetValidation(&s_swkb, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
 		swkbdSetFeatures(&s_swkb, SWKBD_PREDICTIVE_INPUT);
 		swkbdSetInitialText(&s_swkb, s_clipboards[0].c_str());
-		swkbdSetDictWord(&s_swkb_words[0], "ぬべ", "壁|՞ةڼ)イーヒヒヒヒヒヒｗｗｗｗｗｗｗｗｗｗｗ");
-		swkbdSetDictWord(&s_swkb_words[1], "ぬべ", "┌(☝┌՞ ՞)☝キエェェェエェェwwwww");
-		swkbdSetDictWord(&s_swkb_words[2], "ぬべ", "┌(┌ ՞ةڼ)┐<ｷｴｪｪｪｴｴｪｪｪ");
-		swkbdSetDictWord(&s_swkb_words[3], "ぬべ", "└(՞ةڼ◔)」");
-		swkbdSetDictWord(&s_swkb_words[4], "ぬべ", "(  ՞ةڼ  )");
-		swkbdSetDictWord(&s_swkb_words[5], "ぬべ", "└(՞ةڼ◔)」");
-		swkbdSetDictWord(&s_swkb_words[6], "びぇ", "。゜( ;⊃՞ةڼ⊂; )゜。びぇぇえええんｗｗｗｗ");
-		swkbdSetDictWord(&s_swkb_words[7], "うえ", "(✌ ՞ةڼ ✌ )");
-		swkbdSetDictionary(&s_swkb, s_swkb_words, 8);
-
 		swkbdSetLearningData(&s_swkb, &s_swkb_learn_data, true, true);
 		s_swkb_press_button = swkbdInputText(&s_swkb, s_swkb_input_text, 8192);
 
 		if (s_swkb_press_button == SWKBD_BUTTON_RIGHT)
 			google_tr_translation_request = true;
-	}
-	else if (s_key_DRIGHT_held)
-		google_tr_text_x -= 1.0;
-	else if (s_key_DLEFT_held)
-		google_tr_text_x += 1.0;
-	else if (s_key_DUP_held)
-	{
-		google_tr_select_history_num--;
-		if (google_tr_select_history_num <= -1)
-			google_tr_select_history_num = 0;
-	}
-	else if (s_key_DDOWN_held)
-	{
-		google_tr_select_history_num++;
-		if (google_tr_select_history_num >= 16)
-			google_tr_select_history_num = 15;
-	}
-	else if (s_key_ZL_press)
-		s_clipboards[0] = google_tr_history[google_tr_select_history_num];
-	else if (s_key_START_press || (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 230 && s_touch_pos_y >= 220 && s_touch_pos_y <= 240))
-	{
-		s_gtr_thread_suspend = true;
-		s_menu_main_run = true;
-		s_gtr_main_run = false;
+
+		s_gtr_type_text_request = false;
 	}
 }
