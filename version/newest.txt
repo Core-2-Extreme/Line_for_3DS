@@ -1,4 +1,4 @@
-<newest>8</newest>
+<newest>9</newest>
 <3dsx_available>1</3dsx_available>
 <cia_32mb_ram_available>0</cia_32mb_ram_available>
 <cia_64mb_ram_available>1</cia_64mb_ram_available>
@@ -7,12 +7,7 @@
 <cia_96mb_ram_available>0</cia_96mb_ram_available>
 <cia_124mb_ram_available>1</cia_124mb_ram_available>
 <cia_178mb_ram_available>0</cia_178mb_ram_available>
-<gas_ver>2</gas_ver>
-<patch_note>【App】 Ver 1.2.2
-【Setting】 Added- RAM allocation control menu.
-【Line】
-Fixed- Now, some errors have been handled.
-【Image viewer】
-Fixed- Now, some errors have been handled.
-【Speedtest】
-Fixed- Now, some errors have been handled.</patch_note>
+<gas_ver>3</gas_ver>
+<patch_note>【App】 Ver 1.3.0
+【Line】Added- sticker send and receive.
+</patch_note>
