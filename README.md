@@ -25,7 +25,7 @@ https://discord.gg/EqK3Kpb
 * Receive (Play) video ❌
 * Receive (Play) sound ❌
 * Receive (View) sticker ✅(*1) (v1.3.0)
-* View old log ✅ (Until max 300 logs)
+* View old log ✅ (Max 300 logs)
 * Auto update ✅ (v0.2.0)
 * Group chat ✅
 * Night mode ✅ (v0.2.0)
