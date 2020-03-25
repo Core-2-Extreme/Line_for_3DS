@@ -85,7 +85,7 @@ extern bool s_imv_parse_thread_run;
 extern bool s_line_log_download_thread_run;
 extern bool s_line_log_load_thread_run;
 extern bool s_line_log_parse_thread_run;
-extern bool s_line_message_send_thread_run;
+extern bool s_line_send_message_thread_run;
 extern bool s_line_update_thread_run;
 extern bool s_spt_thread_run;
 extern bool s_update_thread_run;
@@ -114,11 +114,15 @@ extern bool s_line_auto_update_mode;
 extern bool s_line_hide_id;
 extern bool s_line_log_load_request;
 extern bool s_line_log_update_request;
-extern bool s_line_message_send_check;
-extern bool s_line_message_send_request;
+extern bool s_line_send_message_check[2];
+extern bool s_line_send_message_request;
+extern bool s_line_send_sticker_request;
+extern bool s_line_select_sticker_request;
 extern bool s_line_type_id_request;
+extern bool s_line_type_app_ps_request;
 extern bool s_line_type_message_request;
 extern bool s_line_type_main_url_request;
+extern bool s_line_type_script_ps_request;
 extern bool s_app_logs_show;
 extern bool s_wifi_enabled;
 extern bool s_disabled_enter_afk_mode;
@@ -172,6 +176,8 @@ extern int s_imv_clipboard_select_num;
 extern int s_lang_select_num;
 extern int s_line_menu_mode;
 extern int s_line_room_select_num;
+extern int s_line_sticker_tab_select_num;
+extern int s_line_sticker_select_num;
 extern int s_held_time;
 extern int s_circle_pos_x;
 extern int s_circle_pos_y;
@@ -266,8 +272,6 @@ extern std::string s_error_place;
 extern std::string s_error_code;
 extern std::string s_gtr_history[17];;
 extern std::string s_setting[20];
-extern std::string s_line_message_en[21];
-extern std::string s_line_message_jp[21];
 extern std::string s_line_message_log[300];
 extern std::string s_spt_message_en[12];
 extern std::string s_spt_message_jp[12];
@@ -331,30 +335,13 @@ extern std::string s_yi_syllables_font_sample[1165];
 extern std::string s_font_samples[62];
 extern std::string s_font_file_name[46];
 
-/*
-
-extern bool share_speed_test_start_request;
-extern int speed_test_data_size;
-extern int share_speed_test_total_download_size;
-extern int share_speed_test_download_size[400];
-extern float share_speed_test_total_download_time;
-extern float share_speed_test_download_time[400];
-extern float share_speed_test_result;
-extern std::string speed_test_data_size_string[8];
-*/
-
-extern C2D_SpriteSheet Background_texture;
-extern C2D_SpriteSheet Wifi_icon_texture;
-extern C2D_SpriteSheet Battery_level_icon_texture;
-extern C2D_SpriteSheet Battery_charge_icon_texture;
-extern C2D_SpriteSheet Square_texture;
-
 extern C2D_Image Background_image[2];
 extern C2D_Image Wifi_icon_image[9];
 extern C2D_Image Battery_level_icon_image[21];
 extern C2D_Image Battery_charge_icon_image[1];
 extern C2D_Image Square_image[14];
 extern C2D_Image sem_help_image[7];
+extern C2D_Image stickers_images[121];
 extern C2D_Image font_images[7569];
 
 extern C2D_ImageTint texture_tint, dammy_tint;
@@ -385,6 +372,8 @@ int Share_app_log_save(std::string type, std::string text, Result result, bool d
 void Share_app_log_add_result(int add_log_num, std::string add_text, Result result, bool draw);
 
 void Share_key_flag_reset(void);
+
+void Share_draw_init_progress(std::string message);
 
 std::string Share_dec_to_hex_string(long dec);
 
