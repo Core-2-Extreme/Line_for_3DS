@@ -18,18 +18,21 @@ https://discord.gg/EqK3Kpb
 * Send image ❌
 * Send video ❌
 * Send sound ❌
-* Send sticker ✅ (v1.3.0)
+* Send sticker ✅(*1) (v1.3.0)
 * Receive text ✅
 * Receive (View) image ✅ (v1.2.0)
 * Receive (Play) video ❌
 * Receive (Play) sound ❌
-* Receive (View) sticker ✅ (v1.3.0)
+* Receive (View) sticker ✅(*1) (v1.3.0)
 * View old log ✅ (Until max 300 logs)
 * Auto update ✅ (v0.2.0)
 * Group chat ✅
 * Night mode ✅ (v0.2.0)
 * Password ✅ (v0.3.0)
 * Save log to SD card ✅ (v0.3.0)
+
+### *1 The stickers must be included this list
+https://developers.line.biz/media/messaging-api/sticker_list.pdf
 
 ## How to setup and use
 Please view gbatemp
