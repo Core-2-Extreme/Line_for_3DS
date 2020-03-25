@@ -9,24 +9,21 @@ https://discord.gg/EqK3Kpb
 * [How-to-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-use)
 
 ## Patch note
-* 【App】 Ver 1.2.2
-* 【Setting】 Added- RAM allocation control menu.
-* 【Line】 Fixed- Now, some errors have been handled.
-* 【Image viewer】 Fixed- Now, some errors have been handled.
-* 【Speedtest】 Fixed- Now, some errors have been handled.
+* 【App】 Ver 1.3.0
+* 【Line】Added- sticker send and receive.
 ## Summary
 
 # [Video](https://www.youtube.com/watch?v=5K2fCr0lyoM)
 * Send text ✅
-* Send picture ❌
+* Send image ❌
 * Send video ❌
 * Send sound ❌
-* Send stamp ❌
+* Send sticker ✅ (v1.3.0)
 * Receive text ✅
-* Receive (View) picture ✅ (v1.2.0)
+* Receive (View) image ✅ (v1.2.0)
 * Receive (Play) video ❌
 * Receive (Play) sound ❌
-* Receive (View) stamp ❌
+* Receive (View) sticker ✅ (v1.3.0)
 * View old log ✅ (Until max 300 logs)
 * Auto update ✅ (v0.2.0)
 * Group chat ✅
@@ -34,6 +31,6 @@ https://discord.gg/EqK3Kpb
 * Password ✅ (v0.3.0)
 * Save log to SD card ✅ (v0.3.0)
 
-## How to use
+## How to setup and use
 Please view gbatemp
 # [GBAtemp](https://gbatemp.net/threads/line-for-3ds.539530)
