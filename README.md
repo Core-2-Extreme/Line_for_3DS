@@ -13,6 +13,8 @@ https://discord.gg/EqK3Kpb
 * 【Line】Added- sticker send and receive.
 ## Summary
 
+![00000002](https://user-images.githubusercontent.com/45873899/77538658-676c3e00-6ee3-11ea-8a9a-9c37ee7ba69b.png)
+
 # [Video](https://www.youtube.com/watch?v=5K2fCr0lyoM)
 * Send text ✅
 * Send image ❌
