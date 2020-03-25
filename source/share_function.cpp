@@ -81,7 +81,7 @@ bool s_imv_parse_thread_run = false;
 bool s_line_log_download_thread_run = false;
 bool s_line_log_load_thread_run = false;
 bool s_line_log_parse_thread_run = false;
-bool s_line_message_send_thread_run = false;
+bool s_line_send_message_thread_run = false;
 bool s_line_update_thread_run = false;
 bool s_spt_thread_run = false;
 bool s_update_thread_run = false;
@@ -110,11 +110,15 @@ bool s_line_auto_update_mode = false;
 bool s_line_hide_id = false;
 bool s_line_log_load_request = false;
 bool s_line_log_update_request = false;
-bool s_line_message_send_check = false;
-bool s_line_message_send_request = false;
+bool s_line_send_message_check[2] = { false, false };
+bool s_line_send_message_request = false;
+bool s_line_send_sticker_request = false;
+bool s_line_select_sticker_request = false;
 bool s_line_type_id_request = false;
+bool s_line_type_app_ps_request = false;
 bool s_line_type_message_request = false;
 bool s_line_type_main_url_request = false;
+bool s_line_type_script_ps_request = false;
 bool s_app_logs_show = false;
 bool s_wifi_enabled = false;
 bool s_disabled_enter_afk_mode = false;
@@ -166,6 +170,8 @@ int s_imv_clipboard_select_num = 1;
 int s_lang_select_num = 0;
 int s_line_menu_mode = 0;
 int s_line_room_select_num = 0;
+int s_line_sticker_tab_select_num = 0;
+int s_line_sticker_select_num = 0;
 int s_held_time = 0;
 int s_touch_pos_x = 0;
 int s_touch_pos_y = 0;
@@ -178,8 +184,8 @@ int s_app_log_view_num = 0;
 int s_fps;
 int s_lcd_brightness = 50;
 int s_time_to_enter_afk = 300;
-int s_current_app_ver = 8;
-int s_current_gas_ver = 2;
+int s_current_app_ver = 9;
+int s_current_gas_ver = 3;
 int s_sem_selected_edition_num = 0;
 int s_line_log_httpc_buffer_size = 0x200000;
 int s_line_log_fs_buffer_size = 0x200000;
@@ -413,6 +419,7 @@ float s_yi_syllables_font_interval = 12;
 float s_font_pos;
 double s_scroll_speed = 0.5;
 double s_app_up_time_ms = 0;
+double s_log_time[4096];
 
 char s_status[100];
 char s_swkb_input_text[8192];
@@ -428,52 +435,6 @@ std::string s_error_place = "";
 std::string s_error_code = "";
 std::string s_gtr_history[17] = { "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a" };
 std::string s_setting[20]; //0 sorce data, 1 language, 2 screen brightness when normal, 3 time to enter afk, 4 screen brightness when afk , 5 setting menu show, 6 scroll speed, 7 allow send app info, 8 number of app start
-std::string s_line_message_en[21] = {
-	" Message(s) found. (",
-	" Line(s))",
-	"Common" ,
-	"Copy" ,
-	"Text setting" ,
-	"Advanced setting" ,
-	"Send message\n   (key A)" ,
-	"Log update\n   (key B)" ,
-	"Auto update\n      off",
-	"Auto update\n      on",
-	"Selected message num : " ,
-	"\nSelected message : ",
-	"Message copy\n     (key ZR)",
-	"Up\n(key D UP)",
-	"Down\n(key D DOWN)",
-	"Increase interval\n(key D UP)",
-	"Decrease interval\n(key D DOWN)",
-	"Decrease size\n(key L)",
-	"Increase size\n(key R)",
-	"Add new ID\n     (key Y)",
-	"Change main url\n     (key X)"
-};
-std::string s_line_message_jp[21] = {
-	"件のメッセージが検出されました。(",
-	" 行)",
-	"一般",
-	"コピー",
-	"文字設定",
-	"上級設定",
-	"メッセージ送信\n (Aキー)",
-	"ログ更新\n (Bキー)",
-	"自動更新\n  オフ",
-	"自動更新\n  オン",
-	"選択されたメッセージ番号 : ",
-	"\n選択されたメッセージ : ",
-	"メッセージコピー\n (ZRキー)",
-	"上\n (十字上キー)",
-	"下\n (十字下キー)",
-	"間隔を広く\n (十字下キー)",
-	"間隔を狭く\n (十字上キー)",
-	"サイズを小さく\n (Lキー)",
-	"サイズを大きく\n (Rキー)",
-	"新規ID追加\n (Yキー)",
-	"メインURL変更\n (Xキー)"
-};
 std::string s_line_message_log[300];
 std::string s_spt_message_en[12] = {
 	"Downloaded size : ",
@@ -526,8 +487,8 @@ std::string s_imv_message_jp[8] = {
 std::string s_spt_ver = "v1.0.3";
 std::string s_gtr_ver = "v1.0.1";
 std::string s_imv_ver = "v1.0.1";
-std::string s_line_ver = "v1.2.2";
-std::string s_app_ver = "v1.2.2";
+std::string s_line_ver = "v1.3.0";
+std::string s_app_ver = "v1.3.0";
 std::string s_httpc_user_agent = "Line for 3DS " + s_app_ver;
 
 //#0600~#06FF
@@ -1207,11 +1168,6 @@ std::string s_font_file_name[46] = {
  "miscellaneous_symbols_and_pictographs",
 };
 
-C2D_SpriteSheet Background_texture;
-C2D_SpriteSheet Wifi_icon_texture;
-C2D_SpriteSheet Battery_level_icon_texture;
-C2D_SpriteSheet Battery_charge_icon_texture;
-C2D_SpriteSheet Square_texture;
 /*
  0 Basic latin
  1 Latin 1 supplement
@@ -1267,6 +1223,7 @@ C2D_Image Battery_level_icon_image[21];
 C2D_Image Battery_charge_icon_image[1]; 
 C2D_Image Square_image[14]; 
 C2D_Image sem_help_image[7];
+C2D_Image stickers_images[121];
 /*
    0 ~   94   (95) Basic latin
   95 ~  222  (128) Latin 1 supplement
@@ -1577,11 +1534,13 @@ void Share_app_log_draw(void)
 int Share_app_log_save(std::string type, std::string text, Result result, bool draw)
 {
 	double time_cache;
-	char app_log_cache[1024];
+	char app_log_cache[4096];
 	osTickCounterUpdate(&s_tcount_up_time);
 	time_cache = osTickCounterRead(&s_tcount_up_time);
 	s_app_up_time_ms = s_app_up_time_ms + time_cache;
+	s_log_time[s_app_log_num] = s_app_up_time_ms;
 	time_cache = s_app_up_time_ms / 1000;
+	memset(app_log_cache, 0x0, 4096);
 
 	if (result == 1234567890)
 		sprintf(app_log_cache, "[%.5f][%s] %s", time_cache, type.c_str(), text.c_str());
@@ -1615,13 +1574,18 @@ int Share_app_log_save(std::string type, std::string text, Result result, bool d
 
 void Share_app_log_add_result(int add_log_num, std::string add_text, Result result, bool draw)
 {
+	double time_cache;
 	char app_log_add_cache[4096];
+	osTickCounterUpdate(&s_tcount_up_time);
+	time_cache = osTickCounterRead(&s_tcount_up_time);
+	s_app_up_time_ms = s_app_up_time_ms + time_cache;
+	time_cache = s_app_up_time_ms - s_log_time[add_log_num];
 	memset(app_log_add_cache, 0x0, 4096);
 
 	if (result != 1234567890)
-		sprintf(app_log_add_cache, "%s0x%lx", add_text.c_str(), result);
+		sprintf(app_log_add_cache, "%s0x%lx (%.2fms)", add_text.c_str(), result, time_cache);
 	else
-		sprintf(app_log_add_cache, "%s", add_text.c_str());
+		sprintf(app_log_add_cache, "%s (%.2fms)", add_text.c_str(), time_cache);
 
 	if (draw)
 		Share_app_log_draw();
@@ -1669,6 +1633,19 @@ void Share_key_flag_reset(void)
 	s_key_touch_held = false;
 	s_touch_pos_x = 0;
 	s_touch_pos_y = 0;
+}
+
+void Share_draw_init_progress(std::string message)
+{
+	Draw_set_draw_mode(s_draw_vsync_mode);
+	if (s_night_mode)
+		Draw_screen_ready_to_draw(0, true, 1, 0.0, 0.0, 0.0);
+	else
+		Draw_screen_ready_to_draw(0, true, 1, 1.0, 1.0, 1.0);
+
+	Draw(message, 100.0, 120.0, 0.75, 0.75, 0.0, 0.5, 1.0, 1.0);
+
+	Draw_apply_draw();
 }
 
 std::string Share_dec_to_hex_string(long dec)
@@ -1876,7 +1853,7 @@ void Share_scan_hid_thread(void* arg)
 		{
 			if (s_app_logs_show)
 			{
-				app_log_x_cache -= 5.0f;
+				app_log_x_cache -= 10.0f;
 				if (app_log_x_cache < -1000.0)
 					app_log_x_cache = -1000.0f;
 			}
@@ -2254,15 +2231,55 @@ void Share_scan_hid_thread(void* arg)
 				s_line_thread_suspend = true;
 			}
 
-			if (s_line_message_send_check)
+			if (s_line_send_message_check[0] || s_line_send_message_check[1])
 			{
-				if (s_key_A_press)
-				{
-					s_line_message_send_request = true;
-					s_line_message_send_check = false;
+				if (s_key_A_press || (s_key_touch_press && s_touch_pos_x >= 100 && s_touch_pos_x <= 149 && s_touch_pos_y >= 150 && s_touch_pos_y <= 164))
+				{				
+					if (s_line_send_message_check[0])
+					{
+						s_line_send_message_request = true;
+						s_line_send_message_check[0] = false;
+					}
+					else if (s_line_send_message_check[1])
+					{
+						s_line_send_sticker_request = true;
+						s_line_send_message_check[1] = false;
+					}
 				}
-				if (s_key_B_press)
-					s_line_message_send_check = false;
+				else if (s_key_B_press || (s_key_touch_press && s_touch_pos_x >= 170 && s_touch_pos_x <= 219 && s_touch_pos_y >= 150 && s_touch_pos_y <= 164))
+				{
+					if (s_line_send_message_check[0])
+						s_line_send_message_check[0] = false;
+					else if (s_line_send_message_check[1])
+						s_line_send_message_check[1] = false;
+				}
+			}
+			else if (s_line_select_sticker_request)
+			{
+				for (int i = 0; i < 10; i++)
+				{
+					if (s_key_touch_press && s_touch_pos_x >= 10 + (i * 30) && s_touch_pos_x <= 39 + (i * 30) && s_touch_pos_y > 140 && s_touch_pos_y < 149)
+						s_line_sticker_tab_select_num = i;
+				}
+
+				for (int i = 0; i < 7; i++)
+				{
+					if (s_key_touch_press && s_touch_pos_x >= 20 + (i * 50) && s_touch_pos_x <= 49 + (i * 50) && s_touch_pos_y > 150 && s_touch_pos_y < 179)
+					{
+						s_line_sticker_select_num = (s_line_sticker_tab_select_num * 12) + i + 1;
+						s_line_send_message_check[1] = true;
+						s_line_select_sticker_request = false;
+					}
+					else if (s_key_touch_press && s_touch_pos_x >= 20 + (i * 50) && s_touch_pos_x <= 49 + (i * 50) && s_touch_pos_y > 190 && s_touch_pos_y < 219)
+					{
+						s_line_sticker_select_num = (s_line_sticker_tab_select_num * 12) + i + 7;
+						s_line_send_message_check[1] = true;
+						s_line_select_sticker_request = false;
+					}
+				}
+
+				if (s_key_B_press || (s_key_touch_press && s_touch_pos_x >= 290 && s_touch_pos_x <= 309 && s_touch_pos_y > 120 && s_touch_pos_y < 139))
+					s_line_select_sticker_request = false;
 			}
 			else
 			{
@@ -2352,11 +2369,13 @@ void Share_scan_hid_thread(void* arg)
 
 				if (s_line_menu_mode == 0)
 				{
-					if ((s_key_A_press || (s_key_touch_press && s_touch_pos_x > 20 && s_touch_pos_x < 100 && s_touch_pos_y > 185 && s_touch_pos_y < 215)))
+					if (s_key_A_press || (s_key_touch_press && s_touch_pos_x >= 20 && s_touch_pos_x <= 149 && s_touch_pos_y >= 185 && s_touch_pos_y <= 197))
 						s_line_type_message_request = true;
-					if ((s_key_B_press || (s_key_touch_press && s_touch_pos_x > 120 && s_touch_pos_x < 200 && s_touch_pos_y > 185 && s_touch_pos_y < 215)))
+					if (s_key_B_press || (s_key_touch_press && s_touch_pos_x >= 20 && s_touch_pos_x <= 149 && s_touch_pos_y >= 205 && s_touch_pos_y <= 217))
 						s_line_log_update_request = true;
-					if ((s_key_touch_press && s_touch_pos_x > 220 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					if (s_key_Y_press || (s_key_touch_press && s_touch_pos_x >= 170 && s_touch_pos_x <= 299 && s_touch_pos_y >= 185 && s_touch_pos_y <= 197))
+						s_line_select_sticker_request = true;
+					if (s_key_touch_press && s_touch_pos_x >= 170 && s_touch_pos_x <= 299 && s_touch_pos_y >= 205 && s_touch_pos_y <= 217)
 					{
 						if (s_line_auto_update_mode)
 							s_line_auto_update_mode = false;
@@ -2414,10 +2433,14 @@ void Share_scan_hid_thread(void* arg)
 				}
 				else if (s_line_menu_mode == 3)
 				{
-					if (s_key_Y_press || (s_key_touch_press && s_touch_pos_x > 30 && s_touch_pos_x < 150 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					if (s_key_Y_press || (s_key_touch_press && s_touch_pos_x >= 20 && s_touch_pos_x <= 149 && s_touch_pos_y >= 185 && s_touch_pos_y <= 197))
 						s_line_type_id_request = true;
-					if (s_key_X_press || (s_key_touch_press && s_touch_pos_x > 160 && s_touch_pos_x < 290 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					if (s_key_X_press || (s_key_touch_press && s_touch_pos_x >= 20 && s_touch_pos_x <= 149 && s_touch_pos_y >= 205 && s_touch_pos_y <= 217))
 						s_line_type_main_url_request = true;
+					if (s_key_A_press || (s_key_touch_press && s_touch_pos_x >= 170 && s_touch_pos_x <= 299 && s_touch_pos_y >= 185 && s_touch_pos_y <= 197))
+						s_line_type_app_ps_request = true;
+					if (s_key_B_press || (s_key_touch_press && s_touch_pos_x >= 170 && s_touch_pos_x <= 299 && s_touch_pos_y >= 205 && s_touch_pos_y <= 217))
+						s_line_type_script_ps_request = true;
 				}
 
 				text_x_cache -= (s_touch_pos_x_move_left * s_scroll_speed);

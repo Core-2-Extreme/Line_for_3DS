@@ -494,13 +494,13 @@ void Image_viewer_parse_thread(void* arg)
 					Share_clear_error_message();
 					if (failed_msg == NULL)
 					{
-						Share_set_error_message("[Error] Unknown error.", "N/A", "Imv/Image parse thread", 1234567890);
-						Share_app_log_save("Imv/Parse thread", "Unknown error", 1234567890, false);
+						Share_set_error_message("[Error] Unknown error.", "N/A", "Imv/Image parse thread/stb_image", 1234567890);
+						Share_app_log_save("Imv/Parse thread/stb_image", "Unknown error", 1234567890, false);
 					}
 					else
 					{
-						Share_set_error_message(failed_msg, "N/A", "Imv/Image parse thread", 1234567890);
-						Share_app_log_save("Imv/Parse thread", failed_msg, 1234567890, false);
+						Share_set_error_message(failed_msg, "N/A", "Imv/Image parse thread/stb_image", 1234567890);
+						Share_app_log_save("Imv/Parse thread/stb_image", failed_msg, 1234567890, false);
 					}
 					s_error_display = true;
 				}

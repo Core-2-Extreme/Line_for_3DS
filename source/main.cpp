@@ -57,6 +57,7 @@ void Init(void)
 	Draw_apply_draw();
 	osTickCounterStart(&s_tcount_frame_time);
 
+	Share_draw_init_progress("0/4 Initializing service...");
 	//Init svc
 	init_log_num_return = Share_app_log_save("Main/Init", "fsInit...", 1234567890, s_debug_slow);
 	init_result.code = fsInit();
@@ -157,9 +158,7 @@ void Init(void)
 	init_log_num_return = Share_app_log_save("Main/Init/apt", "APT_SetAppCpuTimeLimit_30...", 1234567890, s_debug_slow);
 	init_result.code = APT_SetAppCpuTimeLimit(30);
 	if (init_result.code == 0)
-	{
 		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
-	}
 	else
 		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
@@ -168,15 +167,16 @@ void Init(void)
 	init_log_num_return = Share_app_log_save("Main/Init/nwm", "Wifi_enable...", 1234567890, s_debug_slow);
 	init_result.code = Wifi_enable();
 	if (init_result.code == 0)
-	{
 		Share_app_log_add_result(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
-	}
 	else
 		Share_app_log_add_result(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+	
 	s_wifi_enabled = true;
 
-	init_log_num_return = Share_app_log_save("Main/Init/fs", "Share_load_from_file...", 1234567890, s_debug_slow);
+	Share_draw_init_progress("1/4 Loading settings...");
+	init_log_num_return = Share_app_log_save("Main/Init/fs", "Share_load_from_file(Setting.txt)...", 1234567890, s_debug_slow);
 	init_result = Share_load_from_file("Setting.txt", init_buffer, 0x2000, &init_read_size, "/Line/", init_fs_handle, init_fs_archive);
+	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 
 	if (init_result.code == 0)
 		s_setting[0] = (char*)init_buffer;
@@ -300,7 +300,7 @@ void Init(void)
 		s_imv_image_httpc_buffer_size = 0x100000;
 
 	svcSetThreadPriority(CUR_THREAD_HANDLE, 0x26);
-
+	Share_draw_init_progress("2/4 Starting threads...");
 	s_update_thread_run = true;
 	s_hid_thread_run = true;
 	s_connect_test_thread_run = true;
@@ -309,6 +309,7 @@ void Init(void)
 	s_hid_thread = threadCreate(Share_scan_hid_thread, (void*)(""), STACKSIZE, 0x25, -1, true);
 	s_connect_test_thread = threadCreate(Share_connectivity_check_thread, (void*)(""), STACKSIZE, 0x30, -1, true);	
 
+	Share_draw_init_progress("3/4 Loading textures...");
 	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (background.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/background.t3x", 0, Background_image, 0, 2);
 	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
@@ -329,6 +330,10 @@ void Init(void)
 	init_result = Draw_load_texture("romfs:/gfx/common.t3x", 4, Square_image, 0, 14);
 	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 
+	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (stickers.t3x)...", 1234567890, s_debug_slow);
+	init_result = Draw_load_texture("romfs:/gfx/stickers.t3x", 51, stickers_images, 0, 121);
+	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
+	
 	/*init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (sem_help.t3x)...", 1234567890, true);
 	init_result = Draw_load_texture("romfs:/gfx/sem_help.t3x", 51, sem_help_image, 0, 7);
 	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);*/
@@ -347,6 +352,7 @@ void Init(void)
 	else
 		C2D_PlainImageTint(&texture_tint, C2D_Color32f(0.0, 0.0, 0.0, 1.0), true);
 
+	Share_draw_init_progress("4/4 Done.");
 	if (s_allow_send_app_info)
 	{
 		for (int i = 1; i <= 1000; i++)
@@ -427,7 +433,11 @@ int main()
 				Draw("Free RAM (estimate) " + std::to_string(s_free_ram) + " MB", 0.0f, 160.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
 				Draw("Free linear RAM (estimate) " + std::to_string(s_free_linear_ram) + " MB", 0.0f, 170.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
 			}
-
+			if (s_app_logs_show)
+			{
+				for (int i = 0; i < 23; i++)
+					Draw(s_app_logs[s_app_log_view_num + i], s_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
+			}
 
 			if (s_night_mode)
 				Draw_screen_ready_to_draw(1, true, 1, 0.0, 0.0, 0.0);
@@ -436,11 +446,7 @@ int main()
 		
 			for (int i = 0; i <= 3; i++)
 				Draw_texture(Square_image, dammy_tint, 11, (80.0 * i), 0.0, 60.0, 60.0);
-			if (s_app_logs_show)
-			{
-				for (int i = 0; i < 23; i++)
-					Draw(s_app_logs[s_app_log_view_num + i], s_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
-			}
+
 			Draw(main_menu_menu_string[0], 20.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 			Draw(main_menu_menu_string[1], 85.0, 15.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 			Draw(main_menu_menu_string[2], 150.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);

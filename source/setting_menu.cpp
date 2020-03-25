@@ -19,7 +19,7 @@ bool need_gas_update = false;
 std::string setting_string[96];
 std::string setting_help_string[64];
 std::string newest_ver_data[11];
-std::string message_en[87] = {
+std::string sem_message_en[87] = {
 	"Language : ",
 	"Night mode : ",
 	"",
@@ -108,7 +108,7 @@ std::string message_en[87] = {
 	"Increase",
 	"Decrease",
 }; 
-std::string message_jp[87] = {
+std::string sem_message_jp[87] = {
 	"言語 : ",
 	"夜モード : ",
 	"",
@@ -221,135 +221,135 @@ void Setting_menu_main(void)
 
 	if (s_setting[1] == "en")
 	{
-		setting_string[0] = message_en[0] + message_en[34];
-		setting_string[1] = message_en[1] + message_en[36 + s_night_mode];
-		setting_string[2] = message_en[4] + message_en[36 + s_draw_vsync_mode];
-		setting_string[3] = message_en[11] + std::to_string(s_lcd_brightness);
-		setting_string[4] = message_en[18] + std::to_string(s_time_to_enter_afk / 10) + message_en[19];
-		setting_string[5] = message_en[27] + std::to_string(s_afk_lcd_brightness);
-		setting_string[6] = message_en[30] + std::to_string(s_scroll_speed);
-		setting_string[7] = message_en[31] + message_en[38 + s_allow_send_app_info];
-		setting_string[8] = message_en[32] + message_en[36 + s_debug_mode];
+		setting_string[0] = sem_message_en[0] + sem_message_en[34];
+		setting_string[1] = sem_message_en[1] + sem_message_en[36 + s_night_mode];
+		setting_string[2] = sem_message_en[4] + sem_message_en[36 + s_draw_vsync_mode];
+		setting_string[3] = sem_message_en[11] + std::to_string(s_lcd_brightness);
+		setting_string[4] = sem_message_en[18] + std::to_string(s_time_to_enter_afk / 10) + sem_message_en[19];
+		setting_string[5] = sem_message_en[27] + std::to_string(s_afk_lcd_brightness);
+		setting_string[6] = sem_message_en[30] + std::to_string(s_scroll_speed);
+		setting_string[7] = sem_message_en[31] + sem_message_en[38 + s_allow_send_app_info];
+		setting_string[8] = sem_message_en[32] + sem_message_en[36 + s_debug_mode];
 
 		if (!s_use_external_font[0] && !s_use_specific_system_font)
-			setting_string[9] = message_en[33] + message_en[43];
+			setting_string[9] = sem_message_en[33] + sem_message_en[43];
 		else  if (s_use_external_font[0])
-			setting_string[9] = message_en[33] + message_en[44];
+			setting_string[9] = sem_message_en[33] + sem_message_en[44];
 		else  if (s_use_specific_system_font)
-			setting_string[9] = message_en[33] + message_en[45];
+			setting_string[9] = sem_message_en[33] + sem_message_en[45];
 
-		setting_string[10] = message_en[45];
-		setting_string[11] = message_en[44];
+		setting_string[10] = sem_message_en[45];
+		setting_string[11] = sem_message_en[44];
 
 		for (int i = 20; i < 27; i++)
-			setting_string[i] = message_en[i + 14];
+			setting_string[i] = sem_message_en[i + 14];
 
 		for (int i = 27; i < 41; i++)
-			setting_string[i] = message_en[i + 16];
+			setting_string[i] = sem_message_en[i + 16];
 		
 		if(need_gas_update)
-			setting_string[41] = message_en[58];
+			setting_string[41] = sem_message_en[58];
 		else
-			setting_string[41] = message_en[57];
+			setting_string[41] = sem_message_en[57];
 
 		for (int i = 42; i < 51; i++)
-			setting_string[i] = message_en[i + 17];
+			setting_string[i] = sem_message_en[i + 17];
 
-		setting_string[51] = message_en[68 + update_progress];
-		setting_string[52] = message_en[72];
-		setting_string[53] = message_en[73 + new_version_available];
+		setting_string[51] = sem_message_en[68 + update_progress];
+		setting_string[52] = sem_message_en[72];
+		setting_string[53] = sem_message_en[73 + new_version_available];
 
 		for (int i = 54; i < 60; i++)
-			setting_string[i] = message_en[i + 21];	
+			setting_string[i] = sem_message_en[i + 21];	
 		
-		setting_string[60] = message_en[81] + std::to_string(s_line_log_httpc_buffer_size / 1024 / 1024) + "MB";
-		setting_string[61] = message_en[82] + std::to_string(s_line_log_fs_buffer_size / 1024 / 1024) + "MB";
-		setting_string[62] = message_en[83] + std::to_string(s_spt_spt_httpc_buffer_size / 1024 / 1024) + "MB";
-		setting_string[63] = message_en[84] + std::to_string(s_imv_image_httpc_buffer_size / 1024 / 1024) + "MB";
-		setting_string[64] = message_en[85];
-		setting_string[65] = message_en[86];
+		setting_string[60] = sem_message_en[81] + std::to_string(s_line_log_httpc_buffer_size / 1024 / 1024) + "MB";
+		setting_string[61] = sem_message_en[82] + std::to_string(s_line_log_fs_buffer_size / 1024 / 1024) + "MB";
+		setting_string[62] = sem_message_en[83] + std::to_string(s_spt_spt_httpc_buffer_size / 1024 / 1024) + "MB";
+		setting_string[63] = sem_message_en[84] + std::to_string(s_imv_image_httpc_buffer_size / 1024 / 1024) + "MB";
+		setting_string[64] = sem_message_en[85];
+		setting_string[65] = sem_message_en[86];
 
-		setting_help_string[0] = message_en[1];
-		setting_help_string[1] = message_en[2];
-		setting_help_string[2] = message_en[3];
-		setting_help_string[3] = message_en[36];
-		setting_help_string[4] = message_en[37];
+		setting_help_string[0] = sem_message_en[1];
+		setting_help_string[1] = sem_message_en[2];
+		setting_help_string[2] = sem_message_en[3];
+		setting_help_string[3] = sem_message_en[36];
+		setting_help_string[4] = sem_message_en[37];
 
 		for (int i = 5; i < 19; i++)
-			setting_help_string[i] = message_en[i - 1];
+			setting_help_string[i] = sem_message_en[i - 1];
 
-		setting_help_string[19] = message_en[41];
-		setting_help_string[20] = message_en[42];
-		setting_help_string[21] = message_en[18];
+		setting_help_string[19] = sem_message_en[41];
+		setting_help_string[20] = sem_message_en[42];
+		setting_help_string[21] = sem_message_en[18];
 
 		for (int i = 22; i < 32; i++)
-			setting_help_string[i] = message_en[i - 2];
+			setting_help_string[i] = sem_message_en[i - 2];
 	}
 	else if (s_setting[1] == "jp")
 	{
-		setting_string[0] = message_jp[0] + message_jp[34];
-		setting_string[1] = message_jp[1] + message_jp[36 + s_night_mode];
-		setting_string[2] = message_jp[4] + message_jp[36 + s_draw_vsync_mode];
-		setting_string[3] = message_jp[11] + std::to_string(s_lcd_brightness);
-		setting_string[4] = message_jp[18] + std::to_string(s_time_to_enter_afk / 10) + message_jp[19];
-		setting_string[5] = message_jp[27] + std::to_string(s_afk_lcd_brightness);
-		setting_string[6] = message_jp[30] + std::to_string(s_scroll_speed);
-		setting_string[7] = message_jp[31] + message_jp[38 + s_allow_send_app_info];
-		setting_string[8] = message_jp[32] + message_jp[36 + s_debug_mode];
+		setting_string[0] = sem_message_jp[0] + sem_message_jp[34];
+		setting_string[1] = sem_message_jp[1] + sem_message_jp[36 + s_night_mode];
+		setting_string[2] = sem_message_jp[4] + sem_message_jp[36 + s_draw_vsync_mode];
+		setting_string[3] = sem_message_jp[11] + std::to_string(s_lcd_brightness);
+		setting_string[4] = sem_message_jp[18] + std::to_string(s_time_to_enter_afk / 10) + sem_message_jp[19];
+		setting_string[5] = sem_message_jp[27] + std::to_string(s_afk_lcd_brightness);
+		setting_string[6] = sem_message_jp[30] + std::to_string(s_scroll_speed);
+		setting_string[7] = sem_message_jp[31] + sem_message_jp[38 + s_allow_send_app_info];
+		setting_string[8] = sem_message_jp[32] + sem_message_jp[36 + s_debug_mode];
 
 		if (!s_use_external_font[0] && !s_use_specific_system_font)
-			setting_string[9] = message_jp[33] + message_jp[43];
+			setting_string[9] = sem_message_jp[33] + sem_message_jp[43];
 		else  if (s_use_external_font[0])
-			setting_string[9] = message_jp[33] + message_jp[44];
+			setting_string[9] = sem_message_jp[33] + sem_message_jp[44];
 		else  if (s_use_specific_system_font)
-			setting_string[9] = message_jp[33] + message_jp[45];
+			setting_string[9] = sem_message_jp[33] + sem_message_jp[45];
 
-		setting_string[10] = message_jp[45];
-		setting_string[11] = message_jp[44];
+		setting_string[10] = sem_message_jp[45];
+		setting_string[11] = sem_message_jp[44];
 
 		for (int i = 20; i < 27; i++)
-			setting_string[i] = message_jp[i + 14];
+			setting_string[i] = sem_message_jp[i + 14];
 
 		for (int i = 27; i < 41; i++)
-			setting_string[i] = message_jp[i + 16];
+			setting_string[i] = sem_message_jp[i + 16];
 
 		if (need_gas_update)
-			setting_string[41] = message_jp[58];
+			setting_string[41] = sem_message_jp[58];
 		else
-			setting_string[41] = message_jp[57];
+			setting_string[41] = sem_message_jp[57];
 
 		for (int i = 42; i < 51; i++)
-			setting_string[i] = message_jp[i + 17];
+			setting_string[i] = sem_message_jp[i + 17];
 
-		setting_string[51] = message_jp[68 + update_progress];
-		setting_string[52] = message_jp[72];
-		setting_string[53] = message_jp[73 + new_version_available];
+		setting_string[51] = sem_message_jp[68 + update_progress];
+		setting_string[52] = sem_message_jp[72];
+		setting_string[53] = sem_message_jp[73 + new_version_available];
 
 		for (int i = 54; i < 60; i++)
-			setting_string[i] = message_jp[i + 21];
+			setting_string[i] = sem_message_jp[i + 21];
 
-		setting_string[60] = message_jp[81] + std::to_string(s_line_log_httpc_buffer_size / 1024 / 1024) + "MB";
-		setting_string[61] = message_jp[82] + std::to_string(s_line_log_fs_buffer_size / 1024 / 1024) + "MB";
-		setting_string[62] = message_jp[83] + std::to_string(s_spt_spt_httpc_buffer_size / 1024 / 1024) + "MB";
-		setting_string[63] = message_jp[84] + std::to_string(s_imv_image_httpc_buffer_size / 1024 / 1024) + "MB";
-		setting_string[64] = message_jp[85];
-		setting_string[65] = message_jp[86];
+		setting_string[60] = sem_message_jp[81] + std::to_string(s_line_log_httpc_buffer_size / 1024 / 1024) + "MB";
+		setting_string[61] = sem_message_jp[82] + std::to_string(s_line_log_fs_buffer_size / 1024 / 1024) + "MB";
+		setting_string[62] = sem_message_jp[83] + std::to_string(s_spt_spt_httpc_buffer_size / 1024 / 1024) + "MB";
+		setting_string[63] = sem_message_jp[84] + std::to_string(s_imv_image_httpc_buffer_size / 1024 / 1024) + "MB";
+		setting_string[64] = sem_message_jp[85];
+		setting_string[65] = sem_message_jp[86];
 
-		setting_help_string[0] = message_jp[1];
-		setting_help_string[1] = message_jp[2];
-		setting_help_string[2] = message_jp[3];
-		setting_help_string[3] = message_jp[36];
-		setting_help_string[4] = message_jp[37];
+		setting_help_string[0] = sem_message_jp[1];
+		setting_help_string[1] = sem_message_jp[2];
+		setting_help_string[2] = sem_message_jp[3];
+		setting_help_string[3] = sem_message_jp[36];
+		setting_help_string[4] = sem_message_jp[37];
 
 		for (int i = 5; i < 19; i++)
-			setting_help_string[i] = message_jp[i - 1];
+			setting_help_string[i] = sem_message_jp[i - 1];
 
-		setting_help_string[19] = message_jp[41];
-		setting_help_string[20] = message_jp[42];
-		setting_help_string[21] = message_jp[18];
+		setting_help_string[19] = sem_message_jp[41];
+		setting_help_string[20] = sem_message_jp[42];
+		setting_help_string[21] = sem_message_jp[18];
 
 		for (int i = 22; i < 32; i++)
-			setting_help_string[i] = message_jp[i - 2];
+			setting_help_string[i] = sem_message_jp[i - 2];
 	}
 
 	if (s_night_mode)

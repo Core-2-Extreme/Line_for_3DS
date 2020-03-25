@@ -140,8 +140,6 @@ void Draw_free_texture(int sheet_map_num)
 
 void Draw_exit(void)
 {
-//	C2D_SpriteSheetFree((C2D_SpriteSheet)font_textures[0]);
-	//C2D_SpriteSheetFree(sheet_texture);
 	for (int i = 0; i < 128; i++)
 		Draw_free_texture(i);
 	for (int i = 0; i < 4; i++)
