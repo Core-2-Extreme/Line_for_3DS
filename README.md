@@ -38,3 +38,7 @@ https://developers.line.biz/media/messaging-api/sticker_list.pdf
 ## How to setup and use
 Please view gbatemp
 # [GBAtemp](https://gbatemp.net/threads/line-for-3ds.539530)
+
+### Contact
+* [Discord](https://discordapp.com/channels/@me/283935367604731904)
+* [Twitter](https://twitter.com/nubesuko9300)
