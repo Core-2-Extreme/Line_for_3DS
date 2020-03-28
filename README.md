@@ -1,12 +1,14 @@
 # Line for 3DS
 
-## Official Discord 
-https://discord.gg/EqK3Kpb
+## Contact
+* [Discord channel](https://discord.gg/EqK3Kpb)
+* [Discord](https://discordapp.com/channels/@me/283935367604731904)
+* [Twitter](https://twitter.com/nubesuko9300)
 
 ## Index
 * [Patch-note](https://github.com/Core-2-Extreme/Line_for_3DS#Patch-note)
 * [Summary](https://github.com/Core-2-Extreme/Line_for_3DS#summary)
-* [How-to-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-use)
+* [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 
 ## Patch note
 * 【App】 Ver 1.3.0
@@ -14,7 +16,6 @@ https://discord.gg/EqK3Kpb
 ## Summary
 
 ![00000002](https://user-images.githubusercontent.com/45873899/77538658-676c3e00-6ee3-11ea-8a9a-9c37ee7ba69b.png)
-# [Video](https://www.youtube.com/watch?v=5K2fCr0lyoM)
 * Send text ✅
 * Send image ❌
 * Send video ❌
@@ -36,9 +37,6 @@ https://discord.gg/EqK3Kpb
 https://developers.line.biz/media/messaging-api/sticker_list.pdf
 
 ## How to setup and use
-Please view gbatemp
+Please view gbatemp or video
 # [GBAtemp](https://gbatemp.net/threads/line-for-3ds.539530)
-
-### Contact
-* [Discord](https://discordapp.com/channels/@me/283935367604731904)
-* [Twitter](https://twitter.com/nubesuko9300)
+[![Video](https://img.youtube.com/vi/1T90ZQxDnOc/0.jpg)](https://www.youtube.com/watch?v=1T90ZQxDnOc)
