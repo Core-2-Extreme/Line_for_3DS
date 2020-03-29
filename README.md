@@ -2,7 +2,7 @@
 
 ## Contact
 * [Discord channel](https://discord.gg/EqK3Kpb)
-* [Discord](https://discordapp.com/channels/@me/283935367604731904)
+* [Discord](https://discordapp.com/channels/@me/693778961087463544)
 * [Twitter](https://twitter.com/nubesuko9300)
 
 ## Index
