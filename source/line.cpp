@@ -44,7 +44,7 @@ std::string input_text;
 std::string main_url;
 std::string message_log_short[60000];
 std::string line_log_data;
-std::string line_message_en[28] = {
+std::string line_message_en[30] = {
 	" Message(s) found. (",
 	" Line(s))",
 	"Common" ,
@@ -73,8 +73,10 @@ std::string line_message_en[28] = {
 	"Send sticker(Y)",
 	"Do you want to send message?",
 	"Do you want to send sticker?",
+	"Touch to download and display image ",
+	"Touch to display image ",
 };
-std::string line_message_jp[28] = {
+std::string line_message_jp[30] = {
 	"件のメッセージが検出されました。(",
 	" 行)",
 	"一般",
@@ -103,9 +105,10 @@ std::string line_message_jp[28] = {
 	"スタンプ送信(Y)",
 	"メッセージを送信しますか?",
 	"スタンプを送信しますか?",
+	"タッチすると画像をダウンロードして表示",
+	"タッチすると画像を表示",
 };
 Thread log_download_thread, log_load_thread, message_send_thread, log_parse_thread;
-Sticker_info sticker[60000];
 
 void Line_init(void)
 {
@@ -314,15 +317,19 @@ void Line_main(void)
 		}
 		else
 		{
+			if (s_line_content[i].enabled)
+			{
+				if (s_line_content[i].type == "sticker")
+					Draw_texture(stickers_images, dammy_tint, s_line_content[i].num, text_x, (text_y + text_interval * i), (texture_size * 120.0), (texture_size * 120.0));
+				else if (s_line_content[i].type == "image")
+					Draw_texture(Square_image, dammy_tint, 3, text_x, (text_y + text_interval * i), 500.0, 20.0);
+			}
 			if (s_use_external_font[0])
 				Share_draw_external_fonts(message_log_short[i], text_x, text_y + text_interval * i, (texture_size * 1.5), (texture_size * 1.5), false);
 			else if (s_use_specific_system_font)
 				Draw_with_specific_language(message_log_short[i], s_lang_select_num, text_x, text_y + text_interval * i, text_size, text_size, text_red, text_green, text_blue, text_alpha);
 			else
 				Draw(message_log_short[i], text_x, text_y + text_interval * i, text_size, text_size, text_red, text_green, text_blue, text_alpha);
-
-			if (sticker[i].enabled)
-				Draw_texture(stickers_images, dammy_tint, sticker[i].num, text_x, (text_y + text_interval * i), (texture_size * 120.0), (texture_size * 120.0));
 		}
 	}
 
@@ -382,15 +389,19 @@ void Line_main(void)
 		}
 		else
 		{
+			if (s_line_content[i].enabled)
+			{
+				if (s_line_content[i].type == "sticker")
+					Draw_texture(stickers_images, dammy_tint, s_line_content[i].num, text_x - 40, (text_y + text_interval * i) - 240, (texture_size * 120.0), (texture_size * 120.0));
+				else if (s_line_content[i].type == "image")
+					Draw_texture(Square_image, dammy_tint, 3, text_x - 40, (text_y + text_interval * i) - 240, 500.0, 20.0);
+			}
 			if (s_use_external_font[0])
 				Share_draw_external_fonts(message_log_short[i], text_x - 40, (text_y + text_interval * i) - 240, (texture_size * 1.5), (texture_size * 1.5), false);
 			else if (s_use_specific_system_font)
 				Draw_with_specific_language(message_log_short[i], s_lang_select_num, text_x - 40, (text_y + text_interval * i) - 240, text_size, text_size, text_red, text_green, text_blue, text_alpha);
 			else
 				Draw(message_log_short[i], text_x - 40, (text_y + text_interval * i) - 240, text_size, text_size, text_red, text_green, text_blue, text_alpha);
-
-			if (sticker[i].enabled)
-				Draw_texture(stickers_images, dammy_tint, sticker[i].num, text_x - 40, (text_y + text_interval * i) - 240, (texture_size * 120.0), (texture_size * 120.0));
 		}
 	}
 
@@ -1043,15 +1054,20 @@ void Line_log_parse_thread(void* arg)
 	size_t message_start_pos;
 	size_t message_next_pos;
 	size_t new_line_pos;
+	size_t check_file_name_start_pos;
 	bool function_fail = false;
 	bool sticker_msg = false;
 	char* parse_cache;
-	std::string sticker_cache = "";
+	std::string content_cache = "";
 	std::string image_url_end = "</image_url>";
 	std::string image_url_start = "<image_url>";
 	std::string sticker_end = "</sticker>";
 	std::string sticker_start = "<sticker>";
 	std::string message_start = "";
+	std::string image_message[3] = { "", "", "", };
+	FS_Archive log_parse_fs_archive = 0;
+	Handle log_parse_fs_handle = 0;
+	Result_with_string log_parse_result;
 
 	while (s_line_log_parse_thread_run)
 	{
@@ -1071,6 +1087,7 @@ void Line_log_parse_thread(void* arg)
 				sticker_end_pos = std::string::npos;
 				sticker_start_pos = std::string::npos;
 				new_line_pos = std::string::npos;
+				check_file_name_start_pos = std::string::npos;
 				number_of_message = 0;
 				number_of_lines = 10;
 				length_count = 0;
@@ -1078,6 +1095,17 @@ void Line_log_parse_thread(void* arg)
 				cut_length = 60;
 				text_length = 0;
 				function_fail = false;
+
+				if (s_setting[1] == "en")
+				{
+					image_message[0] = line_message_en[28];
+					image_message[1] = line_message_en[29];
+				}
+				else if (s_setting[1] == "jp")
+				{
+					image_message[0] = line_message_jp[28];
+					image_message[1] = line_message_jp[29];
+				}
 
 				parse_cache = (char*)malloc(0x10000);
 				if (parse_cache == NULL)
@@ -1096,8 +1124,11 @@ void Line_log_parse_thread(void* arg)
 					for (int i = 0; i < 59999; i++)
 					{
 						message_log_short[i] = "";
-						sticker[i].enabled = false;
-						sticker[i].num = 0;
+						s_line_content[i].enabled = false;
+						s_line_content[i].num = 0;
+						s_line_content[i].url = "";
+						s_line_content[i].type = "";
+						s_line_content[i].note = "";
 					}
 
 					for (int i = 0; i <= 299; i++)
@@ -1125,27 +1156,58 @@ void Line_log_parse_thread(void* arg)
 						sticker_end_pos = s_line_message_log[i].find(sticker_end);
 						if (!(image_url_start_pos == std::string::npos || image_url_end_pos == std::string::npos))
 						{
-							s_clipboards[clipboard_num] = s_line_message_log[i].substr((image_url_start_pos + image_url_start.length()), (image_url_end_pos - (image_url_start_pos + image_url_start.length())));
+							s_line_content[number_of_lines + 1].enabled = true;
+							s_line_content[number_of_lines + 1].type = "image";
+							s_line_content[number_of_lines + 1].url = s_line_message_log[i].substr((image_url_start_pos + image_url_start.length()), (image_url_end_pos - (image_url_start_pos + image_url_start.length())));
+							s_clipboards[clipboard_num] = s_line_content[number_of_lines + 1].url;
 							clipboard_num++;
 							if (clipboard_num > 14)
 								clipboard_num = 1;
+
+							content_cache = s_line_message_log[i].substr(0, image_url_start_pos);
+
+							check_file_name_start_pos = s_line_content[number_of_lines + 1].url.find("&id=");
+							if(check_file_name_start_pos == std::string::npos)
+								content_cache += image_message[0];
+							else
+							{
+								image_message[2] = s_line_content[number_of_lines + 1].url.substr(check_file_name_start_pos + 4);
+								if (image_message[2].length() > 33)
+									image_message[2].substr(0, 33);
+
+								image_message[2] += ".jpg";
+								log_parse_log_num_return = Share_app_log_save("Line/Log parse thread", "Share_check_file_exist(" + image_message[2] + ")...", 1234567890, false);
+								log_parse_result = Share_check_file_exist(image_message[2], "/Line/images/", log_parse_fs_handle, log_parse_fs_archive);
+								Share_app_log_add_result(log_parse_log_num_return, log_parse_result.string, log_parse_result.code, false);
+								if (log_parse_result.code == 0)
+								{
+									s_line_content[number_of_lines + 1].note = "exist";
+									content_cache += image_message[1];
+								}
+								else
+									content_cache += image_message[0];
+
+							}
+							content_cache += s_line_message_log[i].substr(image_url_end_pos + image_url_end.length(), s_line_message_log[i].length() - (image_url_end_pos + image_url_end.length()));
+							s_line_message_log[i] = content_cache;
 						}
 						else if (!(sticker_start_pos == std::string::npos || sticker_end_pos == std::string::npos))
 						{
 							sticker_msg = true;
-							sticker[number_of_lines + 2].enabled = true;
-							sticker_cache = s_line_message_log[i].substr(sticker_start_pos + sticker_start.length(), sticker_end_pos - (sticker_start_pos + sticker_start.length()));
-							if (std::all_of(sticker_cache.cbegin(), sticker_cache.cend(), isdigit))
+							s_line_content[number_of_lines + 2].enabled = true;
+							s_line_content[number_of_lines + 2].type = "sticker";
+							content_cache = s_line_message_log[i].substr(sticker_start_pos + sticker_start.length(), sticker_end_pos - (sticker_start_pos + sticker_start.length()));
+							if (std::all_of(content_cache.cbegin(), content_cache.cend(), isdigit))
 							{
-								sticker[number_of_lines + 2].num = stoi(sticker_cache);
-								sticker[number_of_lines + 2].num = Line_stickers_num_to_textures_num(sticker[number_of_lines + 2].num);
+								s_line_content[number_of_lines + 2].num = stoi(content_cache);
+								s_line_content[number_of_lines + 2].num = Line_stickers_num_to_textures_num(s_line_content[number_of_lines + 2].num);
 							}
 							else
-								sticker[number_of_lines + 2].num = 0;
+								s_line_content[number_of_lines + 2].num = 0;
 
-							sticker_cache = s_line_message_log[i].substr(0, sticker_start_pos);
-							sticker_cache += s_line_message_log[i].substr(sticker_end_pos + sticker_end.length(), s_line_message_log[i].length() - (sticker_end_pos + sticker_end.length()));				
-							s_line_message_log[i] = sticker_cache;
+							content_cache = s_line_message_log[i].substr(0, sticker_start_pos);
+							content_cache += s_line_message_log[i].substr(sticker_end_pos + sticker_end.length(), s_line_message_log[i].length() - (sticker_end_pos + sticker_end.length()));				
+							s_line_message_log[i] = content_cache;
 						}
 
 						memset(parse_cache, 0x0, 0x10000);

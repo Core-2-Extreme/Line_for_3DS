@@ -1,10 +1,12 @@
-#include <string>
+Ôªø#include <string>
 #include <cstring>
 #include <unistd.h>
 #include <3ds.h>
 
 #define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image.h"
+#include "stb_image_resize.h"
 #include "draw.hpp"
 #include "file.hpp"
 #include "httpc.hpp"
@@ -15,13 +17,16 @@ u8* image_buffer;
 u32 image_size;
 int image_height = 0;
 int image_width = 0;
+int image_resize_height = 0;
+int image_resize_width = 0;
 int image_download_progress = 0;
 bool parse_thread_started = false;
 bool enable[64];
 std::string image_url;
 
-Thread image_parse_thread, image_dl_thread;
+Thread image_parse_thread, image_dl_thread, image_load_thread;
 stbi_uc* stbi_image;
+unsigned char* stb_resized;
 C2D_Image Downloaded_image[64];
 C3D_Tex* c3d_cache_tex[64];
 Tex3DS_SubTexture* c3d_cache_subtex[64];
@@ -53,9 +58,11 @@ void RGBA_to_ABGR(u8* buf, u32 width, u32 height)
 	}
 }
 
-Result_with_string Draw_C3DTexToC2DImage(C3D_Tex* c3d_tex[], Tex3DS_SubTexture* c3d_subtex[], int tex_num, int sub_tex_num, u8* buf, u32 size, u32 width, u32 height, int parse_start_width, int parse_start_height, int tex_size, GPU_TEXCOLOR format)
+Result_with_string Draw_C3DTexToC2DImage(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_subtex, u8* buf, u32 size, u32 width, u32 height, int parse_start_width, int parse_start_height, int tex_size, GPU_TEXCOLOR format)
 {
 	bool init_result = false;
+	u32 x_max;
+	u32 y_max;
 	Result_with_string c3d_to_c2d_result;
 	c3d_to_c2d_result.code = 0;
 	c3d_to_c2d_result.string = "[Success] ";
@@ -68,13 +75,6 @@ Result_with_string Draw_C3DTexToC2DImage(C3D_Tex* c3d_tex[], Tex3DS_SubTexture* 
 		subtex_width = (u32)tex_size;
 	if (subtex_height > (u32)tex_size)
 		subtex_height = (u32)tex_size;
-
-	c3d_subtex[sub_tex_num]->width = (u16)subtex_width;
-	c3d_subtex[sub_tex_num]->height = (u16)subtex_height;
-	c3d_subtex[sub_tex_num]->left = 0.0f;
-	c3d_subtex[sub_tex_num]->top = 1.0f;
-	c3d_subtex[sub_tex_num]->right = subtex_width / (float)tex_size;
-	c3d_subtex[sub_tex_num]->bottom = 1.0 - subtex_height / (float)tex_size;
 
 	if (parse_start_width > (int)width || parse_start_height > (int)height)
 	{
@@ -96,14 +96,14 @@ Result_with_string Draw_C3DTexToC2DImage(C3D_Tex* c3d_tex[], Tex3DS_SubTexture* 
 		return c3d_to_c2d_result;
 	}
 
-	if ((linearSpaceFree() / 1024 / 1024) < 2)
+	if ((linearSpaceFree() / 1024 / 1024) < 1)
 	{
 		c3d_to_c2d_result.code = -5;
 		c3d_to_c2d_result.string = "[Error] C3D_TexInit aborted. ";
 		return c3d_to_c2d_result;
 	}
 	else
-		init_result = C3D_TexInit(c3d_tex[tex_num], (u16)tex_size, (u16)tex_size, format);
+		init_result = C3D_TexInit(c3d_tex, (u16)tex_size, (u16)tex_size, format);
 
 	if (!init_result)
 	{
@@ -112,23 +112,39 @@ Result_with_string Draw_C3DTexToC2DImage(C3D_Tex* c3d_tex[], Tex3DS_SubTexture* 
 		return c3d_to_c2d_result;
 	}
 
-	memset(c3d_tex[tex_num]->data, 0x0, c3d_tex[tex_num]->size);
-	C3D_TexSetFilter(c3d_tex[tex_num], GPU_NEAREST, GPU_NEAREST);
+	c3d_subtex->width = (u16)subtex_width;
+	c3d_subtex->height = (u16)subtex_height;
+	c3d_subtex->left = 0.0f;
+	c3d_subtex->top = 1.0f;
+	c3d_subtex->right = subtex_width / (float)tex_size;
+	c3d_subtex->bottom = 1.0 - subtex_height / (float)tex_size;
 
-	for (u32 y = 0; y <= (height - (u32)parse_start_height); y++)
+	memset(c3d_tex->data, 0x0, c3d_tex->size);
+	C3D_TexSetFilter(c3d_tex, GPU_NEAREST, GPU_NEAREST);
+
+	y_max = height - (u32)parse_start_height;
+	x_max = width - (u32)parse_start_width;
+	if ((u32)tex_size < y_max)
+		y_max = tex_size;
+	if ((u32)tex_size < x_max)
+		x_max = tex_size;
+
+	for (u32 y = 0; y <= y_max; y++)
 	{
-		for (u32 x = 0; x <= (width - (u32)parse_start_width); x++)
+		for (u32 x = 0; x <= x_max; x++)
 		{
 			u32 dst_pos = ((((y >> 3)* ((u32)tex_size >> 3) + (x >> 3)) << 6) + ((x & 1) | ((y & 1) << 1) | ((x & 2) << 1) | ((y & 2) << 2) | ((x & 4) << 2) | ((y & 4) << 3)))* pixel_size;
-			u32 src_pos = (((y + parse_start_height) * width + (x + parse_start_width))) * pixel_size;
-
-			memcpy(&((u8*)c3d_tex[tex_num]->data)[dst_pos], &((u8*)buf)[src_pos], pixel_size);
+			if (dst_pos <= c3d_tex->size)
+			{
+				u32 src_pos = (((y + parse_start_height) * width + (x + parse_start_width))) * pixel_size;
+				memcpy(&((u8*)c3d_tex->data)[dst_pos], &((u8*)buf)[src_pos], pixel_size);
+			}
 		}
 	}
 
-	C3D_TexFlush(c3d_tex[tex_num]);
-	c3d_tex[tex_num]->border = 0xFFFFFF;
-	C3D_TexSetWrap(c3d_tex[tex_num], GPU_CLAMP_TO_BORDER, GPU_CLAMP_TO_BORDER);
+	C3D_TexFlush(c3d_tex);
+	c3d_tex->border = 0xFFFFFF;
+	C3D_TexSetWrap(c3d_tex, GPU_CLAMP_TO_BORDER, GPU_CLAMP_TO_BORDER);
 
 	return c3d_to_c2d_result;
 }
@@ -165,8 +181,10 @@ void Image_viewer_init(void)
 		memset(image_buffer, 0x0, 0x500000);
 
 	s_imv_download_thread_run = true;
+	s_imv_load_thread_run = true;
 	s_imv_parse_thread_run = true;
 	image_dl_thread = threadCreate(Image_viewer_dl_thread, (void*)(""), STACKSIZE, 0x30, -1, true);
+	image_load_thread = threadCreate(Image_viewer_load_thread, (void*)(""), STACKSIZE, 0x30, -1, true);
 	image_parse_thread = threadCreate(Image_viewer_parse_thread, (void*)(""), STACKSIZE, 0x27, -1, true);
 	/*for (int i = 0; i < 200; i++)//2s
 	{
@@ -203,7 +221,7 @@ void Image_viewer_main(void)
 	SwkbdStatusData main_swkbd_status;
 	Result_with_string main_result;
 
-	if (s_imv_image_dl_request)
+	if (s_imv_image_dl_request || s_imv_image_dl_and_parse_request)
 		image_download_progress = Httpc_query_dl_progress();
 
 	if (s_night_mode)
@@ -222,14 +240,14 @@ void Image_viewer_main(void)
 	}
 
 	if (image_width >= 512)
-		image_size_x = 512 / 10;
+		image_size_x = 512;
 	else
-		image_size_x = image_width / 10;
+		image_size_x = image_width;
 
 	if (image_height >= 512)
-		image_size_y = 512 / 10;
+		image_size_y = 512;
 	else
-		image_size_y = image_height / 10;
+		image_size_y = image_height;
 
 	image_size_x *= s_imv_image_zoom;
 	image_size_y *= s_imv_image_zoom;
@@ -253,9 +271,10 @@ void Image_viewer_main(void)
 				image_pos_x_cache = 0;
 				image_pos_y_cache += image_size_y;
 			}
-			image_pos_x_cache += image_size_x;
 			if(enable[i])
 				Draw_texture(Downloaded_image, dammy_tint, i, (s_imv_image_pos_x + image_pos_x_cache), (s_imv_image_pos_y + image_pos_y_cache), image_size_x, image_size_y);
+
+			image_pos_x_cache += image_size_x;
 		}
 	//}
 
@@ -316,9 +335,10 @@ void Image_viewer_main(void)
 				image_pos_x_cache = 0;
 				image_pos_y_cache += image_size_y;
 			}
-			image_pos_x_cache += image_size_x;
 			if (enable[i])
 				Draw_texture(Downloaded_image, dammy_tint, i, (s_imv_image_pos_x + image_pos_x_cache - 40), (s_imv_image_pos_y + image_pos_y_cache - 240), image_size_x, image_size_y);
+
+			image_pos_x_cache += image_size_x;
 		}
 	//}
 
@@ -371,7 +391,7 @@ void Image_viewer_main(void)
 	{
 		memset(s_swkb_input_text, 0x0, 8192);
 		swkbdInit(&main_swkbd, SWKBD_TYPE_NORMAL, 2, 8192);
-		swkbdSetHintText(&main_swkbd, "âÊëúURLÇì¸óÕ / Type image url here.");
+		swkbdSetHintText(&main_swkbd, "ÁîªÂÉèURL„ÇíÂÖ•Âäõ / Type image url here.");
 		swkbdSetValidation(&main_swkbd, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
 		swkbdSetFeatures(&main_swkbd, SWKBD_PREDICTIVE_INPUT);
 		swkbdSetInitialText(&main_swkbd, s_clipboards[s_imv_clipboard_select_num].c_str());
@@ -393,10 +413,16 @@ void Image_viewer_parse_thread(void* arg)
 	int image_parse_log_num_return;
 	int image_parse_start_pos_x;
 	int image_parse_start_pos_y;
+	double image_ideal_zoom_size;
 	const char* failed_msg = (char*)malloc(0x100);
 	Result_with_string image_parse_result;
 
-	/*if (s_debug_video)
+
+
+	/*int resize_result = 0;
+	Handle image_parse_fs_handle = 0;
+	FS_Archive image_parse_fs_archive = 0;
+	if (s_debug_video)
 	{
 		u32 image_parse_read_size;
 		FS_Archive image_parse_fs_archive = 0;
@@ -487,7 +513,6 @@ void Image_viewer_parse_thread(void* arg)
 				stbi_image = stbi_load_from_memory((stbi_uc const*)image_buffer, (int)image_size, &image_width, &image_height, NULL, STBI_rgb_alpha);
 				Share_app_log_add_result(image_parse_log_num_return, " w : " + std::to_string(image_width) + " h : " + std::to_string(image_height), 1234567890, false);
 
-
 				if (stbi_image == NULL)
 				{
 					failed_msg = stbi_failure_reason();
@@ -506,10 +531,21 @@ void Image_viewer_parse_thread(void* arg)
 				}
 				else
 				{
+					/*image_parse_log_num_return = Share_app_log_save("Imv/Parse thread", "Share_save_to_file(test)...", 1234567890, false);
+					image_parse_result = Share_save_to_file("test", (u8*)stbi_image, (image_width * image_height * 4), "/Line/image/", true, image_parse_fs_handle, image_parse_fs_archive);
+					Share_app_log_add_result(image_parse_log_num_return, image_parse_result.string, image_parse_result.code, false);*/
+
+					/*image_resize_width = image_width / 2;
+					image_resize_height = image_height / 2;
+					image_parse_log_num_return = Share_app_log_save("Imv/Parse thread", "Resizing...", 1234567890, false);
+					free(stb_resized);
+					stb_resized = (unsigned char*)malloc(image_resize_width * image_resize_height * 4);
+					resize_result = stbir_resize_uint8(stbi_image, image_width, image_height, 0, stb_resized, image_resize_width, image_resize_height, 0, 4);
+					Share_app_log_add_result(image_parse_log_num_return, "", resize_result, false);*/
+
 					for (int i = 0; i < 64; i++)
 					{
 						C3D_TexDelete(c3d_cache_tex[i]);
-						memset(c3d_cache_tex[i]->data, 0x0, c3d_cache_tex[i]->size);						
 						Downloaded_image[i].tex = c3d_cache_tex[i];
 						Downloaded_image[i].subtex = c3d_cache_subtex[i];
 						enable[i] = false;
@@ -525,7 +561,7 @@ void Image_viewer_parse_thread(void* arg)
 						{
 							enable[i] = true;
 							image_parse_log_num_return = Share_app_log_save("Imv/Parse thread", "Draw_C3DTexToC2DImage...", 1234567890, false);
-							image_parse_result = Draw_C3DTexToC2DImage(c3d_cache_tex, c3d_cache_subtex, i, i, stbi_image, (u32)(image_width * image_height * 4), (u32)image_width, (u32)image_height, image_parse_start_pos_x, image_parse_start_pos_y, 512, GPU_RGBA8);
+							image_parse_result = Draw_C3DTexToC2DImage(c3d_cache_tex[i], c3d_cache_subtex[i], stbi_image, (u32)(image_width * image_height * 4), image_width, image_height, image_parse_start_pos_x, image_parse_start_pos_y, 512, GPU_RGBA8);
 							Share_app_log_add_result(image_parse_log_num_return, image_parse_result.string, image_parse_result.code, false);
 							if (image_parse_result.code != 0)
 							{
@@ -543,6 +579,42 @@ void Image_viewer_parse_thread(void* arg)
 						}
 					}
 
+					image_ideal_zoom_size = 1.0;
+					while (true)
+					{
+						if (image_width > image_height)
+						{
+							if (((double)image_width * image_ideal_zoom_size) > 399.0 && ((double)image_width * image_ideal_zoom_size) < 400.1)
+								break;
+							else if (((double)image_width * image_ideal_zoom_size) > 399.0)
+								image_ideal_zoom_size -= 0.0001;
+							else
+								image_ideal_zoom_size += 0.0001;
+						}
+						else
+						{
+							if (((double)image_height * image_ideal_zoom_size) > 224.0 && ((double)image_height * image_ideal_zoom_size) < 225.1)
+								break;
+							else if (((double)image_height * image_ideal_zoom_size) > 224.0)
+								image_ideal_zoom_size -= 0.0001;
+							else
+								image_ideal_zoom_size += 0.0001;
+						}
+					}
+					if (image_width > image_height)
+					{
+						while (true)
+						{
+							if ((double)image_height * image_ideal_zoom_size < 225.1)
+								break;
+							else
+								image_ideal_zoom_size -= 0.0001;
+						}
+					}
+
+					s_imv_image_zoom = image_ideal_zoom_size;
+					s_imv_image_pos_x = 0.0;
+					s_imv_image_pos_y = 13.5;
 				}
 				image_parse_log_num_return = Share_app_log_save("Imv/Parse thread", "APT_SetAppCpuTimeLimit_30...", 1234567890, false);
 				image_parse_result.code = APT_SetAppCpuTimeLimit(30);
@@ -550,7 +622,7 @@ void Image_viewer_parse_thread(void* arg)
 					Share_app_log_add_result(image_parse_log_num_return, "[Success] ", image_parse_result.code, false);
 				else
 					Share_app_log_add_result(image_parse_log_num_return, "[Error] ", image_parse_result.code, false);
-
+				
 				s_imv_image_parse_request = false;
 			}
 		}
@@ -560,6 +632,67 @@ void Image_viewer_parse_thread(void* arg)
 	Share_app_log_save("Imv/Parse thread", "Thread exit.", 1234567890, false);
 }
 
+void Image_viewer_load_thread(void* arg)
+{
+	Share_app_log_save("Imv/Image load thread", "Thread started.", 1234567890, false);
+	u8* image_fs_buffer;
+	u32 read_image_size;
+	int image_load_log_num_return;
+	std::string file_name = "";
+	FS_Archive image_load_fs_archive = 0;
+	Handle image_load_fs_handle = 0;
+	Result_with_string image_load_result;
+
+	while (s_imv_load_thread_run)
+	{
+		if (s_imv_image_load_request || s_imv_image_load_and_parse_request)
+		{
+			file_name = s_clipboards[s_imv_clipboard_select_num];
+			image_fs_buffer = (u8*)malloc(s_imv_image_fs_buffer_size);
+			if (image_fs_buffer == NULL)
+			{
+				Share_clear_error_message();
+				Share_set_error_message("[Error] Out of memory.", "Couldn't malloc to 'image_fs_buffer'(" + std::to_string(s_imv_image_fs_buffer_size / 1024) + "KB)", "Imv/Image load thread", OUT_OF_MEMORY);
+				s_error_display = true;
+				Share_app_log_save("Imv/Image load thread", "[Error] Out of memory.", OUT_OF_MEMORY, false);
+			}
+			else
+			{
+				image_load_log_num_return = Share_app_log_save("Imv/Image load thread", "Share_load_from_file(" + file_name + ")...", 1234567890, false);
+				image_load_result = Share_load_from_file(file_name, image_fs_buffer, s_imv_image_fs_buffer_size, &read_image_size, "/Line/images/", image_load_fs_handle, image_load_fs_archive);
+				Share_app_log_add_result(image_load_log_num_return, image_load_result.string, image_load_result.code, false);
+
+				if (image_load_result.code == 0)
+				{
+					image_size = read_image_size;
+					memcpy(image_buffer, image_fs_buffer, image_size);
+					if (s_imv_image_load_and_parse_request)
+						s_imv_image_parse_request = true;
+				}
+				else
+				{
+					Share_clear_error_message();
+					Share_set_error_message(image_load_result.string, image_load_result.error_description, "Imv/Image load thread", image_load_result.code);
+					s_error_display = true;
+				}
+			}
+
+			free(image_fs_buffer);
+			image_fs_buffer = NULL;
+			if (s_imv_image_load_and_parse_request)
+				s_imv_image_load_and_parse_request = false;
+			else if (s_imv_image_load_request)
+				s_imv_image_load_request = false;
+		}
+		usleep(100000);
+
+		while (s_imv_thread_suspend)
+			usleep(250000);
+	}
+	Share_app_log_save("Imv/Image load thread", "Thread exit.", 1234567890, false);
+
+}
+
 void Image_viewer_dl_thread(void* arg)
 {
 	Share_app_log_save("Imv/Image dl thread", "Thread started.", 1234567890, false);
@@ -567,17 +700,20 @@ void Image_viewer_dl_thread(void* arg)
 	u32 downloaded_image_size;
 	u32 status_code;
 	int image_download_log_num_return;
+	size_t cut_pos;
 	std::string downloaded_data_string;
-	//FS_Archive image_download_fs_archive = 0;
-	//Handle image_download_fs_handle = 0;
+	std::string file_name;
+	FS_Archive image_download_fs_archive = 0;
+	Handle image_download_fs_handle = 0;
 	Result_with_string image_download_result;
 
 	while (s_imv_download_thread_run)
 	{
-		if (s_imv_image_dl_request)
+		if (s_imv_image_dl_request || s_imv_image_dl_and_parse_request)
 		{
 			downloaded_image_size = 0;
 			status_code = 0;
+			cut_pos = std::string::npos;
 			image_httpc_buffer = (u8*)malloc(s_imv_image_httpc_buffer_size);
 			if (image_httpc_buffer == NULL)
 			{
@@ -588,6 +724,7 @@ void Image_viewer_dl_thread(void* arg)
 			}
 			else
 			{
+				file_name = s_clipboards[s_imv_clipboard_select_num];
 				image_download_log_num_return = Share_app_log_save("Imv/Image dl thread", "Downloading image....", 1234567890, false);
 				image_download_result = Httpc_dl_data(s_clipboards[s_imv_clipboard_select_num], image_httpc_buffer, s_imv_image_httpc_buffer_size, &downloaded_image_size, &status_code, true);
 				Share_app_log_add_result(image_download_log_num_return, image_download_result.string + std::to_string(downloaded_image_size / 1024) + "KB (" + std::to_string(downloaded_image_size) + "B) ", image_download_result.code, false);
@@ -596,6 +733,21 @@ void Image_viewer_dl_thread(void* arg)
 				{
 					image_size = downloaded_image_size;
 					memcpy(image_buffer, image_httpc_buffer, image_size);
+					if (s_imv_image_dl_and_parse_request)
+						s_imv_image_parse_request = true;
+
+					cut_pos = file_name.find("&id=");
+					if (cut_pos == std::string::npos)
+						file_name = std::to_string(s_months) + "_" + std::to_string(s_days) + "_" + std::to_string(s_hours) + "_" + std::to_string(s_minutes) + "_" + std::to_string(s_seconds);
+					else
+						file_name = file_name.substr(cut_pos + 4);
+
+					if (file_name.length() > 33)
+						file_name = file_name.substr(0, 33);
+
+					image_download_log_num_return = Share_app_log_save("Imv/Download thread/fs", "Save_to_file(" + file_name + ".jpg)...", 1234567890, false);
+					image_download_result = Share_save_to_file(file_name + ".jpg", image_buffer, (int)downloaded_image_size, "/Line/images/", true, image_download_fs_handle, image_download_fs_archive);
+					Share_app_log_add_result(image_download_log_num_return, image_download_result.string, image_download_result.code, false);
 				}
 				else
 				{
@@ -605,13 +757,12 @@ void Image_viewer_dl_thread(void* arg)
 				}
 			}
 
-			/*image_download_log_num_return = Share_app_log_save("Imv/Download thread/fs", "Save_to_file...", 1234567890, false);
-			image_download_result = Share_save_to_file(std::to_string(s_months) + "_" + std::to_string(s_days) + "_" + std::to_string(s_hours) + "_" + std::to_string(s_minutes) + "_" + std::to_string(s_seconds) + ".jpg", image_buffer, (int)downloaded_image_size, "/Line/images/", true, image_download_fs_handle, image_download_fs_archive);
-			Share_app_log_add_result(image_download_log_num_return, image_download_result.string, image_download_result.code, false);*/
-
 			free(image_httpc_buffer);
 			image_httpc_buffer = NULL;
-			s_imv_image_dl_request = false;
+			if (s_imv_image_dl_and_parse_request)
+				s_imv_image_dl_and_parse_request = false;
+			else if (s_imv_image_dl_request)
+				s_imv_image_dl_request = false;
 		}
 		usleep(100000);
 
@@ -632,11 +783,12 @@ void Image_viewer_exit(void)
 	exit_result.string = "[Success] ";
 
 	s_imv_already_init = false;
-	s_imv_thread_suspend = false;
 	s_imv_download_thread_run = false;
+	s_imv_load_thread_run = false;
 	s_imv_parse_thread_run = false;
+	s_imv_thread_suspend = false;
 
-	exit_log_num_return = Share_app_log_save("Imv/Exit", "Thread exiting(0/1)...", 1234567890, s_debug_slow);
+	exit_log_num_return = Share_app_log_save("Imv/Exit", "Thread exiting(0/2)...", 1234567890, s_debug_slow);
 	exit_result.code = threadJoin(image_dl_thread, time_out);
 	if (exit_result.code == 0)
 		Share_app_log_add_result(exit_log_num_return, "[Success] ", exit_result.code, s_debug_slow);
@@ -646,7 +798,17 @@ void Image_viewer_exit(void)
 		Share_app_log_add_result(exit_log_num_return, "[Error] ", exit_result.code, s_debug_slow);
 	}
 
-	exit_log_num_return = Share_app_log_save("Imv/Exit", "Thread exiting(1/1)...", 1234567890, s_debug_slow);
+	exit_log_num_return = Share_app_log_save("Imv/Exit", "Thread exiting(1/2)...", 1234567890, s_debug_slow);
+	exit_result.code = threadJoin(image_load_thread, time_out);
+	if (exit_result.code == 0)
+		Share_app_log_add_result(exit_log_num_return, "[Success] ", exit_result.code, s_debug_slow);
+	else
+	{
+		function_fail = true;
+		Share_app_log_add_result(exit_log_num_return, "[Error] ", exit_result.code, s_debug_slow);
+	}
+
+	exit_log_num_return = Share_app_log_save("Imv/Exit", "Thread exiting(2/2)...", 1234567890, s_debug_slow);
 	exit_result.code = threadJoin(image_parse_thread, time_out);
 	if (exit_result.code == 0)
 		Share_app_log_add_result(exit_log_num_return, "[Success] ", exit_result.code, s_debug_slow);
@@ -659,7 +821,6 @@ void Image_viewer_exit(void)
 	for (int i = 0; i < 64; i++)
 	{
 		C3D_TexDelete(c3d_cache_tex[i]);
-		memset(c3d_cache_tex[i]->data, 0x0, c3d_cache_tex[i]->size);
 		linearFree(c3d_cache_tex[i]);
 		linearFree(c3d_cache_subtex[i]);
 		c3d_cache_tex[i] = NULL;

@@ -4,6 +4,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string>
+#include <algorithm>
 #include "citro2d.h"
 
 #include "draw.hpp"
@@ -16,6 +17,7 @@
 #include "setting_menu.hpp"
 #include "google_translation.hpp"
 
+u32 test;
 float text_red;
 float text_green;
 float text_blue;
@@ -173,6 +175,7 @@ void Init(void)
 	
 	s_wifi_enabled = true;
 
+	Share_draw_init_progress("1/4 Initializing service done.");
 	Share_draw_init_progress("1/4 Loading settings...");
 	init_log_num_return = Share_app_log_save("Main/Init/fs", "Share_load_from_file(Setting.txt)...", 1234567890, s_debug_slow);
 	init_result = Share_load_from_file("Setting.txt", init_buffer, 0x2000, &init_read_size, "/Line/", init_fs_handle, init_fs_archive);
@@ -181,7 +184,7 @@ void Init(void)
 	if (init_result.code == 0)
 		s_setting[0] = (char*)init_buffer;
 
-	for (int i = 1; i <= 17; i++)
+	for (int i = 1; i <= 18; i++)
 	{
 		init_log_num_return = Share_app_log_save("Main/Init/fs", "setting value" + std::to_string(i) + " : ", 1234567890, s_debug_slow);
 		init_setting_parse_start_text = "<" + std::to_string(i - 1) + ">";
@@ -227,6 +230,8 @@ void Init(void)
 				s_setting[16] = std::to_string(0x700000);
 			if (i <= 17)
 				s_setting[17] = std::to_string(0x200000);
+			if (i <= 18)
+				s_setting[18] = std::to_string(0x200000);
 
 			break;
 		}
@@ -236,22 +241,38 @@ void Init(void)
 		Share_app_log_add_result(init_log_num_return, s_setting[i], 1234567890, s_debug_slow);
 	}
 
-	s_lcd_brightness = stoi(s_setting[2]);
-	s_time_to_enter_afk = stoi(s_setting[3]);
-	s_afk_lcd_brightness = stoi(s_setting[4]);
+	if (std::all_of(s_setting[2].cbegin(), s_setting[2].cend(), isdigit))
+		s_lcd_brightness = stoi(s_setting[2]);
+	else
+		s_lcd_brightness = 100;
+
+	if (std::all_of(s_setting[3].cbegin(), s_setting[3].cend(), isdigit))
+		s_time_to_enter_afk = stoi(s_setting[3]);
+	else
+		s_time_to_enter_afk = 1500;
+
+	if (std::all_of(s_setting[4].cbegin(), s_setting[4].cend(), isdigit))
+		s_afk_lcd_brightness = stoi(s_setting[4]);
+	else
+		s_afk_lcd_brightness = 10;
+
 	if (s_setting[5] == "true")
 		s_system_setting_menu_show = true;
 	else
 		s_system_setting_menu_show = false;
 
 	s_scroll_speed = stod(s_setting[6]);
+	
 	if (s_setting[7] == "allow")
 		s_allow_send_app_info = true;
 	else
 		s_allow_send_app_info = false;
 
-	s_num_of_app_start = stoi(s_setting[8]);
-	
+	if (std::all_of(s_setting[8].cbegin(), s_setting[8].cend(), isdigit))
+		s_num_of_app_start = stoi(s_setting[8]);
+	else
+		s_num_of_app_start = 0;
+
 	if (s_setting[9] == "true")
 		s_night_mode = true;
 	else
@@ -269,10 +290,31 @@ void Init(void)
 
 	text_size_cache = stod(s_setting[12]);
 	text_interval_cache = stod(s_setting[13]);
-	s_line_log_httpc_buffer_size = stoi(s_setting[14]);
-	s_line_log_fs_buffer_size = stoi(s_setting[15]);
-	s_spt_spt_httpc_buffer_size = stoi(s_setting[16]);
-	s_imv_image_httpc_buffer_size = stoi(s_setting[17]);
+	
+	if (std::all_of(s_setting[14].cbegin(), s_setting[14].cend(), isdigit))
+		s_line_log_httpc_buffer_size = stoi(s_setting[14]);
+	else
+		s_line_log_httpc_buffer_size = 0x200000;
+
+	if (std::all_of(s_setting[15].cbegin(), s_setting[15].cend(), isdigit))
+		s_line_log_fs_buffer_size = stoi(s_setting[15]);
+	else
+		s_line_log_fs_buffer_size = 0x200000;
+
+	if (std::all_of(s_setting[16].cbegin(), s_setting[16].cend(), isdigit))
+		s_spt_spt_httpc_buffer_size = stoi(s_setting[16]);
+	else
+		s_spt_spt_httpc_buffer_size = 0x700000;
+
+	if (std::all_of(s_setting[17].cbegin(), s_setting[17].cend(), isdigit))
+		s_imv_image_httpc_buffer_size = stoi(s_setting[17]);
+	else
+		s_imv_image_httpc_buffer_size = 0x200000;
+
+	if (std::all_of(s_setting[18].cbegin(), s_setting[18].cend(), isdigit))
+		s_imv_image_fs_buffer_size = stoi(s_setting[18]);
+	else
+		s_imv_image_fs_buffer_size = 0x200000;
 
 	if (text_size_cache > 3.0)
 		text_size_cache = 3.0;
@@ -298,17 +340,23 @@ void Init(void)
 		s_imv_image_httpc_buffer_size = 0x1000000;
 	else if (s_imv_image_httpc_buffer_size < 0x100000)
 		s_imv_image_httpc_buffer_size = 0x100000;
+	if (s_imv_image_fs_buffer_size > 0x1000000)
+		s_imv_image_fs_buffer_size = 0x1000000;
+	else if (s_imv_image_fs_buffer_size < 0x100000)
+		s_imv_image_fs_buffer_size = 0x100000;
 
 	svcSetThreadPriority(CUR_THREAD_HANDLE, 0x26);
+	Share_draw_init_progress("2/4 Loading settings done.");
 	Share_draw_init_progress("2/4 Starting threads...");
 	s_update_thread_run = true;
 	s_hid_thread_run = true;
 	s_connect_test_thread_run = true;
 
-	s_update_thread = threadCreate(Share_update_thread, (void*)(""), STACKSIZE, 0x24, -1, true);
-	s_hid_thread = threadCreate(Share_scan_hid_thread, (void*)(""), STACKSIZE, 0x25, -1, true);
+	s_update_thread = threadCreate(Share_update_thread, (void*)(""), STACKSIZE, 0x20, -1, true);
+	s_hid_thread = threadCreate(Share_scan_hid_thread, (void*)(""), STACKSIZE, 0x24, -1, true);
 	s_connect_test_thread = threadCreate(Share_connectivity_check_thread, (void*)(""), STACKSIZE, 0x30, -1, true);	
 
+	Share_draw_init_progress("3/4 Starting threads done.");
 	Share_draw_init_progress("3/4 Loading textures...");
 	init_log_num_return = Share_app_log_save("Main/Init/c2d", "Loading texture (background.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/background.t3x", 0, Background_image, 0, 2);
@@ -338,6 +386,7 @@ void Init(void)
 	init_result = Draw_load_texture("romfs:/gfx/sem_help.t3x", 51, sem_help_image, 0, 7);
 	Share_app_log_add_result(init_log_num_return, init_result.string, init_result.code, true);*/
 
+	Share_draw_init_progress("3/4 Loading textures done.");
 	for (int i = 0; i < 46; i++)
 		s_use_external_font[i] = false;
 
@@ -365,7 +414,6 @@ void Init(void)
 		}
 	}
 	free(init_buffer);
-
 	Share_app_log_save("Main/Init", "Initialized.", 1234567890, false);
 }
 
@@ -409,7 +457,7 @@ int main()
 			Draw_texture(Background_image, dammy_tint, 0, 0.0, 0.0, 400.0, 15.0);
 			Draw_texture(Wifi_icon_image, dammy_tint, s_wifi_signal, 360.0, 0.0, 15.0, 15.0);
 			Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
-			if(s_battery_charge)
+			if (s_battery_charge)
 				Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 310.0, 0.0, 20.0, 15.0);
 			Draw(s_status, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
 			Draw(s_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
@@ -443,7 +491,7 @@ int main()
 				Draw_screen_ready_to_draw(1, true, 1, 0.0, 0.0, 0.0);
 			else
 				Draw_screen_ready_to_draw(1, true, 1, 1.0, 1.0, 1.0);
-		
+
 			for (int i = 0; i <= 3; i++)
 				Draw_texture(Square_image, dammy_tint, 11, (80.0 * i), 0.0, 60.0, 60.0);
 
@@ -455,8 +503,8 @@ int main()
 
 			Draw("■", 252.5, 162.5, 3.0, 3.0, 0.0, 0.0, 0.0, 0.25);
 			Draw("Setting", 270.0, 205.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			
-			if(s_line_already_init)
+
+			if (s_line_already_init)
 				Draw("X", 50.0, 0.0, 0.65, 0.5, 1.0, 0.0, 0.0, 0.5);
 
 			if (s_imv_already_init)
@@ -471,76 +519,81 @@ int main()
 			if (s_key_touch_held)
 				Draw(s_circle_string, s_touch_pos_x, s_touch_pos_y, 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
 			s_fps += 1;
-			
+
 			Draw_apply_draw();
 			osTickCounterUpdate(&s_tcount_frame_time);
-			s_frame_time = osTickCounterRead(&s_tcount_frame_time);	
+			s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 
-
-			if (s_key_SELECT_press)
-			{
-				if (s_app_logs_show)
-					s_app_logs_show = false;
-				else
-					s_app_logs_show = true;
-			}
-			else if (s_key_START_press || (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 230 && s_touch_pos_y >= 220 && s_touch_pos_y <= 240))
+			if (s_exit_app_request)
 			{
 				if (Share_exit_check())
 					break;
-			}
-			else if (s_key_touch_press)
-			{				
-				if (s_touch_pos_x > 50 && s_touch_pos_x < 60 && s_touch_pos_y > 0 && s_touch_pos_y < 15 && s_line_already_init)
-					Line_exit();
-				else if (s_touch_pos_x > 0 && s_touch_pos_x < 60 && s_touch_pos_y > 0 && s_touch_pos_y < 60)
-				{
-					if(!s_line_already_init)
-						Line_init();
-					else
-					{
-						s_line_thread_suspend = false;
-						s_line_main_run = true;
-						s_menu_main_run = false;
-					}
-				}
-				else if (s_touch_pos_x > 80 && s_touch_pos_x < 140 && s_touch_pos_y > 0 && s_touch_pos_y < 60)
-				{
-					s_gtr_thread_suspend = false;
-					s_gtr_main_run = true;
-					s_menu_main_run = false;
-					if (!s_gtr_already_init)
-						Google_tr_init();
-				}
-				else if (s_touch_pos_x > 160 && s_touch_pos_x < 220 && s_touch_pos_y > 0 && s_touch_pos_y < 60)
-				{
-					s_spt_thread_suspend = false;
-					s_spt_main_run = true;
-					s_menu_main_run = false;
-					if (!s_spt_already_init)
-						Speedtest_init();
-				}
-				else if (s_touch_pos_x > 290 && s_touch_pos_x < 300 && s_touch_pos_y > 0 && s_touch_pos_y < 15 && s_imv_already_init)
-					Image_viewer_exit();
-				else if (s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 0 && s_touch_pos_y < 60)
-				{
-					if (!s_imv_already_init)
-						Image_viewer_init();
-					else
-					{
-						s_imv_thread_suspend = false;
-						s_imv_main_run = true;
-						s_menu_main_run = false;
-					}
-				}
-				else if (s_touch_pos_x > 250 && s_touch_pos_x < 320 && s_touch_pos_y > 175 && s_touch_pos_y < 240)
-				{
-					s_sem_main_run = true;
-					s_menu_main_run = false;
 
-					if(!s_sem_already_init)
-						Setting_menu_init();
+				s_exit_app_request = false;
+			}
+			else if (s_destroy_line_request)
+			{
+				Line_exit();
+				s_destroy_line_request = false;
+			}
+			else if (s_jump_to_line_request)
+			{
+				if (!s_line_already_init)
+					Line_init();
+				else
+				{
+					s_line_thread_suspend = false;
+					s_line_main_run = true;
+					s_menu_main_run = false;
 				}
+				s_jump_to_line_request = false;
+			}
+			else if (s_jump_to_gtr_request)
+			{
+				s_gtr_thread_suspend = false;
+				s_gtr_main_run = true;
+				s_menu_main_run = false;
+				if (!s_gtr_already_init)
+					Google_tr_init();
+
+				s_jump_to_gtr_request = false;
+			}
+			else if (s_jump_to_spt_request)
+			{
+				s_spt_thread_suspend = false;
+				s_spt_main_run = true;
+				s_menu_main_run = false;
+				if (!s_spt_already_init)
+					Speedtest_init();
+
+				s_jump_to_spt_request = false;
+			}
+			else if (s_destroy_imv_request)
+			{
+				Image_viewer_exit();
+				s_destroy_imv_request = false;
+			}
+			else if (s_jump_to_imv_request)
+			{
+				if (!s_imv_already_init)
+					Image_viewer_init();
+				else
+				{
+					s_imv_thread_suspend = false;
+					s_imv_main_run = true;
+					s_menu_main_run = false;
+				}
+				s_jump_to_imv_request = false;
+			}
+			else if (s_jump_to_sem_request)
+			{
+				s_sem_main_run = true;
+				s_menu_main_run = false;
+
+				if (!s_sem_already_init)
+					Setting_menu_init();
+
+				s_jump_to_sem_request = false;
 			}
 		}
 		else if(s_line_main_run)
@@ -614,6 +667,7 @@ int main()
 	s_setting[15] = std::to_string(s_line_log_fs_buffer_size);
 	s_setting[16] = std::to_string(s_spt_spt_httpc_buffer_size);
 	s_setting[17] = std::to_string(s_imv_image_httpc_buffer_size);
+	s_setting[18] = std::to_string(s_imv_image_fs_buffer_size);
 
 	s_setting[0] = "";
 

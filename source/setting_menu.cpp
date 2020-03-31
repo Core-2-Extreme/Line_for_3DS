@@ -19,7 +19,7 @@ bool need_gas_update = false;
 std::string setting_string[96];
 std::string setting_help_string[64];
 std::string newest_ver_data[11];
-std::string sem_message_en[87] = {
+std::string sem_message_en[88] = {
 	"Language : ",
 	"Night mode : ",
 	"",
@@ -107,8 +107,9 @@ std::string sem_message_en[87] = {
 	"Imv image httpc buffer size : ",
 	"Increase",
 	"Decrease",
+	"Imv image fs buffer size : ",
 }; 
-std::string sem_message_jp[87] = {
+std::string sem_message_jp[88] = {
 	"言語 : ",
 	"夜モード : ",
 	"",
@@ -196,6 +197,7 @@ std::string sem_message_jp[87] = {
 	"Imv image httpc bufferのサイズ : ",
 	"増やす",
 	"減らす",
+	"Imv image fs bufferのサイズ : ",
 };
 
 Thread check_update_thread;
@@ -268,6 +270,7 @@ void Setting_menu_main(void)
 		setting_string[63] = sem_message_en[84] + std::to_string(s_imv_image_httpc_buffer_size / 1024 / 1024) + "MB";
 		setting_string[64] = sem_message_en[85];
 		setting_string[65] = sem_message_en[86];
+		setting_string[66] = sem_message_en[87] + std::to_string(s_imv_image_fs_buffer_size / 1024 / 1024) + "MB";
 
 		setting_help_string[0] = sem_message_en[1];
 		setting_help_string[1] = sem_message_en[2];
@@ -334,6 +337,8 @@ void Setting_menu_main(void)
 		setting_string[63] = sem_message_jp[84] + std::to_string(s_imv_image_httpc_buffer_size / 1024 / 1024) + "MB";
 		setting_string[64] = sem_message_jp[85];
 		setting_string[65] = sem_message_jp[86];
+		setting_string[66] = sem_message_jp[87];
+		setting_string[66] = sem_message_jp[87] + std::to_string(s_imv_image_fs_buffer_size / 1024 / 1024) + "MB";
 
 		setting_help_string[0] = sem_message_jp[1];
 		setting_help_string[1] = sem_message_jp[2];
@@ -476,183 +481,232 @@ void Setting_menu_main(void)
 
 	//Check for updates
 	draw_y = 15.0;
-	Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset, 200.0, 20.0);
-	Draw(setting_string[54], 10.0, draw_y + s_sem_y_offset - 2.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	{
+		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset, 200.0, 20.0);
+		Draw(setting_string[54], 10.0, draw_y + s_sem_y_offset - 2.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+	}
 
 	//Language
 	draw_y = 40.0;
-	Draw(setting_string[0], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	if (s_setting[1] == "en")
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
 	{
-		Draw(setting_string[20], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-		Draw(setting_string[21], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-	}
-	else
-	{
-		Draw(setting_string[20], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[21], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+		Draw(setting_string[0], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		if (s_setting[1] == "en")
+		{
+			Draw(setting_string[20], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[21], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+		}
+		else
+		{
+			Draw(setting_string[20], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[21], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+		}
 	}
 
 	//Night mode
 	draw_y = 80.0;
-	Draw(setting_string[1], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	Draw_texture(Square_image, dammy_tint, 11, 210.0, draw_y + s_sem_y_offset + 15.0, 40.0, 20.0);
-	if (s_night_mode)
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
 	{
-		Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-		Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[1], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, dammy_tint, 11, 210.0, draw_y + s_sem_y_offset + 15.0, 40.0, 20.0);
+		if (s_night_mode)
+		{
+			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+		}
+		else
+		{
+			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+		}
+		if (s_flash_mode)
+			Draw(setting_string[26], 210.0, draw_y + s_sem_y_offset + 15.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+		else
+			Draw(setting_string[26], 210.0, draw_y + s_sem_y_offset + 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 	}
-	else
-	{
-		Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-	}
-	if (s_flash_mode)
-		Draw(setting_string[26], 210.0, draw_y + s_sem_y_offset + 15.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-	else
-		Draw(setting_string[26], 210.0, draw_y + s_sem_y_offset + 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 
 	//Vsync
 	draw_y = 120.0;
-	Draw(setting_string[2], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	if (s_draw_vsync_mode)
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
 	{
-		Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-		Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-	}
-	else
-	{
-		Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+		Draw(setting_string[2], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		if (s_draw_vsync_mode)
+		{
+			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+		}
+		else
+		{
+			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+		}
 	}
 
 	//Screen brightness
 	draw_y = 160.0;
-	Draw(setting_string[3], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	Draw_texture(Square_image, dammy_tint, texture_color, (s_lcd_brightness - 10) * 2, draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	{
+		Draw(setting_string[3], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, texture_color, (s_lcd_brightness - 10) * 2, draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+	}
 
 	//Time to enter sleep mode
 	draw_y = 200.0;
-	Draw(setting_string[4], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	Draw_texture(Square_image, dammy_tint, texture_color, (s_time_to_enter_afk / 10), draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	{
+		Draw(setting_string[4], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, texture_color, (s_time_to_enter_afk / 10), draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+	}
 
 	//Screen brightness when sleep
 	draw_y = 240.0;
-	Draw(setting_string[5], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	Draw_texture(Square_image, dammy_tint, texture_color, (s_afk_lcd_brightness - 10) * 2, draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	{
+		Draw(setting_string[5], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, texture_color, (s_afk_lcd_brightness - 10) * 2, draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+	}
 
 	//Scroll speed
 	draw_y = 280.0;
-	Draw(setting_string[6], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	Draw_texture(Square_image, dammy_tint, texture_color, (s_scroll_speed * 300), draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	{
+		Draw(setting_string[6], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, texture_color, (s_scroll_speed * 300), draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+	}
 
 	//Allow send app info
 	draw_y = 320.0;
-	Draw(setting_string[7], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	if (s_allow_send_app_info)
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
 	{
-		Draw(setting_string[25], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-		Draw(setting_string[24], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-	}
-	else
-	{
-		Draw(setting_string[25], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[24], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+		Draw(setting_string[7], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		if (s_allow_send_app_info)
+		{
+			Draw(setting_string[25], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[24], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+		}
+		else
+		{
+			Draw(setting_string[25], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[24], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+		}
 	}
 
 	//Debug mode
 	draw_y = 360.0;
-	Draw(setting_string[8], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	if (s_debug_mode)
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
 	{
-		Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-		Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-	}
-	else
-	{
-		Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+		Draw(setting_string[8], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		if (s_debug_mode)
+		{
+			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+		}
+		else
+		{
+			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+		}
 	}
 
 	//Font
 	draw_y = 400.0;
-	Draw(setting_string[9], 0.0, 400.0 + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	Draw_texture(Square_image, dammy_tint, 11, 210.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-	if (!s_use_external_font[0] && !s_use_specific_system_font)
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
 	{
-		Draw(setting_string[27], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-		Draw(setting_string[28], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[29], 210.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	}
-	else if (s_use_specific_system_font)
-	{
-		Draw(setting_string[27], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[28], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[29], 210.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-	}
-	else if (s_use_external_font[0])
-	{
-		Draw(setting_string[27], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[28], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-		Draw(setting_string[29], 210.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[9], 0.0, 400.0 + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, dammy_tint, 11, 210.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		if (!s_use_external_font[0] && !s_use_specific_system_font)
+		{
+			Draw(setting_string[27], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[28], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[29], 210.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		}
+		else if (s_use_specific_system_font)
+		{
+			Draw(setting_string[27], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[28], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[29], 210.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+		}
+		else if (s_use_external_font[0])
+		{
+			Draw(setting_string[27], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[28], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[29], 210.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		}
 	}
 
 	//Font, System specific
 	draw_x = 10.0;
 	draw_y = 440.0;
-	Draw(setting_string[10], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	for (int i = 0; i < 4; i++)
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
 	{
-		Draw_texture(Square_image, dammy_tint, 11, draw_x, draw_y + s_sem_y_offset + 15.0, 70.0, 20.0);
-		if (s_lang_select_num == i)
-			Draw(setting_string[30 + i], draw_x, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-		else
-			Draw(setting_string[30 + i], draw_x, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[10], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		for (int i = 0; i < 4; i++)
+		{
+			Draw_texture(Square_image, dammy_tint, 11, draw_x, draw_y + s_sem_y_offset + 15.0, 70.0, 20.0);
+			if (s_lang_select_num == i)
+				Draw(setting_string[30 + i], draw_x, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			else
+				Draw(setting_string[30 + i], draw_x, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 
-		draw_x += 75.0;
+			draw_x += 75.0;
+		}
 	}
 
 	//Font, External
 	draw_y = 480.0;
-	Draw(setting_string[11], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	Draw_texture(Square_image, dammy_tint, 3, 10.0, draw_y + s_sem_y_offset + 15.0, 100.0, 20.0);
-	Draw_texture(Square_image, dammy_tint, 5, 110.0, draw_y + s_sem_y_offset + 15.0, 100.0, 20.0);
-	Draw(setting_string[34], 10.0, draw_y + s_sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
-	Draw(setting_string[35], 110.0, draw_y + s_sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
+	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	{
+		Draw(setting_string[11], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, dammy_tint, 3, 10.0, draw_y + s_sem_y_offset + 15.0, 100.0, 20.0);
+		Draw_texture(Square_image, dammy_tint, 5, 110.0, draw_y + s_sem_y_offset + 15.0, 100.0, 20.0);
+		Draw(setting_string[34], 10.0, draw_y + s_sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[35], 110.0, draw_y + s_sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
+	}
+
 	draw_x = 10.0;
 	draw_y = 515.0;
 	for (int i = 0; i < 46; i++)
 	{
-		Draw_texture(Square_image, dammy_tint, 11, draw_x, draw_y + s_sem_y_offset, 200.0, 20.0);
-		if (s_use_external_font[i + 1])
-			Draw(s_font_file_name[i], draw_x, draw_y + s_sem_y_offset - 2.5, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
-		else
-			Draw(s_font_file_name[i], draw_x, draw_y + s_sem_y_offset - 2.5, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-
+		if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+		{
+			Draw_texture(Square_image, dammy_tint, 11, draw_x, draw_y + s_sem_y_offset, 200.0, 20.0);
+			if (s_use_external_font[i + 1])
+				Draw(s_font_file_name[i], draw_x, draw_y + s_sem_y_offset - 2.5, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+			else
+				Draw(s_font_file_name[i], draw_x, draw_y + s_sem_y_offset - 2.5, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+		}
 		draw_y += 20.0;
 	}
 
 	//Buffer size
 	draw_y = 1435.0;
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 5; i++)
 	{
-		Draw(setting_string[60 + i], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-		Draw(setting_string[64], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[65], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+		{
+			if (i == 4)
+				Draw(setting_string[66], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			else
+				Draw(setting_string[60 + i], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+
+			Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+			Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+			Draw(setting_string[64], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[65], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		}
 		draw_y += 40.0;
 	}
 

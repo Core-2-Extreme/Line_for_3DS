@@ -4,6 +4,7 @@
 #include <string>
 #include "change_setting.hpp"
 #include "share_function.hpp"
+#include "file.hpp"
 #include "draw.hpp"
 #include "line.hpp"
 #include "image_viewer.hpp"
@@ -77,6 +78,7 @@ bool s_connect_test_thread_run = false;
 bool s_gtr_tr_thread_run = false;
 bool s_hid_thread_run = false;
 bool s_imv_download_thread_run = false;
+bool s_imv_load_thread_run = false;
 bool s_imv_parse_thread_run = false;
 bool s_line_log_download_thread_run = false;
 bool s_line_log_load_thread_run = false;
@@ -100,12 +102,23 @@ bool s_allow_send_app_info = false;
 bool s_debug_mode = false;
 bool s_connect_test_succes = false;
 bool s_debug_slow = false;
+bool s_destroy_line_request = false;
+bool s_destroy_imv_request = false;
+bool s_exit_app_request = false;
 bool s_gtr_type_text_request = false;
 bool s_use_specific_system_font = false;
 bool s_use_external_font[47];
 bool s_imv_adjust_url_request = false;
 bool s_imv_image_dl_request = false;
+bool s_imv_image_dl_and_parse_request = false;
+bool s_imv_image_load_request = false;
+bool s_imv_image_load_and_parse_request = false;
 bool s_imv_image_parse_request = false;
+bool s_jump_to_line_request = false;
+bool s_jump_to_gtr_request = false;
+bool s_jump_to_spt_request = false;
+bool s_jump_to_imv_request = false;
+bool s_jump_to_sem_request = false;
 bool s_line_auto_update_mode = false;
 bool s_line_hide_id = false;
 bool s_line_log_load_request = false;
@@ -191,6 +204,7 @@ int s_line_log_httpc_buffer_size = 0x200000;
 int s_line_log_fs_buffer_size = 0x200000;
 int s_spt_spt_httpc_buffer_size = 0x700000;
 int s_imv_image_httpc_buffer_size = 0x200000;
+int s_imv_image_fs_buffer_size = 0x200000;
 int s_spt_data_size = 0;
 /*
    0 ~   94   (95) Basic latin
@@ -486,9 +500,9 @@ std::string s_imv_message_jp[8] = {
 };
 std::string s_spt_ver = "v1.0.3";
 std::string s_gtr_ver = "v1.0.1";
-std::string s_imv_ver = "v1.0.1";
-std::string s_line_ver = "v1.3.0";
-std::string s_app_ver = "v1.3.0";
+std::string s_imv_ver = "v1.0.2";
+std::string s_line_ver = "v1.3.1";
+std::string s_app_ver = "v1.3.1";
 std::string s_httpc_user_agent = "Line for 3DS " + s_app_ver;
 
 //#0600~#06FF
@@ -1282,6 +1296,7 @@ SwkbdState s_swkb;
 SwkbdLearningData s_swkb_learn_data;
 SwkbdDictWord s_swkb_words[8];
 SwkbdButton press_button, s_swkb_press_button;
+Content_info s_line_content[60000];
 
 void Share_send_app_info_thread(void* arg)
 {
@@ -1463,7 +1478,7 @@ void Share_update_thread(void* arg)
 	Share_app_log_save("Share/Update thread", "Thread started.", 1234567890, false);
 	while (s_update_thread_run)
 	{
-		usleep(50000);
+		usleep(49250);
 		update_thread_count++;
 
 		if ((update_thread_count == 10 || update_thread_count == 20) && s_debug_mode)
@@ -1643,7 +1658,7 @@ void Share_draw_init_progress(std::string message)
 	else
 		Draw_screen_ready_to_draw(0, true, 1, 1.0, 1.0, 1.0);
 
-	Draw(message, 100.0, 120.0, 0.75, 0.75, 0.0, 0.5, 1.0, 1.0);
+	Draw(message, 80.0, 110.0, 0.75, 0.75, 0.0, 0.5, 1.0, 1.0);
 
 	Draw_apply_draw();
 }
@@ -1696,19 +1711,20 @@ void Share_scan_hid_thread(void* arg)
 
 	int scan_hid_log_num_return;
 	int scan_hid_load_font_num;
-	bool scroll_bar_selected = false;
-	bool bar_selected[4] = { false, false, false, false, };
-	bool scroll_mode = false;
 	u32 kDown;
 	u32 kHeld;
+	size_t cut_pos;
+	bool scroll_bar_selected = false;
+	bool bar_selected[4] = { false, false, false, false, };
+	bool button_selected[4] = { false, false, false, false, };
+	bool scroll_mode = false;
 	touchPosition touch_pos;
 	circlePosition circle_pos;
 	Result_with_string scan_hid_result;
 
 	while (s_hid_thread_run)
 	{
-		if (s_hid_disabled)
-			Share_key_flag_reset();
+		Share_key_flag_reset();
 
 		hidScanInput();
 		hidTouchRead(&touch_pos);
@@ -1902,6 +1918,35 @@ void Share_scan_hid_thread(void* arg)
 		{
 			if (s_key_touch_press && s_key_touch_press && s_touch_pos_x >= 150 && s_touch_pos_x <= 170 && s_touch_pos_y >= 150 && s_touch_pos_y < 170)
 				s_error_display = false;
+		}
+		else if (s_menu_main_run && !s_hid_disabled)
+		{
+			if (s_key_SELECT_press)
+			{
+				if (s_app_logs_show)
+					s_app_logs_show = false;
+				else
+					s_app_logs_show = true;
+			}
+			else if (s_key_START_press || (s_key_touch_press && s_touch_pos_x >= 110 && s_touch_pos_x <= 230 && s_touch_pos_y >= 220 && s_touch_pos_y <= 240))
+				s_exit_app_request = true;
+			else if (s_key_touch_press)
+			{
+				if (s_touch_pos_x > 50 && s_touch_pos_x < 60 && s_touch_pos_y > 0 && s_touch_pos_y < 15 && s_line_already_init)
+					s_destroy_line_request = true;
+				else if (s_touch_pos_x > 0 && s_touch_pos_x < 60 && s_touch_pos_y > 0 && s_touch_pos_y < 60)
+					s_jump_to_line_request = true;
+				else if (s_touch_pos_x > 80 && s_touch_pos_x < 140 && s_touch_pos_y > 0 && s_touch_pos_y < 60)
+					s_jump_to_gtr_request = true;
+				else if (s_touch_pos_x > 160 && s_touch_pos_x < 220 && s_touch_pos_y > 0 && s_touch_pos_y < 60)
+					s_jump_to_spt_request = true;
+				else if (s_touch_pos_x > 290 && s_touch_pos_x < 300 && s_touch_pos_y > 0 && s_touch_pos_y < 15 && s_imv_already_init)
+					s_destroy_imv_request = true;
+				else if (s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 0 && s_touch_pos_y < 60)
+					s_jump_to_imv_request = true;
+				else if (s_touch_pos_x > 250 && s_touch_pos_x < 320 && s_touch_pos_y > 175 && s_touch_pos_y < 240)
+					s_jump_to_sem_request = true;
+			}
 		}
 		else if (s_sem_main_run && !s_hid_disabled)
 		{
@@ -2176,6 +2221,10 @@ void Share_scan_hid_thread(void* arg)
 							s_imv_image_httpc_buffer_size += 0x100000;
 						else if (s_touch_pos_x >= 110 && s_touch_pos_x <= 199 && s_touch_pos_y >= 1570 + s_sem_y_offset && s_touch_pos_y <= 1589 + s_sem_y_offset)
 							s_imv_image_httpc_buffer_size -= 0x100000;
+						else if (s_touch_pos_x >= 10 && s_touch_pos_x <= 99 && s_touch_pos_y >= 1610 + s_sem_y_offset && s_touch_pos_y <= 1629 + s_sem_y_offset)
+							s_imv_image_fs_buffer_size += 0x100000;
+						else if (s_touch_pos_x >= 110 && s_touch_pos_x <= 199 && s_touch_pos_y >= 1610 + s_sem_y_offset && s_touch_pos_y <= 1629 + s_sem_y_offset)
+							s_imv_image_fs_buffer_size -= 0x100000;
 						else
 							scroll_mode = true;
 					}
@@ -2216,6 +2265,10 @@ void Share_scan_hid_thread(void* arg)
 					s_imv_image_httpc_buffer_size = 0x1000000;
 				else if (s_imv_image_httpc_buffer_size < 0x100000)
 					s_imv_image_httpc_buffer_size = 0x100000;
+				if (s_imv_image_fs_buffer_size > 0x1000000)
+					s_imv_image_fs_buffer_size = 0x1000000;
+				else if (s_imv_image_fs_buffer_size < 0x100000)
+					s_imv_image_fs_buffer_size = 0x100000;
 				if (s_sem_y_offset >= 0)
 					s_sem_y_offset = 0;
 				else if (s_sem_y_offset <= -1500)
@@ -2302,7 +2355,7 @@ void Share_scan_hid_thread(void* arg)
 					else if (s_key_touch_press && s_touch_pos_y <= 219)
 					{
 						if (s_touch_pos_x >= 305 && s_touch_pos_x <= 320 && s_touch_pos_y >= 15 && s_touch_pos_y < 220)
-							scroll_bar_selected = true;
+							scroll_bar_selected = true;						
 						else if (s_touch_pos_x > 260 && s_touch_pos_x < 300 && s_touch_pos_y > 140 && s_touch_pos_y < 150 && s_line_menu_mode != 1)
 						{
 							if (s_line_hide_id)
@@ -2320,10 +2373,67 @@ void Share_scan_hid_thread(void* arg)
 							s_line_menu_mode = 3;
 						else if (s_touch_pos_y <= 169)
 							scroll_mode = true;
+
+						if (s_touch_pos_y >= 0 && s_touch_pos_y < 140)
+						{
+							for (int i = 1; i <= 59999; i++)
+							{
+								if ((text_y_cache + text_interval_cache * i) - 240 >= 125)
+									break;
+								else if (text_y_cache + text_interval_cache * i <= -1000)
+								{
+									if ((text_y_cache + text_interval_cache * (i + 100)) <= 10)
+										i += 100;
+								}
+								else if ((text_y_cache + text_interval_cache * i) - 240 <= -60)
+								{
+								}
+								else
+								{
+									if (s_line_content[i].enabled && s_line_content[i].type == "image" && s_touch_pos_y >= (text_y_cache + text_interval_cache * i) - 240.0 && s_touch_pos_y <= (text_y_cache + text_interval_cache * i) - 220.0 && s_touch_pos_x >= (text_x_cache - 40.0) && s_touch_pos_x <= (text_x_cache + 460.0))
+									{										
+										s_line_main_run = false;
+										s_menu_main_run = true;
+										s_line_thread_suspend = true;
+										s_jump_to_imv_request = true;
+
+										if (s_line_content[i].note == "exist")
+										{
+											cut_pos = s_line_content[i].url.find("&id=");
+											if (cut_pos == std::string::npos)
+											{
+												s_clipboards[14] = s_line_content[i].url;
+												s_imv_clipboard_select_num = 14;
+												s_imv_image_dl_and_parse_request = true;
+											}
+											else
+											{
+												s_clipboards[13] = s_line_content[i].url.substr(cut_pos + 4);
+												if (s_clipboards[13].length() > 33)
+													s_clipboards[13].substr(0, 33);
+
+												s_clipboards[13] += ".jpg";
+												s_imv_clipboard_select_num = 13;
+												s_imv_image_load_and_parse_request = true;
+											}
+										}
+										else
+										{
+											s_clipboards[14] = s_line_content[i].url;
+											s_imv_clipboard_select_num = 14;
+											s_imv_image_dl_and_parse_request = true;
+										}
+									}
+								}
+							}
+						}
 					}
 				}
 				else
 				{
+					for (int i = 0; i < 3; i++)
+						button_selected[i] = false;
+
 					scroll_mode = false;
 					scroll_bar_selected = false;
 					s_touch_pos_x_move_left -= (s_touch_pos_x_move_left * 0.025);
@@ -2386,17 +2496,23 @@ void Share_scan_hid_thread(void* arg)
 				else if (s_line_menu_mode == 1)
 				{
 					if (s_key_DUP_press || (s_key_touch_press && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					{
+						button_selected[0] = true;
 						message_select_num += 0.5f;
+					}
 					if (s_key_DDOWN_press || (s_key_touch_press && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					{
+						button_selected[1] = true;
 						message_select_num -= 0.5f;
-					if (s_key_DUP_held || (s_key_touch_held && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					}
+					if ((s_key_DUP_held || (s_key_touch_held && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215)) && button_selected[0])
 					{
 						if (s_held_time > 180)
 							message_select_num += 1.0f;
 						else
 							message_select_num += 0.0625f;
 					}
-					if (s_key_DDOWN_held || (s_key_touch_held && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					if ((s_key_DDOWN_held || (s_key_touch_held && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215)) && button_selected[1])
 					{
 						if (s_held_time > 180)
 							message_select_num -= 1.0f;
@@ -2413,13 +2529,22 @@ void Share_scan_hid_thread(void* arg)
 				}
 				else if (s_line_menu_mode == 2)
 				{
-					if (s_key_DUP_held || (s_key_touch_held && s_touch_pos_x > 20 && s_touch_pos_x < 80 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					if (s_key_DUP_press || (s_key_touch_press && s_touch_pos_x > 20 && s_touch_pos_x < 80 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						button_selected[0] = true;
+					if (s_key_DDOWN_press || (s_key_touch_press && s_touch_pos_x > 90 && s_touch_pos_x < 150 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						button_selected[1] = true;
+					if (s_key_L_press || (s_key_touch_press && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						button_selected[2] = true;
+					if (s_key_R_press || (s_key_touch_press && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+						button_selected[3] = true;
+
+					if ((s_key_DUP_held || (s_key_touch_held && s_touch_pos_x > 20 && s_touch_pos_x < 80 && s_touch_pos_y > 185 && s_touch_pos_y < 215)) && button_selected[0])
 						text_interval_cache += 0.5;
-					if (s_key_DDOWN_held || (s_key_touch_held && s_touch_pos_x > 90 && s_touch_pos_x < 150 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					if ((s_key_DDOWN_held || (s_key_touch_held && s_touch_pos_x > 90 && s_touch_pos_x < 150 && s_touch_pos_y > 185 && s_touch_pos_y < 215)) && button_selected[1])
 						text_interval_cache -= 0.5;
-					if (s_key_L_held || (s_key_touch_held && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					if ((s_key_L_held || (s_key_touch_held && s_touch_pos_x > 170 && s_touch_pos_x < 230 && s_touch_pos_y > 185 && s_touch_pos_y < 215)) && button_selected[2])
 						text_size_cache -= 0.003f;
-					if (s_key_R_held || (s_key_touch_held && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215))
+					if ((s_key_R_held || (s_key_touch_held && s_touch_pos_x > 240 && s_touch_pos_x < 300 && s_touch_pos_y > 185 && s_touch_pos_y < 215)) && button_selected[3])
 						text_size_cache += 0.003f;
 
 					if (text_interval_cache > 250)
@@ -2513,7 +2638,7 @@ void Share_scan_hid_thread(void* arg)
 				s_menu_main_run = true;
 				s_imv_main_run = false;
 			}
-			if (s_key_touch_press || s_key_touch_held)
+			if ((s_key_touch_press || s_key_touch_held) && s_touch_pos_y)
 			{
 				s_touch_pos_x_move_left = 0;
 				s_touch_pos_y_move_left = 0;
@@ -2523,11 +2648,14 @@ void Share_scan_hid_thread(void* arg)
 					s_touch_pos_x_move_left += s_touch_pos_x_moved;
 					s_touch_pos_y_move_left += s_touch_pos_y_moved;
 				}
-				else if (s_key_touch_press && s_touch_pos_y <= 219)
+				else if (s_key_touch_press && s_touch_pos_y <= 174)
 					scroll_mode = true;
 			}
 			else
 			{
+				for (int i = 0; i < 3; i++)
+					button_selected[i] = false;
+
 				scroll_mode = false;
 				s_touch_pos_x_move_left -= (s_touch_pos_x_move_left * 0.025);
 				s_touch_pos_y_move_left -= (s_touch_pos_y_move_left * 0.025);
@@ -2551,14 +2679,18 @@ void Share_scan_hid_thread(void* arg)
 				s_imv_image_pos_y += ((float)circle_pos.dy * s_scroll_speed) * 0.0625;
 			if (s_key_CPAD_LEFT_held || s_key_CPAD_RIGHT_held)
 				s_imv_image_pos_x -= ((float)circle_pos.dx * s_scroll_speed) * 0.0625;
-			if (s_key_L_held || (s_key_touch_held && s_touch_pos_x > 145 && s_touch_pos_x < 220 && s_touch_pos_y > 200 && s_touch_pos_y < 220))
+			if (s_key_L_press || (s_key_touch_press && s_touch_pos_x > 145 && s_touch_pos_x < 220 && s_touch_pos_y > 200 && s_touch_pos_y < 220))
+				button_selected[0] = true;
+			if (s_key_R_press || (s_key_touch_press && s_touch_pos_x > 245 && s_touch_pos_x < 320 && s_touch_pos_y > 200 && s_touch_pos_y < 220))
+				button_selected[1] = true;
+			if (s_key_L_held || (s_key_touch_held && s_touch_pos_x > 145 && s_touch_pos_x < 220 && s_touch_pos_y > 200 && s_touch_pos_y < 220 && button_selected[0]))
 			{
-				s_imv_image_zoom -= 0.05f;
-				if (s_imv_image_zoom < 0.25)
-					s_imv_image_zoom = 0.25f;
+				s_imv_image_zoom -= 0.01f;
+				if (s_imv_image_zoom < 0.04)
+					s_imv_image_zoom = 0.04f;
 			}
-			if (s_key_R_held || (s_key_touch_held && s_touch_pos_x > 245 && s_touch_pos_x < 320 && s_touch_pos_y > 200 && s_touch_pos_y < 220))
-				s_imv_image_zoom += 0.05f;
+			if (s_key_R_held || (s_key_touch_held && s_touch_pos_x > 245 && s_touch_pos_x < 320 && s_touch_pos_y > 200 && s_touch_pos_y < 220 && button_selected[1]))
+				s_imv_image_zoom += 0.01f;
 
 			s_imv_image_pos_x -= (s_touch_pos_x_move_left * s_scroll_speed);
 			s_imv_image_pos_y -= (s_touch_pos_y_move_left * s_scroll_speed);
