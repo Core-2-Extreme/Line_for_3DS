@@ -11,8 +11,12 @@
 * [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 
 ## Patch note
-* 【App】 Ver 1.3.0
-* 【Line】Added- sticker send and receive.
+* 【App】 Ver 1.3.1
+* 【Line】 Fixed- Common occurring [FSUSER_OpenArchive failed] error has been solved. 
+* 【Line】 Fixed- Image display now activated by touching the message. 
+* 【Setting】 Fixed- Setting menu framerate now improved.
+* 【Image viewer】 Fixed- Image display speed now improved.
+
 ## Summary
 
 ![00000002](https://user-images.githubusercontent.com/45873899/77538658-676c3e00-6ee3-11ea-8a9a-9c37ee7ba69b.png)
