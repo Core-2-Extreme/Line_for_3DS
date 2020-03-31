@@ -4,6 +4,14 @@
 #define OUT_OF_MEMORY -1
 #define BUFFER_SIZE_IS_TOO_SMALL -2
 
+struct Content_info
+{
+	bool enabled;
+	int num;
+	std::string url;
+	std::string type;
+	std::string note;
+};
 
 struct Result_with_string
 {
@@ -81,6 +89,7 @@ extern bool s_connect_test_thread_run;
 extern bool s_gtr_tr_thread_run;
 extern bool s_hid_thread_run;
 extern bool s_imv_download_thread_run;
+extern bool s_imv_load_thread_run;
 extern bool s_imv_parse_thread_run;
 extern bool s_line_log_download_thread_run;
 extern bool s_line_log_load_thread_run;
@@ -104,12 +113,23 @@ extern bool s_allow_send_app_info;
 extern bool s_debug_mode;
 extern bool s_connect_test_succes;
 extern bool s_debug_slow;
+extern bool s_destroy_line_request;
+extern bool s_destroy_imv_request;
+extern bool s_exit_app_request;
 extern bool s_gtr_type_text_request;
 extern bool s_use_specific_system_font;
 extern bool s_use_external_font[47];
 extern bool s_imv_adjust_url_request;
 extern bool s_imv_image_dl_request;
+extern bool s_imv_image_dl_and_parse_request;
+extern bool s_imv_image_load_request;
+extern bool s_imv_image_load_and_parse_request;
 extern bool s_imv_image_parse_request;
+extern bool s_jump_to_line_request;
+extern bool s_jump_to_gtr_request;
+extern bool s_jump_to_spt_request;
+extern bool s_jump_to_imv_request;
+extern bool s_jump_to_sem_request;
 extern bool s_line_auto_update_mode;
 extern bool s_line_hide_id;
 extern bool s_line_log_load_request;
@@ -199,6 +219,7 @@ extern int s_line_log_httpc_buffer_size;
 extern int s_line_log_fs_buffer_size;
 extern int s_spt_spt_httpc_buffer_size;
 extern int s_imv_image_httpc_buffer_size;
+extern int s_imv_image_fs_buffer_size;
 extern int s_spt_data_size;
 extern int s_font_characters[46];
 extern int s_font_start_num[46];
@@ -352,6 +373,7 @@ extern SwkbdState s_swkb;
 extern SwkbdLearningData s_swkb_learn_data;
 extern SwkbdDictWord s_swkb_words[8];
 extern SwkbdButton s_swkb_press_button;
+extern Content_info s_line_content[60000];
 
 void Share_send_app_info_thread(void* arg);
 
