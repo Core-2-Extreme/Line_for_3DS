@@ -197,7 +197,7 @@ int s_app_log_view_num = 0;
 int s_fps;
 int s_lcd_brightness = 50;
 int s_time_to_enter_afk = 300;
-int s_current_app_ver = 9;
+int s_current_app_ver = 10;
 int s_current_gas_ver = 3;
 int s_sem_selected_edition_num = 0;
 int s_line_log_httpc_buffer_size = 0x200000;
