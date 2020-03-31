@@ -9,10 +9,14 @@
 <cia_178mb_ram_available>0</cia_178mb_ram_available>
 <gas_ver>3</gas_ver>
 <patch_note>【App】 Ver 1.3.1
-【Line】 Fixed- Common occurring [FSUSER_OpenArchive failed] error has been solved. 
-【Line】 Fixed- Image display now activated by touching the message. 
-【Setting】 Fixed- Setting menu framerate now improved.
-【Image viewer】 Fixed- Image display speed now improved.
+【Line】 Fixed- Common occurring [FSUSER_Open
+Archive failed] error has been solved. 
+【Line】 Fixed- Image display now activated by
+touching the message. 
+【Setting】
+Fixed- Setting menu framerate now improved.
+【Image viewer】
+Fixed- Image display speed now improved.
 
 【App】 Ver 1.3.0 
 【Line】Added- sticker send and receive.
