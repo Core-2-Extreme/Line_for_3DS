@@ -11,19 +11,18 @@
 * [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 
 ## Patch note
-* 【App】 Ver 1.3.1
-* 【Line】 Fixed- Common occurring [FSUSER_OpenArchive failed] error has been solved. 
-* 【Line】 Fixed- Image display now activated by touching the message. 
-* 【Setting】 Fixed- Setting menu framerate now improved.
-* 【Image viewer】 Fixed- Image display speed now improved.
+* 【App】 Ver 1.4.0
+* 【Line】 Added- file send function.
+* 【Image viewer】 Added- view files on SD card.
+* 【GAS】 Fixed- If message was sent too quickly, it will be lost has been solved.
 
 ## Summary
 
 ![00000002](https://user-images.githubusercontent.com/45873899/77538658-676c3e00-6ee3-11ea-8a9a-9c37ee7ba69b.png)
 * Send text ✅
-* Send image ❌
-* Send video ❌
-* Send sound ❌
+* Send image ✅ (v1.4.0)
+* Send video ✅(*2) (v1.4.0)
+* Send sound ✅(*2) (v1.4.0)
 * Send sticker ✅(*1) (v1.3.0)
 * Receive text ✅
 * Receive (View) image ✅ (v1.2.0)
@@ -37,8 +36,9 @@
 * Password ✅ (v0.3.0)
 * Save log to SD card ✅ (v0.3.0)
 
-### *1 The stickers must be included this list
+### *1 The stickers must be included this list.
 https://developers.line.biz/media/messaging-api/sticker_list.pdf
+### *2 Google drive URL will be sent(not embed).
 
 ## How to setup and use
 Please view gbatemp or video
