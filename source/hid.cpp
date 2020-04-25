@@ -975,7 +975,7 @@ void Hid_scan_hid_thread(void* arg)
 					{
 						if (hid_touch_pos_x >= 305 && hid_touch_pos_x <= 320 && hid_touch_pos_y >= 15 && hid_touch_pos_y < 220)
 							scroll_bar_selected = true;
-						else if (hid_touch_pos_x > 260 && hid_touch_pos_x < 300 && hid_touch_pos_y > 140 && hid_touch_pos_y < 150 && Line_query_selected_num(LINE_SELECTED_MENU_MODE_NUM) != 1)
+						else if (hid_touch_pos_x > 260 && hid_touch_pos_x < 300 && hid_touch_pos_y > 140 && hid_touch_pos_y < 150 && Line_query_selected_num(LINE_SELECTED_MENU_MODE_NUM) != LINE_MENU_COPY)
 							Line_set_setting(LINE_HIDE_ID, !(Line_query_setting(LINE_HIDE_ID)));
 						else if (hid_touch_pos_x > 10 && hid_touch_pos_x < 60 && hid_touch_pos_y > 170 && hid_touch_pos_y < 180)
 							Line_set_selected_num(LINE_SELECTED_MENU_MODE_NUM, LINE_MENU_SEND);

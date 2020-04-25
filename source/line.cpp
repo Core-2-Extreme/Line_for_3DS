@@ -108,7 +108,7 @@ std::string line_msg_en[42] = {
 	"Decrease interval\n(D DOWN)",
 	"Decrease size\n(L)",
 	"Increase size\n(R)",
-	"Add new line_ids(Y)",
+	"Add new ID(Y)",
 	"Change main url(X)",
 	"Yes(A)",
 	"No(B)",
@@ -120,7 +120,7 @@ std::string line_msg_en[42] = {
 	"Touch to download and display image ",
 	"Touch to display image ",
 	"Do you want to send a file?",
-	"(It will fail If file is invalid.)",
+	"(If the file's invalid it'll fail.)",
 	"Path : ",
 	"File name : ",
 	"View image(X)",
@@ -152,7 +152,7 @@ std::string line_msg_jp[42] = {
 	"間隔を狭く\n(十字上)",
 	"サイズを小さく\n(L)",
 	"サイズを大きく\n(R)",
-	"新規line_ids追加(Y)",
+	"新規ID追加(Y)",
 	"メインURL変更(X)",
 	"はい(A)",
 	"いいえ(B)",
@@ -1517,7 +1517,7 @@ void Line_send_message_thread(void* arg)
 	S_log_save("Line/Send msg thread", "Thread exit.", 1234567890, false);
 }
 
-Result_with_string Line_save_new_id(std::string line_ids, std::string dir_path)
+Result_with_string Line_save_new_id(std::string id, std::string dir_path)
 {
 	bool failed = false;
 	FS_Archive fs_save_id_archive = 0;
@@ -1544,7 +1544,7 @@ Result_with_string Line_save_new_id(std::string line_ids, std::string dir_path)
 
 	if (!failed)
 	{
-		dir_path += line_ids;
+		dir_path += id;
 		save_id_result.code = FSUSER_CreateFile(fs_save_id_archive, fsMakePath(PATH_ASCII, dir_path.c_str()), FS_ATTRIBUTE_ARCHIVE, 0);
 		if (save_id_result.code != 0)
 		{
@@ -1737,7 +1737,7 @@ void Line_log_parse_thread(void* arg)
 
 							content_cache = line_msg_log[i].substr(0, image_url_start_pos);
 
-							check_file_name_start_pos[0] = line_content[line_num_of_lines + 1].find("&line_ids=");
+							check_file_name_start_pos[0] = line_content[line_num_of_lines + 1].find("&id=");
 							check_file_name_start_pos[1] = line_content[line_num_of_lines + 1].find("om/d/");
 							if (check_file_name_start_pos[0] == std::string::npos && check_file_name_start_pos[1] == std::string::npos)
 							{
