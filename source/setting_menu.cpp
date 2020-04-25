@@ -2,24 +2,50 @@
 #include <cstring>
 #include <unistd.h>
 #include <3ds.h>
-
+#include "hid.hpp"
+#include "speedtest.hpp"
+#include "image_viewer.hpp"
 #include "draw.hpp"
 #include "file.hpp"
 #include "setting_menu.hpp"
 #include "share_function.hpp"
 #include "httpc.hpp"
+#include "line.hpp"
+#include "external_font.hpp"
+#include "error.hpp"
+#include "menu.hpp"
 
-int update_progress = -1;
-int check_update_progress = 0;
-
+bool sem_use_default_font = true;
+bool sem_use_system_specific_font = false;
+bool sem_use_external_font = false;
+bool sem_loaded_external_font[46];
+bool sem_load_external_font[46];
+bool sem_check_update_thread_run = false;
+bool sem_load_font_thread_run = false;
+bool sem_load_system_font_request = false;
+bool sem_load_external_font_request = false;
+bool sem_unload_external_font_request = false;
 bool setting_main_run = false;
 bool new_version_available = false;
 bool need_gas_update = false;
+bool sem_already_init;
+bool sem_main_run;
+bool sem_thread_suspend;
+bool sem_check_update_request;
+bool sem_show_patch_note_request;
+bool sem_select_ver_request;
+bool sem_available_ver[8];
+bool sem_dl_file_request;
+int sem_update_progress = -1;
+int sem_check_update_progress = 0;
+int sem_selected_lang_num = 0;
+int sem_selected_edition_num = 0;
+double sem_y_offset;
 
 std::string setting_string[96];
 std::string setting_help_string[64];
-std::string newest_ver_data[11];
-std::string sem_message_en[88] = {
+std::string sem_newest_ver_data[11];
+std::string sem_message_en[90] = {
 	"Language : ",
 	"Night mode : ",
 	"",
@@ -108,8 +134,10 @@ std::string sem_message_en[88] = {
 	"Increase",
 	"Decrease",
 	"Imv image fs buffer size : ",
-}; 
-std::string sem_message_jp[88] = {
+	"Line send fs cache buffer size : ",
+	"Line send fs buffer size : ", 
+};
+std::string sem_message_jp[90] = {
 	"言語 : ",
 	"夜モード : ",
 	"",
@@ -198,18 +226,211 @@ std::string sem_message_jp[88] = {
 	"増やす",
 	"減らす",
 	"Imv image fs bufferのサイズ : ",
+	"Line send fs cache bufferのサイズ : ",
+	"Line send fs bufferのサイズ : ",
 };
+C2D_Image sem_help_image[7];
 
-Thread check_update_thread;
+Thread sem_check_update_thread, sem_load_font_thread;
 
-void Setting_menu_init(void)
+bool Sem_query_init_flag(void)
 {
-	s_update_check_thread_run = true;
-	check_update_thread = threadCreate(Setting_menu_update_check, (void*)(""), STACKSIZE, 0x28, -1, true);
-	s_sem_already_init = true;
+	return sem_already_init;
 }
 
-void Setting_menu_main(void)
+bool Sem_query_running_flag(void)
+{
+	return sem_main_run;
+}
+
+bool Sem_query_available_edtion(int edtion_num)
+{
+	if (edtion_num >= 0 && edtion_num <= 7)
+	{
+		for (int i = 0; i < 8; i++)
+		{
+			if (i == edtion_num)
+				return sem_available_ver[i];
+		}
+	}
+	else
+		return false;
+
+	return false;
+}
+
+bool Sem_query_font_flag(int font_num)
+{
+	if (font_num == SEM_USE_DEFAULT_FONT)
+		return sem_use_default_font;
+	else if (font_num == SEM_USE_SYSTEM_SPEIFIC_FONT)
+		return sem_use_system_specific_font;
+	else if (font_num == SEM_USE_EXTERNAL_FONT)
+		return sem_use_external_font;
+	else
+		return false;
+}
+
+bool Sem_query_loaded_external_font_flag(int external_font_num)
+{
+	if (external_font_num >= 0 && external_font_num <= 45)
+		return sem_loaded_external_font[external_font_num];
+	else
+		return false;
+}
+
+bool Sem_query_operation_flag(int operation_num)
+{
+	if (operation_num == SEM_CHECK_UPDATE_REQUEST)
+		return sem_check_update_request;
+	else if (operation_num == SEM_SHOW_PATCH_NOTE_REQUEST)
+		return sem_show_patch_note_request;
+	else if (operation_num == SEM_SELECT_VER_REQUEST)
+		return sem_select_ver_request;
+	else if (operation_num == SEM_DL_FILE_REQUEST)
+		return sem_dl_file_request;
+	else if (operation_num == SEM_LOAD_SYSTEM_FONT_REQUEST)
+		return sem_load_system_font_request;
+	else if (operation_num == SEM_LOAD_EXTERNAL_FONT_REQUEST)
+		return sem_load_external_font_request;
+	else if (operation_num == SEM_UNLOAD_EXTERNAL_FONT_REQUEST)
+		return sem_unload_external_font_request;
+	else
+		return false;
+}
+
+int Sem_query_selected_num(int item_num)
+{
+	if (item_num == SEM_SELECTED_LANG_NUM)
+		return sem_selected_lang_num;
+	else if (item_num == SEM_SELECTED_EDITION_NUM)
+		return sem_selected_edition_num;
+	else
+		return -1;
+}
+
+double Sem_query_y_offset(void)
+{
+	return sem_y_offset;
+}
+
+void Sem_set_font_flag(int font_num, bool flag)
+{
+	if (font_num == SEM_USE_DEFAULT_FONT)
+		sem_use_default_font = flag;
+	else if (font_num == SEM_USE_SYSTEM_SPEIFIC_FONT)
+		sem_use_system_specific_font = flag;
+	else if (font_num == SEM_USE_EXTERNAL_FONT)
+		sem_use_external_font = flag;
+}
+
+void Sem_set_load_external_font_request(int external_font_num, bool flag)
+{
+	if (external_font_num >= 0 && external_font_num <= 45)
+		sem_load_external_font[external_font_num] = flag;
+}
+
+void Sem_set_operation_flag(int operation_num, bool flag)
+{
+	if (operation_num == SEM_CHECK_UPDATE_REQUEST)
+		sem_check_update_request = flag;
+	else if (operation_num == SEM_SHOW_PATCH_NOTE_REQUEST)
+		sem_show_patch_note_request = flag;
+	else if (operation_num == SEM_SELECT_VER_REQUEST)
+		sem_select_ver_request = flag;
+	else if (operation_num == SEM_DL_FILE_REQUEST)
+		sem_dl_file_request = flag;
+	else if (operation_num == SEM_LOAD_SYSTEM_FONT_REQUEST)
+		sem_load_system_font_request = flag;
+	else if (operation_num == SEM_LOAD_EXTERNAL_FONT_REQUEST)
+		sem_load_external_font_request = flag;
+	else if (operation_num == SEM_UNLOAD_EXTERNAL_FONT_REQUEST)
+		sem_unload_external_font_request = flag;
+}
+
+void Sem_set_selected_num(int item_num, int num)
+{
+	if (item_num == SEM_SELECTED_LANG_NUM)
+		sem_selected_lang_num = num;
+	else if (item_num == SEM_SELECTED_EDITION_NUM)
+		sem_selected_edition_num = num;
+}
+
+void Sem_set_y_offset(double y)
+{
+	sem_y_offset = y;
+}
+
+void Sem_suspend(void)
+{
+	Menu_resume();
+	sem_thread_suspend = true;
+	sem_main_run = false;
+}
+
+void Sem_resume(void)
+{
+	sem_thread_suspend = false;
+	sem_main_run = true;
+	Menu_suspend();
+}
+
+void Sem_init(void)
+{
+	S_log_save("Sem/Init", "Initializing...", 1234567890, s_debug_slow);
+
+
+	Draw_progress("0/0 [Sem] Starting threads...");
+	sem_check_update_thread_run = true;
+	sem_load_font_thread_run = true;
+	sem_check_update_thread = threadCreate(Sem_check_update_thread, (void*)(""), STACKSIZE, 0x28, -1, true);
+	sem_load_font_thread = threadCreate(Sem_load_font_thread, (void*)(""), STACKSIZE, 0x32, -1, true);
+
+	Sem_resume();
+	sem_already_init = true;
+	S_log_save("Sem/Init", "Initialized.", 1234567890, s_debug_slow);
+}
+
+void Sem_exit(void)
+{
+	S_log_save("Sem/Exit", "Exiting...", 1234567890, s_debug_slow);
+	u64 time_out = 10000000000;
+	int log_num;
+	bool failed = false;
+	Result_with_string result;
+
+	Draw_progress("0/0 [Sem] Exiting threads...");
+	sem_already_init = false;
+	sem_check_update_thread_run = false;
+	sem_load_font_thread_run = false;
+
+	log_num = S_log_save("Sem/Exit", "Exiting thread(0/1)...", 1234567890, s_debug_slow);
+	result.code = threadJoin(sem_check_update_thread, time_out);
+	if (result.code == 0)
+		S_log_add(log_num, "[Success] ", result.code, s_debug_slow);
+	else
+	{
+		failed = true;
+		S_log_add(log_num, "[Error] ", result.code, s_debug_slow);
+	}
+
+	log_num = S_log_save("Sem/Exit", "Exiting thread(1/1)...", 1234567890, s_debug_slow);
+	result.code = threadJoin(sem_load_font_thread, time_out);
+	if (result.code == 0)
+		S_log_add(log_num, "[Success] ", result.code, s_debug_slow);
+	else
+	{
+		failed = true;
+		S_log_add(log_num, "[Error] ", result.code, s_debug_slow);
+	}
+
+	if (failed)
+		S_log_save("Sem/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
+
+	S_log_save("Sem/Exit", "Exited.", 1234567890, s_debug_slow);
+}
+
+void Sem_main(void)
 {
 	float text_red;
 	float text_green;
@@ -217,7 +438,6 @@ void Setting_menu_main(void)
 	float text_alpha;
 	float draw_x;
 	float draw_y;
-	int texture_color;
 
 	osTickCounterUpdate(&s_tcount_frame_time);
 
@@ -233,11 +453,11 @@ void Setting_menu_main(void)
 		setting_string[7] = sem_message_en[31] + sem_message_en[38 + s_allow_send_app_info];
 		setting_string[8] = sem_message_en[32] + sem_message_en[36 + s_debug_mode];
 
-		if (!s_use_external_font[0] && !s_use_specific_system_font)
+		if (sem_use_default_font)
 			setting_string[9] = sem_message_en[33] + sem_message_en[43];
-		else  if (s_use_external_font[0])
+		else  if (sem_use_external_font)
 			setting_string[9] = sem_message_en[33] + sem_message_en[44];
-		else  if (s_use_specific_system_font)
+		else  if (sem_use_system_specific_font)
 			setting_string[9] = sem_message_en[33] + sem_message_en[45];
 
 		setting_string[10] = sem_message_en[45];
@@ -257,20 +477,22 @@ void Setting_menu_main(void)
 		for (int i = 42; i < 51; i++)
 			setting_string[i] = sem_message_en[i + 17];
 
-		setting_string[51] = sem_message_en[68 + update_progress];
+		setting_string[51] = sem_message_en[68 + sem_update_progress];
 		setting_string[52] = sem_message_en[72];
 		setting_string[53] = sem_message_en[73 + new_version_available];
 
 		for (int i = 54; i < 60; i++)
 			setting_string[i] = sem_message_en[i + 21];	
 		
-		setting_string[60] = sem_message_en[81] + std::to_string(s_line_log_httpc_buffer_size / 1024 / 1024) + "MB";
-		setting_string[61] = sem_message_en[82] + std::to_string(s_line_log_fs_buffer_size / 1024 / 1024) + "MB";
-		setting_string[62] = sem_message_en[83] + std::to_string(s_spt_spt_httpc_buffer_size / 1024 / 1024) + "MB";
-		setting_string[63] = sem_message_en[84] + std::to_string(s_imv_image_httpc_buffer_size / 1024 / 1024) + "MB";
+		setting_string[60] = sem_message_en[81] + std::to_string(Line_query_buffer_size(LINE_HTTPC_BUFFER)/ 1024.0 / 1024.0).substr(0, 4) + "MB";
+		setting_string[61] = sem_message_en[82] + std::to_string(Line_query_buffer_size(LINE_FS_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
+		setting_string[62] = sem_message_en[83] + std::to_string(Spt_query_buffer_size(SPT_HTTPC_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
+		setting_string[63] = sem_message_en[84] + std::to_string(Imv_query_buffer_size(IMV_HTTPC_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
 		setting_string[64] = sem_message_en[85];
 		setting_string[65] = sem_message_en[86];
-		setting_string[66] = sem_message_en[87] + std::to_string(s_imv_image_fs_buffer_size / 1024 / 1024) + "MB";
+		setting_string[66] = sem_message_en[87] + std::to_string(Imv_query_buffer_size(IMV_FS_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
+		setting_string[67] = sem_message_en[88] + std::to_string(Line_query_buffer_size(LINE_SEND_FS_CACHE_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
+		setting_string[68] = sem_message_en[89] + std::to_string(Line_query_buffer_size(LINE_SEND_FS_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
 
 		setting_help_string[0] = sem_message_en[1];
 		setting_help_string[1] = sem_message_en[2];
@@ -300,11 +522,11 @@ void Setting_menu_main(void)
 		setting_string[7] = sem_message_jp[31] + sem_message_jp[38 + s_allow_send_app_info];
 		setting_string[8] = sem_message_jp[32] + sem_message_jp[36 + s_debug_mode];
 
-		if (!s_use_external_font[0] && !s_use_specific_system_font)
+		if (sem_use_default_font)
 			setting_string[9] = sem_message_jp[33] + sem_message_jp[43];
-		else  if (s_use_external_font[0])
+		else  if (sem_use_external_font)
 			setting_string[9] = sem_message_jp[33] + sem_message_jp[44];
-		else  if (s_use_specific_system_font)
+		else  if (sem_use_system_specific_font)
 			setting_string[9] = sem_message_jp[33] + sem_message_jp[45];
 
 		setting_string[10] = sem_message_jp[45];
@@ -324,21 +546,22 @@ void Setting_menu_main(void)
 		for (int i = 42; i < 51; i++)
 			setting_string[i] = sem_message_jp[i + 17];
 
-		setting_string[51] = sem_message_jp[68 + update_progress];
+		setting_string[51] = sem_message_jp[68 + sem_update_progress];
 		setting_string[52] = sem_message_jp[72];
 		setting_string[53] = sem_message_jp[73 + new_version_available];
 
 		for (int i = 54; i < 60; i++)
 			setting_string[i] = sem_message_jp[i + 21];
 
-		setting_string[60] = sem_message_jp[81] + std::to_string(s_line_log_httpc_buffer_size / 1024 / 1024) + "MB";
-		setting_string[61] = sem_message_jp[82] + std::to_string(s_line_log_fs_buffer_size / 1024 / 1024) + "MB";
-		setting_string[62] = sem_message_jp[83] + std::to_string(s_spt_spt_httpc_buffer_size / 1024 / 1024) + "MB";
-		setting_string[63] = sem_message_jp[84] + std::to_string(s_imv_image_httpc_buffer_size / 1024 / 1024) + "MB";
+		setting_string[60] = sem_message_jp[81] + std::to_string(Line_query_buffer_size(LINE_HTTPC_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
+		setting_string[61] = sem_message_jp[82] + std::to_string(Line_query_buffer_size(LINE_FS_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
+		setting_string[62] = sem_message_jp[83] + std::to_string(Spt_query_buffer_size(SPT_HTTPC_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
+		setting_string[63] = sem_message_jp[84] + std::to_string(Imv_query_buffer_size(IMV_HTTPC_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
 		setting_string[64] = sem_message_jp[85];
 		setting_string[65] = sem_message_jp[86];
-		setting_string[66] = sem_message_jp[87];
-		setting_string[66] = sem_message_jp[87] + std::to_string(s_imv_image_fs_buffer_size / 1024 / 1024) + "MB";
+		setting_string[66] = sem_message_jp[87] + std::to_string(Imv_query_buffer_size(IMV_FS_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
+		setting_string[67] = sem_message_jp[88] + std::to_string(Line_query_buffer_size(LINE_SEND_FS_CACHE_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
+		setting_string[68] = sem_message_jp[89] + std::to_string(Line_query_buffer_size(LINE_SEND_FS_BUFFER) / 1024.0 / 1024.0).substr(0, 4) + "MB";
 
 		setting_help_string[0] = sem_message_jp[1];
 		setting_help_string[1] = sem_message_jp[2];
@@ -363,7 +586,7 @@ void Setting_menu_main(void)
 		text_green = 1.0;
 		text_blue = 1.0;
 		text_alpha = 0.75;
-		texture_color = 12;
+		white_or_black_tint = white_tint;
 	}
 	else
 	{
@@ -371,16 +594,16 @@ void Setting_menu_main(void)
 		text_green = 0.0;
 		text_blue = 0.0;
 		text_alpha = 1.0;
-		texture_color = 0;
+		white_or_black_tint = black_tint;
 	}
 
 	Draw_set_draw_mode(s_draw_vsync_mode);
 	if (s_night_mode)
-		Draw_screen_ready_to_draw(0, true, 1, 0.0, 0.0, 0.0);
+		Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 	else
-		Draw_screen_ready_to_draw(0, true, 1, 1.0, 1.0, 1.0);
+		Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
 
-	Draw_texture(Background_image, dammy_tint, 0, 0.0, 0.0, 400.0, 15.0);
+	Draw_texture(Square_image, black_tint, 0, 0.0, 0.0, 400.0, 15.0);
 	Draw_texture(Wifi_icon_image, dammy_tint, s_wifi_signal, 360.0, 0.0, 15.0, 15.0);
 	Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
 	if (s_battery_charge)
@@ -389,24 +612,7 @@ void Setting_menu_main(void)
 	Draw(s_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
 
 	if (s_debug_mode)
-	{
-		Draw_texture(Square_image, dammy_tint, 9, 0.0, 30.0, 230.0, 150.0);
-		Draw("Key A press : " + std::to_string(s_key_A_press) + " Key A held : " + std::to_string(s_key_A_held), 0.0, 30.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key B press : " + std::to_string(s_key_B_press) + " Key B held : " + std::to_string(s_key_B_held), 0.0, 40.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key X press : " + std::to_string(s_key_X_press) + " Key X held : " + std::to_string(s_key_X_held), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key Y press : " + std::to_string(s_key_Y_press) + " Key Y held : " + std::to_string(s_key_Y_held), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD DOWN held : " + std::to_string(s_key_CPAD_DOWN_held), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD RIGHT held : " + std::to_string(s_key_CPAD_RIGHT_held), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD UP held : " + std::to_string(s_key_CPAD_UP_held), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Key CPAD LEFT held : " + std::to_string(s_key_CPAD_LEFT_held), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Touch pos x : " + std::to_string(s_touch_pos_x) + " Touch pos y : " + std::to_string(s_touch_pos_y), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("X moved value : " + std::to_string(s_touch_pos_x_moved) + " Y moved value : " + std::to_string(s_touch_pos_y_moved), 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Held time : " + std::to_string(s_held_time), 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Drawing time(CPU/per frame) : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Drawing time(GPU/per frame) : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Free RAM (estimate) " + std::to_string(s_free_ram) + " MB", 0.0f, 160.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("Free linear RAM (estimate) " + std::to_string(s_free_linear_ram) + " MB", 0.0f, 170.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
-	}
+		Draw_debug_info();
 	if (s_app_logs_show)
 	{
 		for (int i = 0; i < 23; i++)
@@ -471,195 +677,199 @@ void Setting_menu_main(void)
 	}*/
 
 	if (s_night_mode)
-		Draw_screen_ready_to_draw(1, true, 1, 0.0, 0.0, 0.0);
+		Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
 	else
-		Draw_screen_ready_to_draw(1, true, 1, 1.0, 1.0, 1.0);
+		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
-	Draw_texture(Square_image, dammy_tint, 0, 312.5, 0.0, 7.5, 15.0);
-	Draw_texture(Square_image, dammy_tint, 0, 312.5, 215.0, 7.5, 10.0);
-	Draw_texture(Square_image, dammy_tint, 8, 312.5, 15.0 + (195 * (-s_sem_y_offset / 1500.0)), 7.5, 5.0);
+	Draw_texture(Square_image, white_or_black_tint, 0, 312.5, 0.0, 7.5, 15.0);
+	Draw_texture(Square_image, white_or_black_tint, 0, 312.5, 215.0, 7.5, 10.0);
+	Draw_texture(Square_image, blue_tint, 0, 312.5, 15.0 + (195 * (-sem_y_offset / 1600.0)), 7.5, 5.0);
 
 	//Check for updates
 	draw_y = 15.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset, 200.0, 20.0);
-		Draw(setting_string[54], 10.0, draw_y + s_sem_y_offset - 2.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset, 200.0, 20.0);
+		Draw(setting_string[54], 10.0, draw_y + sem_y_offset - 2.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 	}
 
 	//Language
 	draw_y = 40.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[0], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw(setting_string[0], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		if (s_setting[1] == "en")
 		{
-			Draw(setting_string[20], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[21], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[20], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[21], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 		}
 		else
 		{
-			Draw(setting_string[20], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[21], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[20], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[21], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
 		}
 	}
 
 	//Night mode
 	draw_y = 80.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[1], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-		Draw_texture(Square_image, dammy_tint, 11, 210.0, draw_y + s_sem_y_offset + 15.0, 40.0, 20.0);
+		Draw(setting_string[1], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 210.0, draw_y + sem_y_offset + 15.0, 40.0, 20.0);
 		if (s_night_mode)
 		{
-			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 		}
 		else
 		{
-			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
 		}
 		if (s_flash_mode)
-			Draw(setting_string[26], 210.0, draw_y + s_sem_y_offset + 15.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[26], 210.0, draw_y + sem_y_offset + 15.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 		else
-			Draw(setting_string[26], 210.0, draw_y + s_sem_y_offset + 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[26], 210.0, draw_y + sem_y_offset + 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 	}
 
 	//Vsync
 	draw_y = 120.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[2], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw(setting_string[2], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		if (s_draw_vsync_mode)
 		{
-			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 		}
 		else
 		{
-			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
 		}
 	}
 
 	//Screen brightness
 	draw_y = 160.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[3], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, texture_color, (s_lcd_brightness - 10) * 2, draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+		Draw(setting_string[3], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, white_or_black_tint, 0, (s_lcd_brightness - 10) * 2, draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 	}
 
 	//Time to enter sleep mode
 	draw_y = 200.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[4], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, texture_color, (s_time_to_enter_afk / 10), draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+		Draw(setting_string[4], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, white_or_black_tint, 0, (s_time_to_enter_afk / 10), draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 	}
 
 	//Screen brightness when sleep
 	draw_y = 240.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[5], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, texture_color, (s_afk_lcd_brightness - 10) * 2, draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+		Draw(setting_string[5], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, white_or_black_tint, 0, (s_afk_lcd_brightness - 10) * 2, draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 	}
 
 	//Scroll speed
 	draw_y = 280.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[6], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, texture_color, (s_scroll_speed * 300), draw_y + s_sem_y_offset + 15.0, 4.0, 20.0);
+		Draw(setting_string[6], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, white_or_black_tint, 0, (s_scroll_speed * 300), draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 	}
 
 	//Allow send app info
 	draw_y = 320.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[7], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw(setting_string[7], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		if (s_allow_send_app_info)
 		{
-			Draw(setting_string[25], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[24], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[25], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[24], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 		}
 		else
 		{
-			Draw(setting_string[25], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[24], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[25], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[24], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
 		}
 	}
 
 	//Debug mode
 	draw_y = 360.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[8], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
+		Draw(setting_string[8], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		if (s_debug_mode)
 		{
-			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 		}
 		else
 		{
-			Draw(setting_string[23], 10.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[22], 110.0, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
 		}
 	}
 
 	//Font
 	draw_y = 400.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[9], 0.0, 400.0 + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-		Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-		Draw_texture(Square_image, dammy_tint, 11, 210.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-		if (!s_use_external_font[0] && !s_use_specific_system_font)
+		Draw(setting_string[9], 0.0, 400.0 + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 210.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
+		if (sem_use_default_font)
 		{
-			Draw(setting_string[27], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[28], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[29], 210.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[27], 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[28], 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[29], 210.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		}
-		else if (s_use_specific_system_font)
+		else if (sem_use_system_specific_font)
 		{
-			Draw(setting_string[27], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[28], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[29], 210.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[27], 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[28], 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[29], 210.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 		}
-		else if (s_use_external_font[0])
+		else if (sem_use_external_font)
 		{
-			Draw(setting_string[27], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[28], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[29], 210.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[27], 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[28], 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[29], 210.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		}
 	}
 
 	//Font, System specific
 	draw_x = 10.0;
 	draw_y = 440.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[10], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[10], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		for (int i = 0; i < 4; i++)
 		{
-			Draw_texture(Square_image, dammy_tint, 11, draw_x, draw_y + s_sem_y_offset + 15.0, 70.0, 20.0);
-			if (s_lang_select_num == i)
-				Draw(setting_string[30 + i], draw_x, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset + 15.0, 70.0, 20.0);
+			if (sem_selected_lang_num == i && sem_load_system_font_request)
+				Draw(setting_string[30 + i], draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 0.3);
+			else if (sem_selected_lang_num == i)
+				Draw(setting_string[30 + i], draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			else if(sem_load_system_font_request)
+				Draw(setting_string[30 + i], draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, 0.3);
 			else
-				Draw(setting_string[30 + i], draw_x, draw_y + s_sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+				Draw(setting_string[30 + i], draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 
 			draw_x += 75.0;
 		}
@@ -667,117 +877,129 @@ void Setting_menu_main(void)
 
 	//Font, External
 	draw_y = 480.0;
-	if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[11], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, dammy_tint, 3, 10.0, draw_y + s_sem_y_offset + 15.0, 100.0, 20.0);
-		Draw_texture(Square_image, dammy_tint, 5, 110.0, draw_y + s_sem_y_offset + 15.0, 100.0, 20.0);
-		Draw(setting_string[34], 10.0, draw_y + s_sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[35], 110.0, draw_y + s_sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[11], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, weak_red_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 100.0, 20.0);
+		Draw_texture(Square_image, weak_yellow_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 100.0, 20.0);
+		if (sem_unload_external_font_request || sem_load_external_font_request)
+		{
+			Draw(setting_string[34], 10.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, 0.3);
+			Draw(setting_string[35], 110.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, 0.3);
+		}
+		else
+		{
+			Draw(setting_string[34], 10.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[35], 110.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
+		}
 	}
 
 	draw_x = 10.0;
 	draw_y = 515.0;
 	for (int i = 0; i < 46; i++)
 	{
-		if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+		if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 		{
-			Draw_texture(Square_image, dammy_tint, 11, draw_x, draw_y + s_sem_y_offset, 200.0, 20.0);
-			if (s_use_external_font[i + 1])
-				Draw(s_font_file_name[i], draw_x, draw_y + s_sem_y_offset - 2.5, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset, 200.0, 20.0);
+			if (sem_loaded_external_font[i] && (sem_unload_external_font_request || sem_load_external_font_request))
+				Draw(Exfont_query_font_name(i), draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, 1.0, 0.0, 0.0, 0.3);
+			else if (sem_loaded_external_font[i])
+				Draw(Exfont_query_font_name(i), draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+			else if(sem_unload_external_font_request || sem_load_external_font_request)
+				Draw(Exfont_query_font_name(i), draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, text_red, text_green, text_blue, 0.3);
 			else
-				Draw(s_font_file_name[i], draw_x, draw_y + s_sem_y_offset - 2.5, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+				Draw(Exfont_query_font_name(i), draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 		}
 		draw_y += 20.0;
 	}
 
 	//Buffer size
 	draw_y = 1435.0;
-	for (int i = 0; i < 5; i++)
+	for (int i = 0; i < 7; i++)
 	{
-		if (draw_y + s_sem_y_offset >= -30 && draw_y + s_sem_y_offset <= 240)
+		if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 		{
-			if (i == 4)
-				Draw(setting_string[66], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			if (i >= 4)
+				Draw(setting_string[62 + i], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			else
-				Draw(setting_string[60 + i], 0.0, draw_y + s_sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw(setting_string[60 + i], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 
-			Draw_texture(Square_image, dammy_tint, 11, 10.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-			Draw_texture(Square_image, dammy_tint, 11, 110.0, draw_y + s_sem_y_offset + 15.0, 90.0, 20.0);
-			Draw(setting_string[64], 10.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[65], 110.0, draw_y + s_sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
+			Draw(setting_string[64], 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[65], 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		}
 		draw_y += 40.0;
 	}
 
 	/*
-	Draw_texture(Square_image, dammy_tint, 5, 130.0, 45.0 + s_sem_y_offset, 50.0, 10.0);
-	Draw_texture(Square_image, dammy_tint, 5, 130.0, 85.0 + s_sem_y_offset, 50.0, 10.0);
-	Draw_texture(Square_image, dammy_tint, 5, 150.0, 125.0 + s_sem_y_offset, 50.0, 10.0);
-	Draw_texture(Square_image, dammy_tint, 5, 240.0, 165.0 + s_sem_y_offset, 50.0, 10.0);
-	Draw_texture(Square_image, dammy_tint, 5, 240.0, 205.0 + s_sem_y_offset, 50.0, 10.0);
+	Draw_texture(Square_image, dammy_tint, 5, 130.0, 45.0 + sem_y_offset, 50.0, 10.0);
+	Draw_texture(Square_image, dammy_tint, 5, 130.0, 85.0 + sem_y_offset, 50.0, 10.0);
+	Draw_texture(Square_image, dammy_tint, 5, 150.0, 125.0 + sem_y_offset, 50.0, 10.0);
+	Draw_texture(Square_image, dammy_tint, 5, 240.0, 165.0 + sem_y_offset, 50.0, 10.0);
+	Draw_texture(Square_image, dammy_tint, 5, 240.0, 205.0 + sem_y_offset, 50.0, 10.0);
 	*/
 
 	/*
 	if (s_sem_help_mode_num == 0)
-		Draw(" ", 130.0, 45.0 + s_sem_y_offset, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
+		Draw(" ", 130.0, 45.0 + sem_y_offset, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
 	else
-		Draw(" ", 130.0, 45.0 + s_sem_y_offset, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(" ", 130.0, 45.0 + sem_y_offset, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 	*/
 	/*
 	if (s_sem_help_mode_num == 1)
-		Draw(" ", 130.0, 85.0 + s_sem_y_offset, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
+		Draw(" ", 130.0, 85.0 + sem_y_offset, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
 	else
-		Draw(" ", 130.0, 85.0 + s_sem_y_offset, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(" ", 130.0, 85.0 + sem_y_offset, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 	*/
 	/*
 	if (s_sem_help_mode_num == 2)
-		Draw(" ", 150.0, 125.0 + s_sem_y_offset, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
+		Draw(" ", 150.0, 125.0 + sem_y_offset, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
 	else
-		Draw(" ", 150.0, 125.0 + s_sem_y_offset, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(" ", 150.0, 125.0 + sem_y_offset, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 
 	if (s_sem_help_mode_num == 3)
-		Draw(" ", 240.0, 165.0 + s_sem_y_offset, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
+		Draw(" ", 240.0, 165.0 + sem_y_offset, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
 	else
-		Draw(" ", 240.0, 165.0 + s_sem_y_offset, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(" ", 240.0, 165.0 + sem_y_offset, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 
 	if (s_sem_help_mode_num == 4)
-		Draw(" ", 240.0, 205.0 + s_sem_y_offset, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
+		Draw(" ", 240.0, 205.0 + sem_y_offset, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
 	else
-		Draw(" ", 240.0, 205.0 + s_sem_y_offset, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(" ", 240.0, 205.0 + sem_y_offset, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 	*/
 
-	if (s_sem_show_newest_ver_data)
+	if (sem_show_patch_note_request)
 	{
-		Draw_texture(Square_image, dammy_tint, 8, 15.0, 15.0, 290.0, 200.0);
-		Draw_texture(Square_image, dammy_tint, 11, 15.0, 200.0, 145.0, 15.0);
-		Draw_texture(Square_image, dammy_tint, 5, 160.0, 200.0, 145.0, 15.0);
+		Draw_texture(Square_image, blue_tint, 0, 15.0, 15.0, 290.0, 200.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 15.0, 200.0, 145.0, 15.0);
+		Draw_texture(Square_image, weak_white_tint, 0, 160.0, 200.0, 145.0, 15.0);
 
-		if(check_update_progress == 0)
+		if(sem_check_update_progress == 0)
 			Draw(setting_string[55], 17.5, 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		else if(check_update_progress == 2)
+		else if(sem_check_update_progress == 2)
 			Draw(setting_string[56], 17.5, 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		else if (check_update_progress == 1)
+		else if (sem_check_update_progress == 1)
 		{
 			Draw(setting_string[53], 17.5, 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			Draw(setting_string[41], 17.5, 30.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(newest_ver_data[10], 17.5, 45.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+			Draw(sem_newest_ver_data[10], 17.5, 45.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 		}
 		Draw(setting_string[58], 17.5, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 		Draw(setting_string[57], 162.5, 200.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 	}
-	if (s_sem_select_ver)
+	if (sem_select_ver_request)
 	{
-		Draw_texture(Square_image, dammy_tint, 8, 15.0, 15.0, 290.0, 200.0);
-		Draw_texture(Square_image, dammy_tint, 5, 15.0, 200.0, 145.0, 15.0);
-		Draw_texture(Square_image, dammy_tint, 11, 160.0, 200.0, 145.0, 15.0);
+		Draw_texture(Square_image, blue_tint, 0, 15.0, 15.0, 290.0, 200.0);
+		Draw_texture(Square_image, weak_white_tint, 0, 15.0, 200.0, 145.0, 15.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 160.0, 200.0, 145.0, 15.0);
 
 		draw_y = 15.0;
 		for (int i = 0; i < 8; i++)
 		{
-			if(s_sem_available_ver[i] && s_sem_selected_edition_num == i)
+			if(sem_available_ver[i] && sem_selected_edition_num == i)
 				Draw(setting_string[42 + i], 17.5, draw_y, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
-			else if (s_sem_available_ver[i])
+			else if (sem_available_ver[i])
 				Draw(setting_string[42 + i], 17.5, draw_y, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 			else
 				Draw(setting_string[42 + i] + setting_string[50], 17.5, draw_y, 0.45, 0.45, text_red, text_green, text_blue, 0.25);
@@ -790,19 +1012,19 @@ void Setting_menu_main(void)
 		Draw(setting_string[38], 17.5, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 		Draw(setting_string[39], 17.5, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 
-		if (s_sem_selected_edition_num == 0)
+		if (sem_selected_edition_num == 0)
 		{
 			Draw(setting_string[40], 17.5, 140.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw("sdmc:/Line/ver_" + newest_ver_data[0] + "/Line_for_3DS.3dsx", 17.5, 150.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+			Draw("sdmc:/Line/ver_" + sem_newest_ver_data[0] + "/Line_for_3DS.3dsx", 17.5, 150.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
 		}
 
-		if (update_progress != -1)
+		if (sem_update_progress != -1)
 			Draw(setting_string[51], 17.5, 160.0, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 
-		if (update_progress == 2)
+		if (sem_update_progress == 2)
 			Draw(setting_string[52], 17.5, 180.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 
-		if (s_sem_available_ver[s_sem_selected_edition_num])
+		if (sem_available_ver[sem_selected_edition_num])
 			Draw(setting_string[59], 162.5, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 		else
 			Draw(setting_string[59], 162.5, 200.0, 0.4, 0.4, text_red, text_green, text_blue, 0.25);
@@ -810,23 +1032,77 @@ void Setting_menu_main(void)
 		Draw(setting_string[57], 17.5, 200.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 	}
 
-	if (s_error_display)
-		Share_draw_error();
+	if (Err_query_error_show_flag())
+		Draw_error();
 
-	Draw_texture(Background_image, dammy_tint, 1, 0.0, 225.0, 320.0, 15.0);
+	Draw_texture(Square_image, black_tint, 0, 0.0, 225.0, 320.0, 15.0);
 	Draw(s_bot_button_string[1], 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
 
-	if (s_key_touch_held)
-		Draw(s_circle_string, s_touch_pos_x, s_touch_pos_y, 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
+	if (Hid_query_key_held_state(KEY_H_TOUCH))
+		Draw(s_circle_string, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
 
 	Draw_apply_draw();
 	s_fps += 1;
 	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 }
 
-void Setting_menu_update_check(void* arg)
+void Sem_load_font_thread(void* arg)
 {
-	u8* check_update_buffer;	
+	S_log_save("Sem/Load font thread", "Thread started.", 1234567890, false);
+	int log_num;
+	Result_with_string result;
+	while (sem_load_font_thread_run)
+	{
+		if (sem_load_system_font_request)
+		{
+			for (int i = 0; i < 4; i++)
+				Draw_free_system_font(i);
+
+			Draw_load_system_font(sem_selected_lang_num);
+			sem_load_system_font_request = false;
+		}
+		else if (sem_unload_external_font_request)
+		{
+			for (int i = 0; i < 46; i++)
+			{
+				if (!sem_load_external_font[i] && sem_loaded_external_font[i])
+				{
+					Exfont_unload_exfont(i);
+					sem_loaded_external_font[i] = false;
+				}
+			}
+			sem_unload_external_font_request = false;
+		}
+		else if (sem_load_external_font_request)
+		{
+			for (int i = 0; i < 46; i++)
+			{
+				if (sem_load_external_font[i] && !sem_loaded_external_font[i])
+				{
+					log_num = S_log_save("Sem/Load font thread/c2d", "Loading texture (" + Exfont_query_font_name(i) + "_font.t3x)...", 1234567890, false);
+					result = Exfont_load_exfont(i);
+					S_log_add(log_num, result.string, result.code, false);
+
+					if(result.code == 0)
+						sem_loaded_external_font[i] = true;
+					else
+						sem_loaded_external_font[i] = false;
+				}
+			}
+
+			sem_load_external_font_request = false;
+		}
+		usleep(50000);
+	}
+
+	S_log_save("Sem/Load font thread", "Thread exit.", 1234567890, false);
+}
+
+void Sem_check_update_thread(void* arg)
+{
+	S_log_save("Sem/Check update thread", "Thread started.", 1234567890, false);
+
+	u8* httpc_buffer;	
 	u32 downloaded_size;
 	u32 status_code;
 	u32 write_size;
@@ -851,63 +1127,61 @@ void Setting_menu_update_check(void* arg)
 	Handle check_update_am_handle = 0;
 	Result_with_string check_update_result;
 
-	while (s_update_check_thread_run)
+	while (sem_check_update_thread_run)
 	{
-		if (s_sem_update_check_request || s_sem_file_download_request)
+		if (sem_check_update_request || sem_dl_file_request)
 		{
-			if (s_sem_update_check_request)
+			if (sem_check_update_request)
 			{
 				url = "https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/version/newest.txt";
-				check_update_progress = 0;
+				sem_check_update_progress = 0;
 				new_version_available = false;
 				for(int i = 0; i < 8; i++)
-					s_sem_available_ver[i] = false;
+					sem_available_ver[i] = false;
 				for (int i = 0; i < 11; i++)
-					newest_ver_data[i] = "";
+					sem_newest_ver_data[i] = "";
 			}
-			else if (s_sem_file_download_request)
+			else if (sem_dl_file_request)
 			{
-				url = "https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/version/Line_for_3DS" + editions[s_sem_selected_edition_num];
-				update_progress = 0;
+				url = "https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/version/Line_for_3DS" + editions[sem_selected_edition_num];
+				sem_update_progress = 0;
 			}
 
 			newest_ver = -1;
-			check_update_buffer = (u8*)malloc(0x300000);
-			if (check_update_buffer == NULL)
+			httpc_buffer = (u8*)malloc(0x300000);
+			if (httpc_buffer == NULL)
 			{
-				Share_clear_error_message();
-				Share_set_error_message("[Error] Out of memory.", "Couldn't malloc to 'check_update_buffer'(" + std::to_string(0x300000 / 1024) + "KB).", "Sem/Check update thread", OUT_OF_MEMORY);
-				s_error_display = true;
-				Share_app_log_save("Sem/Check update thread", "[Error] Out of memory.", OUT_OF_MEMORY, false);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(0x300000 / 1024) + "KB). ", "Sem/Check update thread", OUT_OF_MEMORY);
+				Err_set_error_show_flag(true);
+				S_log_save("Sem/Check update thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 			}
 			else
 			{
-				if (s_sem_update_check_request)
-					check_update_log_num_return = Share_app_log_save("Sem/Check update thread/httpc", "Checking for update...", 1234567890, false);
-				else if (s_sem_file_download_request)
-					check_update_log_num_return = Share_app_log_save("Sem/Check update thread/httpc", "Downloading file...", 1234567890, false);
+				if (sem_check_update_request)
+					check_update_log_num_return = S_log_save("Sem/Check update thread/httpc", "Checking for update...", 1234567890, false);
+				else if (sem_dl_file_request)
+					check_update_log_num_return = S_log_save("Sem/Check update thread/httpc", "Downloading file...", 1234567890, false);
 				else
-					check_update_log_num_return = Share_app_log_save("Sem/Check update thread/httpc", "", 1234567890, false);
+					check_update_log_num_return = S_log_save("Sem/Check update thread/httpc", "", 1234567890, false);
 
-				check_update_result = Httpc_dl_data(url, check_update_buffer, 0x300000, &downloaded_size, &status_code, true);
-				Share_app_log_add_result(check_update_log_num_return, check_update_result.string + std::to_string(downloaded_size / 1024) + "KB (" + std::to_string(downloaded_size) + "B)", check_update_result.code, false);
+				check_update_result = Httpc_dl_data(url, httpc_buffer, 0x300000, &downloaded_size, &status_code, true);
+				S_log_add(check_update_log_num_return, check_update_result.string + std::to_string(downloaded_size / 1024) + "KB (" + std::to_string(downloaded_size) + "B)", check_update_result.code, false);
 
 				if (check_update_result.code != 0)
 				{
-					Share_clear_error_message();
-					Share_set_error_message(check_update_result.string, check_update_result.error_description, "Sem/Check update thread/httpc", check_update_result.code);
-					s_error_display = true;
+					Err_set_error_message(check_update_result.string, check_update_result.error_description, "Sem/Check update thread/httpc", check_update_result.code);
+					Err_set_error_show_flag(true);
 
-					if (s_sem_update_check_request)
-						check_update_progress = 2;
-					else if (s_sem_file_download_request)
-						update_progress = 3;
+					if (sem_check_update_request)
+						sem_check_update_progress = 2;
+					else if (sem_dl_file_request)
+						sem_update_progress = 3;
 				}
 				else
 				{
-					if (s_sem_update_check_request)
+					if (sem_check_update_request)
 					{
-						parse_cache = (char*)check_update_buffer;
+						parse_cache = (char*)httpc_buffer;
 
 						for (int i = 0; i < 11; i++)
 						{
@@ -919,20 +1193,20 @@ void Setting_menu_update_check(void* arg)
 							parse_start_pos += parse_start[i].length();
 							parse_end_pos -= parse_start_pos;
 							if (parse_start_pos != std::string::npos && parse_end_pos != std::string::npos)
-								newest_ver_data[i] = parse_cache.substr(parse_start_pos, parse_end_pos);
+								sem_newest_ver_data[i] = parse_cache.substr(parse_start_pos, parse_end_pos);
 							else
 							{
-								check_update_progress = 2;
+								sem_check_update_progress = 2;
 								break;
 							}
 
 							if (i == 0)
-								newest_ver = stoi(newest_ver_data[i]);
+								newest_ver = stoi(sem_newest_ver_data[i]);
 							else if (i > 0 && i < 8)
-								s_sem_available_ver[i - 1] = stoi(newest_ver_data[i]);
+								sem_available_ver[i - 1] = stoi(sem_newest_ver_data[i]);
 							else if (i == 9)
 							{
-								if (s_current_gas_ver == stoi(newest_ver_data[i]))
+								if (s_current_gas_ver == stoi(sem_newest_ver_data[i]))
 									need_gas_update = false;
 								else
 									need_gas_update = true;
@@ -942,88 +1216,61 @@ void Setting_menu_update_check(void* arg)
 						if (s_current_app_ver < newest_ver)
 						{
 							new_version_available = true;
-							Share_app_log_save("Sem/Check update thread", "New version available " + std::to_string(newest_ver), 1234567890, false);
+							S_log_save("Sem/Check update thread", "New version available " + std::to_string(newest_ver), 1234567890, false);
 						}
 						else
 						{
 							new_version_available = false;
-							Share_app_log_save("Sem/Check update thread", "Up to date ", 1234567890, false);
+							S_log_save("Sem/Check update thread", "Up to date ", 1234567890, false);
 						}
-						check_update_progress = 1;
+						sem_check_update_progress = 1;
 					}
-					else if (s_sem_file_download_request)
+					else if (sem_dl_file_request)
 					{
-						update_progress = 1;
-						if (s_sem_selected_edition_num == 0)
+						sem_update_progress = 1;
+						if (sem_selected_edition_num == 0)
 						{
-							check_update_log_num_return = Share_app_log_save("Sem/Check update thread/fs", "Save_to_file...", 1234567890, false);
-							check_update_result = Share_save_to_file("Line_for_3DS_ver.3dsx", (u8*)check_update_buffer, downloaded_size, "/Line/ver_" + newest_ver_data[0] + "/", true, check_update_fs_handle, check_update_fs_archive);
-							Share_app_log_add_result(check_update_log_num_return, check_update_result.string, check_update_result.code, false);
+							check_update_log_num_return = S_log_save("Sem/Check update thread/fs", "Save_to_file...", 1234567890, false);
+							check_update_result = Share_save_to_file("Line_for_3DS_ver.3dsx", (u8*)httpc_buffer, downloaded_size, "/Line/ver_" + sem_newest_ver_data[0] + "/", true, check_update_fs_handle, check_update_fs_archive);
+							S_log_add(check_update_log_num_return, check_update_result.string, check_update_result.code, false);
 							if (check_update_result.code == 0)
-								update_progress = 2;
+								sem_update_progress = 2;
 						}
 
-						if (s_sem_selected_edition_num > 0 && s_sem_selected_edition_num < 8)
+						if (sem_selected_edition_num > 0 && sem_selected_edition_num < 8)
 						{
 							if (s_am_success)
 							{
 								check_update_result.code = AM_StartCiaInstall(MEDIATYPE_SD, &check_update_am_handle);
-								check_update_log_num_return = Share_app_log_save("Sem/Check update thread/am", "AM_StartCiaInstall...", check_update_result.code, false);
+								check_update_log_num_return = S_log_save("Sem/Check update thread/am", "AM_StartCiaInstall...", check_update_result.code, false);
 
-								check_update_result.code = FSFILE_Write(check_update_am_handle, &write_size, 0, (u8*)check_update_buffer, downloaded_size, FS_WRITE_FLUSH);
-								check_update_log_num_return = Share_app_log_save("Sem/Check update thread/fs", "FSFILE_Write...", check_update_result.code, false);
+								check_update_result.code = FSFILE_Write(check_update_am_handle, &write_size, 0, (u8*)httpc_buffer, downloaded_size, FS_WRITE_FLUSH);
+								check_update_log_num_return = S_log_save("Sem/Check update thread/fs", "FSFILE_Write...", check_update_result.code, false);
 
 								check_update_result.code = AM_FinishCiaInstall(check_update_am_handle);
-								check_update_log_num_return = Share_app_log_save("Sem/Check update thread/am", "AM_FinishCiaInstall...", check_update_result.code, false);
+								check_update_log_num_return = S_log_save("Sem/Check update thread/am", "AM_FinishCiaInstall...", check_update_result.code, false);
 								if (check_update_result.code == 0)
-									update_progress = 2;
+									sem_update_progress = 2;
 								else
-									update_progress = 3;
+									sem_update_progress = 3;
 							}
 							else
-								update_progress = 3;
+								sem_update_progress = 3;
 						}
 					}
 				}				
 			}
 
-			free(check_update_buffer);
+			free(httpc_buffer);
 
-			if(s_sem_update_check_request)
-				s_sem_update_check_request = false;
-			else if(s_sem_file_download_request)
-				s_sem_file_download_request = false;
+			if(sem_check_update_request)
+				sem_check_update_request = false;
+			else if(sem_dl_file_request)
+				sem_dl_file_request = false;
 		}
 		else
 			usleep(100000);
 	}
+	S_log_save("Sem/Check update thread", "Thread exit.", 1234567890, false);
 }
 
-void Setting_menu_exit(void)
-{
-	Share_app_log_save("Sem/Exit", "Exiting...", 1234567890, s_debug_slow);
-	u64 time_out = 10000000000;
-	int exit_log_num_return;
-	bool function_fail = false;
-	Result_with_string exit_result;
-	exit_result.code = 0;
-	exit_result.string = "[Success] ";
-
-	s_sem_already_init = false;
-	s_update_check_thread_run = false;
-
-	exit_log_num_return = Share_app_log_save("Sem/Exit", "Thread exiting(0/0)...", 1234567890, s_debug_slow);
-	exit_result.code = threadJoin(check_update_thread, time_out);
-	if (exit_result.code == 0)
-		Share_app_log_add_result(exit_log_num_return, "[Success] ", exit_result.code, s_debug_slow);
-	else
-	{
-		function_fail = true;
-		Share_app_log_add_result(exit_log_num_return, "[Error] ", exit_result.code, s_debug_slow);
-	}
-
-	if (function_fail)
-		Share_app_log_save("Sem/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
-
-	Share_app_log_save("Sem/Exit", "Exited.", 1234567890, s_debug_slow);
-}

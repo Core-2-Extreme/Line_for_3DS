@@ -1,12 +1,21 @@
 #include <string>
 #include "citro2d.h"
 #include "share_function.hpp"
+#include "hid.hpp"
+#include "draw.hpp"
+#include "error.hpp"
 
+bool draw_do_not_draw = false;
 C2D_Font Share_fonts[6];
 C3D_RenderTarget* Screen_top;
 C3D_RenderTarget* Screen_bot;
 C2D_SpriteSheet sheet_texture[128];
 std::string screen_clear_text = "\u25a0";//Å°
+
+void Draw_set_do_not_draw_flag(bool flag)
+{
+	draw_do_not_draw = flag;
+}
 
 void Draw(std::string text, float x, float y, float text_size_x, float text_size_y, float r, float g, float b, float a)
 {
@@ -83,6 +92,99 @@ void Draw_texture(C2D_Image image[], C2D_ImageTint tint, int num, float x, float
 	}
 }
 
+void Draw_error(void)
+{
+	Draw_texture(Square_image, aqua_tint, 0, 20.0, 30.0, 280.0, 150.0);
+	Draw_texture(Square_image, weak_yellow_tint, 0, 150.0, 150.0, 20.0, 20.0);
+
+	Draw("Summary : ", 22.5, 40.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+	Draw(Err_query_error_data(ERR_SUMMARY), 22.5, 50.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+	Draw("Description : ", 22.5, 60.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+	Draw(Err_query_error_data(ERR_DESCRIPTION), 22.5, 70.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
+	Draw("Place : ", 22.5, 90.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+	Draw(Err_query_error_data(ERR_PLACE), 22.5, 100.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+	Draw("Error code : ", 22.5, 110.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+	Draw(Err_query_error_data(ERR_CODE), 22.5, 120.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+	Draw("OK", 152.5, 152.5, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+}
+
+void Draw_progress(std::string message)
+{
+	if (draw_do_not_draw)
+		return;
+
+	Draw_set_draw_mode(s_draw_vsync_mode);
+	if (s_night_mode)
+		Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
+	else
+		Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
+
+	Draw(message, 80.0, 110.0, 0.75, 0.75, 0.0, 0.5, 1.0, 1.0);
+
+	Draw_apply_draw();
+
+	Draw_set_draw_mode(s_draw_vsync_mode);
+	if (s_night_mode)
+		Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
+	else
+		Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
+
+	Draw(message, 80.0, 110.0, 0.75, 0.75, 0.0, 0.5, 1.0, 1.0);
+
+	Draw_apply_draw();
+}
+
+void Draw_log(void)
+{
+	Draw_set_draw_mode(1);
+	if (s_night_mode)
+		Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
+	else
+		Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
+
+	s_app_log_view_num = s_app_log_view_num_cache;
+	for (int i = 0; i < 23; i++)
+		Draw(s_app_logs[s_app_log_view_num + i], s_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
+	Draw_apply_draw();
+}
+
+void Draw_debug_info(void)
+{
+	float text_red;
+	float text_green;
+	float text_blue;
+	float text_alpha;
+	if (s_night_mode)
+	{
+		text_red = 1.0f;
+		text_green = 1.0f;
+		text_blue = 1.0f;
+		text_alpha = 0.75f;
+	}
+	else
+	{
+		text_red = 0.0f;
+		text_green = 0.0f;
+		text_blue = 0.0f;
+		text_alpha = 1.0f;
+	}
+
+	Draw_texture(Square_image, weak_blue_tint, 0, 0.0, 30.0, 140.0, 130.0);
+	Draw("A press : " + std::to_string(Hid_query_key_press_state(KEY_P_A)) + " held : " + std::to_string(Hid_query_key_held_state(KEY_H_A)), 0.0, 30.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("B press : " + std::to_string(Hid_query_key_press_state(KEY_P_B)) + " held : " + std::to_string(Hid_query_key_held_state(KEY_H_B)), 0.0, 40.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("X press : " + std::to_string(Hid_query_key_press_state(KEY_P_X)) + " held : " + std::to_string(Hid_query_key_held_state(KEY_H_X)), 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("Y press : " + std::to_string(Hid_query_key_press_state(KEY_P_Y)) + " held : " + std::to_string(Hid_query_key_held_state(KEY_H_Y)), 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C DOWN held : " + std::to_string(Hid_query_key_held_state(KEY_H_C_DOWN)), 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C RIGHT held : " + std::to_string(Hid_query_key_held_state(KEY_H_C_RIGHT)), 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C UP held : " + std::to_string(Hid_query_key_held_state(KEY_H_C_UP)), 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C LEFT held : " + std::to_string(Hid_query_key_held_state(KEY_H_C_LEFT)), 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("x pos : " + std::to_string(Hid_query_touch_pos(true)) + " y pos : " + std::to_string(Hid_query_touch_pos(false)), 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("CPU : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("GPU : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("Free RAM " + std::to_string((double)s_free_ram / 10.0).substr(0, 5) + " MB", 0.0f, 140.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("Free linear RAM " + std::to_string((double)s_free_linear_ram / 1024.0 / 1024.0).substr(0, 5) +" MB", 0.0f, 150.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+}
+
 void Draw_with_specific_language(std::string text, int lang_num, float x, float y, float text_size_x, float text_size_y, float r, float g, float b, float a)
 {
 	if (lang_num <= -1 || lang_num >= 7)
@@ -156,13 +258,17 @@ void Draw_set_draw_mode(int mode)
 
 void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_ver, float red, float green, float blue)
 {
+	C2D_ImageTint tint;
+	C2D_PlainImageTint(&tint, C2D_Color32f(red, green, blue, 1.0), true);
 	if (screen == 0)
 	{
 		C2D_SceneBegin(Screen_top);
 		if (screen_clear)
 		{
 			if (screen_clear_ver == 1)
-				Draw(screen_clear_text, -30.0, -100.0, 20.0, 17.5, red, green, blue, 1.0);
+				Draw(screen_clear_text, -50.0, -300.0, 40.0, 35.0, red, green, blue, 1.0);
+			else if (screen_clear_ver == 2)
+				Draw_texture(Square_image, tint, 0, 0.0, 0.0, 400.0, 240.0);
 			else
 				C2D_TargetClear(Screen_top, C2D_Color32f(red, green, blue, 0));
 		}
@@ -174,7 +280,9 @@ void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_v
 		if (screen_clear)
 		{
 			if (screen_clear_ver == 1)
-				Draw(screen_clear_text, -30.0, -100.0, 20.0, 17.5, red, green, blue, 1.0);
+				Draw(screen_clear_text, -50.0, -300.0, 40.0, 30.0, red, green, blue, 1.0);
+			else if (screen_clear_ver == 2)
+				Draw_texture(Square_image, tint, 0, 0.0, 0.0, 320.0, 240.0);
 			else
 				C2D_TargetClear(Screen_bot, C2D_Color32f(red, green, blue, 0));
 		}
@@ -222,7 +330,7 @@ bool Moded_C3D_TexInitWithParams(C3D_Tex* tex, C3D_TexCube* cube, C3D_TexInitPar
 	u32 total_size = C3D_TexCalcTotalSize(size, p.maxLevel);
 	
 	s_error_description = std::to_string(total_size);
-	s_error_display = true;
+	Err_set_error_show_flag(true);
 	
 	tex->data = malloc(total_size);
 	if (!tex->data) return false;
