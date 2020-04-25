@@ -98,7 +98,7 @@ void Menu_init(void)
 	menu_update_thread_run = true;
 	menu_check_connectivity_thread_run = true;
 	menu_update_thread = threadCreate(Menu_update_thread, (void*)(""), STACKSIZE, 0x18, -1, true);
-	//menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, 0x30, -1, true);
+	menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, 0x30, -1, true);
 
 	if (s_allow_send_app_info)
 	{
@@ -106,7 +106,7 @@ void Menu_init(void)
 		{
 			if (s_num_of_app_start == i * 10)
 			{
-			//	menu_send_app_info_thread = threadCreate(Menu_send_app_info_thread, (void*)(""), STACKSIZE, 0x24, -1, true);
+				menu_send_app_info_thread = threadCreate(Menu_send_app_info_thread, (void*)(""), STACKSIZE, 0x24, -1, true);
 				break;
 			}
 		}
