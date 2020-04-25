@@ -1346,7 +1346,7 @@ void Line_send_message_thread(void* arg)
 					S_log_add(log_num[1], result.string, result.code, false);
 					if ((int)file_size > line_send_fs_buffer_size)
 					{
-						Err_set_error_message("File size is too big. ", "File size is too big. \nFile size is " + std::to_string((double)file_size / 1024.0 / 1024.0) + "MB (Max 10MB) ", "Line/Send msg thread", FILE_SIZE_IS_TOO_BIG);
+						Err_set_error_message("File size is too big. ", "File size is too big. \nFile size is " + std::to_string((double)file_size / 1024.0 / 1024.0) + "MB. ", "Line/Send msg thread", FILE_SIZE_IS_TOO_BIG);
 						Err_set_error_show_flag(true);
 						S_log_add(log_num[0], "File size is too big. ", FILE_SIZE_IS_TOO_BIG, false);
 						failed = true;
