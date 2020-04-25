@@ -1235,6 +1235,8 @@ void Sem_check_update_thread(void* arg)
 							S_log_add(check_update_log_num_return, check_update_result.string, check_update_result.code, false);
 							if (check_update_result.code == 0)
 								sem_update_progress = 2;
+							else
+								sem_update_progress = 3;
 						}
 
 						if (sem_selected_edition_num > 0 && sem_selected_edition_num < 8)
