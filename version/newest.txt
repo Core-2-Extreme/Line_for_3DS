@@ -9,7 +9,7 @@
 <cia_178mb_ram_available>0</cia_178mb_ram_available>
 <gas_ver>4</gas_ver>
 <patch_note>【App】 Ver 1.4.0
-【Line】 Added- file send.
+【Line】 Added- send a file function.
 【Image viewer】 Added- view files on SD card.
 【GAS】 Fixed- 【GAS】 Fixed- The problem of 
 losing messages from being sent too quickly 
