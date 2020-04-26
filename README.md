@@ -14,7 +14,7 @@
 * 【App】 Ver 1.4.0
 * 【Line】 Added- file send function.
 * 【Image viewer】 Added- view files on SD card.
-* 【GAS】 Fixed- If message was sent too quickly, it will be lost has been solved.
+* 【GAS】 Fixed- The problem of losing messages from being sent too quickly have been resolved.
 
 ## Summary
 
