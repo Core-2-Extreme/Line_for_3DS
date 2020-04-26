@@ -12,7 +12,7 @@
 
 ## Patch note
 * 【App】 Ver 1.4.0
-* 【Line】 Added- send files function.
+* 【Line】 Added- send a file function.
 * 【Image viewer】 Added- view files on SD card.
 * 【GAS】 Fixed- The problem of losing messages from being sent too quickly have been resolved.
 
