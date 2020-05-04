@@ -1,7 +1,6 @@
-﻿#include <string>
-#include <3ds.h>
-#include "draw.hpp"
-#include "share_function.hpp"
+﻿#include <3ds.h>
+#include <string>
+
 #include "error.hpp"
 
 bool err_error_display;

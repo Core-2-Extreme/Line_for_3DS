@@ -1,7 +1,7 @@
-﻿#include <string>
-#include <cstring>
+﻿#include <3ds.h>
+#include <string>
 #include <unistd.h>
-#include <3ds.h>
+
 #include "hid.hpp"
 #include "speedtest.hpp"
 #include "image_viewer.hpp"
@@ -14,6 +14,8 @@
 #include "external_font.hpp"
 #include "error.hpp"
 #include "menu.hpp"
+#include "log.hpp"
+#include "types.hpp"
 
 bool sem_use_default_font = true;
 bool sem_use_system_specific_font = false;
@@ -377,7 +379,7 @@ void Sem_resume(void)
 
 void Sem_init(void)
 {
-	S_log_save("Sem/Init", "Initializing...", 1234567890, s_debug_slow);
+	Log_log_save("Sem/Init", "Initializing...", 1234567890, s_debug_slow);
 
 
 	Draw_progress("0/0 [Sem] Starting threads...");
@@ -388,12 +390,12 @@ void Sem_init(void)
 
 	Sem_resume();
 	sem_already_init = true;
-	S_log_save("Sem/Init", "Initialized.", 1234567890, s_debug_slow);
+	Log_log_save("Sem/Init", "Initialized.", 1234567890, s_debug_slow);
 }
 
 void Sem_exit(void)
 {
-	S_log_save("Sem/Exit", "Exiting...", 1234567890, s_debug_slow);
+	Log_log_save("Sem/Exit", "Exiting...", 1234567890, s_debug_slow);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
@@ -404,34 +406,36 @@ void Sem_exit(void)
 	sem_check_update_thread_run = false;
 	sem_load_font_thread_run = false;
 
-	log_num = S_log_save("Sem/Exit", "Exiting thread(0/1)...", 1234567890, s_debug_slow);
+	log_num = Log_log_save("Sem/Exit", "Exiting thread(0/1)...", 1234567890, s_debug_slow);
 	result.code = threadJoin(sem_check_update_thread, time_out);
 	if (result.code == 0)
-		S_log_add(log_num, "[Success] ", result.code, s_debug_slow);
+		Log_log_add(log_num, "[Success] ", result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		S_log_add(log_num, "[Error] ", result.code, s_debug_slow);
+		Log_log_add(log_num, "[Error] ", result.code, s_debug_slow);
 	}
 
-	log_num = S_log_save("Sem/Exit", "Exiting thread(1/1)...", 1234567890, s_debug_slow);
+	log_num = Log_log_save("Sem/Exit", "Exiting thread(1/1)...", 1234567890, s_debug_slow);
 	result.code = threadJoin(sem_load_font_thread, time_out);
 	if (result.code == 0)
-		S_log_add(log_num, "[Success] ", result.code, s_debug_slow);
+		Log_log_add(log_num, "[Success] ", result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		S_log_add(log_num, "[Error] ", result.code, s_debug_slow);
+		Log_log_add(log_num, "[Error] ", result.code, s_debug_slow);
 	}
 
 	if (failed)
-		S_log_save("Sem/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
+		Log_log_save("Sem/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
 
-	S_log_save("Sem/Exit", "Exited.", 1234567890, s_debug_slow);
+	Log_log_save("Sem/Exit", "Exited.", 1234567890, s_debug_slow);
 }
 
 void Sem_main(void)
 {
+	int log_y = Log_query_y();
+	double log_x = Log_query_x();
 	float text_red;
 	float text_green;
 	float text_blue;
@@ -608,15 +612,15 @@ void Sem_main(void)
 	Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
 	if (s_battery_charge)
 		Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 310.0, 0.0, 20.0, 15.0);
-	Draw(s_status, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
-	Draw(s_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
+	Draw(s_status, 0, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
+	Draw(s_battery_level_string, 0, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
 
 	if (s_debug_mode)
 		Draw_debug_info();
-	if (s_app_logs_show)
+	if (Log_query_log_show_flag())
 	{
 		for (int i = 0; i < 23; i++)
-			Draw(s_app_logs[s_app_log_view_num + i], s_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
+			Draw(Log_query_log(log_y + i), 0, log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
 	}
 
 	/*if (s_sem_help_mode_num == 0)
@@ -690,25 +694,25 @@ void Sem_main(void)
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
 		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset, 200.0, 20.0);
-		Draw(setting_string[54], 10.0, draw_y + sem_y_offset - 2.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[54], 0, 10.0, draw_y + sem_y_offset - 2.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 	}
 
 	//Language
 	draw_y = 40.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[0], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[0], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		if (s_setting[1] == "en")
 		{
-			Draw(setting_string[20], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[21], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[20], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[21], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 		}
 		else
 		{
-			Draw(setting_string[20], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[21], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[20], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[21], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
 		}
 	}
 
@@ -716,42 +720,42 @@ void Sem_main(void)
 	draw_y = 80.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[1], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[1], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 210.0, draw_y + sem_y_offset + 15.0, 40.0, 20.0);
 		if (s_night_mode)
 		{
-			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[23], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[22], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 		}
 		else
 		{
-			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[23], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[22], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
 		}
 		if (s_flash_mode)
-			Draw(setting_string[26], 210.0, draw_y + sem_y_offset + 15.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[26], 0, 210.0, draw_y + sem_y_offset + 15.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 		else
-			Draw(setting_string[26], 210.0, draw_y + sem_y_offset + 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[26], 0, 210.0, draw_y + sem_y_offset + 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 	}
 
 	//Vsync
 	draw_y = 120.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[2], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[2], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		if (s_draw_vsync_mode)
 		{
-			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[23], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[22], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 		}
 		else
 		{
-			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[23], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[22], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
 		}
 	}
 
@@ -759,7 +763,7 @@ void Sem_main(void)
 	draw_y = 160.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[3], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[3], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, white_or_black_tint, 0, (s_lcd_brightness - 10) * 2, draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 	}
 
@@ -767,7 +771,7 @@ void Sem_main(void)
 	draw_y = 200.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[4], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[4], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, white_or_black_tint, 0, (s_time_to_enter_afk / 10), draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 	}
 
@@ -775,7 +779,7 @@ void Sem_main(void)
 	draw_y = 240.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[5], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[5], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, white_or_black_tint, 0, (s_afk_lcd_brightness - 10) * 2, draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 	}
 
@@ -783,7 +787,7 @@ void Sem_main(void)
 	draw_y = 280.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[6], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[6], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, white_or_black_tint, 0, (s_scroll_speed * 300), draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 	}
 
@@ -791,18 +795,18 @@ void Sem_main(void)
 	draw_y = 320.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[7], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[7], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		if (s_allow_send_app_info)
 		{
-			Draw(setting_string[25], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[24], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[25], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[24], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 		}
 		else
 		{
-			Draw(setting_string[25], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[24], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[25], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[24], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
 		}
 	}
 
@@ -810,18 +814,18 @@ void Sem_main(void)
 	draw_y = 360.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[8], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[8], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		if (s_debug_mode)
 		{
-			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[23], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[22], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 		}
 		else
 		{
-			Draw(setting_string[23], 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[22], 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[23], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[22], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
 		}
 	}
 
@@ -829,27 +833,27 @@ void Sem_main(void)
 	draw_y = 400.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[9], 0.0, 400.0 + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[9], 0, 0.0, 400.0 + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		Draw_texture(Square_image, weak_aqua_tint, 0, 210.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 		if (sem_use_default_font)
 		{
-			Draw(setting_string[27], 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[28], 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[29], 210.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[27], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[28], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[29], 0, 210.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		}
 		else if (sem_use_system_specific_font)
 		{
-			Draw(setting_string[27], 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[28], 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[29], 210.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[27], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[28], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[29], 0, 210.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 		}
 		else if (sem_use_external_font)
 		{
-			Draw(setting_string[27], 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[28], 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-			Draw(setting_string[29], 210.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[27], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[28], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[29], 0, 210.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		}
 	}
 
@@ -858,18 +862,18 @@ void Sem_main(void)
 	draw_y = 440.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[10], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[10], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		for (int i = 0; i < 4; i++)
 		{
 			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset + 15.0, 70.0, 20.0);
 			if (sem_selected_lang_num == i && sem_load_system_font_request)
-				Draw(setting_string[30 + i], draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 0.3);
+				Draw(setting_string[30 + i], 0, draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 0.3);
 			else if (sem_selected_lang_num == i)
-				Draw(setting_string[30 + i], draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
+				Draw(setting_string[30 + i], 0, draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, 1.0, 0.0, 0.0, 1.0);
 			else if(sem_load_system_font_request)
-				Draw(setting_string[30 + i], draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, 0.3);
+				Draw(setting_string[30 + i], 0, draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, 0.3);
 			else
-				Draw(setting_string[30 + i], draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+				Draw(setting_string[30 + i], 0, draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 
 			draw_x += 75.0;
 		}
@@ -879,18 +883,18 @@ void Sem_main(void)
 	draw_y = 480.0;
 	if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 	{
-		Draw(setting_string[11], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[11], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, weak_red_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 100.0, 20.0);
 		Draw_texture(Square_image, weak_yellow_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 100.0, 20.0);
 		if (sem_unload_external_font_request || sem_load_external_font_request)
 		{
-			Draw(setting_string[34], 10.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, 0.3);
-			Draw(setting_string[35], 110.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, 0.3);
+			Draw(setting_string[34], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, 0.3);
+			Draw(setting_string[35], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, 0.3);
 		}
 		else
 		{
-			Draw(setting_string[34], 10.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[35], 110.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[34], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[35], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.65, 0.65, text_red, text_green, text_blue, text_alpha);
 		}
 	}
 
@@ -902,13 +906,13 @@ void Sem_main(void)
 		{
 			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset, 200.0, 20.0);
 			if (sem_loaded_external_font[i] && (sem_unload_external_font_request || sem_load_external_font_request))
-				Draw(Exfont_query_font_name(i), draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, 1.0, 0.0, 0.0, 0.3);
+				Draw(Exfont_query_font_name(i), 0, draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, 1.0, 0.0, 0.0, 0.3);
 			else if (sem_loaded_external_font[i])
-				Draw(Exfont_query_font_name(i), draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+				Draw(Exfont_query_font_name(i), 0, draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
 			else if(sem_unload_external_font_request || sem_load_external_font_request)
-				Draw(Exfont_query_font_name(i), draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, text_red, text_green, text_blue, 0.3);
+				Draw(Exfont_query_font_name(i), 0, draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, text_red, text_green, text_blue, 0.3);
 			else
-				Draw(Exfont_query_font_name(i), draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+				Draw(Exfont_query_font_name(i), 0, draw_x, draw_y + sem_y_offset - 2.5, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 		}
 		draw_y += 20.0;
 	}
@@ -920,14 +924,14 @@ void Sem_main(void)
 		if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 		{
 			if (i >= 4)
-				Draw(setting_string[62 + i], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw(setting_string[62 + i], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			else
-				Draw(setting_string[60 + i], 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw(setting_string[60 + i], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 
 			Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
 			Draw_texture(Square_image, weak_aqua_tint, 0, 110.0, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
-			Draw(setting_string[64], 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[65], 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[64], 0, 10.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[65], 0, 110.0, draw_y + sem_y_offset + 12.5, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		}
 		draw_y += 40.0;
 	}
@@ -976,17 +980,17 @@ void Sem_main(void)
 		Draw_texture(Square_image, weak_white_tint, 0, 160.0, 200.0, 145.0, 15.0);
 
 		if(sem_check_update_progress == 0)
-			Draw(setting_string[55], 17.5, 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[55], 0, 17.5, 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		else if(sem_check_update_progress == 2)
-			Draw(setting_string[56], 17.5, 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[56], 0, 17.5, 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		else if (sem_check_update_progress == 1)
 		{
-			Draw(setting_string[53], 17.5, 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(setting_string[41], 17.5, 30.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(sem_newest_ver_data[10], 17.5, 45.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[53], 0, 17.5, 15.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[41], 0, 17.5, 30.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(sem_newest_ver_data[10], 0, 17.5, 45.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 		}
-		Draw(setting_string[58], 17.5, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[57], 162.5, 200.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[58], 0, 17.5, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[57], 0, 162.5, 200.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 	}
 	if (sem_select_ver_request)
 	{
@@ -998,48 +1002,48 @@ void Sem_main(void)
 		for (int i = 0; i < 8; i++)
 		{
 			if(sem_available_ver[i] && sem_selected_edition_num == i)
-				Draw(setting_string[42 + i], 17.5, draw_y, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+				Draw(setting_string[42 + i], 0, 17.5, draw_y, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
 			else if (sem_available_ver[i])
-				Draw(setting_string[42 + i], 17.5, draw_y, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+				Draw(setting_string[42 + i], 0, 17.5, draw_y, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 			else
-				Draw(setting_string[42 + i] + setting_string[50], 17.5, draw_y, 0.45, 0.45, text_red, text_green, text_blue, 0.25);
+				Draw(setting_string[42 + i] + setting_string[50], 0, 17.5, draw_y, 0.45, 0.45, text_red, text_green, text_blue, 0.25);
 
 			draw_y += 10.0;
 		}
 
-		Draw(setting_string[36], 17.5, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[37], 17.5, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[38], 17.5, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(setting_string[39], 17.5, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[36], 0, 17.5, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[37], 0, 17.5, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[38], 0, 17.5, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[39], 0, 17.5, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 
 		if (sem_selected_edition_num == 0)
 		{
-			Draw(setting_string[40], 17.5, 140.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw("sdmc:/Line/ver_" + sem_newest_ver_data[0] + "/Line_for_3DS.3dsx", 17.5, 150.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+			Draw(setting_string[40], 0, 17.5, 140.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw("sdmc:/Line/ver_" + sem_newest_ver_data[0] + "/Line_for_3DS.3dsx", 0, 17.5, 150.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
 		}
 
 		if (sem_update_progress != -1)
-			Draw(setting_string[51], 17.5, 160.0, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[51], 0, 17.5, 160.0, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
 
 		if (sem_update_progress == 2)
-			Draw(setting_string[52], 17.5, 180.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[52], 0, 17.5, 180.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 
 		if (sem_available_ver[sem_selected_edition_num])
-			Draw(setting_string[59], 162.5, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			Draw(setting_string[59], 0, 162.5, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 		else
-			Draw(setting_string[59], 162.5, 200.0, 0.4, 0.4, text_red, text_green, text_blue, 0.25);
+			Draw(setting_string[59], 0, 162.5, 200.0, 0.4, 0.4, text_red, text_green, text_blue, 0.25);
 
-		Draw(setting_string[57], 17.5, 200.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+		Draw(setting_string[57], 0, 17.5, 200.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 	}
 
 	if (Err_query_error_show_flag())
 		Draw_error();
 
 	Draw_texture(Square_image, black_tint, 0, 0.0, 225.0, 320.0, 15.0);
-	Draw(s_bot_button_string[1], 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
+	Draw(s_bot_button_string[1], 0, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
 
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw(s_circle_string, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
+		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
 
 	Draw_apply_draw();
 	s_fps += 1;
@@ -1048,7 +1052,7 @@ void Sem_main(void)
 
 void Sem_load_font_thread(void* arg)
 {
-	S_log_save("Sem/Load font thread", "Thread started.", 1234567890, false);
+	Log_log_save("Sem/Load font thread", "Thread started.", 1234567890, false);
 	int log_num;
 	Result_with_string result;
 	while (sem_load_font_thread_run)
@@ -1079,9 +1083,9 @@ void Sem_load_font_thread(void* arg)
 			{
 				if (sem_load_external_font[i] && !sem_loaded_external_font[i])
 				{
-					log_num = S_log_save("Sem/Load font thread/c2d", "Loading texture (" + Exfont_query_font_name(i) + "_font.t3x)...", 1234567890, false);
+					log_num = Log_log_save("Sem/Load font thread/c2d", "Loading texture (" + Exfont_query_font_name(i) + "_font.t3x)...", 1234567890, false);
 					result = Exfont_load_exfont(i);
-					S_log_add(log_num, result.string, result.code, false);
+					Log_log_add(log_num, result.string, result.code, false);
 
 					if(result.code == 0)
 						sem_loaded_external_font[i] = true;
@@ -1095,12 +1099,12 @@ void Sem_load_font_thread(void* arg)
 		usleep(50000);
 	}
 
-	S_log_save("Sem/Load font thread", "Thread exit.", 1234567890, false);
+	Log_log_save("Sem/Load font thread", "Thread exit.", 1234567890, false);
 }
 
 void Sem_check_update_thread(void* arg)
 {
-	S_log_save("Sem/Check update thread", "Thread started.", 1234567890, false);
+	Log_log_save("Sem/Check update thread", "Thread started.", 1234567890, false);
 
 	u8* httpc_buffer;	
 	u32 downloaded_size;
@@ -1153,19 +1157,19 @@ void Sem_check_update_thread(void* arg)
 			{
 				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(0x300000 / 1024) + "KB). ", "Sem/Check update thread", OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
-				S_log_save("Sem/Check update thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
+				Log_log_save("Sem/Check update thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 			}
 			else
 			{
 				if (sem_check_update_request)
-					check_update_log_num_return = S_log_save("Sem/Check update thread/httpc", "Checking for update...", 1234567890, false);
+					check_update_log_num_return = Log_log_save("Sem/Check update thread/httpc", "Checking for update...", 1234567890, false);
 				else if (sem_dl_file_request)
-					check_update_log_num_return = S_log_save("Sem/Check update thread/httpc", "Downloading file...", 1234567890, false);
+					check_update_log_num_return = Log_log_save("Sem/Check update thread/httpc", "Downloading file...", 1234567890, false);
 				else
-					check_update_log_num_return = S_log_save("Sem/Check update thread/httpc", "", 1234567890, false);
+					check_update_log_num_return = Log_log_save("Sem/Check update thread/httpc", "", 1234567890, false);
 
 				check_update_result = Httpc_dl_data(url, httpc_buffer, 0x300000, &downloaded_size, &status_code, true);
-				S_log_add(check_update_log_num_return, check_update_result.string + std::to_string(downloaded_size / 1024) + "KB (" + std::to_string(downloaded_size) + "B)", check_update_result.code, false);
+				Log_log_add(check_update_log_num_return, check_update_result.string + std::to_string(downloaded_size / 1024) + "KB (" + std::to_string(downloaded_size) + "B)", check_update_result.code, false);
 
 				if (check_update_result.code != 0)
 				{
@@ -1216,12 +1220,12 @@ void Sem_check_update_thread(void* arg)
 						if (s_current_app_ver < newest_ver)
 						{
 							new_version_available = true;
-							S_log_save("Sem/Check update thread", "New version available " + std::to_string(newest_ver), 1234567890, false);
+							Log_log_save("Sem/Check update thread", "New version available " + std::to_string(newest_ver), 1234567890, false);
 						}
 						else
 						{
 							new_version_available = false;
-							S_log_save("Sem/Check update thread", "Up to date ", 1234567890, false);
+							Log_log_save("Sem/Check update thread", "Up to date ", 1234567890, false);
 						}
 						sem_check_update_progress = 1;
 					}
@@ -1230,9 +1234,9 @@ void Sem_check_update_thread(void* arg)
 						sem_update_progress = 1;
 						if (sem_selected_edition_num == 0)
 						{
-							check_update_log_num_return = S_log_save("Sem/Check update thread/fs", "Save_to_file...", 1234567890, false);
+							check_update_log_num_return = Log_log_save("Sem/Check update thread/fs", "Save_to_file...", 1234567890, false);
 							check_update_result = Share_save_to_file("Line_for_3DS_ver.3dsx", (u8*)httpc_buffer, downloaded_size, "/Line/ver_" + sem_newest_ver_data[0] + "/", true, check_update_fs_handle, check_update_fs_archive);
-							S_log_add(check_update_log_num_return, check_update_result.string, check_update_result.code, false);
+							Log_log_add(check_update_log_num_return, check_update_result.string, check_update_result.code, false);
 							if (check_update_result.code == 0)
 								sem_update_progress = 2;
 							else
@@ -1244,13 +1248,13 @@ void Sem_check_update_thread(void* arg)
 							if (s_am_success)
 							{
 								check_update_result.code = AM_StartCiaInstall(MEDIATYPE_SD, &check_update_am_handle);
-								check_update_log_num_return = S_log_save("Sem/Check update thread/am", "AM_StartCiaInstall...", check_update_result.code, false);
+								check_update_log_num_return = Log_log_save("Sem/Check update thread/am", "AM_StartCiaInstall...", check_update_result.code, false);
 
 								check_update_result.code = FSFILE_Write(check_update_am_handle, &write_size, 0, (u8*)httpc_buffer, downloaded_size, FS_WRITE_FLUSH);
-								check_update_log_num_return = S_log_save("Sem/Check update thread/fs", "FSFILE_Write...", check_update_result.code, false);
+								check_update_log_num_return = Log_log_save("Sem/Check update thread/fs", "FSFILE_Write...", check_update_result.code, false);
 
 								check_update_result.code = AM_FinishCiaInstall(check_update_am_handle);
-								check_update_log_num_return = S_log_save("Sem/Check update thread/am", "AM_FinishCiaInstall...", check_update_result.code, false);
+								check_update_log_num_return = Log_log_save("Sem/Check update thread/am", "AM_FinishCiaInstall...", check_update_result.code, false);
 								if (check_update_result.code == 0)
 									sem_update_progress = 2;
 								else
@@ -1273,6 +1277,6 @@ void Sem_check_update_thread(void* arg)
 		else
 			usleep(100000);
 	}
-	S_log_save("Sem/Check update thread", "Thread exit.", 1234567890, false);
+	Log_log_save("Sem/Check update thread", "Thread exit.", 1234567890, false);
 }
 

@@ -3,6 +3,8 @@
 #include "setting_menu.hpp"
 #include "draw.hpp"
 #include "external_font.hpp"
+#include "log.hpp"
+#include "types.hpp"
 
 int exfont_font_characters[46] = {
   95, 128,  92,  80, 112, 135, 256,  48,  91,  88,  255, 128,  79,  72,  96,  88,
@@ -978,12 +980,14 @@ void Exfont_text_parse(std::string sorce_string, std::string part_string[])
 	free(sorce_string_char);
 }
 
-void Exfont_draw_external_fonts(std::string string, float texture_x, float texture_y, float texture_size_x, float texture_size_y, bool follow_new_line)
+void Exfont_draw_external_fonts(std::string string, float texture_x, float texture_y, float texture_size_x, float texture_size_y, float red, float green, float blue, float alpha)
 {
 	float texture_x_offset = 0;
-	float interval_offset = 2.5;
+	float interval_offset = 1.5;
 	bool unknown_char = false;
 	std::string part_string[256];
+	C2D_ImageTint tint;
+	C2D_PlainImageTint(&tint, C2D_Color32f(red, green, blue, alpha), true);
 
 	Exfont_text_parse(string, part_string);
 	Exfont_text_parse(Exfont_text_sort(part_string), part_string);
@@ -1003,15 +1007,12 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 				{
 					if (memcmp((void*)part_string[i].c_str(), (void*)exfont_basic_latin_font_sample[j].c_str(), 0x1) == 0)
 					{
-						if (follow_new_line)
+						if (j == 10)
 						{
-							if (j == 10)
-							{
-								texture_y += 40.0 * texture_size_y;
-								texture_x_offset = 0;
-								unknown_char = false;
-								break;
-							}
+							texture_y += 40.0 * texture_size_y;
+							texture_x_offset = 0;
+							unknown_char = false;
+							break;
 						}
 
 						if (j <= 32 || j == 127)
@@ -1020,7 +1021,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 							j -= 31;
 
 						texture_x_offset += (exfont_basic_latin_font_interval[j] + interval_offset) * texture_size_x / 2;
-						Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[0] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+						Draw_texture(exfont_font_images, tint, exfont_font_start_num[0] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 						unknown_char = false;
 						texture_x_offset += (exfont_basic_latin_font_interval[j] + interval_offset) * texture_size_x / 2;
 						break;
@@ -1046,7 +1047,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_latin_1_supplement_font_sample[j].c_str(), 0x2) == 0)
 						{
 							texture_x_offset += (exfont_latin_1_supplement_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[1] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[1] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_latin_1_supplement_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1061,7 +1062,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_ipa_extensions_font_sample[j].c_str(), 0x2) == 0)
 						{
 							texture_x_offset += (exfont_ipa_extensions_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[2] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[2] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_ipa_extensions_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1076,7 +1077,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_spacing_modifier_letters_font_sample[j].c_str(), 0x2) == 0)
 						{
 							texture_x_offset += (exfont_spacing_modifier_letters_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[3] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[3] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_spacing_modifier_letters_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1091,7 +1092,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_combining_diacritical_marks_font_sample[j].c_str(), 0x2) == 0)
 						{
 							texture_x_offset += (exfont_combining_diacritical_marks_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[4] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[4] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_combining_diacritical_marks_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1106,7 +1107,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_greek_and_coptic_font_sample[j].c_str(), 0x2) == 0)
 						{
 							texture_x_offset += (exfont_greek_and_coptic_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[5] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[5] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_greek_and_coptic_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1123,7 +1124,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_cyrillic_font_sample[j].c_str(), 0x2) == 0)
 						{
 							texture_x_offset += (exfont_cyrillic_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[6] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[6] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_cyrillic_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1138,7 +1139,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_cyrillic_supplement_font_sample[j].c_str(), 0x2) == 0)
 						{
 							texture_x_offset += (exfont_cyrillic_supplement_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[7] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[7] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_cyrillic_supplement_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1153,7 +1154,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_armenian_sample[j].c_str(), 0x2) == 0)
 						{
 							texture_x_offset += (exfont_armenian_font_interval[j] + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[8] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[8] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_armenian_font_interval[j] + interval_offset) * texture_size_x / 2;
 							break;
@@ -1168,7 +1169,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_hebrew_font_sample[j].c_str(), 0x2) == 0)
 						{
 							texture_x_offset += (exfont_hebrew_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[9] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[9] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_hebrew_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1183,7 +1184,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_arabic_sample[j].c_str(), 0x2) == 0)
 						{
 							texture_x_offset += (exfont_arabic_font_interval[j] + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[10] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[10] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_arabic_font_interval[j] + interval_offset) * texture_size_x / 2;
 							break;
@@ -1192,7 +1193,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 				}
 			}
 			else if (exfont_font_pos == -1)
-				S_log_save("", "2 bytes : unknown error", 1234567890, false);
+				Log_log_save("", "2 bytes : unknown error", 1234567890, false);
 		}
 		else if (part_string[i].length() == 3)
 		{
@@ -1212,7 +1213,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_devanagari_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_devanagari_font_interval[j] + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[11] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[11] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_devanagari_font_interval[j] + interval_offset) * texture_size_x / 2;
 							break;
@@ -1227,7 +1228,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_gurmukhi_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_gurmukhi_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[12] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[12] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_gurmukhi_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1242,7 +1243,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_tamil_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_tamil_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[13] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[13] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_tamil_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1259,7 +1260,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_telugu_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_telugu_font_interval[j] + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[14] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[14] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_telugu_font_interval[j] + interval_offset) * texture_size_x / 2;
 							break;
@@ -1274,7 +1275,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_kannada_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_kannada_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[15] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[15] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_kannada_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1289,7 +1290,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_sinhala_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_sinhala_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[16] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[16] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_sinhala_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1304,7 +1305,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_thai_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_thai_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[17] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[17] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_thai_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1319,7 +1320,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_lao_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_lao_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[18] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[18] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_lao_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1334,7 +1335,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_tibetan_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_tibetan_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[19] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[19] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_tibetan_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1351,7 +1352,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_georgian_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_georgian_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[20] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[20] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_georgian_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1368,7 +1369,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_unified_canadian_aboriginal_syllabics_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_unified_canadian_aboriginal_syllabics_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[21] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[21] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_unified_canadian_aboriginal_syllabics_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1385,7 +1386,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_phonetic_extensions_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_phonetic_extensions_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[22] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[22] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_phonetic_extensions_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1400,7 +1401,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_combining_diacritical_marks_supplement_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_combining_diacritical_marks_supplement_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[23] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[23] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_combining_diacritical_marks_supplement_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1415,7 +1416,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_greek_extended_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_greek_extended_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[24] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[24] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_greek_extended_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1432,7 +1433,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_general_punctuation_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_general_punctuation_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[25] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[25] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_general_punctuation_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1447,7 +1448,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_superscripts_and_subscripts_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_superscripts_and_subscripts_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[26] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[26] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_superscripts_and_subscripts_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1462,7 +1463,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_combining_diacritical_marks_for_symbols_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_combining_diacritical_marks_for_symbols_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[27] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[27] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_combining_diacritical_marks_for_symbols_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1477,7 +1478,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_arrows_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_arrows_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[28] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[28] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_arrows_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1492,7 +1493,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_mathematical_operators_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_mathematical_operators_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[29] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[29] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_mathematical_operators_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1507,7 +1508,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_miscellaneous_technical_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_miscellaneous_technical_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[30] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[30] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_miscellaneous_technical_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1524,7 +1525,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_optical_character_recognition_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_optical_character_recognition_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[31] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[31] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_optical_character_recognition_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1539,7 +1540,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_box_drawing_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_box_drawing_font_interval[j] + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[32] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[32] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_box_drawing_font_interval[j] + interval_offset) * texture_size_x / 2;
 							break;
@@ -1554,7 +1555,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_block_elements_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_block_elements_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[33] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[33] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_block_elements_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1569,7 +1570,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_geometric_shapes_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_geometric_shapes_font_interval[j] + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[34] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[34] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_geometric_shapes_font_interval[j] + interval_offset) * texture_size_x / 2;
 							break;
@@ -1584,7 +1585,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_miscellaneous_symbols_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_miscellaneous_symbols_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[35] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[35] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_miscellaneous_symbols_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1599,7 +1600,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_dingbats_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_dingbats_font_interval[j] + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[36] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[36] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_dingbats_font_interval[j] + interval_offset) * texture_size_x / 2;
 							break;
@@ -1616,7 +1617,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_cjk_symbol_and_punctuation_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_cjk_symbol_and_punctuation_font_interval[j] + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[37] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[37] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_cjk_symbol_and_punctuation_font_interval[j] + interval_offset) * texture_size_x / 2;
 							break;
@@ -1632,7 +1633,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						{
 
 							texture_x_offset += (exfont_hiragana_font_interval[j] + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[38] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[38] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_hiragana_font_interval[j] + interval_offset) * texture_size_x / 2;
 							break;
@@ -1647,7 +1648,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_katakana_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_katakana_font_interval[j] + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[39] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[39] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_katakana_font_interval[j] + interval_offset) * texture_size_x / 2;
 							break;
@@ -1662,7 +1663,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_hangul_compatibility_jamo_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_hangul_compatibility_jamo_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[40] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[40] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_hangul_compatibility_jamo_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1679,7 +1680,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_yi_syllables_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_yi_syllables_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[41] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[41] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_yi_syllables_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1694,7 +1695,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_yi_radicals_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_yi_radicals_font_interval[j] + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[42] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[42] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_yi_radicals_font_interval[j] + interval_offset) * texture_size_x / 2;
 							break;
@@ -1711,7 +1712,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_cjk_compatibility_forms_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_cjk_compatibility_forms_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[43] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[43] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_cjk_compatibility_forms_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1726,7 +1727,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 						if (memcmp((void*)part_string[i].c_str(), (void*)exfont_halfwidth_and_fullwidth_forms_font_sample[j].c_str(), 0x3) == 0)
 						{
 							texture_x_offset += (exfont_halfwidth_and_fullwidth_forms_font_interval + interval_offset) * texture_size_x / 2;
-							Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[44] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+							Draw_texture(exfont_font_images, tint, exfont_font_start_num[44] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 							unknown_char = false;
 							texture_x_offset += (exfont_halfwidth_and_fullwidth_forms_font_interval + interval_offset) * texture_size_x / 2;
 							break;
@@ -1735,7 +1736,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 				}
 			}
 			else if (exfont_font_pos == -1)
-				S_log_save("", "3 bytes : unknown error", 1234567890, false);
+				Log_log_save("", "3 bytes : unknown error", 1234567890, false);
 		}
 		else if (part_string[i].length() == 4)
 		{
@@ -1746,7 +1747,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 					if (memcmp((void*)part_string[i].c_str(), (void*)exfont_miscellaneous_symbols_and_pictographs_font_sample[j].c_str(), 0x4) == 0)
 					{
 						texture_x_offset += (exfont_miscellaneous_symbols_and_pictographs_font_interval + interval_offset) * texture_size_x / 2;
-						Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[45] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+						Draw_texture(exfont_font_images, tint, exfont_font_start_num[45] + j, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 						unknown_char = false;
 						texture_x_offset += (exfont_miscellaneous_symbols_and_pictographs_font_interval + interval_offset) * texture_size_x / 2;
 						break;
@@ -1758,7 +1759,7 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 		if (unknown_char && Sem_query_loaded_external_font_flag(0))
 		{
 			texture_x_offset += (25 + interval_offset) * texture_size_x / 2;
-			Draw_texture(exfont_font_images, texture_tint, exfont_font_start_num[0] + 0, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
+			Draw_texture(exfont_font_images, tint, exfont_font_start_num[0] + 0, texture_x + texture_x_offset, texture_y, 25.0 * texture_size_x, 25.0 * texture_size_y);
 			texture_x_offset += (25 + interval_offset) * texture_size_x / 2;
 		}
 	}

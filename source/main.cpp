@@ -1,10 +1,7 @@
 ﻿#include <3ds.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <time.h>
-#include <stdlib.h>
-#include <string>
 #include <algorithm>
+#include <unistd.h>
+#include <string>
 #include "citro2d.h"
 
 #include "hid.hpp"
@@ -20,6 +17,7 @@
 #include "error.hpp"
 #include "menu.hpp"
 #include "explorer.hpp"
+#include "log.hpp"
 
 /**/
 
@@ -37,11 +35,11 @@ void Init(void)
 	Result_with_string init_result;
 	init_result.code = 0;
 	init_result.string = "[Success] ";
-	osTickCounterStart(&s_tcount_up_time);
+	Log_start_up_time_timer();
 	init_buffer = (u8*)malloc(0x2000);
 	memset(init_buffer, 0x0, 0x2000);
-	S_log_save("Main/Init", "Initializing...", 1234567890, false);
-	S_log_save("Main/Init/ver", s_app_ver, 1234567890, false);
+	Log_log_save("Main/Init", "Initializing...", 1234567890, false);
+	Log_log_save("Main/Init/ver", s_app_ver, 1234567890, false);
 
 	osSetSpeedupEnable(true);
 	gfxInitDefault();
@@ -58,131 +56,131 @@ void Init(void)
 
 
 	Draw_progress("0/3 [Main] Initializing service...");
-	init_log_num_return = S_log_save("Main/Init", "fsInit...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init", "fsInit...", 1234567890, s_debug_slow);
 	init_result.code = fsInit();
 	if (init_result.code == 0)
 	{
-		S_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_fs_success = true;
 	}
 	else
-		S_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = S_log_save("Main/Init", "acInit...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init", "acInit...", 1234567890, s_debug_slow);
 	init_result.code = acInit();
 	if (init_result.code == 0)
 	{
-		S_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_ac_success = true;
 	}
 	else
-		S_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = S_log_save("Main/Init", "aptInit...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init", "aptInit...", 1234567890, s_debug_slow);
 	init_result.code = aptInit();
 	if (init_result.code == 0)
 	{
-		S_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_apt_success = true;
 	}
 	else
-		S_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = S_log_save("Main/Init", "mcuInit...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init", "mcuInit...", 1234567890, s_debug_slow);
 	init_result.code = mcuHwcInit();
 	if (init_result.code == 0)
 	{
-		S_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_mcu_success = true;
 	}
 	else
-		S_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = S_log_save("Main/Init", "ptmuInit...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init", "ptmuInit...", 1234567890, s_debug_slow);
 	init_result.code = ptmuInit();
 	if (init_result.code == 0)
 	{
-		S_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_ptmu_success = true;
 	}
 	else
-		S_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
-	init_log_num_return = S_log_save("Main/Init", "httpcInit...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init", "httpcInit...", 1234567890, s_debug_slow);
 	init_result.code = httpcInit(0x500000);
 	if (init_result.code == 0)
 	{
-		S_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_httpc_success = true;
 	}
 	else
-		S_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = S_log_save("Main/Init", "romfsInit...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init", "romfsInit...", 1234567890, s_debug_slow);
 	init_result.code = romfsInit();
 	if (init_result.code == 0)
 	{
-		S_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_rom_success = true;
 	}
 	else
-		S_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 
-	init_log_num_return = S_log_save("Main/Init", "cfguInit...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init", "cfguInit...", 1234567890, s_debug_slow);
 	init_result.code = cfguInit();
 	if (init_result.code == 0)
 	{
-		S_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_cfg_success = true;
 	}
 	else
-		S_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
-	init_log_num_return = S_log_save("Main/Init", "amInit...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init", "amInit...", 1234567890, s_debug_slow);
 	init_result.code = amInit();
 	if (init_result.code == 0)
 	{
-		S_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 		s_am_success = true;
 	}
 	else
-		S_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
-	init_log_num_return = S_log_save("Main/Init/apt", "APT_SetAppCpuTimeLimit_30...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init/apt", "APT_SetAppCpuTimeLimit_30...", 1234567890, s_debug_slow);
 	init_result.code = APT_SetAppCpuTimeLimit(30);
 	if (init_result.code == 0)
-		S_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 	else
-		S_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 
 	aptSetSleepAllowed(true);
 
-	init_log_num_return = S_log_save("Main/Init/nwm", "Wifi_enable...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init/nwm", "Wifi_enable...", 1234567890, s_debug_slow);
 	init_result.code = Wifi_enable();
 	if (init_result.code == 0)
-		S_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Success] ", init_result.code, s_debug_slow);
 	else
-		S_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
+		Log_log_add(init_log_num_return, "[Error] ", init_result.code, s_debug_slow);
 	
 	s_wifi_enabled = true;
 
 	Draw_progress("1/3 [Main] Loading settings...");
-	init_log_num_return = S_log_save("Main/Init/fs", "Share_load_from_file(Setting.txt)...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init/fs", "Share_load_from_file(Setting.txt)...", 1234567890, s_debug_slow);
 	init_result = Share_load_from_file("Setting.txt", init_buffer, 0x2000, &init_read_size, "/Line/", init_fs_handle, init_fs_archive);
-	S_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
+	Log_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 
 	if (init_result.code == 0)
 		s_setting[0] = (char*)init_buffer;
 
 	for (int i = 1; i <= 20; i++)
 	{
-		init_log_num_return = S_log_save("Main/Init/fs", "setting value" + std::to_string(i) + " : ", 1234567890, s_debug_slow);
+		init_log_num_return = Log_log_save("Main/Init/fs", "setting value" + std::to_string(i) + " : ", 1234567890, s_debug_slow);
 		init_setting_parse_start_text = "<" + std::to_string(i - 1) + ">";
 		init_setting_parse_start_num = s_setting[0].find(init_setting_parse_start_text);
 		init_setting_parse_end_text = "</" + std::to_string(i - 1) + ">";
@@ -190,7 +188,7 @@ void Init(void)
 
 		if (init_setting_parse_end_num == -1 || init_setting_parse_start_num == -1)
 		{
-			S_log_save("Main/Init/fs", "Failed to load settings. Default values has been applied.", 1234567890, s_debug_slow);
+			Log_log_save("Main/Init/fs", "Failed to load settings. Default values has been applied.", 1234567890, s_debug_slow);
 
 			if (i <= 1)
 				s_setting[1] = "en";
@@ -238,7 +236,7 @@ void Init(void)
 		init_setting_parse_start_num += init_setting_parse_start_text.length();
 		init_setting_parse_end_num -= init_setting_parse_start_num;
 		s_setting[i] = s_setting[0].substr(init_setting_parse_start_num, init_setting_parse_end_num);
-		S_log_add(init_log_num_return, s_setting[i], 1234567890, s_debug_slow);
+		Log_log_add(init_log_num_return, s_setting[i], 1234567890, s_debug_slow);
 	}
 
 	if (std::all_of(s_setting[2].cbegin(), s_setting[2].cend(), isdigit) && !(s_setting[2] == ""))
@@ -342,29 +340,29 @@ void Init(void)
 	Expl_init();
 
 	Draw_progress("3/3 [Main] Loading textures...");
-	/*init_log_num_return = S_log_save("Main/Init/c2d", "Loading texture (background.t3x)...", 1234567890, s_debug_slow);
+	/*init_log_num_return = Log_log_save("Main/Init/c2d", "Loading texture (background.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/background.t3x", 0, Background_image, 0, 2);
-	S_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);*/
+	Log_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);*/
 
-	init_log_num_return = S_log_save("Main/Init/c2d", "Loading texture (wifi_signal.t3x)...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init/c2d", "Loading texture (wifi_signal.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/wifi_signal.t3x", 1, Wifi_icon_image, 0, 9);
-	S_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
+	Log_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 
-	init_log_num_return = S_log_save("Main/Init/c2d", "Loading texture (battery_level.t3x)...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init/c2d", "Loading texture (battery_level.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/battery_level.t3x", 2, Battery_level_icon_image, 0, 21);
-	S_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
+	Log_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 
-	init_log_num_return = S_log_save("Main/Init/c2d", "Loading texture (battery_charge.t3x)...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init/c2d", "Loading texture (battery_charge.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/battery_charge.t3x", 3, Battery_charge_icon_image, 0, 1);
-	S_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
+	Log_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 
-	init_log_num_return = S_log_save("Main/Init/c2d", "Loading texture (square.t3x)...", 1234567890, s_debug_slow);
+	init_log_num_return = Log_log_save("Main/Init/c2d", "Loading texture (square.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/square.t3x", 4, Square_image, 0, 1);
-	S_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
+	Log_log_add(init_log_num_return, init_result.string, init_result.code, s_debug_slow);
 	
-	/*init_log_num_return = S_log_save("Main/Init/c2d", "Loading texture (sem_help.t3x)...", 1234567890, true);
+	/*init_log_num_return = Log_log_save("Main/Init/c2d", "Loading texture (sem_help.t3x)...", 1234567890, true);
 	init_result = Draw_load_texture("romfs:/gfx/sem_help.t3x", 51, sem_help_image, 0, 7);
-	S_log_add(init_log_num_return, init_result.string, init_result.code, true);*/
+	Log_log_add(init_log_num_return, init_result.string, init_result.code, true);*/
 	dammy_tint.corners[0].color = 56738247;
 	if (s_night_mode)
 		C2D_PlainImageTint(&texture_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.75), true);
@@ -392,7 +390,7 @@ void Init(void)
 	svcSetThreadPriority(CUR_THREAD_HANDLE, 0x26);
 
 	free(init_buffer);
-	S_log_save("Main/Init", "Initialized.", 1234567890, false);
+	Log_log_save("Main/Init", "Initialized.", 1234567890, false);
 }
 
 int main()
@@ -424,7 +422,7 @@ int main()
 	FS_Archive exit_fs_archive = 0;
 	Result_with_string exit_result;
 
-	exit_app_log_num_return = S_log_save("Main/Fs", "Share_save_to_file(Setting.txt)...", 1234567890, s_debug_slow);
+	exit_app_log_num_return = Log_log_save("Main/Fs", "Share_save_to_file(Setting.txt)...", 1234567890, s_debug_slow);
 	s_setting[2] = std::to_string(s_lcd_brightness);
 	s_setting[3] = std::to_string(s_time_to_enter_afk);
 	s_setting[4] = std::to_string(s_afk_lcd_brightness);
@@ -470,25 +468,25 @@ int main()
 		s_setting[0] += "<" + std::to_string(i) + ">" + s_setting[i + 1] + "</" + std::to_string(i) + ">";
 
 	exit_result = Share_save_to_file("Setting.txt", (u8*)s_setting[0].c_str(), s_setting[0].length(), "/Line/", true, exit_fs_handle, exit_fs_archive);
-	S_log_add(exit_app_log_num_return, exit_result.string, exit_result.code, s_debug_slow);
+	Log_log_add(exit_app_log_num_return, exit_result.string, exit_result.code, s_debug_slow);
 
-	S_log_save("Main/Svc", "amExit...", 1234567890, s_debug_slow);
+	Log_log_save("Main/Svc", "amExit...", 1234567890, s_debug_slow);
 	amExit();
-	S_log_save("Main/Svc", "aptExit...", 1234567890, s_debug_slow);
+	Log_log_save("Main/Svc", "aptExit...", 1234567890, s_debug_slow);
 	aptExit();
-	S_log_save("Main/Svc", "acExit...", 1234567890, s_debug_slow);
+	Log_log_save("Main/Svc", "acExit...", 1234567890, s_debug_slow);
 	acExit();
-	S_log_save("Main/Svc", "mcuExit...", 1234567890, s_debug_slow);
+	Log_log_save("Main/Svc", "mcuExit...", 1234567890, s_debug_slow);
 	mcuHwcExit();
-	S_log_save("Main/Svc", "ptmuExit...", 1234567890, s_debug_slow);
+	Log_log_save("Main/Svc", "ptmuExit...", 1234567890, s_debug_slow);
 	ptmuExit();
-	S_log_save("Main/Svc", "nsExit...", 1234567890, s_debug_slow);
+	Log_log_save("Main/Svc", "nsExit...", 1234567890, s_debug_slow);
 	nsExit();
-	S_log_save("Main/Svc", "httpcExit...", 1234567890, s_debug_slow);
+	Log_log_save("Main/Svc", "httpcExit...", 1234567890, s_debug_slow);
 	httpcExit();
-	S_log_save("Main/Svc", "fsExit...", 1234567890, s_debug_slow);
+	Log_log_save("Main/Svc", "fsExit...", 1234567890, s_debug_slow);
 	fsExit();
-	S_log_save("Main/Svc", "", 1234567890, s_debug_slow);
+	Log_log_save("Main/Svc", "", 1234567890, s_debug_slow);
 	Draw_exit();
 	C2D_Fini();
 	C3D_Fini();

@@ -1,14 +1,11 @@
 ﻿#include <3ds.h>
 #include <string>
 #include <unistd.h>
-#include "citro2d.h"
 
-#include "hid.hpp"
 #include "share_function.hpp"
 #include "file.hpp"
-//#include "setting_menu.hpp"
-#include "error.hpp"
 #include "explorer.hpp"
+#include "log.hpp"
 
 bool expl_read_dir_thread_run = false;
 bool expl_read_dir_request = false;
@@ -103,7 +100,7 @@ void Expl_exit(void)
 
 void Expl_read_dir_thread(void* arg)
 {
-	S_log_save("Share/Read dir thread", "Thread started.", 1234567890, false);
+	Log_log_save("Share/Read dir thread", "Thread started.", 1234567890, false);
 	int read_dir_lou_num_return;
 	int num_of_hidden;
 	int num_of_dir;
@@ -136,9 +133,9 @@ void Expl_read_dir_thread(void* arg)
 				expl_type[i] = "";
 			}
 
-			read_dir_lou_num_return = S_log_save("Share/Read dir thread", "Share_read_dir(" + expl_current_patch + ")...", 1234567890, false);
+			read_dir_lou_num_return = Log_log_save("Share/Read dir thread", "Share_read_dir(" + expl_current_patch + ")...", 1234567890, false);
 			read_dir_result = Share_read_dir(&expl_num_of_file, expl_files, 256, expl_type, 256, expl_current_patch);
-			S_log_add(read_dir_lou_num_return, read_dir_result.string, read_dir_result.code, false);
+			Log_log_add(read_dir_lou_num_return, read_dir_result.string, read_dir_result.code, false);
 
 			if (read_dir_result.code == 0)
 			{
@@ -235,7 +232,7 @@ void Expl_read_dir_thread(void* arg)
 		}
 		usleep(50000);
 	}
-	S_log_save("Share/Read dir thread", "Thread exit.", 1234567890, false);
+	Log_log_save("Share/Read dir thread", "Thread exit.", 1234567890, false);
 }
 
 

@@ -1,6 +1,7 @@
 #include <3ds.h>
-#include <unistd.h>
 #include <string>
+#include <unistd.h>
+
 #include "hid.hpp"
 #include "speedtest.hpp"
 #include "share_function.hpp"
@@ -11,6 +12,7 @@
 #include "error.hpp"
 #include "menu.hpp"
 #include "explorer.hpp"
+#include "log.hpp"
 
 bool hid_scan_hid_thread_run = false;
 bool hid_key_A_press = false;
@@ -259,7 +261,7 @@ void Hid_set_disable_flag(bool flag)
 
 void Hid_scan_hid_thread(void* arg)
 {
-	S_log_save("Hid/Scan hid thread", "Thread started.", 1234567890, false);
+	Log_log_save("Hid/Scan hid thread", "Thread started.", 1234567890, false);
 
 	int load_font_num;
 	u32 kDown;
@@ -274,7 +276,6 @@ void Hid_scan_hid_thread(void* arg)
 	std::string content;
 	touchPosition touch_pos;
 	circlePosition circle_pos;
-	Result_with_string result;
 
 	while (hid_scan_hid_thread_run)
 	{
@@ -424,38 +425,35 @@ void Hid_scan_hid_thread(void* arg)
 
 		if (hid_key_C_UP_held && !hid_disabled)
 		{
-			if (s_app_logs_show)
+			if (Log_query_log_show_flag())
 			{
-				s_app_log_view_num_cache--;
-				if (s_app_log_view_num_cache < 0)
-					s_app_log_view_num_cache = 0;
+				if ((Log_query_y() - 1) > 0)
+					Log_set_y(Log_query_y() - 1);
 			}
 		}
 		if (hid_key_C_DOWN_held && !hid_disabled)
 		{
-			if (s_app_logs_show)
+			if (Log_query_log_show_flag())
 			{
-				s_app_log_view_num_cache++;
-				if (s_app_log_view_num_cache > 512)
-					s_app_log_view_num_cache = 512;
+				if ((Log_query_y() + 1) < 512)
+					Log_set_y(Log_query_y() + 1);
 			}
 		}
 		if (hid_key_C_LEFT_held && !hid_disabled)
 		{
-			if (s_app_logs_show)
+			if (Log_query_log_show_flag())
 			{
-				app_log_x_cache += 5.0f;
-				if (app_log_x_cache > 0.0)
-					app_log_x_cache = 0.0f;
+				if ((Log_query_x() + 5.0) < 0.0)
+					Log_set_x(Log_query_x() + 5.0);
+
 			}
 		}
 		if (hid_key_C_RIGHT_held && !hid_disabled)
 		{
-			if (s_app_logs_show)
+			if (Log_query_log_show_flag())
 			{
-				app_log_x_cache -= 10.0f;
-				if (app_log_x_cache < -1000.0)
-					app_log_x_cache = -1000.0f;
+				if ((Log_query_x() - 5.0) > -1000.0)
+					Log_set_x(Log_query_x() - 5.0);
 			}
 		}
 
@@ -467,12 +465,7 @@ void Hid_scan_hid_thread(void* arg)
 		else if (Menu_query_running_flag() && !hid_disabled)
 		{
 			if (hid_key_SELECT_press)
-			{
-				if (s_app_logs_show)
-					s_app_logs_show = false;
-				else
-					s_app_logs_show = true;
-			}
+				Log_set_log_show_flag(!Log_query_log_show_flag());
 			else if (hid_key_START_press || (hid_key_touch_press && hid_touch_pos_x >= 0 && hid_touch_pos_x <= 320 && hid_touch_pos_y >= 220 && hid_touch_pos_y <= 240))
 				Menu_set_operation_flag(MENU_CHECK_EXIT_REQUEST, true);
 			else if (hid_key_touch_press)
@@ -785,7 +778,12 @@ void Hid_scan_hid_thread(void* arg)
 		else if (Line_query_running_flag() && !hid_disabled)
 		{
 			if (hid_key_START_press || (hid_key_touch_press && hid_touch_pos_x >= 110 && hid_touch_pos_x <= 230 && hid_touch_pos_y >= 220 && hid_touch_pos_y <= 240))
+			{
+				for (int i = 0; i < 3; i++)
+					button_selected[i] = false;
+
 				Line_suspend();
+			}
 
 			if (Line_query_operation_flag(LINE_SEND_MSG_CHECK_REQUEST) || Line_query_operation_flag(LINE_SEND_STICKER_CHECK_REQUEST) || Line_query_operation_flag(LINE_SEND_CONTENT_CHECK_REQUEST))
 			{
@@ -1066,9 +1064,6 @@ void Hid_scan_hid_thread(void* arg)
 				}
 				else
 				{
-					for (int i = 0; i < 3; i++)
-						button_selected[i] = false;
-
 					scroll_mode = false;
 					scroll_bar_selected = false;
 					hid_touch_pos_x_move_left -= (hid_touch_pos_x_move_left * 0.025);
@@ -1155,23 +1150,22 @@ void Hid_scan_hid_thread(void* arg)
 				}
 				else if (Line_query_selected_num(LINE_SELECTED_MENU_MODE_NUM) == LINE_MENU_SETTINGS)
 				{
-					if (hid_key_D_UP_press || (hid_key_touch_press && hid_touch_pos_x > 20 && hid_touch_pos_x < 80 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215))
-						button_selected[0] = true;
-					if (hid_key_D_DOWN_press || (hid_key_touch_press && hid_touch_pos_x > 90 && hid_touch_pos_x < 150 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215))
-						button_selected[1] = true;
-					if (hid_key_L_press || (hid_key_touch_press && hid_touch_pos_x > 170 && hid_touch_pos_x < 230 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215))
-						button_selected[2] = true;
-					if (hid_key_R_press || (hid_key_touch_press && hid_touch_pos_x > 240 && hid_touch_pos_x < 300 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215))
-						button_selected[3] = true;
-
 					if ((hid_key_D_UP_held || (hid_key_touch_held && hid_touch_pos_x > 20 && hid_touch_pos_x < 80 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215)) && button_selected[0] && (Line_query_x_y_size_interval(LINE_TEXT_INTERVAL) + 0.5) < 250.0)
 						Line_set_x_y_size_interval(LINE_TEXT_INTERVAL, (Line_query_x_y_size_interval(LINE_TEXT_INTERVAL) + 0.5));
-					if ((hid_key_D_DOWN_held || (hid_key_touch_held && hid_touch_pos_x > 90 && hid_touch_pos_x < 150 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215)) && button_selected[1] && (Line_query_x_y_size_interval(LINE_TEXT_INTERVAL) - 0.5) > 10.0)
+					else if ((hid_key_D_DOWN_held || (hid_key_touch_held && hid_touch_pos_x > 90 && hid_touch_pos_x < 150 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215)) && button_selected[1] && (Line_query_x_y_size_interval(LINE_TEXT_INTERVAL) - 0.5) > 10.0)
 						Line_set_x_y_size_interval(LINE_TEXT_INTERVAL, (Line_query_x_y_size_interval(LINE_TEXT_INTERVAL) - 0.5));
-					if ((hid_key_L_held || (hid_key_touch_held && hid_touch_pos_x > 170 && hid_touch_pos_x < 230 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215)) && button_selected[2] && (Line_query_x_y_size_interval(LINE_TEXT_SIZE) + 0.003) < 3.0)
+					else if ((hid_key_L_held || (hid_key_touch_held && hid_touch_pos_x > 170 && hid_touch_pos_x < 230 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215)) && button_selected[2] && (Line_query_x_y_size_interval(LINE_TEXT_SIZE) + 0.003) < 3.0)
 						Line_set_x_y_size_interval(LINE_TEXT_SIZE, (Line_query_x_y_size_interval(LINE_TEXT_SIZE) - 0.003));
-					if ((hid_key_R_held || (hid_key_touch_held && hid_touch_pos_x > 240 && hid_touch_pos_x < 300 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215)) && button_selected[3] && (Line_query_x_y_size_interval(LINE_TEXT_SIZE) - 0.003) > 0.25)
+					else if ((hid_key_R_held || (hid_key_touch_held && hid_touch_pos_x > 240 && hid_touch_pos_x < 300 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215)) && button_selected[3] && (Line_query_x_y_size_interval(LINE_TEXT_SIZE) - 0.003) > 0.25)
 						Line_set_x_y_size_interval(LINE_TEXT_SIZE, (Line_query_x_y_size_interval(LINE_TEXT_SIZE) + 0.003));
+					else if (hid_key_D_UP_press || (hid_key_touch_press && hid_touch_pos_x > 20 && hid_touch_pos_x < 80 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215))
+						button_selected[0] = true;
+					else if (hid_key_D_DOWN_press || (hid_key_touch_press && hid_touch_pos_x > 90 && hid_touch_pos_x < 150 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215))
+						button_selected[1] = true;
+					else if (hid_key_L_press || (hid_key_touch_press && hid_touch_pos_x > 170 && hid_touch_pos_x < 230 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215))
+						button_selected[2] = true;
+					else if (hid_key_R_press || (hid_key_touch_press && hid_touch_pos_x > 240 && hid_touch_pos_x < 300 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215))
+						button_selected[3] = true;
 				}
 				else if (Line_query_selected_num(LINE_SELECTED_MENU_MODE_NUM) == LINE_MENU_ADVANCED_SETTINGS)
 				{
@@ -1201,21 +1195,165 @@ void Hid_scan_hid_thread(void* arg)
 		else if (Gtr_query_running_flag() && !hid_disabled)
 		{
 			if (hid_key_START_press || (hid_key_touch_press && hid_touch_pos_x >= 110 && hid_touch_pos_x <= 230 && hid_touch_pos_y >= 220 && hid_touch_pos_y <= 240))
+			{
+				for (int i = 0; i < 3; i++)
+					button_selected[i] = false;
+
 				Gtr_suspend();
+			}
 
-			if (hid_key_A_press)
-				Gtr_set_operation_flag(GTR_TYPE_TEXT_REQUEST, true);
-			else if (hid_key_D_RIGHT_held)
-				Gtr_set_text_pos_x(Gtr_query_text_pos_x() - 1.0);
-			else if (hid_key_D_LEFT_held)
-				Gtr_set_text_pos_x(Gtr_query_text_pos_x() + 1.0);
-			else if (hid_key_D_UP_press && (Gtr_query_selected_num() - 1) <= 0)
-				Gtr_set_selected_num(Gtr_query_selected_num() - 1);
-			else if (hid_key_D_DOWN_press && (Gtr_query_selected_num() + 1) >= 16)
-				Gtr_set_selected_num(Gtr_query_selected_num() + 1);
-			else if (hid_key_ZL_press)
-				s_clipboards[0] = Gtr_query_tr_history(Gtr_query_selected_num());
+			if (Gtr_query_operation_flag(GTR_SELECT_SORCE_LANG_REQUEST))
+			{
+				if (hid_key_touch_press)
+				{
+					for (int i = 0; i < 10; i++)
+					{
+						if (hid_touch_pos_x >= 27 && hid_touch_pos_x <= 279 && hid_touch_pos_y >= 20 + (i * 18) && hid_touch_pos_y <= 37 + (i * 18))
+						{
+							if (i == (int)Gtr_query_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D))
+							{
+								Gtr_set_sorce_lang((int)Gtr_query_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D) + (int)Gtr_query_offset(GTR_SORCE_LANG_OFFSET));
+								Gtr_set_operation_flag(GTR_SELECT_SORCE_LANG_REQUEST, false);
+							}
+							else
+								Gtr_set_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D, i);
 
+							break;
+						}
+					}
+				}
+				else if (hid_key_A_press)
+				{
+					Gtr_set_sorce_lang((int)Gtr_query_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D) + (int)Gtr_query_offset(GTR_SORCE_LANG_OFFSET));
+					Gtr_set_operation_flag(GTR_SELECT_SORCE_LANG_REQUEST, false);
+				}
+				else if (hid_key_Y_press)
+					Gtr_set_operation_flag(GTR_SELECT_SORCE_LANG_REQUEST, false);
+				else if (hid_key_D_LEFT_held && button_selected[0])
+				{
+					if((Gtr_query_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D) - 0.5) >= 0.0)
+						Gtr_set_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D, Gtr_query_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D) - 0.5);
+					else if((Gtr_query_offset(GTR_SORCE_LANG_OFFSET) - 0.5) >= 0.0)
+						Gtr_set_offset(GTR_SORCE_LANG_OFFSET, Gtr_query_offset(GTR_SORCE_LANG_OFFSET) - 0.5);
+				}
+				else if (hid_key_D_RIGHT_held && button_selected[1])
+				{
+					if((Gtr_query_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D) + 0.5) <= 9.75)
+						Gtr_set_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D, Gtr_query_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D) + 0.5);
+					else if ((Gtr_query_offset(GTR_SORCE_LANG_OFFSET) + 0.5) <= 95.75)
+						Gtr_set_offset(GTR_SORCE_LANG_OFFSET, Gtr_query_offset(GTR_SORCE_LANG_OFFSET) + 0.5);
+				}
+				else if (hid_key_D_UP_held && button_selected[2])
+				{
+					if((Gtr_query_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D) - 0.125) >= 0.0)
+						Gtr_set_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D, Gtr_query_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D) - 0.125);
+					else if ((Gtr_query_offset(GTR_SORCE_LANG_OFFSET) - 0.125) >= 0.0)
+						Gtr_set_offset(GTR_SORCE_LANG_OFFSET, Gtr_query_offset(GTR_SORCE_LANG_OFFSET) - 0.125);
+				}
+				else if (hid_key_D_DOWN_held && button_selected[3])
+				{
+					if((Gtr_query_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D) + 0.125) <= 9.75)
+						Gtr_set_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D, Gtr_query_selected_num_d(GTR_SELECTED_SORCE_LANG_NUM_D) + 0.125);
+					else if ((Gtr_query_offset(GTR_SORCE_LANG_OFFSET) + 0.125) <= 95.75)
+						Gtr_set_offset(GTR_SORCE_LANG_OFFSET, Gtr_query_offset(GTR_SORCE_LANG_OFFSET) + 0.125);
+				}
+				else if (hid_key_D_LEFT_press)
+					button_selected[0] = true;
+				else if (hid_key_D_RIGHT_press)
+					button_selected[1] = true;
+				else if (hid_key_D_UP_press)
+					button_selected[2] = true;
+				else if (hid_key_D_DOWN_press)
+					button_selected[3] = true;
+			}
+			else if (Gtr_query_operation_flag(GTR_SELECT_TARGET_LANG_REQUEST))
+			{
+				if (hid_key_touch_press)
+				{
+					for (int i = 0; i < 10; i++)
+					{
+						if (hid_touch_pos_x >= 27 && hid_touch_pos_x <= 279 && hid_touch_pos_y >= 20 + (i * 18) && hid_touch_pos_y <= 37 + (i * 18))
+						{
+							if (i == (int)Gtr_query_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D))
+							{
+								Gtr_set_target_lang((int)Gtr_query_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D) + (int)Gtr_query_offset(GTR_TARGET_LANG_OFFSET));
+								Gtr_set_operation_flag(GTR_SELECT_TARGET_LANG_REQUEST, false);
+							}
+							else
+								Gtr_set_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D, i);
+
+							break;
+						}
+					}
+				}
+				else if (hid_key_A_press)
+				{
+					Gtr_set_target_lang((int)Gtr_query_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D) + (int)Gtr_query_offset(GTR_TARGET_LANG_OFFSET));
+					Gtr_set_operation_flag(GTR_SELECT_TARGET_LANG_REQUEST, false);
+				}
+				else if (hid_key_Y_press)
+					Gtr_set_operation_flag(GTR_SELECT_TARGET_LANG_REQUEST, false);
+				else if (hid_key_D_LEFT_held && button_selected[0])
+				{
+					if ((Gtr_query_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D) - 0.5) >= 0.0)
+						Gtr_set_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D, Gtr_query_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D) - 0.5);
+					else if ((Gtr_query_offset(GTR_TARGET_LANG_OFFSET) - 0.5) >= 0.0)
+						Gtr_set_offset(GTR_TARGET_LANG_OFFSET, Gtr_query_offset(GTR_TARGET_LANG_OFFSET) - 0.5);
+				}
+				else if (hid_key_D_RIGHT_held && button_selected[1])
+				{
+					if ((Gtr_query_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D) + 0.5) <= 9.75)
+						Gtr_set_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D, Gtr_query_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D) + 0.5);
+					else if ((Gtr_query_offset(GTR_TARGET_LANG_OFFSET) + 0.5) <= 95.75)
+						Gtr_set_offset(GTR_TARGET_LANG_OFFSET, Gtr_query_offset(GTR_TARGET_LANG_OFFSET) + 0.5);
+				}
+				else if (hid_key_D_UP_held && button_selected[2])
+				{
+					if ((Gtr_query_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D) - 0.125) >= 0.0)
+						Gtr_set_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D, Gtr_query_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D) - 0.125);
+					else if ((Gtr_query_offset(GTR_TARGET_LANG_OFFSET) - 0.125) >= 0.0)
+						Gtr_set_offset(GTR_TARGET_LANG_OFFSET, Gtr_query_offset(GTR_TARGET_LANG_OFFSET) - 0.125);
+				}
+				else if (hid_key_D_DOWN_held && button_selected[3])
+				{
+					if ((Gtr_query_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D) + 0.125) <= 9.75)
+						Gtr_set_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D, Gtr_query_selected_num_d(GTR_SELECTED_TARGET_LANG_NUM_D) + 0.125);
+					else if ((Gtr_query_offset(GTR_TARGET_LANG_OFFSET) + 0.125) <= 95.75)
+						Gtr_set_offset(GTR_TARGET_LANG_OFFSET, Gtr_query_offset(GTR_TARGET_LANG_OFFSET) + 0.125);
+				}
+				else if (hid_key_D_LEFT_press)
+					button_selected[0] = true;
+				else if (hid_key_D_RIGHT_press)
+					button_selected[1] = true;
+				else if (hid_key_D_UP_press)
+					button_selected[2] = true;
+				else if (hid_key_D_DOWN_press)
+					button_selected[3] = true;
+			}
+			else
+			{
+				if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 84 && hid_touch_pos_y >= 190 && hid_touch_pos_y <= 204))
+					Gtr_set_operation_flag(GTR_TYPE_TEXT_REQUEST, true);
+				else if (hid_key_ZL_press || (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 84 && hid_touch_pos_y >= 210 && hid_touch_pos_y <= 224))
+					s_clipboards[0] = Gtr_query_tr_history(Gtr_query_selected_num(GTR_SELECTED_HISTORY_NUM));
+				else if (hid_key_D_RIGHT_held)
+					Gtr_set_text_pos_x(Gtr_query_text_pos_x() - 5.0);
+				else if (hid_key_D_LEFT_held)
+				{
+					if (Gtr_query_text_pos_x() + 5.0 <= 0.0)
+						Gtr_set_text_pos_x(Gtr_query_text_pos_x() + 5.0);
+					else
+						Gtr_set_text_pos_x(0.0);
+				}
+				else if ((hid_key_D_UP_press || (hid_key_touch_press && hid_touch_pos_x >= 100 && hid_touch_pos_x <= 174 && hid_touch_pos_y >= 190 && hid_touch_pos_y <= 204)) && (Gtr_query_selected_num(GTR_SELECTED_HISTORY_NUM) + 1) <= 9)
+					Gtr_set_selected_num(GTR_SELECTED_HISTORY_NUM, Gtr_query_selected_num(GTR_SELECTED_HISTORY_NUM) + 1);
+				else if ((hid_key_D_DOWN_press || (hid_key_touch_press && hid_touch_pos_x >= 100 && hid_touch_pos_x <= 174 && hid_touch_pos_y >= 210 && hid_touch_pos_y <= 224)) && (Gtr_query_selected_num(GTR_SELECTED_HISTORY_NUM) - 1) >= 0)
+					Gtr_set_selected_num(GTR_SELECTED_HISTORY_NUM, Gtr_query_selected_num(GTR_SELECTED_HISTORY_NUM) - 1);
+				else if (hid_key_L_press || (hid_key_touch_press && hid_touch_pos_x >= 190 && hid_touch_pos_x <= 309 && hid_touch_pos_y >= 190 && hid_touch_pos_y <= 204))
+					Gtr_set_operation_flag(GTR_SELECT_SORCE_LANG_REQUEST, true);
+				else if (hid_key_R_press || (hid_key_touch_press && hid_touch_pos_x >= 190 && hid_touch_pos_x <= 309 && hid_touch_pos_y >= 210 && hid_touch_pos_y <= 224))
+					Gtr_set_operation_flag(GTR_SELECT_TARGET_LANG_REQUEST, true);
+			}
 		}
 		else if (Spt_query_running_flag() && !hid_disabled)
 		{
@@ -1236,7 +1374,12 @@ void Hid_scan_hid_thread(void* arg)
 		else if (Imv_query_running_flag() && !hid_disabled)
 		{
 			if (hid_key_START_press || (hid_key_touch_press && hid_touch_pos_x >= 110 && hid_touch_pos_x <= 230 && hid_touch_pos_y >= 220 && hid_touch_pos_y <= 240))
+			{
+				for (int i = 0; i < 3; i++)
+					button_selected[i] = false;
+
 				Imv_suspend();
+			}
 
 			if (Imv_query_operation_flag(IMV_SELECT_FILE_REQUEST))
 			{
@@ -1351,9 +1494,6 @@ void Hid_scan_hid_thread(void* arg)
 				}
 				else
 				{
-					for (int i = 0; i < 3; i++)
-						button_selected[i] = false;
-
 					scroll_mode = false;
 					hid_touch_pos_x_move_left -= (hid_touch_pos_x_move_left * 0.025);
 					hid_touch_pos_y_move_left -= (hid_touch_pos_y_move_left * 0.025);
@@ -1418,5 +1558,5 @@ void Hid_scan_hid_thread(void* arg)
 
 		usleep(16400);
 	}
-	S_log_save("Share/Hid hid thread", "Thread exit", 1234567890, false);
+	Log_log_save("Share/Hid hid thread", "Thread exit", 1234567890, false);
 }

@@ -1,7 +1,7 @@
-﻿#include <string>
-#include <cstring>
+﻿#include <3ds.h>
+#include <string>
 #include <unistd.h>
-#include <3ds.h>
+
 #include "hid.hpp"
 #include "draw.hpp"
 #include "speedtest.hpp"
@@ -9,6 +9,8 @@
 #include "share_function.hpp"
 #include "error.hpp"
 #include "menu.hpp"
+#include "log.hpp"
+#include "types.hpp"
 
 bool spt_already_init = false;
 bool spt_start_request = false;
@@ -101,7 +103,7 @@ void Spt_suspend(void)
 
 void Spt_init(void)
 {
-	S_log_save("Spt/Init", "Initializing...", 1234567890, s_debug_slow);
+	Log_log_save("Spt/Init", "Initializing...", 1234567890, s_debug_slow);
 
 	Draw_progress("0/0 [Spt] Starting threads...");
 	spt_thread_run = true;
@@ -109,12 +111,12 @@ void Spt_init(void)
 
 	Spt_resume();
 	spt_already_init = true;
-	S_log_save("Spt/Init", "Initialized.", 1234567890, s_debug_slow);
+	Log_log_save("Spt/Init", "Initialized.", 1234567890, s_debug_slow);
 }
 
 void Spt_exit(void)
 {
-	S_log_save("Spt/Exit", "Exiting...", 1234567890, s_debug_slow);
+	Log_log_save("Spt/Exit", "Exiting...", 1234567890, s_debug_slow);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
@@ -126,24 +128,26 @@ void Spt_exit(void)
 	spt_thread_run = false;
 	spt_thread_suspend = false;
 
-	log_num = S_log_save("Spt/Exit", "Exiting thread(0/0)...", 1234567890, s_debug_slow);
+	log_num = Log_log_save("Spt/Exit", "Exiting thread(0/0)...", 1234567890, s_debug_slow);
 	result.code = threadJoin(spt_spt_thread, time_out);
 	if (result.code == 0)
-		S_log_add(log_num, "[Success] ", result.code, s_debug_slow);
+		Log_log_add(log_num, "[Success] ", result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		S_log_add(log_num, "[Error] ", result.code, s_debug_slow);
+		Log_log_add(log_num, "[Error] ", result.code, s_debug_slow);
 	}
 
 	if (failed)
-		S_log_save("Spt/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
+		Log_log_save("Spt/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
 
-	S_log_save("Spt/Exit", "Exited.", 1234567890, s_debug_slow);
+	Log_log_save("Spt/Exit", "Exited.", 1234567890, s_debug_slow);
 }
 
 void Spt_main(void)
 {
+	int log_y = Log_query_y();
+	double log_x = Log_query_x();
 	osTickCounterUpdate(&s_tcount_frame_time);
 
 	Draw_set_draw_mode(s_draw_vsync_mode);
@@ -157,28 +161,28 @@ void Spt_main(void)
 	Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
 	if (s_battery_charge)
 		Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 310.0, 0.0, 20.0, 15.0);
-	Draw(s_status, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
-	Draw(s_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
+	Draw(s_status, 0, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
+	Draw(s_battery_level_string, 0, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
 
 	if (s_setting[1] == "en")
 	{
-		Draw(spt_message_en[0] + std::to_string(spt_total_dl_size / (1024 * 1024)) + "MB(" + std::to_string(spt_total_dl_size / 1024) + "KB)", 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(spt_message_en[1] + std::to_string(spt_total_dl_time) + " ms", 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(spt_message_en[2] + std::to_string((spt_test_result / (1024 * 1024)) * 8) + "Mbps", 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(spt_message_en[0] + std::to_string(spt_total_dl_size / (1024 * 1024)) + "MB(" + std::to_string(spt_total_dl_size / 1024) + "KB)", 0, 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(spt_message_en[1] + std::to_string(spt_total_dl_time) + " ms", 0, 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(spt_message_en[2] + std::to_string((spt_test_result / (1024 * 1024)) * 8) + "Mbps", 0, 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
 	}
 	else if (s_setting[1] == "jp")
 	{
-		Draw(spt_message_jp[0] + std::to_string(spt_total_dl_size / (1024 * 1024)) + "MB(" + std::to_string(spt_total_dl_size / 1024) + "KB)", 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(spt_message_jp[1] + std::to_string(spt_total_dl_time) + " ms", 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(spt_message_jp[2] + std::to_string((spt_test_result / (1024 * 1024)) * 8) + "Mbps", 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(spt_message_jp[0] + std::to_string(spt_total_dl_size / (1024 * 1024)) + "MB(" + std::to_string(spt_total_dl_size / 1024) + "KB)", 0, 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(spt_message_jp[1] + std::to_string(spt_total_dl_time) + " ms", 0, 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+		Draw(spt_message_jp[2] + std::to_string((spt_test_result / (1024 * 1024)) * 8) + "Mbps", 0, 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
 	}
 
 	if (s_debug_mode)
 		Draw_debug_info();
-	if (s_app_logs_show)
+	if (Log_query_log_show_flag())
 	{
 		for (int i = 0; i < 23; i++)
-			Draw(s_app_logs[s_app_log_view_num + i], s_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
+			Draw(Log_query_log(log_y + i), 0, log_x, 10.0f + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
 	}
 
 	if (s_night_mode)
@@ -186,40 +190,40 @@ void Spt_main(void)
 	else
 		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
-	Draw(s_spt_ver, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
+	Draw(s_spt_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
 
 	if (s_setting[1] == "en")
 	{
-		Draw(spt_message_en[3], 70.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
+		Draw(spt_message_en[3], 0, 70.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
 		for (int i = 0; i < 7; i++)
 		{
 			if (spt_data_size == i)
-				Draw(spt_message_en[4 + i], 125.0, 40.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
+				Draw(spt_message_en[4 + i], 0, 125.0, 40.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
 			else
-				Draw(spt_message_en[4 + i], 125.0, 40.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
+				Draw(spt_message_en[4 + i], 0, 125.0, 40.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
 		}
-		Draw(spt_message_en[11], 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+		Draw(spt_message_en[11], 0, 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
 	}
 	else if (s_setting[1] == "jp")
 	{
-		Draw(spt_message_jp[3], 75.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
+		Draw(spt_message_jp[3], 0, 75.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
 		for (int i = 0; i < 7; i++)
 		{
 			if (spt_data_size == i)
-				Draw(spt_message_jp[4 + i], 135.0, 40.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
+				Draw(spt_message_jp[4 + i], 0, 135.0, 40.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
 			else
-				Draw(spt_message_jp[4 + i], 135.0, 40.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
+				Draw(spt_message_jp[4 + i], 0, 135.0, 40.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
 		}
-		Draw(spt_message_jp[11], 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+		Draw(spt_message_jp[11], 0, 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
 	}
 
 	if (Err_query_error_show_flag())
 		Draw_error();
 
 	Draw_texture(Square_image, black_tint, 0, 0.0, 225.0, 320.0, 15.0);
-	Draw(s_bot_button_string[1], 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
+	Draw(s_bot_button_string[1], 0, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw(s_circle_string, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
+		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
 
 	Draw_apply_draw();
 	s_fps += 1;
@@ -228,7 +232,7 @@ void Spt_main(void)
 
 void Spt_spt_thread(void* arg)
 {
-	S_log_save("Spt/Spt thread", "Thread started.", 1234567890, false);
+	Log_log_save("Spt/Spt thread", "Thread started.", 1234567890, false);
 
 	u8* httpc_buffer;
 	u32 dl_size;
@@ -253,19 +257,19 @@ void Spt_spt_thread(void* arg)
 			{
 				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(spt_httpc_buffer_size / 1024) + "KB). ", "Spt/Spt thread", OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
-				S_log_save("Spt/Spt thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
+				Log_log_save("Spt/Spt thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 			}
 			else
 			{
 				for (int i = 0; i <= 9; i++)
 				{
 					dl_time = 0.0000001;
-					log_num = S_log_save("Spt/Spt thread/httpc", "Downloading test data(" + std::to_string(i) + "/9)...", 1234567890, false);
+					log_num = Log_log_save("Spt/Spt thread/httpc", "Downloading test data(" + std::to_string(i) + "/9)...", 1234567890, false);
 					osTickCounterStart(&timer);
 					result = Httpc_dl_data(url[spt_data_size], httpc_buffer, spt_httpc_buffer_size, &dl_size, &status_code, true);
 					osTickCounterUpdate(&timer);
 					dl_time = osTickCounterRead(&timer);
-					S_log_add(log_num, result.string, result.code, false);
+					Log_log_add(log_num, result.string, result.code, false);
 
 					spt_total_dl_size += dl_size;
 					spt_total_dl_time += dl_time;
@@ -288,5 +292,5 @@ void Spt_spt_thread(void* arg)
 		while (spt_thread_suspend)
 			usleep(250000);
 	}
-	S_log_save("Spt/Spt thread", "Thread exit.", 1234567890, false);
+	Log_log_save("Spt/Spt thread", "Thread exit.", 1234567890, false);
 }

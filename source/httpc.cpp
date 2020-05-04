@@ -1,6 +1,8 @@
 #include <3ds.h>
 #include <string>
-#include <unistd.h>
+
+#include "error.hpp"
+#include "types.hpp"
 #include "share_function.hpp"
 
 int dl_progress = 0;
@@ -40,7 +42,6 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 	{
 		dl_progress = 0;
 		redirect = false;
-		usleep(25000);
 
 		if (!function_fail)
 		{
@@ -175,7 +176,6 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 	{
 		post_and_dl_progress  = 0;
 		redirect = false;
-		usleep(25000);
 
 		if (!function_fail)
 		{

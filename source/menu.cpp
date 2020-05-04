@@ -1,7 +1,6 @@
 ﻿#include <3ds.h>
 #include <string>
 #include <unistd.h>
-#include "citro2d.h"
 
 #include "hid.hpp"
 #include "draw.hpp"
@@ -15,6 +14,8 @@
 #include "menu.hpp"
 #include "httpc.hpp"
 #include "change_setting.hpp"
+#include "log.hpp"
+#include "types.hpp"
 
 bool menu_check_connectivity_thread_run = false;
 bool menu_update_thread_run = false;
@@ -91,14 +92,14 @@ void Menu_suspend(void)
 
 void Menu_init(void)
 {
-	S_log_save("Menu/Init", "Initializing...", 1234567890, s_debug_slow);
+	Log_log_save("Menu/Init", "Initializing...", 1234567890, s_debug_slow);
 
 
 	Draw_progress("0/0 [Menu] Starting threads...");
 	menu_update_thread_run = true;
 	menu_check_connectivity_thread_run = true;
 	menu_update_thread = threadCreate(Menu_update_thread, (void*)(""), STACKSIZE, 0x18, -1, true);
-	menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, 0x30, -1, true);
+	//menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, 0x30, -1, true);
 
 	if (s_allow_send_app_info)
 	{
@@ -113,12 +114,12 @@ void Menu_init(void)
 	}
 
 	Menu_resume();
-	S_log_save("Menu/Init", "Initialized", 1234567890, s_debug_slow);
+	Log_log_save("Menu/Init", "Initialized", 1234567890, s_debug_slow);
 }
 
 void Menu_exit(void)
 {
-	S_log_save("Menu/Exit", "Exiting...", 1234567890, s_debug_slow);
+	Log_log_save("Menu/Exit", "Exiting...", 1234567890, s_debug_slow);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
@@ -139,42 +140,42 @@ void Menu_exit(void)
 		Sem_exit();
 
 	Draw_progress("0/0 [Menu] Exiting threads...");
-	log_num = S_log_save("Menu/Exit", "Exiting thread(0/1)...", 1234567890, s_debug_slow);
+	log_num = Log_log_save("Menu/Exit", "Exiting thread(0/1)...", 1234567890, s_debug_slow);
 	result.code = threadJoin(menu_update_thread, time_out);
 	if (result.code == 0)
-		S_log_add(log_num, "[Success] ", result.code, s_debug_slow);
+		Log_log_add(log_num, "[Success] ", result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		S_log_add(log_num, "[Error] ", result.code, s_debug_slow);
+		Log_log_add(log_num, "[Error] ", result.code, s_debug_slow);
 	}
 
-	log_num = S_log_save("Menu/Exit", "Exiting thread(1/1)...", 1234567890, s_debug_slow);
+	log_num = Log_log_save("Menu/Exit", "Exiting thread(1/1)...", 1234567890, s_debug_slow);
 	result.code = threadJoin(menu_check_connectivity_thread, time_out);
 	if (result.code == 0)
-		S_log_add(log_num, "[Success] ", result.code, s_debug_slow);
+		Log_log_add(log_num, "[Success] ", result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		S_log_add(log_num, "[Error] ", result.code, s_debug_slow);
+		Log_log_add(log_num, "[Error] ", result.code, s_debug_slow);
 	}
 
 	if (failed)
-		S_log_save("Menu/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
+		Log_log_save("Menu/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
 
-	S_log_save("Menu/Exit", "Exited.", 1234567890, s_debug_slow);
+	Log_log_save("Menu/Exit", "Exited.", 1234567890, s_debug_slow);
 }
 
 void Menu_main(void)
 {
 	Hid_set_disable_flag(false);
+	int log_y = Log_query_y();
+	double log_x = Log_query_x();
 	float text_red;
 	float text_green;
 	float text_blue;
 	float text_alpha;
 	std::string app_name[10] = { "Line", "  Google \ntranslation", "    Speed test", "      Image viewer", "Settings" };
-	s_app_log_x = app_log_x_cache;
-	s_app_log_view_num = s_app_log_view_num_cache;
 	Menu_get_system_info();
 	sprintf(s_status, "%dfps %.1fms %02d/%02d %02d:%02d:%02d "
 		, s_fps_show, s_frame_time, s_months, s_days, s_hours, s_minutes, s_seconds);
@@ -207,15 +208,15 @@ void Menu_main(void)
 		Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
 		if (s_battery_charge)
 			Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 310.0, 0.0, 20.0, 15.0);
-		Draw(s_status, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
-		Draw(s_battery_level_string, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
+		Draw(s_status, 0, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
+		Draw(s_battery_level_string, 0, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
 
 		if (s_debug_mode)
 			Draw_debug_info();
-		if (s_app_logs_show)
+		if (Log_query_log_show_flag())
 		{
 			for (int i = 0; i < 23; i++)
-				Draw(s_app_logs[s_app_log_view_num + i], s_app_log_x, 10.0f + (i * 10), 0.4f, 0.4f, 0.0f, 0.5f, 1.0f, 1.0f);
+				Draw(Log_query_log(log_y + i), 0, log_x, 10.0f + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
 		}
 
 		if (s_night_mode)
@@ -226,52 +227,52 @@ void Menu_main(void)
 		for (int i = 0; i <= 3; i++)
 			Draw_texture(Square_image, weak_aqua_tint, 0, (80.0 * i), 0.0, 60.0, 60.0);
 
-		Draw(app_name[0], 20.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(app_name[1], 85.0, 15.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(app_name[2], 150.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(app_name[3], 215.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(app_name[0], 0, 20.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(app_name[1], 0, 85.0, 15.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(app_name[2], 0, 150.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(app_name[3], 0, 215.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 
 		Draw_texture(Square_image, weak_aqua_tint, 0, 260.0, 180.0, 60.0, 60.0);
-		Draw(app_name[4], 270.0, 205.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw(app_name[4], 0, 270.0, 205.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 
 		if (Line_query_init_flag())
 		{
 			Draw_texture(Square_image, weak_red_tint, 0, 45.0, 0.0, 15.0, 15.0);
-			Draw("X", 47.5, 0.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
+			Draw("X", 0, 47.5, 0.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
 		}
 
 		if (Gtr_query_init_flag())
 		{
 			Draw_texture(Square_image, weak_red_tint, 0, 125.0, 0.0, 15.0, 15.0);
-			Draw("X", 127.5, 0.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
+			Draw("X", 0, 127.5, 0.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
 		}
 
 		if (Spt_query_init_flag())
 		{
 			Draw_texture(Square_image, weak_red_tint, 0, 205.0, 0.0, 15.0, 15.0);
-			Draw("X", 207.5, 0.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
+			Draw("X", 0, 207.5, 0.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
 		}
 
 		if (Imv_query_init_flag())
 		{
 			Draw_texture(Square_image, weak_red_tint, 0, 285.0, 0.0, 15.0, 15.0);
-			Draw("X", 287.5, 0.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
+			Draw("X", 0, 287.5, 0.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
 		}
 
 		if (Sem_query_init_flag())
 		{
 			Draw_texture(Square_image, weak_red_tint, 0, 305.0, 180.0, 15.0, 15.0);
-			Draw("X", 307.5, 180.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
+			Draw("X", 0, 307.5, 180.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
 		}
 
 		if (Err_query_error_show_flag())
 			Draw_error();
 
 		Draw_texture(Square_image, black_tint, 0, 0.0, 225.0, 320.0, 15.0);
-		Draw(s_bot_button_string[1], 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
+		Draw(s_bot_button_string[1], 0, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
 
 		if (Hid_query_key_held_state(KEY_H_TOUCH))
-			Draw(s_circle_string, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
+			Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
 		s_fps += 1;
 
 		Draw_apply_draw();
@@ -399,16 +400,16 @@ bool Menu_check_exit(void)
 		if (s_night_mode)
 		{
 			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
-			Draw("Do you want to exit this software?", 90.0, 105.0f, 0.5, 0.5, 1.0, 1.0, 1.0, 0.75);
+			Draw("Do you want to exit this software?", 0, 90.0, 105.0f, 0.5, 0.5, 1.0, 1.0, 1.0, 0.75);
 		}
 		else
 		{
 			Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
-			Draw("Do you want to exit this software?", 90.0, 105.0f, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+			Draw("Do you want to exit this software?", 0, 90.0, 105.0f, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
 		}
 
-		Draw("A to close", 130.0, 140.0f, 0.5, 0.5, 0.0, 1.0, 0.0, 1.0);
-		Draw("B to back", 210.0, 140.0f, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+		Draw("A to close", 0, 130.0, 140.0f, 0.5, 0.5, 0.0, 1.0, 0.0, 1.0);
+		Draw("B to back", 0, 210.0, 140.0f, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 
 		Draw_apply_draw();
 		if (Hid_query_key_press_state(KEY_P_A))
@@ -502,7 +503,7 @@ int Menu_check_free_ram(void)
 
 void Menu_send_app_info_thread(void* arg)
 {
-	S_log_save("Menu/Send app info thread", "Thread started.", 1234567890, false);
+	Log_log_save("Menu/Send app info thread", "Thread started.", 1234567890, false);
 	OS_VersionBin os_ver;
 	bool is_new3ds = false;
 	u8* dl_data;
@@ -529,12 +530,12 @@ void Menu_send_app_info_thread(void* arg)
 	Httpc_post_and_dl_data("https://script.google.com/macros/s/AKfycbyn_blFyKWXCgJr6NIF8x6ETs7CHRN5FXKYEAAIrzV6jPYcCkI/exec", (char*)send_data.c_str(), send_data.length(), dl_data, 0x1000, &downloaded_size, &status_code, true);
 	free(dl_data);
 
-	S_log_save("Menu/Send app info thread", "Thread exit.", 1234567890, false);
+	Log_log_save("Menu/Send app info thread", "Thread exit.", 1234567890, false);
 }
 
 void Menu_check_connectivity_thread(void* arg)
 {
-	S_log_save("Menu/Check connectivity thread", "Thread started.", 1234567890, false);
+	Log_log_save("Menu/Check connectivity thread", "Thread started.", 1234567890, false);
 	u8* http_buffer;
 	u32 response_code = 0;
 	u32 dl_size = 0;
@@ -557,12 +558,12 @@ void Menu_check_connectivity_thread(void* arg)
 		usleep(100000);
 		count++;
 	}
-	S_log_save("Menu/Check connectivity thread", "Thread exit.", 1234567890, false);
+	Log_log_save("Menu/Check connectivity thread", "Thread exit.", 1234567890, false);
 }
 
 void Menu_update_thread(void* arg)
 {
-	S_log_save("Menu/Update thread", "Thread started.", 1234567890, false);
+	Log_log_save("Menu/Update thread", "Thread started.", 1234567890, false);
 	int update_thread_count = 0;
 	Result_with_string result;
 
@@ -634,5 +635,5 @@ void Menu_update_thread(void* arg)
 		}
 		s_afk_time++;
 	}
-	S_log_save("Menu/Update thread", "Thread exit.", 1234567890, false);
+	Log_log_save("Menu/Update thread", "Thread exit.", 1234567890, false);
 }
