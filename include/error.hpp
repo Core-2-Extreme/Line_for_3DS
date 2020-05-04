@@ -5,6 +5,15 @@
 #define ERR_PLACE 2
 #define ERR_CODE 3
 
+#define OUT_OF_MEMORY -1
+#define OUT_OF_LINEAR_MEMORY -2
+#define GAS_RETURNED_NOT_SUCCESS -3
+#define STB_IMG_RETURNED_NOT_SUCCESS -4
+#define BUFFER_SIZE_IS_TOO_SMALL -5
+#define FILE_SIZE_IS_TOO_BIG -6
+#define WRONG_PARSING_POS -7
+#define TOO_MANY_MESSAGES -8
+
 bool Err_query_error_show_flag(void);
 
 std::string Err_query_error_data(int error_num);

@@ -1,6 +1,8 @@
 #pragma once
 
-#include "share_function.hpp"
+#include "citro2d.h"
+
+#include "types.hpp"
 
 #define IMV_HTTPC_BUFFER 0
 #define IMV_FS_BUFFER 1

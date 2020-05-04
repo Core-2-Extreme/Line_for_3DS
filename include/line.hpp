@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "share_function.hpp"
+#include "types.hpp"
 
 #define LINE_HTTPC_BUFFER 0
 #define LINE_FS_BUFFER 1
