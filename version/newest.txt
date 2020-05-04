@@ -8,21 +8,13 @@
 <cia_124mb_ram_available>1</cia_124mb_ram_available>
 <cia_178mb_ram_available>0</cia_178mb_ram_available>
 <gas_ver>4</gas_ver>
-<patch_note>
-【App】 Ver 1.4.1
+<patch_note>【App】 Ver 1.4.1
 【Line】 Fixed- Some wrong messages.
 【Line】 Fixed- The app will crash if unsupported
 sticker was sent.
 【Google translation】 Fixed- The translation result
 will be displayed incorrectly in some case.
-【Google translation】 Added- Now, you can translate
-into over 100 languages.
+【Google translation】 Added- Now, you can 
+translate into over 100 languages.
 (*Some languages will be garbale.)
-
-【App】 Ver 1.4.0
-【Line】 Added- send a file function.
-【Image viewer】 Added- view files on SD card.
-【GAS】 Fixed- 【GAS】 Fixed- The problem of 
-losing messages from being sent too quickly 
-have been resolved.
 </patch_note>
