@@ -11,14 +11,18 @@
 * [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 
 ## Patch note
-* 【App】 Ver 1.4.0
-* 【Line】 Added- send a file function.
-* 【Image viewer】 Added- view files on SD card.
-* 【GAS】 Fixed- The problem of losing messages from being sent too quickly have been resolved.
+* 【App】 Ver 1.4.1
+* 【Line】 Fixed- Some wrong messages.
+* 【Line】 Fixed- The app will crash if unsupported sticker was sent.
+* 【Google translation】 Fixed- The translation result will be displayed incorrectly in some case.
+* 【Google translation】 Added- Now, you can translate into over 100 languages.(⁂Some languages(character) will be garbale.)
 
 ## Summary
 
 ![00000002](https://user-images.githubusercontent.com/45873899/77538658-676c3e00-6ee3-11ea-8a9a-9c37ee7ba69b.png)
+![00000030](https://user-images.githubusercontent.com/45873899/80978130-9d94ca00-8e60-11ea-9231-4af06dd2c2aa.jpg)
+![00000032](https://user-images.githubusercontent.com/45873899/80978164-a7b6c880-8e60-11ea-9513-c71b52ad1e44.jpg)
+
 [![Video](https://img.youtube.com/vi/4FMCwcwEEi8/0.jpg)](https://www.youtube.com/watch?v=4FMCwcwEEi8)
 
 * Send text ✅
