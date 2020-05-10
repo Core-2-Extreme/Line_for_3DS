@@ -11,11 +11,8 @@
 * [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 
 ## Patch note
-* 【App】 Ver 1.4.1
-* 【Line】 Fixed- Some wrong messages.
-* 【Line】 Fixed- The app will crash if unsupported sticker was sent.
-* 【Google translation】 Fixed- The translation result will be displayed incorrectly in some case.
-* 【Google translation】 Added- Now, you can translate into over 100 languages.(⁂Some languages(character) will be garbale.)
+* 【App】 Ver 1.4.2
+* 【App】 Fixed- If CFW is not installed the app will NOT launch.
 
 ## Summary
 
