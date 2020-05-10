@@ -8,7 +8,11 @@
 <cia_124mb_ram_available>1</cia_124mb_ram_available>
 <cia_178mb_ram_available>0</cia_178mb_ram_available>
 <gas_ver>4</gas_ver>
-<patch_note>【App】 Ver 1.4.1
+<patch_note>【App】 Ver 1.4.2
+【App】 Fixed- If CFW is not installed the app will 
+NOT launch.
+
+【App】 Ver 1.4.1
 【Line】 Fixed- Some wrong messages.
 【Line】 Fixed- The app will crash if unsupported
 sticker was sent.
