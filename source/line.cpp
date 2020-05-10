@@ -1406,7 +1406,6 @@ void Line_send_message_thread(void* arg)
 										send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data.substr((i * line_send_fs_cache_buffer_size), line_send_fs_cache_buffer_size) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(s_current_gas_ver) + "\" }";
 
 									log_num[1] = Log_log_save("Line/Send msg thread/httpc", "Uploading a content(" + std::to_string(i) + "/" + std::to_string(num_of_loop) + ")...", 1234567890, false);
-									Log_log_save("", std::to_string(send_data.length()) + " cap : " + std::to_string(send_data.capacity()), 1234567890, false);
 
 									result = Httpc_post_and_dl_data(line_main_url, (char*)send_data.c_str(), send_data.length(), httpc_buffer, 0x5000, &dl_size, &status_code, true);
 									line_current_step++;
