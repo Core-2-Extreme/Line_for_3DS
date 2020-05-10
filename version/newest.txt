@@ -10,6 +10,6 @@
 <gas_ver>4</gas_ver>
 <patch_note>【App】 Ver 1.4.2
 【App】 Fixed- If CFW is not installed the app will 
-NOT launch.
+NOT launch has been resolved.
 
 </patch_note>
