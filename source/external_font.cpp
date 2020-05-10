@@ -625,13 +625,9 @@ void Exfont_init(void)
 	int miscellaneous_symbols_and_pictographs_byte_2_start = 0x8C;
 	int miscellaneous_symbols_and_pictographs_byte_3_start = 0x80;
 	
-
 	exfont_font_start_num[0] = 0;
 	for (int i = 1; i < 46; i++)
-	{
 		exfont_font_start_num[i] = exfont_font_start_num[i - 1] + exfont_font_characters[i - 1];
-		Log_log_save("Exfont/debug", exfont_font_name[i] + "start pos :" + std::to_string(exfont_font_start_num[i]), 1234567890, false);
-	}
 
 	Exfont_init_sample(128, exfont_basic_latin_font_sample, basic_latin_byte_0_start, dammy_start, dammy_start, dammy_start, 1, dammy_invalid, 0);
 	Exfont_init_sample(exfont_font_characters[1], exfont_latin_1_supplement_font_sample, latin_1_supplement_byte_0_start, latin_1_supplement_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);

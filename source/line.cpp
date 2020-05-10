@@ -1558,7 +1558,6 @@ Result_with_string Line_read_id(std::string dir_path)
 		line_ids[i] = "";
 	
 	read_id_result = Share_read_dir(&num_of_detected, line_ids, 100, type, 100, "/Line/to/");
-	Log_log_save("", std::to_string(num_of_detected) + line_ids[0] + type[0], 1234567890, false);
 
 	return read_id_result;
 }
