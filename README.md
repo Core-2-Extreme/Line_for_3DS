@@ -12,7 +12,7 @@
 
 ## Patch note
 * 【App】 Ver 1.4.2
-* 【App】 Fixed- If CFW is not installed the app will NOT launch.
+* 【App】 Fixed- If CFW is not installed the app will NOT launch has been resolved.
 
 ## Summary
 
