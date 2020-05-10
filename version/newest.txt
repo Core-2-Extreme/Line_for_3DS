@@ -12,13 +12,4 @@
 【App】 Fixed- If CFW is not installed the app will 
 NOT launch.
 
-【App】 Ver 1.4.1
-【Line】 Fixed- Some wrong messages.
-【Line】 Fixed- The app will crash if unsupported
-sticker was sent.
-【Google translation】 Fixed- The translation result
-will be displayed incorrectly in some case.
-【Google translation】 Added- Now, you can 
-translate into over 100 languages.
-(*Some languages will be garbale.)
 </patch_note>
