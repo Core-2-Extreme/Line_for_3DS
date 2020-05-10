@@ -11,6 +11,7 @@
 #include "menu.hpp"
 #include "log.hpp"
 #include "types.hpp"
+#include "setting_menu.hpp"
 
 bool spt_already_init = false;
 bool spt_start_request = false;
@@ -150,8 +151,8 @@ void Spt_main(void)
 	double log_x = Log_query_x();
 	osTickCounterUpdate(&s_tcount_frame_time);
 
-	Draw_set_draw_mode(s_draw_vsync_mode);
-	if (s_night_mode)
+	Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 		Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
@@ -177,7 +178,7 @@ void Spt_main(void)
 		Draw(spt_message_jp[2] + std::to_string((spt_test_result / (1024 * 1024)) * 8) + "Mbps", 0, 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
 	}
 
-	if (s_debug_mode)
+	if (Sem_query_settings(SEM_DEBUG_MODE))
 		Draw_debug_info();
 	if (Log_query_log_show_flag())
 	{
@@ -185,7 +186,7 @@ void Spt_main(void)
 			Draw(Log_query_log(log_y + i), 0, log_x, 10.0f + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
 	}
 
-	if (s_night_mode)
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 		Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);

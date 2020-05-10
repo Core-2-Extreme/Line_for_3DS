@@ -173,6 +173,82 @@ Result_with_string Share_load_from_file(std::string file_name, u8* read_data, in
 	return result;
 }
 
+Result_with_string Share_load_from_rom(std::string file_name, u8* read_data, int max_size, u32* read_size, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
+{
+	bool failed = false;
+	u32 read_size_calc;
+	u64 file_size;
+	std::string file_path = dir_path + file_name;
+	TickCounter read_time;
+	Result_with_string result;
+	result.code = 0;
+	result.string = "[Success] ";
+
+	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_ROMFS, fsMakePath(PATH_EMPTY, ""));
+	if (result.code != 0)
+	{
+		result.string = "[Error] FSUSER_OpenArchive failed. ";
+		result.error_description = "N/A ";
+		failed = true;
+	}
+
+	if (!failed)
+	{
+		u8 file_binary_lowpath[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+		FS_Path fs_path = { PATH_BINARY, 12, file_binary_lowpath };
+		result.code = FSUSER_OpenFile(&fs_handle, fs_archive, fs_path, FS_OPEN_READ, FS_ATTRIBUTE_READ_ONLY);
+		if (result.code != 0)
+		{
+			result.string = "[Error] FSUSER_OpenFile failed. ";
+			result.error_description = "N/A ";
+			failed = true;
+		}
+	}
+
+	if (!failed)
+	{
+		result.code = FSFILE_GetSize(fs_handle, &file_size);
+		if (result.code != 0)
+		{
+			result.string = "[Error] FSFILE_GetSize failed. ";
+			result.error_description = "N/A ";
+			failed = true;
+		}
+	}
+
+	if (!failed)
+	{
+		if ((int)file_size > max_size)
+		{
+			result.code = BUFFER_SIZE_IS_TOO_SMALL;
+			result.string = "[Error] Buffer size is too small. " + std::to_string(file_size);
+			result.error_description = "In the case that the buffer size is too small, this'll occur.\nPlease increase buffer size from settings.";
+			failed = true;
+		}
+	}
+
+	if (!failed)
+	{
+		osTickCounterStart(&read_time);
+		result.code = FSFILE_Read(fs_handle, &read_size_calc, 0, read_data, file_size);
+		osTickCounterUpdate(&read_time);
+		*read_size = read_size_calc;
+		if (result.code == 0)
+			result.string += std::to_string(read_size_calc / 1024) + "KB " + std::to_string(((double)read_size_calc / (osTickCounterRead(&read_time) / 1000.0)) / 1024.0 / 1024.0) + "MB/s ";
+		else
+		{
+			result.string = "[Error] FSFILE_Read failed. ";
+			result.error_description = "N/A ";
+			failed = true;
+		}
+
+	}
+
+	FSFILE_Close(fs_handle);
+	FSUSER_CloseArchive(fs_archive);
+	return result;
+}
+
 
 Result_with_string Share_load_from_file_with_range(std::string file_name, u8* read_data, int read_length, u64 read_offset, u32* read_size, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
 {

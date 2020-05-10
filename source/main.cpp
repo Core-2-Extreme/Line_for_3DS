@@ -265,9 +265,9 @@ void Init(void)
 		s_scroll_speed = 0.5;
 	
 	if (s_setting[7] == "allow")
-		s_allow_send_app_info = true;
+		Sem_set_settings(SEM_ALLOW_SEND_APP_INFO, true);
 	else
-		s_allow_send_app_info = false;
+		Sem_set_settings(SEM_ALLOW_SEND_APP_INFO, false);
 
 	if (std::all_of(s_setting[8].cbegin(), s_setting[8].cend(), isdigit) && !(s_setting[8] == ""))
 		s_num_of_app_start = stoi(s_setting[8]);
@@ -275,14 +275,14 @@ void Init(void)
 		s_num_of_app_start = 0;
 
 	if (s_setting[9] == "true")
-		s_night_mode = true;
+		Sem_set_settings(SEM_NIGHT_MODE, true);
 	else
-		s_night_mode = false;
+		Sem_set_settings(SEM_NIGHT_MODE, false);
 
 	if (s_setting[10] == "true")
-		s_draw_vsync_mode = true;
+		Sem_set_settings(SEM_VSYNC_MODE, true);
 	else
-		s_draw_vsync_mode = false;
+		Sem_set_settings(SEM_VSYNC_MODE, false);
 
 	if (s_setting[11] == "true")
 		Line_set_setting(LINE_HIDE_ID, true);
@@ -338,7 +338,7 @@ void Init(void)
 	Draw_progress("2/3 [Main] Starting threads...");
 	Hid_init();
 	Expl_init();
-
+	
 	Draw_progress("3/3 [Main] Loading textures...");
 	/*init_log_num_return = Log_log_save("Main/Init/c2d", "Loading texture (background.t3x)...", 1234567890, s_debug_slow);
 	init_result = Draw_load_texture("romfs:/gfx/background.t3x", 0, Background_image, 0, 2);
@@ -364,7 +364,7 @@ void Init(void)
 	init_result = Draw_load_texture("romfs:/gfx/sem_help.t3x", 51, sem_help_image, 0, 7);
 	Log_log_add(init_log_num_return, init_result.string, init_result.code, true);*/
 	dammy_tint.corners[0].color = 56738247;
-	if (s_night_mode)
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 		C2D_PlainImageTint(&texture_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.75), true);
 	else
 		C2D_PlainImageTint(&texture_tint, C2D_Color32f(0.0, 0.0, 0.0, 1.0), true);
@@ -431,19 +431,19 @@ int main()
 	else
 		s_setting[5] = "false";
 	s_setting[6] = std::to_string(s_scroll_speed);
-	if (s_allow_send_app_info)
+	if (Sem_query_settings(SEM_ALLOW_SEND_APP_INFO))
 		s_setting[7] = "allow";
 	else
 		s_setting[7] = "deny";
 
 	s_setting[8] = std::to_string(s_num_of_app_start + 1);
 
-	if (s_night_mode)
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 		s_setting[9] = "true";
 	else
 		s_setting[9] = "false";
 
-	if (s_draw_vsync_mode)
+	if (Sem_query_settings(SEM_VSYNC_MODE))
 		s_setting[10] = "true";
 	else
 		s_setting[10] = "false";

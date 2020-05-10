@@ -8,6 +8,7 @@
 #include "external_font.hpp"
 #include "log.hpp"
 #include "types.hpp"
+#include "setting_menu.hpp"
 
 bool draw_do_not_draw = false;
 C2D_Font Share_fonts[4];
@@ -145,8 +146,8 @@ void Draw_progress(std::string message)
 	if (draw_do_not_draw)
 		return;
 
-	Draw_set_draw_mode(s_draw_vsync_mode);
-	if (s_night_mode)
+	Draw_set_draw_mode(1);
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 		Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
@@ -155,8 +156,8 @@ void Draw_progress(std::string message)
 
 	Draw_apply_draw();
 
-	Draw_set_draw_mode(s_draw_vsync_mode);
-	if (s_night_mode)
+	Draw_set_draw_mode(1);
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 		Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
@@ -169,7 +170,7 @@ void Draw_progress(std::string message)
 void Draw_log(void)
 {
 	Draw_set_draw_mode(1);
-	if (s_night_mode)
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 		Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
@@ -186,7 +187,7 @@ void Draw_debug_info(void)
 	float text_green;
 	float text_blue;
 	float text_alpha;
-	if (s_night_mode)
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 	{
 		text_red = 1.0f;
 		text_green = 1.0f;

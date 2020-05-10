@@ -16,6 +16,8 @@
 #include "change_setting.hpp"
 #include "log.hpp"
 #include "types.hpp"
+#include "external_font.hpp"
+#include "file.hpp"
 
 bool menu_check_connectivity_thread_run = false;
 bool menu_update_thread_run = false;
@@ -90,18 +92,18 @@ void Menu_suspend(void)
 	menu_main_run = false;
 }
 
+
 void Menu_init(void)
 {
 	Log_log_save("Menu/Init", "Initializing...", 1234567890, s_debug_slow);
-
 
 	Draw_progress("0/0 [Menu] Starting threads...");
 	menu_update_thread_run = true;
 	menu_check_connectivity_thread_run = true;
 	menu_update_thread = threadCreate(Menu_update_thread, (void*)(""), STACKSIZE, 0x18, -1, true);
-	menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, 0x30, -1, true);
+	//menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, 0x30, -1, true);
 
-	if (s_allow_send_app_info)
+	if (Sem_query_settings(SEM_ALLOW_SEND_APP_INFO))
 	{
 		for (int i = 1; i <= 1000; i++)
 		{
@@ -112,6 +114,8 @@ void Menu_init(void)
 			}
 		}
 	}
+
+	Exfont_init();
 
 	Menu_resume();
 	Log_log_save("Menu/Init", "Initialized", 1234567890, s_debug_slow);
@@ -182,7 +186,7 @@ void Menu_main(void)
 
 	if (menu_main_run)
 	{
-		if (s_night_mode)
+		if (Sem_query_settings(SEM_NIGHT_MODE))
 		{
 			text_red = 1.0f;
 			text_green = 1.0f;
@@ -197,8 +201,8 @@ void Menu_main(void)
 			text_alpha = 1.0f;
 		}
 
-		Draw_set_draw_mode(s_draw_vsync_mode);
-		if (s_night_mode)
+		Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+		if (Sem_query_settings(SEM_NIGHT_MODE))
 			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 		else
 			Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
@@ -211,7 +215,7 @@ void Menu_main(void)
 		Draw(s_status, 0, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
 		Draw(s_battery_level_string, 0, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
 
-		if (s_debug_mode)
+		if (Sem_query_settings(SEM_DEBUG_MODE))
 			Draw_debug_info();
 		if (Log_query_log_show_flag())
 		{
@@ -219,7 +223,7 @@ void Menu_main(void)
 				Draw(Log_query_log(log_y + i), 0, log_x, 10.0f + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
 		}
 
-		if (s_night_mode)
+		if (Sem_query_settings(SEM_NIGHT_MODE))
 			Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
 		else
 			Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
@@ -397,7 +401,7 @@ bool Menu_check_exit(void)
 	while (true)
 	{
 		Draw_set_draw_mode(1);
-		if (s_night_mode)
+		if (Sem_query_settings(SEM_NIGHT_MODE))
 		{
 			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 			Draw("Do you want to exit this software?", 0, 90.0, 105.0f, 0.5, 0.5, 1.0, 1.0, 1.0, 0.75);
@@ -472,7 +476,7 @@ void Menu_get_system_info(void)
 	s_minutes = timeStruct->tm_min;
 	s_seconds = timeStruct->tm_sec;
 
-	if (s_debug_mode)
+	if (Sem_query_settings(SEM_DEBUG_MODE)) 
 	{
 		//check free RAM
 		s_free_ram = Menu_check_free_ram();
@@ -620,17 +624,17 @@ void Menu_update_thread(void* arg)
 			menu_disable_wifi_request = false;
 		}
 
-		if (s_flash_mode)
+		if (Sem_query_settings(SEM_FLASH_MODE))
 		{
-			if (s_night_mode)
+			if (Sem_query_settings(SEM_NIGHT_MODE))
 			{
 				C2D_PlainImageTint(&texture_tint, C2D_Color32f(0.0, 0.0, 0.0, 1.0), true);
-				s_night_mode = false;
+				Sem_set_settings(SEM_NIGHT_MODE, false);
 			}
 			else
 			{
 				C2D_PlainImageTint(&texture_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.75), true);
-				s_night_mode = true;
+				Sem_set_settings(SEM_NIGHT_MODE, true);
 			}
 		}
 		s_afk_time++;

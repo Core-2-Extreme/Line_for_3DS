@@ -609,7 +609,7 @@ void Line_main(void)
 	if (line_auto_update || line_dl_log_request)
 		line_log_dl_progress = Httpc_query_dl_progress();
 
-	if (s_night_mode)
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 	{
 		text_red = 1.0;
 		text_green = 1.0;
@@ -624,8 +624,8 @@ void Line_main(void)
 		text_alpha = 1.0;
 	}
 
-	Draw_set_draw_mode(s_draw_vsync_mode);
-	if (s_night_mode)
+	Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 		Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
@@ -669,7 +669,7 @@ void Line_main(void)
 		}
 	}
 
-	if (s_debug_mode)
+	if (Sem_query_settings(SEM_DEBUG_MODE))
 		Draw_debug_info();
 	if (Log_query_log_show_flag())
 	{
@@ -689,7 +689,7 @@ void Line_main(void)
 
 	Draw_texture(Square_image, weak_aqua_tint, 0, 0.0, 15.0, 50.0 * line_log_dl_progress, 3.0);
 
-	if (s_night_mode)
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 		Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
@@ -949,9 +949,15 @@ void Line_main(void)
 		if (line_send_check[0])
 		{
 			if (s_setting[1] == "en")
-				Draw(line_msg_en[26] + "\n" + line_input_text, 0, 10.0, 110.0f, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
+			{
+				Draw(line_msg_en[26], 0, 10.0, 110.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
+				Draw(line_input_text, font_num, 10.0, 120.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
+			}
 			else if (s_setting[1] == "jp")
-				Draw(line_msg_jp[26] + "\n" + line_input_text, 0, 10.0, 110.0f, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
+			{
+				Draw(line_msg_jp[26], 0, 10.0, 110.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
+				Draw(line_input_text, font_num, 10.0, 120.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
+			}
 		}
 		else if (line_send_check[1])
 		{
@@ -1063,8 +1069,8 @@ void Line_main(void)
 		if (s_swkb_press_button == SWKBD_BUTTON_RIGHT)
 		{
 			line_input_text = s_swkb_input_text;
-			if (line_input_text.length() > 2000)
-				line_input_text = line_input_text.substr(0, 1990);
+			if (line_input_text.length() > 4000)
+				line_input_text = line_input_text.substr(0, 3990);
 
 			line_send_check[0] = true;
 		}

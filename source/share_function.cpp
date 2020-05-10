@@ -21,16 +21,11 @@ bool s_httpc_success = false;
 bool s_rom_success = false;
 bool s_cfg_success = false;
 
-bool s_allow_send_app_info = false;
-bool s_debug_mode = false;
 bool s_connect_test_succes = false;
 bool s_debug_slow = false;
 bool s_wifi_enabled = false;
 bool s_disabled_enter_afk_mode = false;
-bool s_night_mode = false;
-bool s_draw_vsync_mode = true;
 bool s_system_setting_menu_show = false;
-bool s_flash_mode = false;
 
 u8 s_wifi_signal = -1;
 u8 s_battery_level = -1;
@@ -53,7 +48,7 @@ int s_held_time = 0;
 int s_fps;
 int s_lcd_brightness = 50;
 int s_time_to_enter_afk = 300;
-int s_current_app_ver = 12;
+int s_current_app_ver = 13;
 int s_current_gas_ver = 4;
 double s_frame_time;
 double s_scroll_speed = 0.5;
@@ -69,7 +64,7 @@ std::string s_spt_ver = "v1.0.3";
 std::string s_gtr_ver = "v1.1.0";
 std::string s_imv_ver = "v1.0.3";
 std::string s_line_ver = "v1.4.1";
-std::string s_app_ver = "v1.4.1";
+std::string s_app_ver = "v1.4.2";
 std::string s_httpc_user_agent = "Line for 3DS " + s_app_ver;
 
 C2D_Image Wifi_icon_image[9]; 

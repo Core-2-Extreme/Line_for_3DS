@@ -445,7 +445,8 @@ void Hid_scan_hid_thread(void* arg)
 			{
 				if ((Log_query_x() + 5.0) < 0.0)
 					Log_set_x(Log_query_x() + 5.0);
-
+				else
+					Log_set_x(0.0);
 			}
 		}
 		if (hid_key_C_RIGHT_held && !hid_disabled)
@@ -454,6 +455,8 @@ void Hid_scan_hid_thread(void* arg)
 			{
 				if ((Log_query_x() - 5.0) > -1000.0)
 					Log_set_x(Log_query_x() - 5.0);
+				else
+					Log_set_x(-1000.0);
 			}
 		}
 
@@ -578,20 +581,15 @@ void Hid_scan_hid_thread(void* arg)
 						else if (hid_touch_pos_x >= 10 && hid_touch_pos_x <= 99 && hid_touch_pos_y >= 95 + Sem_query_y_offset() && hid_touch_pos_y <= 114 + Sem_query_y_offset())
 						{
 							C2D_PlainImageTint(&texture_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.75), true);
-							s_night_mode = true;
+							Sem_set_settings(SEM_NIGHT_MODE, true);
 						}
 						else if (hid_touch_pos_x >= 110 && hid_touch_pos_x <= 199 && hid_touch_pos_y >= 95 + Sem_query_y_offset() && hid_touch_pos_y <= 114 + Sem_query_y_offset())
 						{
 							C2D_PlainImageTint(&texture_tint, C2D_Color32f(0.0, 0.0, 0.0, 1.0), true);
-							s_night_mode = false;
+							Sem_set_settings(SEM_NIGHT_MODE, false);
 						}
 						else if (hid_touch_pos_x >= 210 && hid_touch_pos_x <= 249 && hid_touch_pos_y >= 95 + Sem_query_y_offset() && hid_touch_pos_y <= 114 + Sem_query_y_offset())
-						{
-							if (s_flash_mode)
-								s_flash_mode = false;
-							else
-								s_flash_mode = true;
-						}
+							Sem_set_settings(SEM_FLASH_MODE, !Sem_query_settings(SEM_FLASH_MODE));
 						/*else if (hid_touch_pos_x >= 130 && hid_touch_pos_x <= 180 && hid_touch_pos_y >= 125 + Sem_query_y_offset() && hid_touch_pos_y <= 134 + s_sem_y_offse)
 						{
 							if (s_sem_help_mode_num == 1)
@@ -600,16 +598,16 @@ void Hid_scan_hid_thread(void* arg)
 								s_sem_help_mode_num = 1;
 						}*/
 						else if (hid_touch_pos_x >= 10 && hid_touch_pos_x <= 99 && hid_touch_pos_y >= 135 + Sem_query_y_offset() && hid_touch_pos_y <= 154 + Sem_query_y_offset())
-							s_draw_vsync_mode = true;
+							Sem_set_settings(SEM_VSYNC_MODE, true);
 						else if (hid_touch_pos_x >= 110 && hid_touch_pos_x <= 199 && hid_touch_pos_y >= 135 + Sem_query_y_offset() && hid_touch_pos_y <= 154 + Sem_query_y_offset())
-							s_draw_vsync_mode = false;
+							Sem_set_settings(SEM_VSYNC_MODE, false);
 						/*else if (hid_touch_pos_x >= 150 && hid_touch_pos_x <= 200 && hid_touch_pos_y >= 155 + Sem_query_y_offset() && hid_touch_pos_y <= 164 + Sem_query_y_offset())
-						{
-							if (s_sem_help_mode_num == 2)
-								s_sem_help_mode_num = -1;
-							else
-								s_sem_help_mode_num = 2;
-						}*/
+					{
+						if (s_sem_help_mode_num == 2)
+							s_sem_help_mode_num = -1;
+						else
+							s_sem_help_mode_num = 2;
+					}*/
 						else if (hid_touch_pos_x >= 0 && hid_touch_pos_x <= 319 && hid_touch_pos_y >= 170 + Sem_query_y_offset() && hid_touch_pos_y <= 189 + Sem_query_y_offset())
 							bar_selected[0] = true;
 						/*else if (hid_touch_pos_x >= 240 && hid_touch_pos_x <= 290 && hid_touch_pos_y >= 205 + Sem_query_y_offset() && hid_touch_pos_y <= 214 + Sem_query_y_offset())
@@ -633,13 +631,13 @@ void Hid_scan_hid_thread(void* arg)
 						else if (hid_touch_pos_x >= 0 && hid_touch_pos_x <= 319 && hid_touch_pos_y >= 290 + Sem_query_y_offset() && hid_touch_pos_y <= 309 + Sem_query_y_offset())
 							bar_selected[3] = true;
 						else if (hid_touch_pos_x >= 10 && hid_touch_pos_x <= 99 && hid_touch_pos_y >= 335 + Sem_query_y_offset() && hid_touch_pos_y <= 354 + Sem_query_y_offset())
-							s_allow_send_app_info = true;
+							Sem_set_settings(SEM_ALLOW_SEND_APP_INFO, true);
 						else if (hid_touch_pos_x >= 100 && hid_touch_pos_x <= 199 && hid_touch_pos_y >= 335 + Sem_query_y_offset() && hid_touch_pos_y <= 354 + Sem_query_y_offset())
-							s_allow_send_app_info = false;
+							Sem_set_settings(SEM_ALLOW_SEND_APP_INFO, false);
 						else if (hid_touch_pos_x >= 10 && hid_touch_pos_x <= 99 && hid_touch_pos_y >= 375 + Sem_query_y_offset() && hid_touch_pos_y <= 394 + Sem_query_y_offset())
-							s_debug_mode = true;
+							Sem_set_settings(SEM_DEBUG_MODE, true);
 						else if (hid_touch_pos_x >= 100 && hid_touch_pos_x <= 199 && hid_touch_pos_y >= 375 + Sem_query_y_offset() && hid_touch_pos_y <= 394 + Sem_query_y_offset())
-							s_debug_mode = false;
+							Sem_set_settings(SEM_DEBUG_MODE, false);
 						else if (hid_touch_pos_x >= 10 && hid_touch_pos_x <= 99 && hid_touch_pos_y >= 415 + Sem_query_y_offset() && hid_touch_pos_y <= 434 + Sem_query_y_offset())
 						{
 							Sem_set_font_flag(SEM_USE_DEFAULT_FONT, true);
@@ -688,7 +686,7 @@ void Hid_scan_hid_thread(void* arg)
 							}
 
 							if (load_font_num != -1)
-							{								
+							{
 								if (Sem_query_loaded_external_font_flag(load_font_num))
 								{
 									Sem_set_load_external_font_request(load_font_num, false);

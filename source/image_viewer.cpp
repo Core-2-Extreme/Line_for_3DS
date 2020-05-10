@@ -15,6 +15,7 @@
 #include "explorer.hpp"
 #include "log.hpp"
 #include "types.hpp"
+#include "setting_menu.hpp"
 
 bool imv_already_init;
 bool imv_main_run;
@@ -369,7 +370,7 @@ void Imv_main(void)
 	if (imv_img_dl_request || imv_img_dl_and_parse_request)
 		imv_img_dl_progress = Httpc_query_dl_progress();
 
-	if (s_night_mode)
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 	{
 		text_red = 1.0f;
 		text_green = 1.0f;
@@ -398,9 +399,9 @@ void Imv_main(void)
 	img_size_y *= imv_img_zoom;
 
 	osTickCounterUpdate(&s_tcount_frame_time);
-	Draw_set_draw_mode(s_draw_vsync_mode);
+	Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
 
-	if(s_night_mode)
+	if(Sem_query_settings(SEM_NIGHT_MODE))
 		Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
@@ -432,7 +433,7 @@ void Imv_main(void)
 	Draw(s_battery_level_string, 0, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
 	Draw_texture(Square_image, weak_aqua_tint, 0, 0.0, 15.0, 50.0 * imv_img_dl_progress, 3.0);
 
-	if (s_debug_mode)
+	if (Sem_query_settings(SEM_DEBUG_MODE))
 		Draw_debug_info();
 	if (Log_query_log_show_flag())
 	{
@@ -440,7 +441,7 @@ void Imv_main(void)
 			Draw(Log_query_log(log_y + i), 0, log_x, 10.0f + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
 	}
 
-	if (s_night_mode)
+	if (Sem_query_settings(SEM_NIGHT_MODE))
 		Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
