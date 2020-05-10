@@ -321,57 +321,57 @@ std::string exfont_font_name[46] = {
 };
 
 /*
-   0 ~   94   (95) Basic latin ******************************
-  95 ~  222  (128) Latin 1 supplement
- 223 ~  314   (92) Ipa extensions **************************************
- 315 ~  394   (80) Spacing modifier letters
- 395 ~  506  (112) Combining diacritical marks
- 507 ~  641  (135) Greek and coptic
- 642 ~  897  (256) Cyrillic ************************************
- 898 ~  945   (48) Cyrillic supplement
- 946 ~ 1037   (92) Armenian
-1038 ~ 1125   (88) Hebrew
-1126 ~ 1390  (255) Arabic
-1391 ~ 1508  (128) Devanagari
-1509 ~ 1587   (79) Gurmukhi
-1588 ~ 1659   (72) Tamil
-1660 ~ 1755   (96) Telugu
-1756 ~ 1844   (89) Kannada
-1845 ~ 1934   (90) Sinhala
-1935 ~ 2021   (87) Thai
-2022 ~ 2088   (67) Lao
-2089 ~ 2299  (211) Tibetan
-2300 ~ 2387   (88) Georgian
-2388 ~ 3027  (640) Unified canadian aboriginal syllabics
-3028 ~ 3155  (128) Phonetic extensions
-3156 ~ 3218   (63) Combining diacritical marks supplement
-3219 ~ 3451  (233) Greek extended
-3452 ~ 3562  (111) General punctuation
-3563 ~ 3604   (42) Superscripts and subscripts
-3605 ~ 3637   (33) Combining diacritical marks for symbols
-3638 ~ 3749  (112) Arrows
-3750 ~ 4005  (256) Mathematical operators
-4006 ~ 4261  (256) Miscellaneous technical
-4262 ~ 4272   (11) Optical character recognition
-4273 ~ 4400  (128) Box drawing
-4401 ~ 4432   (32) Block elements
-4433 ~ 4528   (96) Geometric shapes
-4529 ~ 4784  (256) Miscellaneous_symbols
-4785 ~ 4976  (192) Dingbats
-4977 ~ 5040   (64) Cjk symbol and punctuation
-5041 ~ 5133   (93) Hiragana
-5134 ~ 5229   (96) Katakana
-5230 ~ 5323   (94) Hangul compatibility jamo
-5324 ~ 6488 (1165) Yi syllables
-6489 ~ 6543   (55) Yi radicals
-6544 ~ 6575   (32) Cjk compatibility forms
-6576 ~ 6800  (225) Halfwidth and fullwidth forms
-6801 ~ 7568  (768) Miscellaneous symbols and pictographs
+   0 ~   95   (96) Basic latin
+  96 ~  223  (128) Latin 1 supplement
+ 224 ~  319   (96) Ipa extensions
+ 320 ~  399   (80) Spacing modifier letters
+ 400 ~  511  (112) Combining diacritical marks
+ 512 ~  646  (135) Greek and coptic
+ 647 ~  902  (256) Cyrillic
+ 903 ~  950   (48) Cyrillic supplement
+ 951 ~ 1041   (92) Armenian
+1042 ~ 1129   (88) Hebrew
+1130 ~ 1384  (255) Arabic
+1385 ~ 1512  (128) Devanagari
+1513 ~ 1591   (79) Gurmukhi
+1592 ~ 1663   (72) Tamil
+1664 ~ 1759   (96) Telugu
+1760 ~ 1847   (89) Kannada
+1848 ~ 1937   (90) Sinhala
+1938 ~ 2024   (87) Thai
+2025 ~ 2091   (67) Lao
+2092 ~ 2302  (211) Tibetan
+2303 ~ 2390   (88) Georgian
+2391 ~ 3031  (640) Unified canadian aboriginal syllabics
+3032 ~ 3158  (128) Phonetic extensions
+3159 ~ 3221   (63) Combining diacritical marks supplement
+3222 ~ 3454  (233) Greek extended
+3455 ~ 3565  (111) General punctuation
+3566 ~ 3607   (42) Superscripts and subscripts
+3608 ~ 3640   (33) Combining diacritical marks for symbols
+3641 ~ 3752  (112) Arrows
+3753 ~ 4008  (256) Mathematical operators
+4009 ~ 4264  (256) Miscellaneous technical
+4265 ~ 4275   (11) Optical character recognition
+4276 ~ 4403  (128) Box drawing
+4404 ~ 4435   (32) Block elements
+4436 ~ 4531   (96) Geometric shapes
+4532 ~ 4787  (256) Miscellaneous_symbols
+4788 ~ 4979  (192) Dingbats
+4980 ~ 5043   (64) Cjk symbol and punctuation
+5044 ~ 5136   (93) Hiragana
+5137 ~ 5232   (96) Katakana
+5233 ~ 5326   (94) Hangul compatibility jamo
+5327 ~ 6491 (1165) Yi syllables
+6492 ~ 6546   (55) Yi radicals
+6547 ~ 6578   (32) Cjk compatibility forms
+6579 ~ 6803  (225) Halfwidth and fullwidth forms
+6804 ~ 7571  (768) Miscellaneous symbols and pictographs
 */
-C2D_Image exfont_font_images[7571];
+C2D_Image exfont_font_images[7572];
 
 int exfont_font_characters[46] = {
-  95, 128,  96,  80, 112, 135, 256,  48,  91,  88,  255, 128,  79,  72,  96,  88,
+  96, 128,  96,  80, 112, 135, 256,  48,  91,  88,  255, 128,  79,  72,  96,  88,
   90,  87,  67, 211,  88, 640, 128,  63, 233,  111,  42,  33, 112, 256, 256,  11,
  128,  32,  96, 256, 192,  64,  93,  96,  94, 1165,  55,  32, 225, 768,
 };
