@@ -15,6 +15,12 @@
 #define SEM_SELECTED_LANG_NUM 0
 #define SEM_SELECTED_EDITION_NUM 1
 
+#define SEM_NIGHT_MODE 0
+#define SEM_VSYNC_MODE 1
+#define SEM_FLASH_MODE 2
+#define SEM_DEBUG_MODE 3
+#define SEM_ALLOW_SEND_APP_INFO 4
+
 bool Sem_query_init_flag(void);
 
 bool Sem_query_running_flag(void);
@@ -29,6 +35,8 @@ bool Sem_query_operation_flag(int operation_num);
 
 int Sem_query_selected_num(int item_num);
 
+bool Sem_query_settings(int item_num);
+
 double Sem_query_y_offset(void);
 
 void Sem_set_font_flag(int font_num, bool flag);
@@ -38,6 +46,8 @@ void Sem_set_load_external_font_request(int external_font_num, bool flag);
 void Sem_set_operation_flag(int operation_num, bool flag);
 
 void Sem_set_selected_num(int item_num, int num);
+
+void Sem_set_settings(int item_num, bool flag);
 
 void Sem_set_y_offset(double y);
 

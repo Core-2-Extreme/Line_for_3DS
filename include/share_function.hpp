@@ -12,16 +12,11 @@ extern bool s_httpc_success;
 extern bool s_rom_success;
 extern bool s_cfg_success;
 
-extern bool s_allow_send_app_info;
-extern bool s_debug_mode;
 extern bool s_connect_test_succes;
 extern bool s_debug_slow;
 extern bool s_wifi_enabled;
 extern bool s_disabled_enter_afk_mode;
-extern bool s_night_mode;
-extern bool s_draw_vsync_mode;
 extern bool s_system_setting_menu_show;
-extern bool s_flash_mode;
 
 extern u8 s_wifi_signal;
 extern u8 s_battery_level;

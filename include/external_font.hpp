@@ -1,5 +1,9 @@
 ﻿#pragma once
 
+void Exfont_init(void);
+
+void Exfont_init_sample(int num_of_loop, std::string samples[], int byte_0_start, int byte_1_start, int byte_2_start, int byte_3_start, int bytes_per_char, int invalid_list[], int num_of_invalid);
+
 std::string Exfont_query_font_name(int exfont_num);
 
 std::string Exfont_text_sort(std::string sorce_part_string[]);
