@@ -2,7 +2,7 @@
 <3dsx_available>1</3dsx_available>
 <cia_32mb_ram_available>0</cia_32mb_ram_available>
 <cia_64mb_ram_available>1</cia_64mb_ram_available>
-<cia_72mb_ram_available>1</cia_72mb_ram_available>
+<cia_72mb_ram_available>0</cia_72mb_ram_available>
 <cia_80mb_ram_available>1</cia_80mb_ram_available>
 <cia_96mb_ram_available>0</cia_96mb_ram_available>
 <cia_124mb_ram_available>1</cia_124mb_ram_available>
