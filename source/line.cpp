@@ -93,7 +93,7 @@ std::string line_msg_en[42] = {
 	" Line(s))",
 	"Send",
 	"Copy" ,
-	"settings" ,
+	"Settings" ,
 	"Advanced settings" ,
 	"Send a message(A)" ,
 	"Log update(B)" ,
