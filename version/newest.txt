@@ -9,7 +9,6 @@
 <cia_178mb_ram_available>0</cia_178mb_ram_available>
 <gas_ver>4</gas_ver>
 <patch_note>【App】 Ver 1.4.2
-【App】 Fixed- If CFW is not installed the app will 
-NOT launch has been resolved.
+【App】 Fixed- App no longer needs CFW to launch.
 
 </patch_note>
