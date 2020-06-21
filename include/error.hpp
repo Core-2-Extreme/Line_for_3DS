@@ -13,6 +13,9 @@
 #define FILE_SIZE_IS_TOO_BIG -6
 #define WRONG_PARSING_POS -7
 #define TOO_MANY_MESSAGES -8
+#define INVALID_ARG -9
+#define BAD_ICON_INFO -10
+#define NO_ICON_INFO -11
 
 bool Err_query_error_show_flag(void);
 
