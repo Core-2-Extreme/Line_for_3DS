@@ -24,8 +24,8 @@ int s_free_linear_ram = 0;
 int s_fps;
 int s_lcd_brightness = 50;
 int s_time_to_enter_afk = 300;
-int s_current_app_ver = 13;
-int s_current_gas_ver = 4;
+int s_current_app_ver = 14;
+int s_current_gas_ver = 5;
 double s_frame_time;
 double s_scroll_speed = 0.5;
 
