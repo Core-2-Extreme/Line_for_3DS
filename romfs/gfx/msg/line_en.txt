@@ -42,7 +42,7 @@ size(R)</17>
 <37>Sending a sticker...</37>
 <38>Sending a file...</38>
 <39>Success (A to close)</39>
-<40>Change main URL(short)(SELECT)</40>
+<40>Change main URL(short)(L+R)</40>
 <41>Hide ID</41>
 <42>Please wait...</42>
 <43>Back</43>
