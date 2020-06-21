@@ -1,0 +1,12 @@
+﻿<0>Downloaded size : </0>
+<1>Download time : </1>
+<2>Speed : </2>
+<3>Select test data size</3>
+<4>About 1MB</4>
+<5>About 2MB</5>
+<6>About 4MB</6>
+<7>About 8MB</7>
+<8>About 15MB</8>
+<9>About 30MB</9>
+<10>About 60MB</10>
+<11>Start(A)</11>

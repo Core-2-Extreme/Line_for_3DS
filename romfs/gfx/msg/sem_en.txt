@@ -1,0 +1,73 @@
+﻿<0>Updates</0>
+<1>Language</1>
+<2>LCD</2>
+<3>Control</3>
+<4>Font</4>
+<5>Memory</5>
+<6>Advanced settings</6>
+<7>Check for updates</7>
+<8>English</8>
+<9>日本語</9>
+<10>Night mode</10>
+<11>ON</11>
+<12>OFF</12>
+<13>Flash</13>
+<14>Vsync</14>
+<15>Screen brightness : </15>
+<16>Time to turn off LCDs : </16>
+<17>s</17>
+<18>Screen brightness before turn off LCDs : </18>
+<19>Scroll speed : </19>
+<20>Default font</20>
+<21>External font</21>
+<22>System specific font</22>
+<23>JPN</23>
+<24>CHN</24>
+<25>KOR</25>
+<26>TWN</26>
+<27>Load all</27>
+<28>Unload all</28>
+<29>Line log httpc buffer size : </29>
+<30>Line log fs buffer size : </30>
+<31>Line send fs cache buffer size : </31>
+<32>Line send fs buffer size : </32>
+<33>Spt spt httpc buffer size : </33>
+<34>Imv image httpc buffer size : </34>
+<35>Imv image fs buffer size : </35>
+<36>Mup audio fs out buffer size : </36>
+<37>Mup audio fs in buffer size : </37>
+<38>Allow send app info</38>
+<39>ALLOW</39>
+<40>DENY</40>
+<41>Debug mode</41>
+<42>Back</42>
+<43>Checking...</43>
+<44>Check failed.</44>
+<45>Up to date.</45>
+<46>New version available.</46>
+<47>Google apps script update isn't required.</47>
+<48>Google apps script update is required.</48>
+<49>Go back (B)</49>
+<50>Go to editions select (A)</50>
+<51>.3dsx</51>
+<52>.cia  32MB of usable RAM</52>
+<53>.cia  64MB of usable RAM</53>
+<54>.cia  72MB of usable RAM</54>
+<55>.cia  80MB of usable RAM</55>
+<56>.cia  96MB of usable RAM</56>
+<57>.cia  124MB of usable RAM</57>
+<58>.cia  178MB of usable RAM</58>
+<59>(not available)</59>
+<60>* Only 124MB and 178MB of usable RAM are New 3DS's.</60>
+<61>* The .3dsx edition usually has 64MB of usable RAM on</61>
+<62>the Old 3DS, and 124MB of usable RAM on the New 3DS.</62>
+<63>(It may depend on what exploit point you are using(?))</63>
+<64>File will be saved to </64>
+<65>Downloading...</65>
+<66>Installing...</66>
+<67>Success</67>
+<68>Failed</68>
+<69>Please restart the app to apply updates.</69>
+<70>Download & install (X)</70>
+<71>Delete line image cache</71>
+<72>Delete</72>

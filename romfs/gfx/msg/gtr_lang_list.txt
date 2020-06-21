@@ -1,0 +1,105 @@
+﻿<0>Auto</0>
+<1>Afrikaans</1>
+<2>Albanian(shqip)</2>
+<3>Amharic(አማርኛ)</3>
+<4>Arabic(اَلْعَرَبِيَّةُ)</4>
+<5>Armenian(հայերեն)</5>
+<6>Azerbaijani(Azərbaycan)</6>
+<7>Basque(Euskara)</7>
+<8>Belarusian(беларуская)</8>
+<9>Bengali(বাংলা)</9>
+<10>Bosnian(bosanski)</10>
+<11>Bulgarian(български)</11>
+<12>Catalan(Català)</12>
+<13>Cebuano(Sebwano)</13>
+<14>Chinese Simplified(汉语)</14>
+<15>Chinese Traditional(漢語)</15>
+<16>Corsican(Corsu)</16>
+<17>Croatian(hrvatski)</17>
+<18>Czech(čeština)</18>
+<19>Danish(dansk)</19>
+<20>Dutch(Nederlands)</20>
+<21>English</21>
+<22>Esperanto</22>
+<23>Estonian(eesti keel)</23>
+<24>Finnish(suomen kieli)</24>
+<25>French(français)</25>
+<26>Frisian(Frysk)</26>
+<27>Galician(galego)</27>
+<28>Georgian(ქართული)</28>
+<29>German(Deutsch)</29>
+<30>Greek(Ελληνικά)</30>
+<31>Gujarati(ગુજરાતી)</31>
+<32>Haitian Creole(Kreyòl Ayisyen)</32>
+<33>Hausa</33>
+<34>Hawaiian</34>
+<35>Hebrew(עברית)</35>
+<36>Hindi(हिन्दी)</36>
+<37>Hmong</37>
+<38>Hungarian(Magyar)</38>
+<39>Icelandic(Íslenska)</39>
+<40>Igbo(Asụsụ Igbo)</40>
+<41>Indonesian(bahasa Indonesia)</41>
+<42>Irish(Gaeilge)</42>
+<43>Italian(italiano)</43>
+<44>Japanese(日本語)</44>
+<45>Javanese(Basa Jawa)</45>
+<46>Kannada(ಕನ್ನಡ)</46>
+<47>Kazakh(қазақ тілі)</47>
+<48>Khmer(ខ្មែរ)</48>
+<49>Korean(한국어)</49>
+<50>Kurdish(Kurdî)</50>
+<51>Kyrgyz(Кыргызча)</51>
+<52>Lao(ລາວ)</52>
+<53>Latin(lingua latīna)</53>
+<54>Latvian(latviešu valoda)</54>
+<55>Lithuanian(lietuvių kalba)</55>
+<56>Luxembourgish(Lëtzebuergesch)</56>
+<57>Macedonian(македонски)</57>
+<58>Malagasy</58>
+<59>Malay(Bahasa melayu)</59>
+<60>Malayalam(മലയാളം)</60>
+<61>Maltese(Maltese)</61>
+<62>Maori(Māori)</62>
+<63>Marathi(मराठी)</63>
+<64>Mongolian(монгол хэл)</64>
+<65>Myanmar (Burmese)(မြန်မာဘာသာ)</65>
+<66>Nepali(नेपाली)</66>
+<67>Norwegian(norsk)</67>
+<68>Nyanja (Chichewa)</68>
+<69>Pashto(پښتو)</69>
+<70>Persian(فارسی)</70>
+<71>Polish(Polski)</71>
+<72>Portuguese (Portugal, Brazil)</72>
+<73>Punjabi(ਪੰਜਾਬੀ)</73>
+<74>Romanian(limba română)</74>
+<75>Russian(русский язык)</75>
+<76>Samoan(Gagana Samoa)</76>
+<77>Scots Gaelic(Gàidhlig)</77>
+<78>Serbian(Српски)</78>
+<79>Sesotho</79>
+<80>Shona</80>
+<81>Sindhi(سنڌي)</81>
+<82>Sinhala(සිංහල)</82>
+<83>Slovak(Slovenský jazyk)</83>
+<84>Slovenian(Slovenski jezik)</84>
+<85>Somali(Soomaaliga)</85>
+<86>Spanish(Español)</86>
+<87>Sundanese(Sunda)</87>
+<88>Swahili(Kiswahili)</88>
+<89>Swedish(svenska)</89>
+<90>Tagalog (Filipino)</90>
+<91>Tajik(Забони тоҷикӣ)</91>
+<92>Tamil(தமிழ்)</92>
+<93>Telugu(తెలుగు)</93>
+<94>Thai(ภาษาไทย)</94>
+<95>Turkish(Türk Dili)</95>
+<96>Ukrainian(Українська)</96>
+<97>Urdu(اردو)</97>
+<98>Uzbek(o‘zbek tili)</98>
+<99>Vietnamese(Tiếng Việt)</99>
+<100>Welsh(Cymraeg)</100>
+<101>Xhosa(isiXhosa)</101>
+<102>Yiddish(יידיש)</102>
+<103>Yoruba(Èdè Yorùbá)</103>
+<104>Zulu(isiZulu)</104>
