@@ -579,7 +579,6 @@ void Mup_main(void)
 
 	Draw_texture(Square_image, weak_aqua_tint, 0, 230.0, 180.0, 80.0, 20.0);
 	Draw(mup_msg[15], 0, 232.5, 180.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-
 	if (mup_select_file_request)
 	{
 		Draw_texture(Square_image, aqua_tint, 10, 10.0, 20.0, 300.0, 190.0);

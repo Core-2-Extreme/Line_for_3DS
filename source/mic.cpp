@@ -83,6 +83,7 @@ void Mic_record_thread(void* arg)
 	char wave[5] = "WAVE";
 	char fmt[5] = "fmt ";
 	char data[5] = "data";
+	std::string file_name;
 	u8* header;
 	u8* fs_buffer;
 	u32 buffer_pos;
@@ -152,12 +153,13 @@ void Mic_record_thread(void* arg)
 						*chunk_size = (int)buffer_offset;
 						memcpy((void*)(header + 40), (void*)chunk_size, 0x4);
 
+						file_name = Menu_query_time() + ".wav";
 						log_num = Log_log_save("Mic/Record thread", "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file("test.wav", (u8*)header, 44, "/Line/sound/", true, fs_handle, fs_archive);
+						result = File_save_to_file(file_name, (u8*)header, 44, "/Line/sound/", true, fs_handle, fs_archive);
 						Log_log_add(log_num, "", result.code, false);
 
 						log_num = Log_log_save("Mic/Record thread", "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file("test.wav", (u8*)fs_buffer, buffer_offset, "/Line/sound/", false, fs_handle, fs_archive);
+						result = File_save_to_file(file_name, (u8*)fs_buffer, buffer_offset, "/Line/sound/", false, fs_handle, fs_archive);
 						Log_log_add(log_num, "", result.code, false);
 
 						break;
@@ -176,8 +178,8 @@ void Mic_record_thread(void* arg)
 		if (mic_thread_suspend)
 			usleep(200000);
 	}
-
 	Log_log_save("Mic/Record thread", "Thread exit.", 1234567890, false);
+	threadExit(0);
 }
 
 void Mic_exit(void)
