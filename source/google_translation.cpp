@@ -32,250 +32,9 @@ std::string gtr_sorce_lang = "en";
 std::string gtr_target_lang = "ja";
 std::string gtr_input_text = "n/a";
 std::string gtr_history[10] = { "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", };
-std::string gtr_lang_short_list[105] = { 
-	"auto",
-	"af",
-	"sq", 
-	"am", 
-	"ar", 
-	"hy", 
-	"az", 
-	"eu", 
-	"be",
-	"bn", 
-	"bs", 
-	"bg", 
-	"ca", 
-	"ceb", 
-	"zh-CN",
-	"zh-TW",
-	"co",
-	"hr", 
-	"cs", 
-	"da", 
-	"nl", 
-	"en", 
-	"eo", 
-	"et", 
-	"fi", 
-	"fr", 
-	"fy", 
-	"gl", 
-	"ka", 
-	"de", 
-	"el", 
-	"gu", 
-	"ht", 
-	"ha", 
-	"haw", 
-	"he", 
-	"hi", 
-	"hmn",
-	"hu", 
-	"is",
-	"ig", 
-	"id", 
-	"ga", 
-	"it", 
-	"ja", 
-	"jv", 
-	"kn", 
-	"kk", 
-	"km", 
-	"ko", 
-	"ku", 
-	"ky", 
-	"lo", 
-	"la", 
-	"lv", 
-	"lt", 
-	"lb", 
-	"mk", 
-	"mg", 
-	"ms", 
-	"ml", 
-	"mt", 
-	"mi", 
-	"mr", 
-	"mn", 
-	"my",
-	"ne",
-	"no", 
-	"ny", 
-	"ps", 
-	"fa", 
-	"pl", 
-	"pt", 
-	"pa", 
-	"ro", 
-	"ru", 
-	"sm", 
-	"gd", 
-	"sr", 
-	"st", 
-	"sn", 
-	"sd", 
-	"si", 
-	"sk", 
-	"sl", 
-	"so", 
-	"es", 
-	"su", 
-	"sw", 
-	"sv", 
-	"tl", 
-	"tg",
-	"ta",
-	"te", 
-	"th", 
-	"tr", 
-	"uk", 
-	"ur", 
-	"uz", 
-	"vi", 
-	"cy", 
-	"xh", 
-	"yi", 
-	"yo",
-	"zu",
- };
-std::string gtr_lang_list[105] = {
-	"Auto",
-	"Afrikaans",
-	"Albanian(shqip)",
-	"Amharic(አማርኛ)",
-	"Arabic(اَلْعَرَبِيَّةُ)",
-	"Armenian(հայերեն)",
-	"Azerbaijani(Azərbaycan)",
-	"Basque(Euskara)",
-	"Belarusian(беларуская)",
-	"Bengali(বাংলা)",
-	"Bosnian(bosanski)",
-	"Bulgarian(български)",
-	"Catalan(Català)",
-	"Cebuano(Sebwano)",
-	"Chinese Simplified(汉语)",
-	"Chinese Traditional(漢語)",
-	"Corsican(Corsu)",
-	"Croatian(hrvatski)",
-	"Czech(čeština)",
-	"Danish(dansk)",
-	"Dutch(Nederlands)",
-	"English",
-	"Esperanto",
-	"Estonian(eesti keel)",
-	"Finnish(suomen kieli)",
-	"French(français)",
-	"Frisian(Frysk)",
-	"Galician(galego)",
-	"Georgian(ქართული)",
-	"German(Deutsch)",
-	"Greek(Ελληνικά)",
-	"Gujarati(ગુજરાતી)",
-	"Haitian Creole(Kreyòl Ayisyen)",
-	"Hausa",
-	"Hawaiian",
-	"Hebrew(עברית)",
-	"Hindi(हिन्दी)",
-	"Hmong",
-	"Hungarian(Magyar)",
-	"Icelandic(Íslenska)",
-	"Igbo(Asụsụ Igbo)",
-	"Indonesian(bahasa Indonesia)",
-	"Irish(Gaeilge)",
-	"Italian(italiano)",
-	"Japanese(日本語)",
-	"Javanese(Basa Jawa)",
-	"Kannada(ಕನ್ನಡ)",
-	"Kazakh(қазақ тілі)",
-	"Khmer(ខ្មែរ)",
-	"Korean(한국어)",
-	"Kurdish(Kurdî)",
-	"Kyrgyz(Кыргызча)",
-	"Lao(ລາວ)",
-	"Latin(lingua latīna)",
-	"Latvian(latviešu valoda)",
-	"Lithuanian(lietuvių kalba)",
-	"Luxembourgish(Lëtzebuergesch)",
-	"Macedonian(македонски)",
-	"Malagasy",
-	"Malay(Bahasa melayu)",
-	"Malayalam(മലയാളം)",
-	"Maltese(Maltese)",
-	"Maori(Māori)",
-	"Marathi(मराठी)",
-	"Mongolian(монгол хэл)",
-	"Myanmar (Burmese)(မြန်မာဘာသာ)",
-	"Nepali(नेपाली)",
-	"Norwegian(norsk)",
-	"Nyanja (Chichewa)",
-	"Pashto(پښتو)",
-	"Persian(فارسی)",
-	"Polish(Polski)",
-	"Portuguese (Portugal, Brazil)",
-	"Punjabi(ਪੰਜਾਬੀ)",
-	"Romanian(limba română)",
-	"Russian(русский язык)",
-	"Samoan(Gagana Samoa)",
-	"Scots Gaelic(Gàidhlig)",
-	"Serbian(Српски)", 
-	"Sesotho", 
-	"Shona", 
-	"Sindhi(سنڌي)", 
-	"Sinhala(සිංහල)", 
-	"Slovak(Slovenský jazyk)", 
-	"Slovenian(Slovenski jezik)", 
-	"Somali(Soomaaliga)", 
-	"Spanish(Español)", 
-	"Sundanese(Sunda)", 
-	"Swahili(Kiswahili)", 
-	"Swedish(svenska)", 
-	"Tagalog (Filipino)", 
-	"Tajik(Забони тоҷикӣ)", 
-	"Tamil(தமிழ்)", 
-	"Telugu(తెలుగు)",
-	"Thai(ภาษาไทย)",
-	"Turkish(Türk Dili)",
-	"Ukrainian(Українська)",
-	"Urdu(اردو)",
-	"Uzbek(o‘zbek tili)",
-	"Vietnamese(Tiếng Việt)",
-	"Welsh(Cymraeg)",
-	"Xhosa(isiXhosa)",
-	"Yiddish(יידיש)",
-	"Yoruba(Èdè Yorùbá)",
-	"Zulu(isiZulu)",
-};
-
-std::string gtr_msg_en[10] =
-{
-	"Select sorce language",
-	"Select target language",
-	"Select(A) Move(DPAD ↑,↓,→,←) Close(Y)",
-	"Translating...",
-	"Translate(A)",
-	"Copy(X)",
-	"Up(DPAD ↑)",
-	"Down(DPAD ↓)",
-	"Change sorce language(L)",
-	"Change target language(R)",
-};
-
-std::string gtr_msg_jp[10] =
-{
-	"元の言語を選択してください",
-	"目的の言語を選択してください",
-	"選択(A) 移動(十字 ↑,↓,→,←) 閉じる(Y)", 
-	"翻訳中...",
-	"翻訳(A)",
-	"コピー(X)",
-	"上(DPAD ↑)",
-	"下(DPAD ↓)",
-	"元の言語変更(L)",
-	"目的の言語変更(R)",
-};
-
-std::string gtr_msg[10];
+std::string gtr_lang_short_list[GTR_NUM_OF_LANG_SHORT_LIST_MSG];
+std::string gtr_lang_list[GTR_NUM_OF_LANG_SHORT_LIST_MSG];
+std::string gtr_msg[GTR_NUM_OF_MSG];
 
 
 Thread gtr_tr_thread;
@@ -341,6 +100,16 @@ std::string Gtr_query_tr_history(int num)
 		return gtr_history[num];
 	else
 		return "";
+}
+
+void Gtr_set_msg(int msg_num, int msg_type, std::string msg)
+{
+	if (msg_type == GTR_SHORT_LANG_LIST && msg_num >= 0 && msg_num < GTR_NUM_OF_LANG_SHORT_LIST_MSG)
+	    gtr_lang_short_list[msg_num] = msg;
+	else if (msg_type == GTR_LANG_LIST && msg_num >= 0 && msg_num < GTR_NUM_OF_LANG_LIST_MSG)
+		gtr_lang_list[msg_num] = msg;
+	else if (msg_type == GTR_MSG && msg_num >= 0 && msg_num < GTR_NUM_OF_MSG)
+		gtr_msg[msg_num] = msg;
 }
 
 void Gtr_set_offset(int item_num, double value)
@@ -462,6 +231,7 @@ void Gtr_tr_thread(void* arg)
 		usleep(100000);
 	}
 	Log_log_save("Gtr/Tr thread", "Thread exit.", 1234567890, false);
+	threadExit(0);
 }
 
 void Gtr_init(void)
@@ -473,7 +243,7 @@ void Gtr_init(void)
 
 	Draw_progress("0/0 [Gtr] Starting threads...");
 	gtr_tr_thread_run = true;
-	gtr_tr_thread = threadCreate(Gtr_tr_thread, (void*)(""), STACKSIZE, 0x26, -1, true);
+	gtr_tr_thread = threadCreate(Gtr_tr_thread, (void*)(""), STACKSIZE, 0x26, -1, false);
 
 	Gtr_resume();
 	gtr_already_init = true;
@@ -488,8 +258,7 @@ void Gtr_exit(void)
 	bool failed = false;
 	Result_with_string result;
 
-
-	Draw_progress("0/0 [Gtr] Exiting threads...");
+	Draw_progress("[Gtr] Exiting...");
 	gtr_already_init = false;
 	gtr_tr_thread_run = false;
 	gtr_thread_suspend = false;
@@ -497,14 +266,15 @@ void Gtr_exit(void)
 	log_num = Log_log_save("Gtr/Exit", "Exiting thread...", 1234567890, s_debug_slow);
 	result.code = threadJoin(gtr_tr_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, "[Success] ", result.code, s_debug_slow);
+		Log_log_add(log_num, s_success, result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num, "[Error] ", result.code, s_debug_slow);
+		Log_log_add(log_num,s_error, result.code, s_debug_slow);
 	}
 
-	Draw_progress("1/1 [Gtr] Cleaning up...");
+	threadFree(gtr_tr_thread);
+
 	gtr_input_text = "n/a";
 	gtr_input_text.reserve(10);
 
@@ -531,33 +301,6 @@ void Gtr_main(void)
 	float alpha;
 	osTickCounterUpdate(&s_tcount_frame_time);
 
-	if (s_setting[1] == "en")
-	{
-		gtr_msg[0] = gtr_msg_en[0];
-		gtr_msg[1] = gtr_msg_en[1];
-		gtr_msg[2] = gtr_msg_en[2];
-		gtr_msg[3] = gtr_msg_en[3];
-		gtr_msg[4] = gtr_msg_en[4];
-		gtr_msg[5] = gtr_msg_en[5];
-		gtr_msg[6] = gtr_msg_en[6];
-		gtr_msg[7] = gtr_msg_en[7];
-		gtr_msg[8] = gtr_msg_en[8];
-		gtr_msg[9] = gtr_msg_en[9];
-	}
-	else if (s_setting[1] == "jp")
-	{
-		gtr_msg[0] = gtr_msg_jp[0];
-		gtr_msg[1] = gtr_msg_jp[1];
-		gtr_msg[2] = gtr_msg_jp[2];
-		gtr_msg[3] = gtr_msg_jp[3];
-		gtr_msg[4] = gtr_msg_jp[4];
-		gtr_msg[5] = gtr_msg_jp[5];
-		gtr_msg[6] = gtr_msg_jp[6];
-		gtr_msg[7] = gtr_msg_jp[7];
-		gtr_msg[8] = gtr_msg_jp[8];
-		gtr_msg[9] = gtr_msg_jp[9];
-	}
-
 	if (Sem_query_font_flag(SEM_USE_DEFAULT_FONT))
 		font_num = 0;
 	else if (Sem_query_font_flag(SEM_USE_SYSTEM_SPEIFIC_FONT))
@@ -583,14 +326,7 @@ void Gtr_main(void)
 		Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
 	}
 
-	Draw_texture(Square_image, black_tint, 0, 0.0, 0.0, 400.0, 15.0);
-	Draw_texture(Wifi_icon_image, dammy_tint, s_wifi_signal, 360.0, 0.0, 15.0, 15.0);
-	Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
-	if (s_battery_charge)
-		Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 310.0, 0.0, 20.0, 15.0);
-	Draw(s_status, 0, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
-	Draw(s_battery_level_string, 0, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
-	
+	Draw_top_ui();
 	Draw("Sorce : " + Gtr_get_lang_name(gtr_sorce_lang), font_num, 0.0, 20.0, 0.6, 0.6, red, green, blue, alpha);
 	Draw(gtr_input_text, font_num, gtr_text_pos_x, 50.0, 0.6, 0.6, 0.25, 0.0, 0.5, 1.0);
 	Draw("Target : " + Gtr_get_lang_name(gtr_target_lang), font_num, 0.0, 100.0, 0.6, 0.6, red, green, blue, alpha);
@@ -663,9 +399,7 @@ void Gtr_main(void)
 	if (Err_query_error_show_flag())
 		Draw_error();
 
-	Draw_texture(Square_image, black_tint, 0, 0.0, 225.0, 320.0, 15.0);
-	Draw(s_bot_button_string[1], 0, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
-
+	Draw_bot_ui();
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
 		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
 	

@@ -23,34 +23,7 @@ int spt_data_size = 0;
 int spt_total_dl_size = 0;
 double spt_total_dl_time = 0.0;
 double spt_test_result = 0.0;
-std::string spt_message_en[12] = {
-	"Downloaded size : ",
-	"Download time : ",
-	"Speed : ",
-	"Select test data size",
-	"About 1MB",
-	"About 2MB",
-	"About 4MB",
-	"About 8MB",
-	"About 15MB",
-	"About 30MB",
-	"About 60MB",
-	"Start",
-};
-std::string spt_message_jp[12] = {
-	"ダウンロード済み容量 : ",
-	"ダウンロード時間 : ",
-	"速度 : ",
-	"テストデータ容量選択",
-	"約1MB",
-	"約2MB",
-	"約4MB",
-	"約8MB",
-	"約15MB",
-	"約30MB",
-	"約60MB",
-	"開始",
-};
+std::string spt_msg[SPT_NUM_OF_MSG];
 
 Thread spt_spt_thread;
 
@@ -76,6 +49,12 @@ void Spt_set_buffer_size(int buffer_num, int size)
 {
 	if(buffer_num == SPT_HTTPC_BUFFER)
 		spt_httpc_buffer_size = size;
+}
+
+void Spt_set_msg(int msg_num, std::string msg)
+{
+	if (msg_num >= 0 && msg_num < SPT_NUM_OF_MSG)
+		spt_msg[msg_num] = msg;
 }
 
 void Spt_set_spt_data_size(int size)
@@ -108,7 +87,7 @@ void Spt_init(void)
 
 	Draw_progress("0/0 [Spt] Starting threads...");
 	spt_thread_run = true;
-	spt_spt_thread = threadCreate(Spt_spt_thread, (void*)(""), STACKSIZE, 0x26, -1, true);
+	spt_spt_thread = threadCreate(Spt_spt_thread, (void*)(""), STACKSIZE, 0x26, -1, false);
 
 	Spt_resume();
 	spt_already_init = true;
@@ -124,7 +103,7 @@ void Spt_exit(void)
 	Result_with_string result;
 
 
-	Draw_progress("0/0 [Spt] Exiting threads...");
+	Draw_progress("[Spt] Exiting...");
 	spt_already_init = false;
 	spt_thread_run = false;
 	spt_thread_suspend = false;
@@ -132,12 +111,14 @@ void Spt_exit(void)
 	log_num = Log_log_save("Spt/Exit", "Exiting thread(0/0)...", 1234567890, s_debug_slow);
 	result.code = threadJoin(spt_spt_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, "[Success] ", result.code, s_debug_slow);
+		Log_log_add(log_num, s_success, result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num, "[Error] ", result.code, s_debug_slow);
+		Log_log_add(log_num,s_error, result.code, s_debug_slow);
 	}
+
+	threadFree(spt_spt_thread);
 
 	if (failed)
 		Log_log_save("Spt/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
@@ -149,7 +130,25 @@ void Spt_main(void)
 {
 	int log_y = Log_query_y();
 	double log_x = Log_query_x();
+	float text_red;
+	float text_green;
+	float text_blue;
+	float text_alpha;
 	osTickCounterUpdate(&s_tcount_frame_time);
+	if (Sem_query_settings(SEM_NIGHT_MODE))
+	{
+		text_red = 1.0;
+		text_green = 1.0;
+		text_blue = 1.0;
+		text_alpha = 0.75;
+	}
+	else
+	{
+		text_red = 0.0;
+		text_green = 0.0;
+		text_blue = 0.0;
+		text_alpha = 1.0;
+	}
 
 	Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
 	if (Sem_query_settings(SEM_NIGHT_MODE))
@@ -157,26 +156,10 @@ void Spt_main(void)
 	else
 		Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
 
-	Draw_texture(Square_image, black_tint, 0, 0.0, 0.0, 400.0, 15.0);
-	Draw_texture(Wifi_icon_image, dammy_tint, s_wifi_signal, 360.0, 0.0, 15.0, 15.0);
-	Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
-	if (s_battery_charge)
-		Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 310.0, 0.0, 20.0, 15.0);
-	Draw(s_status, 0, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
-	Draw(s_battery_level_string, 0, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
-
-	if (s_setting[1] == "en")
-	{
-		Draw(spt_message_en[0] + std::to_string(spt_total_dl_size / (1024 * 1024)) + "MB(" + std::to_string(spt_total_dl_size / 1024) + "KB)", 0, 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(spt_message_en[1] + std::to_string(spt_total_dl_time) + " ms", 0, 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(spt_message_en[2] + std::to_string((spt_test_result / (1024 * 1024)) * 8) + "Mbps", 0, 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
-	}
-	else if (s_setting[1] == "jp")
-	{
-		Draw(spt_message_jp[0] + std::to_string(spt_total_dl_size / (1024 * 1024)) + "MB(" + std::to_string(spt_total_dl_size / 1024) + "KB)", 0, 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(spt_message_jp[1] + std::to_string(spt_total_dl_time) + " ms", 0, 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
-		Draw(spt_message_jp[2] + std::to_string((spt_test_result / (1024 * 1024)) * 8) + "Mbps", 0, 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
-	}
+	Draw_top_ui();
+	Draw(spt_msg[0] + std::to_string(spt_total_dl_size / (1024 * 1024)) + "MB(" + std::to_string(spt_total_dl_size / 1024) + "KB)", 0, 0.0f, 20.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+	Draw(spt_msg[1] + std::to_string(spt_total_dl_time) + " ms", 0, 0.0f, 40.0f, 0.75f, 0.75f, 0.25f, 0.0f, 1.0f, 1.0f);
+	Draw(spt_msg[2] + std::to_string((spt_test_result / (1024 * 1024)) * 8) + "Mbps", 0, 0.0f, 60.0f, 1.0f, 1.0f, 0.25f, 0.0f, 1.0f, 1.0f);
 
 	if (Sem_query_settings(SEM_DEBUG_MODE))
 		Draw_debug_info();
@@ -193,36 +176,24 @@ void Spt_main(void)
 
 	Draw(s_spt_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
 
-	if (s_setting[1] == "en")
+	Draw(spt_msg[3], 0, 70.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
+	for (int i = 0; i < 7; i++)
 	{
-		Draw(spt_message_en[3], 0, 70.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
-		for (int i = 0; i < 7; i++)
-		{
-			if (spt_data_size == i)
-				Draw(spt_message_en[4 + i], 0, 125.0, 40.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
-			else
-				Draw(spt_message_en[4 + i], 0, 125.0, 40.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
-		}
-		Draw(spt_message_en[11], 0, 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+		Draw_texture(Square_image, yellow_tint, 0, 100.0, 40.0 + (i * 20.0), 130.0, 20.0);
+
+		if (spt_data_size == i)
+			Draw(spt_msg[4 + i], 0, 125.0, 40.0 + (i * 20.0), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
+		else
+			Draw(spt_msg[4 + i], 0, 125.0, 40.0 + (i * 20.0), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
 	}
-	else if (s_setting[1] == "jp")
-	{
-		Draw(spt_message_jp[3], 0, 75.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
-		for (int i = 0; i < 7; i++)
-		{
-			if (spt_data_size == i)
-				Draw(spt_message_jp[4 + i], 0, 135.0, 40.0 + (i * 20), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
-			else
-				Draw(spt_message_jp[4 + i], 0, 135.0, 40.0 + (i * 20), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
-		}
-		Draw(spt_message_jp[11], 0, 150.0, 190.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
-	}
+
+	Draw_texture(Square_image, weak_red_tint, 0, 150.0, 190.0 , 40.0, 20.0);
+	Draw(spt_msg[11], 0, 150.0, 190.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 
 	if (Err_query_error_show_flag())
 		Draw_error();
 
-	Draw_texture(Square_image, black_tint, 0, 0.0, 225.0, 320.0, 15.0);
-	Draw(s_bot_button_string[1], 0, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
+	Draw_bot_ui();
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
 		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
 
@@ -240,6 +211,7 @@ void Spt_spt_thread(void* arg)
 	u32 status_code;
 	int log_num;
 	float dl_time;
+	std::string last_url;
 	std::string url[8] = { "http://v2.musen-lan.com/flash/test_001.swf", "http://v2.musen-lan.com/flash/test_002.swf", "http://v2.musen-lan.com/flash/test_004.swf", "http://v2.musen-lan.com/flash/test_008.swf", "http://v2.musen-lan.com/flash/test_016.swf", "http://v2.musen-lan.com/flash/test_032.swf", "http://v2.musen-lan.com/flash/test_064.swf", "http://v2.musen-lan.com/flash/test_128.swf" };
 	Result_with_string result;
 	TickCounter timer;
@@ -267,7 +239,7 @@ void Spt_spt_thread(void* arg)
 					dl_time = 0.0000001;
 					log_num = Log_log_save("Spt/Spt thread/httpc", "Downloading test data(" + std::to_string(i) + "/9)...", 1234567890, false);
 					osTickCounterStart(&timer);
-					result = Httpc_dl_data(url[spt_data_size], httpc_buffer, spt_httpc_buffer_size, &dl_size, &status_code, true);
+					result = Httpc_dl_data(url[spt_data_size], httpc_buffer, spt_httpc_buffer_size, &dl_size, &status_code, true, &last_url, false, 100);
 					osTickCounterUpdate(&timer);
 					dl_time = osTickCounterRead(&timer);
 					Log_log_add(log_num, result.string, result.code, false);
@@ -294,4 +266,5 @@ void Spt_spt_thread(void* arg)
 			usleep(250000);
 	}
 	Log_log_save("Spt/Spt thread", "Thread exit.", 1234567890, false);
+	threadExit(0);
 }

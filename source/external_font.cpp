@@ -271,54 +271,7 @@ std::string exfont_font_samples[62] = {
  "\uC000","\uC400","\uC800","\uCC00","\uD000","\uD400",/*uD800    uDC00*/"\uE000","\uE400","\uE800","\uEC00","\uF000","\uF400","\uF800","\uFC00",
 };
 
-std::string exfont_font_name[46] = {
- "basic_latin",
- "latin_1_supplement",
- "ipa_extensions",
- "spacing_modifier_letters",
- "combining_diacritical_marks",
- "greek_and_coptic",
- "cyrillic",
- "cyrillic_supplement",
- "armenian",
- "hebrew",
- "arabic",
- "devanagari",
- "gurmukhi",
- "tamil",
- "telugu",
- "kannada",
- "sinhala",
- "thai",
- "lao",
- "tibetan",
- "georgian",
- "unified_canadian_aboriginal_syllabics",
- "phonetic_extensions",
- "combining_diacritical_marks_supplement",
- "greek_extended",
- "general_punctuation",
- "superscripts_and_subscripts",
- "combining_diacritical_marks_for_symbols",
- "arrows",
- "mathematical_operators",
- "miscellaneous_technical",
- "optical_character_recognition",
- "box_drawing",
- "block_elements",
- "geometric_shapes",
- "miscellaneous_symbols",
- "dingbats",
- "cjk_symbol_and_punctuation",
- "hiragana",
- "katakana",
- "hangul_compatibility_jamo",
- "yi_syllables",
- "yi_radicals",
- "cjk_compatibility_forms",
- "halfwidth_and_fullwidth_forms",
- "miscellaneous_symbols_and_pictographs",
-};
+std::string exfont_font_name[EXFONT_NUM_OF_FONT_NAME];
 
 /*
    0 ~   95   (96) Basic latin
@@ -376,308 +329,6 @@ int exfont_font_characters[46] = {
  128,  32,  96, 256, 192,  64,  93,  96,  94, 1165,  55,  32, 225, 768,
 };
 int exfont_font_start_num[46];
-
-void Exfont_init(void)
-{
-	int dammy_start = 0x0;
-	int dammy_invalid[1] = { 0x0, };
-
-	int basic_latin_byte_0_start = 0x00;
-
-	int latin_1_supplement_byte_0_start = 0xC2;
-	int latin_1_supplement_byte_1_start = 0x80;
-
-	int ipa_extensions_byte_0_start = 0xC9;
-	int ipa_extensions_byte_1_start = 0x90;
-
-	int spacing_modifier_letters_byte_0_start = 0xCA;
-	int spacing_modifier_letters_byte_1_start = 0xB0;
-
-	int combining_diacritical_marks_byte_0_start = 0xCC;
-	int combining_diacritical_marks_byte_1_start = 0x80;
-
-	int greek_and_coptic_num_of_invalid = 9;
-	int greek_and_coptic_byte_0_start = 0xCD;
-	int greek_and_coptic_byte_1_start = 0xB0;
-	int greek_and_coptic_invalid_list[9] = { 8, 9, 16, 17, 18, 19, 27, 29, 50, };
-
-	int cyrillic_byte_0_start = 0xD0;
-	int cyrillic_byte_1_start = 0x80;
-
-	int cyrillic_supplement_byte_0_start = 0xD4;
-	int cyrillic_supplement_byte_1_start = 0x80;
-
-	int armenian_num_of_invalid = 5;
-	int armenian_byte_0_start = 0xD4;
-	int armenian_byte_1_start = 0xB0;
-	int armenian_invalid_list[5] = { 0, 39, 40, 91, 92, };
-
-	int hebrew_num_of_invalid = 24;
-	int hebrew_byte_0_start = 0xD6;
-	int hebrew_byte_1_start = 0x90;
-	int hebrew_invalid_list[24] = {   0,  56,  57,  58,  59,  60,  61,  62,  63,  91,  92,  93,  94, 101, 102, 103,
-		                            104, 105, 106, 107, 108, 109, 110, 111, };
-
-	int arabic_num_of_invalid = 1;
-	int arabic_byte_0_start = 0xD8;
-	int arabic_byte_1_start = 0x80;
-	int arabic_invalid_list[1] = { 29, };
-
-	int arabic_right_to_left_num_of_invalid = 21;
-	int arabic_right_to_left_invalid_list[21] = {  29,  96,  97,  98,  99, 100, 101 ,102, 103, 104, 105, 240, 241, 242, 243, 244,
-		                                          245, 246, 247, 248, 249, };
-
-	int devanagari_byte_0_start = 0xE0;
-	int devanagari_byte_1_start = 0xA4;
-	int devanagari_byte_2_start = 0x80;
-
-	int gurmukhi_num_of_invalid = 49;
-	int gurmukhi_byte_0_start = 0xE0;
-	int gurmukhi_byte_1_start = 0xA8;
-	int gurmukhi_byte_2_start = 0x80;
-	int gurmukhi_invalid_list[49] = {   0,   4,  11,  12,  13,  14,  17,  18,  41,  49,  52,  55,  58,  59,  61,  67,
-		                            68,  69,  70,  73,  74,  78,  79,  80,  82,  83,  84,  85,  86,  87,  88,  93, 
-		                            95,  96,  97,  98,  99, 100, 101, 118, 119, 120, 121, 122, 123, 124, 125, 126, 
-		                           127, };
-
-	int tamil_num_of_invalid = 56;
-	int tamil_byte_0_start = 0xE0;
-	int tamil_byte_1_start = 0xAE;
-	int tamil_byte_2_start = 0x80;
-	int tamil_invalid_list[56] = {   0,   1,   4,  11,  12,  13,  17,  22,  23,  24,  27,  29,  32,  33,  34,  37, 
-		                            38,  39,  43,  44,  45,  58,  59,  60,  61,  67,  68,  69,  73,  78,  79,  81, 
-		                            82,  83,  84,  85,  86,  88,  89,  90,  91,  92,  93,  94,  95,  96,  97,  98,
-		                            99, 100, 101, 123, 124, 125, 126, 127, };
-
-	int telugu_num_of_invalid = 32;
-	int telugu_byte_0_start = 0xE0;
-	int telugu_byte_1_start = 0xB0;
-	int telugu_byte_2_start = 0x80;
-	int telugu_invalid_list[32] = {   4,  13,  17,  41,  58,  59,  60,  69,  73,  78,  79,  80,  81,  82,  83,  84,
-                                     87,  91,  92,  93,  94,  95, 100, 101, 112, 113, 114, 115, 116, 117, 118, 119, };
-	
-	int kannada_num_of_invalid = 40;
-	int kannada_byte_0_start = 0xE0;
-	int kannada_byte_1_start = 0xB2;
-	int kannada_byte_2_start = 0x80;
-	int kannada_invalid_list[40] = {   4,  13,  17,  41,  52,  58,  59,  69,  73,  78,  79,  80,  81,  82,  83,  84,  
-						    	      87,  88,  89,  90,  91,  92,  93,  95, 100, 101, 112, 115, 116, 117, 118, 119, 
-		                             120, 121, 122, 123, 124, 125, 126, 127, };
-
-	int sinhala_num_of_invalid = 38;
-	int sinhala_byte_0_start = 0xE0;
-	int sinhala_byte_1_start = 0xB6;
-	int sinhala_byte_2_start = 0x80;
-	int sinhala_invalid_list[38] = {   0,   1,   4,  23,  24,  25,  50,  60,  62,  63,  71,  72,  73,  75,  76,  77, 
-		                              78,  85,  87,  96,  97,  98,  99, 100, 101, 112, 113, 117, 118, 119, 120, 121,
-	                                 122, 123, 124, 125, 126, 127, };
-
-	int thai_num_of_invalid = 41;
-	int thai_byte_0_start = 0xE0;
-	int thai_byte_1_start = 0xB8;
-	int thai_byte_2_start = 0x80;
-	int thai_invalid_list[41] = {   0,  59,  60,  61,  62,  92,  93,  94,  95,  96,  97,  98,  99, 100, 101, 102,
-	                              103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118,
-	                              119, 120, 121, 122, 123, 124, 125, 126, 127, };
-
-	int lao_num_of_invalid = 61;
-	int lao_byte_0_start = 0xE0;
-	int lao_byte_1_start = 0xBA;
-	int lao_byte_2_start = 0x80;
-	int lao_invalid_list[61] = {   0,   3,   5,   6,   9,  11,  12,  14,  15,  16,  17,  18,  19,  24,  32,  36,
-		                          38,  40,  41,  44,  58,  62,  63,  69,  71,  78,  79,  90,  91,  96,  97,  98,  
-		                          99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 
-                     	         115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, };
-
-	int tibetan_num_of_invalid = 45;
-	int tibetan_byte_0_start = 0xE0;
-	int tibetan_byte_1_start = 0xBC;
-	int tibetan_byte_2_start = 0x80;
-	int tibetan_invalid_list[45] = {  72, 109, 110, 111, 112, 152, 189, 205, 219, 220, 221, 222, 223, 224, 225, 226,
-		                             227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242,
-		                             243, 244, 245, 246, 247, 238, 249, 250, 251, 252, 253, 254, 255,  };
-
-	int georgian_num_of_invalid = 8;
-	int georgian_byte_0_start = 0xE1;
-	int georgian_byte_1_start = 0x82;
-	int georgian_byte_2_start = 0xA0;
-	int georgian_invalid_list[8] = {  38,  40,  41,  42,  43,  44,  46,  47, };
-
-	int unified_canadian_aboriginal_syllabics_byte_0_start = 0xE1;
-	int unified_canadian_aboriginal_syllabics_byte_1_start = 0x90;
-	int unified_canadian_aboriginal_syllabics_byte_2_start = 0x80;
-
-	int phonetic_extensions_byte_0_start = 0xE1;
-	int phonetic_extensions_byte_1_start = 0xB4;
-	int phonetic_extensions_byte_2_start = 0x80;
-
-	int combining_diacritical_marks_supplement_num_of_invalid = 1;
-	int combining_diacritical_marks_supplement_byte_0_start = 0xE1;
-	int combining_diacritical_marks_supplement_byte_1_start = 0xB7;
-	int combining_diacritical_marks_supplement_byte_2_start = 0x80;
-	int combining_diacritical_marks_supplement_invalid_list[1] = { 58, };
-
-	int greek_extended_num_of_invalid = 23;
-	int greek_extended_byte_0_start = 0xE1;
-	int greek_extended_byte_1_start = 0xBC;
-	int greek_extended_byte_2_start = 0x80;
-	int greek_extended_invalid_list[23] = {  22,  23,  30,  31,  70,  71,  78,  79,  88,  90,  92,  94, 126, 127, 181, 197,
-		                                    212, 213, 220, 240, 241, 245, 255,   };
-
-	int general_punctuation_num_of_invalid = 1;
-	int general_punctuation_byte_0_start = 0xE2;
-	int general_punctuation_byte_1_start = 0x80;
-	int general_punctuation_byte_2_start = 0x80;
-	int general_punctuation_invalid_list[1] = { 101, };
-
-	int superscripts_and_subscripts_num_of_invalid = 6;
-	int superscripts_and_subscripts_byte_0_start = 0xE2;
-	int superscripts_and_subscripts_byte_1_start = 0x81;
-	int superscripts_and_subscripts_byte_2_start = 0xB0;
-	int superscripts_and_subscripts_invalid_list[6] = {   2,  3,  31,  45,  46,  47, };
-
-	int combining_diacritical_marks_for_symbols_num_of_invalid = 15;
-	int combining_diacritical_marks_for_symbols_byte_0_start = 0xE2;
-	int combining_diacritical_marks_for_symbols_byte_1_start = 0x83;
-	int combining_diacritical_marks_for_symbols_byte_2_start = 0x90;
-	int combining_diacritical_marks_for_symbols_invalid_list[15] = {  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,  };
-
-	int arrows_byte_0_start = 0xE2;
-	int arrows_byte_1_start = 0x86;
-	int arrows_byte_2_start = 0x90;
-
-	int mathematical_operators_byte_0_start = 0xE2;
-	int mathematical_operators_byte_1_start = 0x88;
-	int mathematical_operators_byte_2_start = 0x80;
-
-	int miscellaneous_technical_byte_0_start = 0xE2;
-	int miscellaneous_technical_byte_1_start = 0x8C;
-	int miscellaneous_technical_byte_2_start = 0x80;
-
-	int optical_character_recognition_byte_0_start = 0xE2;
-	int optical_character_recognition_byte_1_start = 0x91;
-	int optical_character_recognition_byte_2_start = 0x80;
-
-	int box_drawing_byte_0_start = 0xE2;
-	int box_drawing_byte_1_start = 0x94;
-	int box_drawing_byte_2_start = 0x80;
-
-	int block_elements_byte_0_start = 0xE2;
-	int block_elements_byte_1_start = 0x96;
-	int block_elements_byte_2_start = 0x80;
-
-	int geometric_shapes_byte_0_start = 0xE2;
-	int geometric_shapes_byte_1_start = 0x96;
-	int geometric_shapes_byte_2_start = 0xA0;
-
-	int miscellaneous_symbols_byte_0_start = 0xE2;
-	int miscellaneous_symbols_byte_1_start = 0x98;
-	int miscellaneous_symbols_byte_2_start = 0x80;
-
-	int dingbats_byte_0_start = 0xE2;
-	int dingbats_byte_1_start = 0x9C;
-	int dingbats_byte_2_start = 0x80;
-
-	int cjk_symbol_and_punctuation_byte_0_start = 0xE3;
-	int cjk_symbol_and_punctuation_byte_1_start = 0x80;
-	int cjk_symbol_and_punctuation_byte_2_start = 0x80;
-
-	int hiragana_num_of_invalid = 3;
-	int hiragana_byte_0_start = 0xE3;
-	int hiragana_byte_1_start = 0x81;
-	int hiragana_byte_2_start = 0x80;
-	int hiragana_invalid_list[3] = {   0,  87,  88, };
-
-	int katakana_byte_0_start = 0xE3;
-	int katakana_byte_1_start = 0x82;
-	int katakana_byte_2_start = 0xA0;
-
-	int hangul_compatibility_jamo_num_of_invalid = 2;
-	int hangul_compatibility_jamo_byte_0_start = 0xE3;
-	int hangul_compatibility_jamo_byte_1_start = 0x84;
-	int hangul_compatibility_jamo_byte_2_start = 0xB0;
-	int hangul_compatibility_jamo_invalid_list[2] = { 0,  95, };
-
-	int yi_syllables_num_of_invalid = 3;
-	int yi_syllables_byte_0_start = 0xEA;
-	int yi_syllables_byte_1_start = 0x80;
-	int yi_syllables_byte_2_start = 0x80;
-	int yi_syllables_invalid_list[3] = { 1165, 1166, 1167, };
-
-	int yi_radicals_num_of_invalid = 9;
-	int yi_radicals_byte_0_start = 0xEA;
-	int yi_radicals_byte_1_start = 0x92;
-	int yi_radicals_byte_2_start = 0x90;
-	int yi_radicals_invalid_list[9] = {  55,  56,  57,  58,  59,  60,  61,  62,  63, };
-
-	int cjk_compatibility_forms_byte_0_start = 0xEF;
-	int cjk_compatibility_forms_byte_1_start = 0xB8;
-	int cjk_compatibility_forms_byte_2_start = 0xB0;
-
-	int halfwidth_and_fullwidth_forms_num_of_invalid = 15;
-	int halfwidth_and_fullwidth_forms_byte_0_start = 0xEF;
-	int halfwidth_and_fullwidth_forms_byte_1_start = 0xBC;
-	int halfwidth_and_fullwidth_forms_byte_2_start = 0x80;
-	int halfwidth_and_fullwidth_forms_invalid_list[15] = {  0, 191, 192, 193, 200, 201, 208, 209, 216, 217, 221, 222, 223, 231, 239, };
-
-	int miscellaneous_symbols_and_pictographs_byte_0_start = 0xF0;
-	int miscellaneous_symbols_and_pictographs_byte_1_start = 0x9F;
-	int miscellaneous_symbols_and_pictographs_byte_2_start = 0x8C;
-	int miscellaneous_symbols_and_pictographs_byte_3_start = 0x80;
-	
-	exfont_font_start_num[0] = 0;
-	for (int i = 1; i < 46; i++)
-		exfont_font_start_num[i] = exfont_font_start_num[i - 1] + exfont_font_characters[i - 1];
-
-	Exfont_init_sample(128, exfont_basic_latin_font_sample, basic_latin_byte_0_start, dammy_start, dammy_start, dammy_start, 1, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[1], exfont_latin_1_supplement_font_sample, latin_1_supplement_byte_0_start, latin_1_supplement_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[2], exfont_ipa_extensions_font_sample, ipa_extensions_byte_0_start, ipa_extensions_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[3], exfont_spacing_modifier_letters_font_sample, spacing_modifier_letters_byte_0_start, spacing_modifier_letters_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[4], exfont_combining_diacritical_marks_font_sample, combining_diacritical_marks_byte_0_start, combining_diacritical_marks_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[5] + greek_and_coptic_num_of_invalid, exfont_greek_and_coptic_font_sample, greek_and_coptic_byte_0_start, greek_and_coptic_byte_1_start, dammy_start, dammy_start, 2, greek_and_coptic_invalid_list, greek_and_coptic_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[6], exfont_cyrillic_font_sample, cyrillic_byte_0_start, cyrillic_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[7], exfont_cyrillic_supplement_font_sample, cyrillic_supplement_byte_0_start, cyrillic_supplement_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[8] + armenian_num_of_invalid, exfont_armenian_sample, armenian_byte_0_start, armenian_byte_1_start, dammy_start, dammy_start, 2, armenian_invalid_list, armenian_num_of_invalid);	
-	Exfont_init_sample(exfont_font_characters[9] + hebrew_num_of_invalid, exfont_hebrew_font_sample, hebrew_byte_0_start, hebrew_byte_1_start, dammy_start, dammy_start, 2, hebrew_invalid_list, hebrew_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[10] + arabic_num_of_invalid, exfont_arabic_sample, arabic_byte_0_start, arabic_byte_1_start, dammy_start, dammy_start, 2, arabic_invalid_list, arabic_num_of_invalid);
-	Exfont_init_sample(235 + arabic_right_to_left_num_of_invalid, exfont_arabic_right_to_left_sample, arabic_byte_0_start, arabic_byte_1_start, dammy_start, dammy_start, 2, arabic_right_to_left_invalid_list, arabic_right_to_left_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[11], exfont_devanagari_font_sample, devanagari_byte_0_start, devanagari_byte_1_start, devanagari_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[12] + gurmukhi_num_of_invalid, exfont_gurmukhi_font_sample, gurmukhi_byte_0_start, gurmukhi_byte_1_start, gurmukhi_byte_2_start, dammy_start, 3, gurmukhi_invalid_list, gurmukhi_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[13] + tamil_num_of_invalid, exfont_tamil_font_sample, tamil_byte_0_start, tamil_byte_1_start, tamil_byte_2_start, dammy_start, 3, tamil_invalid_list, tamil_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[14] + telugu_num_of_invalid, exfont_telugu_font_sample, telugu_byte_0_start, telugu_byte_1_start, telugu_byte_2_start, dammy_start, 3, telugu_invalid_list, telugu_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[15] + kannada_num_of_invalid, exfont_kannada_font_sample, kannada_byte_0_start, kannada_byte_1_start, kannada_byte_2_start, dammy_start, 3, kannada_invalid_list, kannada_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[16] + sinhala_num_of_invalid, exfont_sinhala_font_sample, sinhala_byte_0_start, sinhala_byte_1_start, sinhala_byte_2_start, dammy_start, 3, sinhala_invalid_list, sinhala_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[17] + thai_num_of_invalid, exfont_thai_font_sample, thai_byte_0_start, thai_byte_1_start, thai_byte_2_start, dammy_start, 3, thai_invalid_list, thai_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[18] + lao_num_of_invalid, exfont_lao_font_sample, lao_byte_0_start, lao_byte_1_start, lao_byte_2_start, dammy_start, 3, lao_invalid_list, lao_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[19] + tibetan_num_of_invalid, exfont_tibetan_font_sample, tibetan_byte_0_start, tibetan_byte_1_start, tibetan_byte_2_start, dammy_start, 3, tibetan_invalid_list, tibetan_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[20] + georgian_num_of_invalid, exfont_georgian_font_sample, georgian_byte_0_start, georgian_byte_1_start, georgian_byte_2_start, dammy_start, 3, georgian_invalid_list, georgian_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[21], exfont_unified_canadian_aboriginal_syllabics_font_sample, unified_canadian_aboriginal_syllabics_byte_0_start, unified_canadian_aboriginal_syllabics_byte_1_start, unified_canadian_aboriginal_syllabics_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[22], exfont_phonetic_extensions_font_sample, phonetic_extensions_byte_0_start, phonetic_extensions_byte_1_start, phonetic_extensions_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[23] + combining_diacritical_marks_supplement_num_of_invalid, exfont_combining_diacritical_marks_supplement_font_sample, combining_diacritical_marks_supplement_byte_0_start, combining_diacritical_marks_supplement_byte_1_start, combining_diacritical_marks_supplement_byte_2_start, dammy_start, 3, combining_diacritical_marks_supplement_invalid_list, combining_diacritical_marks_supplement_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[24] + greek_extended_num_of_invalid, exfont_greek_extended_font_sample, greek_extended_byte_0_start, greek_extended_byte_1_start, greek_extended_byte_2_start, dammy_start, 3, greek_extended_invalid_list, greek_extended_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[25] + general_punctuation_num_of_invalid, exfont_general_punctuation_font_sample, general_punctuation_byte_0_start, general_punctuation_byte_1_start, general_punctuation_byte_2_start, dammy_start, 3, general_punctuation_invalid_list, general_punctuation_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[26] + superscripts_and_subscripts_num_of_invalid, exfont_superscripts_and_subscripts_font_sample, superscripts_and_subscripts_byte_0_start, superscripts_and_subscripts_byte_1_start, superscripts_and_subscripts_byte_2_start, dammy_start, 3, superscripts_and_subscripts_invalid_list, superscripts_and_subscripts_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[27] + combining_diacritical_marks_for_symbols_num_of_invalid, exfont_combining_diacritical_marks_for_symbols_font_sample, combining_diacritical_marks_for_symbols_byte_0_start, combining_diacritical_marks_for_symbols_byte_1_start, combining_diacritical_marks_for_symbols_byte_2_start, dammy_start, 3, combining_diacritical_marks_for_symbols_invalid_list, combining_diacritical_marks_for_symbols_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[28], exfont_arrows_font_sample, arrows_byte_0_start, arrows_byte_1_start, arrows_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[29], exfont_mathematical_operators_font_sample, mathematical_operators_byte_0_start, mathematical_operators_byte_1_start, mathematical_operators_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[30], exfont_miscellaneous_technical_font_sample, miscellaneous_technical_byte_0_start, miscellaneous_technical_byte_1_start, miscellaneous_technical_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[31], exfont_optical_character_recognition_font_sample, optical_character_recognition_byte_0_start, optical_character_recognition_byte_1_start, optical_character_recognition_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[32], exfont_box_drawing_font_sample, box_drawing_byte_0_start, box_drawing_byte_1_start, box_drawing_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[33], exfont_block_elements_font_sample, block_elements_byte_0_start, block_elements_byte_1_start, block_elements_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[34], exfont_geometric_shapes_font_sample, geometric_shapes_byte_0_start, geometric_shapes_byte_1_start, geometric_shapes_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[35], exfont_miscellaneous_symbols_font_sample, miscellaneous_symbols_byte_0_start, miscellaneous_symbols_byte_1_start, miscellaneous_symbols_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[36], exfont_dingbats_font_sample, dingbats_byte_0_start, dingbats_byte_1_start, dingbats_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[37], exfont_cjk_symbol_and_punctuation_font_sample, cjk_symbol_and_punctuation_byte_0_start, cjk_symbol_and_punctuation_byte_1_start, cjk_symbol_and_punctuation_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[38] + hiragana_num_of_invalid, exfont_hiragana_font_sample, hiragana_byte_0_start, hiragana_byte_1_start, hiragana_byte_2_start, dammy_start, 3, hiragana_invalid_list, hiragana_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[39], exfont_katakana_font_sample, katakana_byte_0_start, katakana_byte_1_start, katakana_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[40] + hangul_compatibility_jamo_num_of_invalid, exfont_hangul_compatibility_jamo_font_sample, hangul_compatibility_jamo_byte_0_start, hangul_compatibility_jamo_byte_1_start, hangul_compatibility_jamo_byte_2_start, dammy_start, 3, hangul_compatibility_jamo_invalid_list, hangul_compatibility_jamo_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[41] + yi_syllables_num_of_invalid, exfont_yi_syllables_font_sample, yi_syllables_byte_0_start, yi_syllables_byte_1_start, yi_syllables_byte_2_start, dammy_start, 3, yi_syllables_invalid_list, yi_syllables_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[42] + yi_radicals_num_of_invalid, exfont_yi_radicals_font_sample, yi_radicals_byte_0_start, yi_radicals_byte_1_start, yi_radicals_byte_2_start, dammy_start, 3, yi_radicals_invalid_list, yi_radicals_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[43], exfont_cjk_compatibility_forms_font_sample, cjk_compatibility_forms_byte_0_start, cjk_compatibility_forms_byte_1_start, cjk_compatibility_forms_byte_2_start, dammy_start, 3, dammy_invalid, 0);
-	Exfont_init_sample(exfont_font_characters[44] + halfwidth_and_fullwidth_forms_num_of_invalid, exfont_halfwidth_and_fullwidth_forms_font_sample, halfwidth_and_fullwidth_forms_byte_0_start, halfwidth_and_fullwidth_forms_byte_1_start, halfwidth_and_fullwidth_forms_byte_2_start, dammy_start, 3, halfwidth_and_fullwidth_forms_invalid_list, halfwidth_and_fullwidth_forms_num_of_invalid);
-	Exfont_init_sample(exfont_font_characters[45], exfont_miscellaneous_symbols_and_pictographs_font_sample, miscellaneous_symbols_and_pictographs_byte_0_start, miscellaneous_symbols_and_pictographs_byte_1_start, miscellaneous_symbols_and_pictographs_byte_2_start, miscellaneous_symbols_and_pictographs_byte_3_start, 4, dammy_invalid, 0);
-
-}
 
 void Exfont_init_sample(int num_of_loop, std::string samples[], int byte_0_start, int byte_1_start, int byte_2_start, int byte_3_start, int bytes_per_char, int invalid_list[], int num_of_invalid)
 {
@@ -860,20 +511,327 @@ void Exfont_init_sample(int num_of_loop, std::string samples[], int byte_0_start
 	}
 }
 
+void Exfont_init(void)
+{
+	int dammy_start = 0x0;
+	int dammy_invalid[1] = { 0x0, };
+
+	int basic_latin_byte_0_start = 0x00;
+
+	int latin_1_supplement_byte_0_start = 0xC2;
+	int latin_1_supplement_byte_1_start = 0x80;
+
+	int ipa_extensions_byte_0_start = 0xC9;
+	int ipa_extensions_byte_1_start = 0x90;
+
+	int spacing_modifier_letters_byte_0_start = 0xCA;
+	int spacing_modifier_letters_byte_1_start = 0xB0;
+
+	int combining_diacritical_marks_byte_0_start = 0xCC;
+	int combining_diacritical_marks_byte_1_start = 0x80;
+
+	int greek_and_coptic_num_of_invalid = 9;
+	int greek_and_coptic_byte_0_start = 0xCD;
+	int greek_and_coptic_byte_1_start = 0xB0;
+	int greek_and_coptic_invalid_list[9] = { 8, 9, 16, 17, 18, 19, 27, 29, 50, };
+
+	int cyrillic_byte_0_start = 0xD0;
+	int cyrillic_byte_1_start = 0x80;
+
+	int cyrillic_supplement_byte_0_start = 0xD4;
+	int cyrillic_supplement_byte_1_start = 0x80;
+
+	int armenian_num_of_invalid = 5;
+	int armenian_byte_0_start = 0xD4;
+	int armenian_byte_1_start = 0xB0;
+	int armenian_invalid_list[5] = { 0, 39, 40, 91, 92, };
+
+	int hebrew_num_of_invalid = 24;
+	int hebrew_byte_0_start = 0xD6;
+	int hebrew_byte_1_start = 0x90;
+	int hebrew_invalid_list[24] = { 0,  56,  57,  58,  59,  60,  61,  62,  63,  91,  92,  93,  94, 101, 102, 103,
+									104, 105, 106, 107, 108, 109, 110, 111, };
+
+	int arabic_num_of_invalid = 1;
+	int arabic_byte_0_start = 0xD8;
+	int arabic_byte_1_start = 0x80;
+	int arabic_invalid_list[1] = { 29, };
+
+	int arabic_right_to_left_num_of_invalid = 21;
+	int arabic_right_to_left_invalid_list[21] = { 29,  96,  97,  98,  99, 100, 101 ,102, 103, 104, 105, 240, 241, 242, 243, 244,
+												  245, 246, 247, 248, 249, };
+
+	int devanagari_byte_0_start = 0xE0;
+	int devanagari_byte_1_start = 0xA4;
+	int devanagari_byte_2_start = 0x80;
+
+	int gurmukhi_num_of_invalid = 49;
+	int gurmukhi_byte_0_start = 0xE0;
+	int gurmukhi_byte_1_start = 0xA8;
+	int gurmukhi_byte_2_start = 0x80;
+	int gurmukhi_invalid_list[49] = { 0,   4,  11,  12,  13,  14,  17,  18,  41,  49,  52,  55,  58,  59,  61,  67,
+									68,  69,  70,  73,  74,  78,  79,  80,  82,  83,  84,  85,  86,  87,  88,  93,
+									95,  96,  97,  98,  99, 100, 101, 118, 119, 120, 121, 122, 123, 124, 125, 126,
+								   127, };
+
+	int tamil_num_of_invalid = 56;
+	int tamil_byte_0_start = 0xE0;
+	int tamil_byte_1_start = 0xAE;
+	int tamil_byte_2_start = 0x80;
+	int tamil_invalid_list[56] = { 0,   1,   4,  11,  12,  13,  17,  22,  23,  24,  27,  29,  32,  33,  34,  37,
+									38,  39,  43,  44,  45,  58,  59,  60,  61,  67,  68,  69,  73,  78,  79,  81,
+									82,  83,  84,  85,  86,  88,  89,  90,  91,  92,  93,  94,  95,  96,  97,  98,
+									99, 100, 101, 123, 124, 125, 126, 127, };
+
+	int telugu_num_of_invalid = 32;
+	int telugu_byte_0_start = 0xE0;
+	int telugu_byte_1_start = 0xB0;
+	int telugu_byte_2_start = 0x80;
+	int telugu_invalid_list[32] = { 4,  13,  17,  41,  58,  59,  60,  69,  73,  78,  79,  80,  81,  82,  83,  84,
+									 87,  91,  92,  93,  94,  95, 100, 101, 112, 113, 114, 115, 116, 117, 118, 119, };
+
+	int kannada_num_of_invalid = 40;
+	int kannada_byte_0_start = 0xE0;
+	int kannada_byte_1_start = 0xB2;
+	int kannada_byte_2_start = 0x80;
+	int kannada_invalid_list[40] = { 4,  13,  17,  41,  52,  58,  59,  69,  73,  78,  79,  80,  81,  82,  83,  84,
+									  87,  88,  89,  90,  91,  92,  93,  95, 100, 101, 112, 115, 116, 117, 118, 119,
+									 120, 121, 122, 123, 124, 125, 126, 127, };
+
+	int sinhala_num_of_invalid = 38;
+	int sinhala_byte_0_start = 0xE0;
+	int sinhala_byte_1_start = 0xB6;
+	int sinhala_byte_2_start = 0x80;
+	int sinhala_invalid_list[38] = { 0,   1,   4,  23,  24,  25,  50,  60,  62,  63,  71,  72,  73,  75,  76,  77,
+									  78,  85,  87,  96,  97,  98,  99, 100, 101, 112, 113, 117, 118, 119, 120, 121,
+									 122, 123, 124, 125, 126, 127, };
+
+	int thai_num_of_invalid = 41;
+	int thai_byte_0_start = 0xE0;
+	int thai_byte_1_start = 0xB8;
+	int thai_byte_2_start = 0x80;
+	int thai_invalid_list[41] = { 0,  59,  60,  61,  62,  92,  93,  94,  95,  96,  97,  98,  99, 100, 101, 102,
+								  103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118,
+								  119, 120, 121, 122, 123, 124, 125, 126, 127, };
+
+	int lao_num_of_invalid = 61;
+	int lao_byte_0_start = 0xE0;
+	int lao_byte_1_start = 0xBA;
+	int lao_byte_2_start = 0x80;
+	int lao_invalid_list[61] = { 0,   3,   5,   6,   9,  11,  12,  14,  15,  16,  17,  18,  19,  24,  32,  36,
+								  38,  40,  41,  44,  58,  62,  63,  69,  71,  78,  79,  90,  91,  96,  97,  98,
+								  99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114,
+								 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, };
+
+	int tibetan_num_of_invalid = 45;
+	int tibetan_byte_0_start = 0xE0;
+	int tibetan_byte_1_start = 0xBC;
+	int tibetan_byte_2_start = 0x80;
+	int tibetan_invalid_list[45] = { 72, 109, 110, 111, 112, 152, 189, 205, 219, 220, 221, 222, 223, 224, 225, 226,
+									 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242,
+									 243, 244, 245, 246, 247, 238, 249, 250, 251, 252, 253, 254, 255, };
+
+	int georgian_num_of_invalid = 8;
+	int georgian_byte_0_start = 0xE1;
+	int georgian_byte_1_start = 0x82;
+	int georgian_byte_2_start = 0xA0;
+	int georgian_invalid_list[8] = { 38,  40,  41,  42,  43,  44,  46,  47, };
+
+	int unified_canadian_aboriginal_syllabics_byte_0_start = 0xE1;
+	int unified_canadian_aboriginal_syllabics_byte_1_start = 0x90;
+	int unified_canadian_aboriginal_syllabics_byte_2_start = 0x80;
+
+	int phonetic_extensions_byte_0_start = 0xE1;
+	int phonetic_extensions_byte_1_start = 0xB4;
+	int phonetic_extensions_byte_2_start = 0x80;
+
+	int combining_diacritical_marks_supplement_num_of_invalid = 1;
+	int combining_diacritical_marks_supplement_byte_0_start = 0xE1;
+	int combining_diacritical_marks_supplement_byte_1_start = 0xB7;
+	int combining_diacritical_marks_supplement_byte_2_start = 0x80;
+	int combining_diacritical_marks_supplement_invalid_list[1] = { 58, };
+
+	int greek_extended_num_of_invalid = 23;
+	int greek_extended_byte_0_start = 0xE1;
+	int greek_extended_byte_1_start = 0xBC;
+	int greek_extended_byte_2_start = 0x80;
+	int greek_extended_invalid_list[23] = { 22,  23,  30,  31,  70,  71,  78,  79,  88,  90,  92,  94, 126, 127, 181, 197,
+											212, 213, 220, 240, 241, 245, 255, };
+
+	int general_punctuation_num_of_invalid = 1;
+	int general_punctuation_byte_0_start = 0xE2;
+	int general_punctuation_byte_1_start = 0x80;
+	int general_punctuation_byte_2_start = 0x80;
+	int general_punctuation_invalid_list[1] = { 101, };
+
+	int superscripts_and_subscripts_num_of_invalid = 6;
+	int superscripts_and_subscripts_byte_0_start = 0xE2;
+	int superscripts_and_subscripts_byte_1_start = 0x81;
+	int superscripts_and_subscripts_byte_2_start = 0xB0;
+	int superscripts_and_subscripts_invalid_list[6] = { 2,  3,  31,  45,  46,  47, };
+
+	int combining_diacritical_marks_for_symbols_num_of_invalid = 15;
+	int combining_diacritical_marks_for_symbols_byte_0_start = 0xE2;
+	int combining_diacritical_marks_for_symbols_byte_1_start = 0x83;
+	int combining_diacritical_marks_for_symbols_byte_2_start = 0x90;
+	int combining_diacritical_marks_for_symbols_invalid_list[15] = { 33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47, };
+
+	int arrows_byte_0_start = 0xE2;
+	int arrows_byte_1_start = 0x86;
+	int arrows_byte_2_start = 0x90;
+
+	int mathematical_operators_byte_0_start = 0xE2;
+	int mathematical_operators_byte_1_start = 0x88;
+	int mathematical_operators_byte_2_start = 0x80;
+
+	int miscellaneous_technical_byte_0_start = 0xE2;
+	int miscellaneous_technical_byte_1_start = 0x8C;
+	int miscellaneous_technical_byte_2_start = 0x80;
+
+	int optical_character_recognition_byte_0_start = 0xE2;
+	int optical_character_recognition_byte_1_start = 0x91;
+	int optical_character_recognition_byte_2_start = 0x80;
+
+	int box_drawing_byte_0_start = 0xE2;
+	int box_drawing_byte_1_start = 0x94;
+	int box_drawing_byte_2_start = 0x80;
+
+	int block_elements_byte_0_start = 0xE2;
+	int block_elements_byte_1_start = 0x96;
+	int block_elements_byte_2_start = 0x80;
+
+	int geometric_shapes_byte_0_start = 0xE2;
+	int geometric_shapes_byte_1_start = 0x96;
+	int geometric_shapes_byte_2_start = 0xA0;
+
+	int miscellaneous_symbols_byte_0_start = 0xE2;
+	int miscellaneous_symbols_byte_1_start = 0x98;
+	int miscellaneous_symbols_byte_2_start = 0x80;
+
+	int dingbats_byte_0_start = 0xE2;
+	int dingbats_byte_1_start = 0x9C;
+	int dingbats_byte_2_start = 0x80;
+
+	int cjk_symbol_and_punctuation_byte_0_start = 0xE3;
+	int cjk_symbol_and_punctuation_byte_1_start = 0x80;
+	int cjk_symbol_and_punctuation_byte_2_start = 0x80;
+
+	int hiragana_num_of_invalid = 3;
+	int hiragana_byte_0_start = 0xE3;
+	int hiragana_byte_1_start = 0x81;
+	int hiragana_byte_2_start = 0x80;
+	int hiragana_invalid_list[3] = { 0,  87,  88, };
+
+	int katakana_byte_0_start = 0xE3;
+	int katakana_byte_1_start = 0x82;
+	int katakana_byte_2_start = 0xA0;
+
+	int hangul_compatibility_jamo_num_of_invalid = 2;
+	int hangul_compatibility_jamo_byte_0_start = 0xE3;
+	int hangul_compatibility_jamo_byte_1_start = 0x84;
+	int hangul_compatibility_jamo_byte_2_start = 0xB0;
+	int hangul_compatibility_jamo_invalid_list[2] = { 0,  95, };
+
+	int yi_syllables_num_of_invalid = 3;
+	int yi_syllables_byte_0_start = 0xEA;
+	int yi_syllables_byte_1_start = 0x80;
+	int yi_syllables_byte_2_start = 0x80;
+	int yi_syllables_invalid_list[3] = { 1165, 1166, 1167, };
+
+	int yi_radicals_num_of_invalid = 9;
+	int yi_radicals_byte_0_start = 0xEA;
+	int yi_radicals_byte_1_start = 0x92;
+	int yi_radicals_byte_2_start = 0x90;
+	int yi_radicals_invalid_list[9] = { 55,  56,  57,  58,  59,  60,  61,  62,  63, };
+
+	int cjk_compatibility_forms_byte_0_start = 0xEF;
+	int cjk_compatibility_forms_byte_1_start = 0xB8;
+	int cjk_compatibility_forms_byte_2_start = 0xB0;
+
+	int halfwidth_and_fullwidth_forms_num_of_invalid = 15;
+	int halfwidth_and_fullwidth_forms_byte_0_start = 0xEF;
+	int halfwidth_and_fullwidth_forms_byte_1_start = 0xBC;
+	int halfwidth_and_fullwidth_forms_byte_2_start = 0x80;
+	int halfwidth_and_fullwidth_forms_invalid_list[15] = { 0, 191, 192, 193, 200, 201, 208, 209, 216, 217, 221, 222, 223, 231, 239, };
+
+	int miscellaneous_symbols_and_pictographs_byte_0_start = 0xF0;
+	int miscellaneous_symbols_and_pictographs_byte_1_start = 0x9F;
+	int miscellaneous_symbols_and_pictographs_byte_2_start = 0x8C;
+	int miscellaneous_symbols_and_pictographs_byte_3_start = 0x80;
+
+	exfont_font_start_num[0] = 0;
+	for (int i = 1; i < 46; i++)
+		exfont_font_start_num[i] = exfont_font_start_num[i - 1] + exfont_font_characters[i - 1];
+
+	Exfont_init_sample(128, exfont_basic_latin_font_sample, basic_latin_byte_0_start, dammy_start, dammy_start, dammy_start, 1, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[1], exfont_latin_1_supplement_font_sample, latin_1_supplement_byte_0_start, latin_1_supplement_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[2], exfont_ipa_extensions_font_sample, ipa_extensions_byte_0_start, ipa_extensions_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[3], exfont_spacing_modifier_letters_font_sample, spacing_modifier_letters_byte_0_start, spacing_modifier_letters_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[4], exfont_combining_diacritical_marks_font_sample, combining_diacritical_marks_byte_0_start, combining_diacritical_marks_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[5] + greek_and_coptic_num_of_invalid, exfont_greek_and_coptic_font_sample, greek_and_coptic_byte_0_start, greek_and_coptic_byte_1_start, dammy_start, dammy_start, 2, greek_and_coptic_invalid_list, greek_and_coptic_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[6], exfont_cyrillic_font_sample, cyrillic_byte_0_start, cyrillic_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[7], exfont_cyrillic_supplement_font_sample, cyrillic_supplement_byte_0_start, cyrillic_supplement_byte_1_start, dammy_start, dammy_start, 2, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[8] + armenian_num_of_invalid, exfont_armenian_sample, armenian_byte_0_start, armenian_byte_1_start, dammy_start, dammy_start, 2, armenian_invalid_list, armenian_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[9] + hebrew_num_of_invalid, exfont_hebrew_font_sample, hebrew_byte_0_start, hebrew_byte_1_start, dammy_start, dammy_start, 2, hebrew_invalid_list, hebrew_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[10] + arabic_num_of_invalid, exfont_arabic_sample, arabic_byte_0_start, arabic_byte_1_start, dammy_start, dammy_start, 2, arabic_invalid_list, arabic_num_of_invalid);
+	Exfont_init_sample(235 + arabic_right_to_left_num_of_invalid, exfont_arabic_right_to_left_sample, arabic_byte_0_start, arabic_byte_1_start, dammy_start, dammy_start, 2, arabic_right_to_left_invalid_list, arabic_right_to_left_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[11], exfont_devanagari_font_sample, devanagari_byte_0_start, devanagari_byte_1_start, devanagari_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[12] + gurmukhi_num_of_invalid, exfont_gurmukhi_font_sample, gurmukhi_byte_0_start, gurmukhi_byte_1_start, gurmukhi_byte_2_start, dammy_start, 3, gurmukhi_invalid_list, gurmukhi_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[13] + tamil_num_of_invalid, exfont_tamil_font_sample, tamil_byte_0_start, tamil_byte_1_start, tamil_byte_2_start, dammy_start, 3, tamil_invalid_list, tamil_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[14] + telugu_num_of_invalid, exfont_telugu_font_sample, telugu_byte_0_start, telugu_byte_1_start, telugu_byte_2_start, dammy_start, 3, telugu_invalid_list, telugu_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[15] + kannada_num_of_invalid, exfont_kannada_font_sample, kannada_byte_0_start, kannada_byte_1_start, kannada_byte_2_start, dammy_start, 3, kannada_invalid_list, kannada_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[16] + sinhala_num_of_invalid, exfont_sinhala_font_sample, sinhala_byte_0_start, sinhala_byte_1_start, sinhala_byte_2_start, dammy_start, 3, sinhala_invalid_list, sinhala_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[17] + thai_num_of_invalid, exfont_thai_font_sample, thai_byte_0_start, thai_byte_1_start, thai_byte_2_start, dammy_start, 3, thai_invalid_list, thai_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[18] + lao_num_of_invalid, exfont_lao_font_sample, lao_byte_0_start, lao_byte_1_start, lao_byte_2_start, dammy_start, 3, lao_invalid_list, lao_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[19] + tibetan_num_of_invalid, exfont_tibetan_font_sample, tibetan_byte_0_start, tibetan_byte_1_start, tibetan_byte_2_start, dammy_start, 3, tibetan_invalid_list, tibetan_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[20] + georgian_num_of_invalid, exfont_georgian_font_sample, georgian_byte_0_start, georgian_byte_1_start, georgian_byte_2_start, dammy_start, 3, georgian_invalid_list, georgian_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[21], exfont_unified_canadian_aboriginal_syllabics_font_sample, unified_canadian_aboriginal_syllabics_byte_0_start, unified_canadian_aboriginal_syllabics_byte_1_start, unified_canadian_aboriginal_syllabics_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[22], exfont_phonetic_extensions_font_sample, phonetic_extensions_byte_0_start, phonetic_extensions_byte_1_start, phonetic_extensions_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[23] + combining_diacritical_marks_supplement_num_of_invalid, exfont_combining_diacritical_marks_supplement_font_sample, combining_diacritical_marks_supplement_byte_0_start, combining_diacritical_marks_supplement_byte_1_start, combining_diacritical_marks_supplement_byte_2_start, dammy_start, 3, combining_diacritical_marks_supplement_invalid_list, combining_diacritical_marks_supplement_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[24] + greek_extended_num_of_invalid, exfont_greek_extended_font_sample, greek_extended_byte_0_start, greek_extended_byte_1_start, greek_extended_byte_2_start, dammy_start, 3, greek_extended_invalid_list, greek_extended_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[25] + general_punctuation_num_of_invalid, exfont_general_punctuation_font_sample, general_punctuation_byte_0_start, general_punctuation_byte_1_start, general_punctuation_byte_2_start, dammy_start, 3, general_punctuation_invalid_list, general_punctuation_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[26] + superscripts_and_subscripts_num_of_invalid, exfont_superscripts_and_subscripts_font_sample, superscripts_and_subscripts_byte_0_start, superscripts_and_subscripts_byte_1_start, superscripts_and_subscripts_byte_2_start, dammy_start, 3, superscripts_and_subscripts_invalid_list, superscripts_and_subscripts_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[27] + combining_diacritical_marks_for_symbols_num_of_invalid, exfont_combining_diacritical_marks_for_symbols_font_sample, combining_diacritical_marks_for_symbols_byte_0_start, combining_diacritical_marks_for_symbols_byte_1_start, combining_diacritical_marks_for_symbols_byte_2_start, dammy_start, 3, combining_diacritical_marks_for_symbols_invalid_list, combining_diacritical_marks_for_symbols_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[28], exfont_arrows_font_sample, arrows_byte_0_start, arrows_byte_1_start, arrows_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[29], exfont_mathematical_operators_font_sample, mathematical_operators_byte_0_start, mathematical_operators_byte_1_start, mathematical_operators_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[30], exfont_miscellaneous_technical_font_sample, miscellaneous_technical_byte_0_start, miscellaneous_technical_byte_1_start, miscellaneous_technical_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[31], exfont_optical_character_recognition_font_sample, optical_character_recognition_byte_0_start, optical_character_recognition_byte_1_start, optical_character_recognition_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[32], exfont_box_drawing_font_sample, box_drawing_byte_0_start, box_drawing_byte_1_start, box_drawing_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[33], exfont_block_elements_font_sample, block_elements_byte_0_start, block_elements_byte_1_start, block_elements_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[34], exfont_geometric_shapes_font_sample, geometric_shapes_byte_0_start, geometric_shapes_byte_1_start, geometric_shapes_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[35], exfont_miscellaneous_symbols_font_sample, miscellaneous_symbols_byte_0_start, miscellaneous_symbols_byte_1_start, miscellaneous_symbols_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[36], exfont_dingbats_font_sample, dingbats_byte_0_start, dingbats_byte_1_start, dingbats_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[37], exfont_cjk_symbol_and_punctuation_font_sample, cjk_symbol_and_punctuation_byte_0_start, cjk_symbol_and_punctuation_byte_1_start, cjk_symbol_and_punctuation_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[38] + hiragana_num_of_invalid, exfont_hiragana_font_sample, hiragana_byte_0_start, hiragana_byte_1_start, hiragana_byte_2_start, dammy_start, 3, hiragana_invalid_list, hiragana_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[39], exfont_katakana_font_sample, katakana_byte_0_start, katakana_byte_1_start, katakana_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[40] + hangul_compatibility_jamo_num_of_invalid, exfont_hangul_compatibility_jamo_font_sample, hangul_compatibility_jamo_byte_0_start, hangul_compatibility_jamo_byte_1_start, hangul_compatibility_jamo_byte_2_start, dammy_start, 3, hangul_compatibility_jamo_invalid_list, hangul_compatibility_jamo_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[41] + yi_syllables_num_of_invalid, exfont_yi_syllables_font_sample, yi_syllables_byte_0_start, yi_syllables_byte_1_start, yi_syllables_byte_2_start, dammy_start, 3, yi_syllables_invalid_list, yi_syllables_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[42] + yi_radicals_num_of_invalid, exfont_yi_radicals_font_sample, yi_radicals_byte_0_start, yi_radicals_byte_1_start, yi_radicals_byte_2_start, dammy_start, 3, yi_radicals_invalid_list, yi_radicals_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[43], exfont_cjk_compatibility_forms_font_sample, cjk_compatibility_forms_byte_0_start, cjk_compatibility_forms_byte_1_start, cjk_compatibility_forms_byte_2_start, dammy_start, 3, dammy_invalid, 0);
+	Exfont_init_sample(exfont_font_characters[44] + halfwidth_and_fullwidth_forms_num_of_invalid, exfont_halfwidth_and_fullwidth_forms_font_sample, halfwidth_and_fullwidth_forms_byte_0_start, halfwidth_and_fullwidth_forms_byte_1_start, halfwidth_and_fullwidth_forms_byte_2_start, dammy_start, 3, halfwidth_and_fullwidth_forms_invalid_list, halfwidth_and_fullwidth_forms_num_of_invalid);
+	Exfont_init_sample(exfont_font_characters[45], exfont_miscellaneous_symbols_and_pictographs_font_sample, miscellaneous_symbols_and_pictographs_byte_0_start, miscellaneous_symbols_and_pictographs_byte_1_start, miscellaneous_symbols_and_pictographs_byte_2_start, miscellaneous_symbols_and_pictographs_byte_3_start, 4, dammy_invalid, 0);
+}
+
 std::string Exfont_query_font_name(int exfont_num)
 {
-	if (exfont_num >= 0 && exfont_num <= 45)
+	if (exfont_num >= 0 && exfont_num < EXFONT_NUM_OF_FONT_NAME)
 		return exfont_font_name[exfont_num];
 	else
 		return "";
 }
 
-std::string Exfont_text_sort(std::string sorce_part_string[])
+void Exfont_set_msg(int msg_num, std::string msg)
+{
+	if (msg_num >= 0 && msg_num < EXFONT_NUM_OF_FONT_NAME)
+		exfont_font_name[msg_num] = msg;
+}
+
+std::string Exfont_text_sort(std::string sorce_part_string[], int max_loop)
 {
 	int arabic_pos = -1;
 	bool arabic_found = false;
 	std::string result_string = "";
-	for (int i = 0; i < 1024; i++)
+	for (int i = 0; i < max_loop; i++)
 	{
 		if (memcmp((void*)sorce_part_string[i].c_str(), (void*)exfont_basic_latin_font_sample[0].c_str(), 0x1) == 0)
 			break;
@@ -901,21 +859,19 @@ std::string Exfont_text_sort(std::string sorce_part_string[])
 	return result_string;
 }
 
-void Exfont_text_parse(std::string sorce_string, std::string part_string[])
+void Exfont_text_parse(std::string sorce_string, std::string part_string[], int max_loop)
 {
 	int sorce_string_length = sorce_string.length();
-	int i = 0;
 	int std_num = 0;
 	int parse_string_length = 0;
+	int i = 0;
 
 	char* sorce_string_char = (char*)malloc(sorce_string.length() + 10);
 
 	memset(sorce_string_char, 0x0, sorce_string.length() + 10);
 	strcpy(sorce_string_char, (char*)sorce_string.c_str());
-	for (int i = 0; i < 1024; i++)
-		part_string[i] = "\u0000";
 
-	while (true)
+	for(int k = 0;k < max_loop; k++)
 	{
 		parse_string_length = mblen(&sorce_string_char[i], 4);
 
@@ -930,11 +886,13 @@ void Exfont_text_parse(std::string sorce_string, std::string part_string[])
 		else
 			i++;
 	}
+	part_string[std_num] = "\u0000";
 	free(sorce_string_char);
 }
 
 void Exfont_draw_external_fonts(std::string string, float texture_x, float texture_y, float texture_size_x, float texture_size_y, float red, float green, float blue, float alpha)
 {
+	int loop = 0;
 	float texture_x_offset = 0;
 	float interval_offset = 1.5;
 	bool unknown_char = false;
@@ -942,10 +900,15 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 	C2D_ImageTint tint;
 	C2D_PlainImageTint(&tint, C2D_Color32f(red, green, blue, alpha), true);
 
-	Exfont_text_parse(string, part_string);
-	Exfont_text_parse(Exfont_text_sort(part_string), part_string);
+	if (string.length() >= 1024)
+		loop = 1024;
+	else
+		loop = string.length();
 
-	for (int i = 0; i < 1024; i++)
+	Exfont_text_parse(string, part_string, loop);
+	Exfont_text_parse(Exfont_text_sort(part_string, loop), part_string, loop);
+
+	for (int i = 0; i < loop; i++)
 	{
 		unknown_char = true;
 

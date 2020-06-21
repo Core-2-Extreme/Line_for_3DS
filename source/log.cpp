@@ -59,6 +59,7 @@ void Log_set_log_show_flag(bool flag)
 int Log_log_save(std::string type, std::string text, Result result, bool draw)
 {
 	double time_cache;
+	int return_log_num;
 	char app_log_cache[4096];
 	osTickCounterUpdate(&log_up_time_timer);
 	time_cache = osTickCounterRead(&log_up_time_timer);
@@ -74,6 +75,7 @@ int Log_log_save(std::string type, std::string text, Result result, bool draw)
 
 	log_logs[log_current_log_num] = app_log_cache;
 	log_current_log_num++;
+	return_log_num = log_current_log_num;
 	if (log_current_log_num >= 512)
 		log_current_log_num = 0;
 
@@ -85,7 +87,7 @@ int Log_log_save(std::string type, std::string text, Result result, bool draw)
 	if (draw)
 		Draw_log();
 
-	return (log_current_log_num - 1);
+	return (return_log_num - 1);
 }
 
 void Log_log_add(int add_log_num, std::string add_text, Result result, bool draw)

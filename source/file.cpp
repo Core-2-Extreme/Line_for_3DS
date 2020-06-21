@@ -3,10 +3,13 @@
 #include <string>
 
 #include "error.hpp"
-#include "unicodetochar.h"
+#include "unicodetochar/unicodetochar.h"
 #include "types.hpp"
+#include "share_function.hpp"
+#include "file.hpp"
+#include "log.hpp"
 
-Result_with_string Share_save_to_file(std::string file_name, u8* write_data, int size, std::string dir_path, bool delete_old_file, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string File_save_to_file(std::string file_name, u8* write_data, int size, std::string dir_path, bool delete_old_file, Handle fs_handle, FS_Archive fs_archive)
 {
 	u32 written_size = 0;
 	u64 file_size = 0;
@@ -16,7 +19,7 @@ Result_with_string Share_save_to_file(std::string file_name, u8* write_data, int
 	Result_with_string save_file_result;
 
 	save_file_result.code = 0;
-	save_file_result.string = "[Success] ";
+	save_file_result.string = s_success;
 
 	save_file_result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if(save_file_result.code != 0)
@@ -45,12 +48,15 @@ Result_with_string Share_save_to_file(std::string file_name, u8* write_data, int
 
 	if (!failed)
 	{
-		save_file_result.code = FSUSER_CreateFile(fs_archive, fsMakePath(PATH_ASCII, file_path.c_str()), FS_ATTRIBUTE_ARCHIVE, 0);
-		if (save_file_result.code != 0) 
+		if (delete_old_file)
 		{
-			save_file_result.string = "[Error] FSUSER_CreateFile failed. ";
-			save_file_result.error_description = "N/A ";
-			failed = true;
+			save_file_result.code = FSUSER_CreateFile(fs_archive, fsMakePath(PATH_ASCII, file_path.c_str()), FS_ATTRIBUTE_ARCHIVE, 0);
+			if (save_file_result.code != 0)
+			{
+				save_file_result.string = "[Error] FSUSER_CreateFile failed. ";
+				save_file_result.error_description = "N/A ";
+				failed = true;
+			}
 		}
 	}
 
@@ -67,7 +73,7 @@ Result_with_string Share_save_to_file(std::string file_name, u8* write_data, int
 	
 	if (!failed)
 	{
-		if (!delete_old_file)
+		if (!(delete_old_file))
 		{
 			save_file_result.code = FSFILE_GetSize(fs_handle, &file_size);
 			if (save_file_result.code != 0)
@@ -99,126 +105,36 @@ Result_with_string Share_save_to_file(std::string file_name, u8* write_data, int
 	return save_file_result;
 }
 
-Result_with_string Share_load_from_file(std::string file_name, u8* read_data, int max_size, u32* read_size, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string File_load_from_file(std::string file_name, u8* read_data, int max_size, u32* read_size, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
 {
-	bool failed = false;
-	u32 read_size_calc;
-	u64 file_size;
-	std::string file_path = dir_path + file_name;
-	TickCounter read_time;
-	Result_with_string result;
-	result.code = 0;
-	result.string = "[Success] ";
-
-	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
-	if (result.code != 0)
-	{
-		result.string = "[Error] FSUSER_OpenArchive failed. ";
-		result.error_description = "N/A ";
-		failed = true;
-	}
-
-	if (!failed)
-	{
-		result.code = FSUSER_OpenFile(&fs_handle, fs_archive, fsMakePath(PATH_ASCII, file_path.c_str()), FS_OPEN_READ, FS_ATTRIBUTE_ARCHIVE);
-		if (result.code != 0)
-		{
-			result.string = "[Error] FSUSER_OpenFile failed. ";
-			result.error_description = "N/A ";
-			failed = true;
-		}
-	}
-	
-	if (!failed)
-	{
-		result.code = FSFILE_GetSize(fs_handle, &file_size);
-		if (result.code != 0)
-		{
-			result.string = "[Error] FSFILE_GetSize failed. ";
-			result.error_description = "N/A ";
-			failed = true;
-		}
-	}
-
-	if (!failed)
-	{
-		if ((int)file_size > max_size)
-		{
-			result.code = BUFFER_SIZE_IS_TOO_SMALL;
-			result.string = "[Error] Buffer size is too small. ";
-			result.error_description = "In the case that the buffer size is too small, this'll occur.\nPlease increase buffer size from settings.";
-			failed = true;
-		}
-	}
-
-	if (!failed)
-	{
-		osTickCounterStart(&read_time);
-		result.code = FSFILE_Read(fs_handle, &read_size_calc, 0, read_data, file_size);
-		osTickCounterUpdate(&read_time);
-		*read_size = read_size_calc;
-		if (result.code == 0)
-			result.string += std::to_string(read_size_calc / 1024) + "KB " + std::to_string(((double)read_size_calc / (osTickCounterRead(&read_time) / 1000.0)) / 1024.0 / 1024.0) + "MB/s ";
-		else
-		{
-			result.string = "[Error] FSFILE_Read failed. ";
-			result.error_description = "N/A ";
-			failed = true;
-		}
-
-	}
-
-	FSFILE_Close(fs_handle);
-	FSUSER_CloseArchive(fs_archive);
-	return result;
+	return File_load_from_file_with_range(file_name, read_data, max_size, 0, read_size, dir_path, fs_handle, fs_archive);
 }
 
-Result_with_string Share_load_from_rom(std::string file_name, u8* read_data, int max_size, u32* read_size, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string File_load_from_rom(std::string file_name, u8* read_data, int max_size, u32* read_size, std::string dir_path)
 {
 	bool failed = false;
-	u32 read_size_calc;
+	size_t read_size_;
 	u64 file_size;
 	std::string file_path = dir_path + file_name;
-	TickCounter read_time;
 	Result_with_string result;
 	result.code = 0;
-	result.string = "[Success] ";
+	result.string = s_success;
 
-	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_ROMFS, fsMakePath(PATH_EMPTY, ""));
-	if (result.code != 0)
+	FILE* f = fopen(file_path.c_str(), "rb");
+	if (f == NULL)
 	{
-		result.string = "[Error] FSUSER_OpenArchive failed. ";
+		result.string = "[Error] fopen failed. ";
 		result.error_description = "N/A ";
 		failed = true;
 	}
 
 	if (!failed)
 	{
-		u8 file_binary_lowpath[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-		FS_Path fs_path = { PATH_BINARY, 12, file_binary_lowpath };
-		result.code = FSUSER_OpenFile(&fs_handle, fs_archive, fs_path, FS_OPEN_READ, FS_ATTRIBUTE_READ_ONLY);
-		if (result.code != 0)
-		{
-			result.string = "[Error] FSUSER_OpenFile failed. ";
-			result.error_description = "N/A ";
-			failed = true;
-		}
-	}
+		fseek(f, 0, SEEK_END);
+		file_size = ftell(f);
+		rewind(f);
 
-	if (!failed)
-	{
-		result.code = FSFILE_GetSize(fs_handle, &file_size);
-		if (result.code != 0)
-		{
-			result.string = "[Error] FSFILE_GetSize failed. ";
-			result.error_description = "N/A ";
-			failed = true;
-		}
-	}
-
-	if (!failed)
-	{
-		if ((int)file_size > max_size)
+		if((int)file_size > max_size)
 		{
 			result.code = BUFFER_SIZE_IS_TOO_SMALL;
 			result.string = "[Error] Buffer size is too small. " + std::to_string(file_size);
@@ -229,34 +145,29 @@ Result_with_string Share_load_from_rom(std::string file_name, u8* read_data, int
 
 	if (!failed)
 	{
-		osTickCounterStart(&read_time);
-		result.code = FSFILE_Read(fs_handle, &read_size_calc, 0, read_data, file_size);
-		osTickCounterUpdate(&read_time);
-		*read_size = read_size_calc;
-		if (result.code == 0)
-			result.string += std::to_string(read_size_calc / 1024) + "KB " + std::to_string(((double)read_size_calc / (osTickCounterRead(&read_time) / 1000.0)) / 1024.0 / 1024.0) + "MB/s ";
-		else
+		read_size_ = fread(read_data, 1, file_size, f);
+		*read_size = read_size_;
+		if (read_size_ != file_size)
 		{
-			result.string = "[Error] FSFILE_Read failed. ";
+			result.string = "[Error] fread failed. ";
 			result.error_description = "N/A ";
 			failed = true;
 		}
-
 	}
+	fclose(f);
 
-	FSFILE_Close(fs_handle);
-	FSUSER_CloseArchive(fs_archive);
 	return result;
 }
 
-
-Result_with_string Share_load_from_file_with_range(std::string file_name, u8* read_data, int read_length, u64 read_offset, u32* read_size, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string File_load_from_file_with_range(std::string file_name, u8* read_data, int read_length, u64 read_offset, u32* read_size, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
 {
 	bool failed = false;
+	u32 read_size_calc;
 	std::string file_path = dir_path + file_name;
+	TickCounter read_time;
 	Result_with_string result;
 	result.code = 0;
-	result.string = "[Success] ";
+	result.string = s_success;
 
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if (result.code != 0)
@@ -279,7 +190,12 @@ Result_with_string Share_load_from_file_with_range(std::string file_name, u8* re
 
 	if (!failed)
 	{
-		result.code = FSFILE_Read(fs_handle, read_size, read_offset, read_data, read_length);
+		osTickCounterStart(&read_time);
+		result.code = FSFILE_Read(fs_handle, &read_size_calc, read_offset, read_data, read_length);
+		osTickCounterUpdate(&read_time);
+		*read_size = read_size_calc;
+		if (result.code == 0)
+			result.string += std::to_string(read_size_calc / 1024) + "KB " + std::to_string(((double)read_size_calc / (osTickCounterRead(&read_time) / 1000.0)) / 1024.0 / 1024.0) + "MB/s ";
 		if (result.code != 0)
 		{
 			result.string = "[Error] FSFILE_Read failed. ";
@@ -293,13 +209,45 @@ Result_with_string Share_load_from_file_with_range(std::string file_name, u8* re
 	return result;
 }
 
-Result_with_string Share_check_file_size(std::string file_name, std::string dir_path, u64* file_size, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string File_delete_file(std::string file_name, std::string dir_path, FS_Archive fs_archive)
+{
+	bool failed = false;
+	std::string file_path = dir_path + file_name;
+	Result_with_string result;
+
+	result.code = 0;
+	result.string = s_success;
+
+	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
+	if (result.code != 0)
+	{
+		result.string = "[Error] FSUSER_OpenArchive failed. ";
+		result.error_description = "N/A ";
+		failed = true;
+	}
+
+	if (!failed)
+	{
+		result.code = FSUSER_DeleteFile(fs_archive, fsMakePath(PATH_ASCII, file_path.c_str()));
+		if (result.code != 0)
+		{
+			result.string = "[Error] FSUSER_DeleteFile failed. ";
+			result.error_description = "N/A ";
+			failed = true;
+		}
+	}
+
+	FSUSER_CloseArchive(fs_archive);
+	return result;
+}
+
+Result_with_string File_check_file_size(std::string file_name, std::string dir_path, u64* file_size, Handle fs_handle, FS_Archive fs_archive)
 {
 	bool failed = false;
 	std::string file_path = dir_path + file_name;
 	Result_with_string result;
 	result.code = 0;
-	result.string = "[Success] ";
+	result.string = s_success;
 
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if (result.code != 0)
@@ -336,13 +284,13 @@ Result_with_string Share_check_file_size(std::string file_name, std::string dir_
 	return result;
 }
 
-Result_with_string Share_check_file_exist(std::string file_name, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string File_check_file_exist(std::string file_name, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
 {
 	bool failed = false;
 	std::string file_path = dir_path + file_name;
 	Result_with_string result;
 	result.code = 0;
-	result.string = "[Success] ";
+	result.string = s_success;
 
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if (result.code != 0)
@@ -368,7 +316,7 @@ Result_with_string Share_check_file_exist(std::string file_name, std::string dir
 	return result;
 }
 
-Result_with_string Share_read_dir(int* num_of_detected, std::string file_dir_name[], int name_num_of_array, std::string type[], int type_num_of_array, std::string dir_path)
+Result_with_string File_read_dir(int* num_of_detected, std::string file_dir_name[], int name_num_of_array, std::string type[], int type_num_of_array, std::string dir_path)
 {
 	int count = 0;
 	u32 read_entry = 0;
@@ -380,7 +328,7 @@ Result_with_string Share_read_dir(int* num_of_detected, std::string file_dir_nam
 	FS_Archive fs_archive;
 	Result_with_string result;
 	result.code = 0;
-	result.string = "[Success] ";
+	result.string = s_success;
 	cache = (char*)malloc(0x500);
 	
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));

@@ -89,18 +89,19 @@ void Expl_set_view_offset_y(double value)
 void Expl_init(void)
 {
 	expl_read_dir_thread_run = true;
-	expl_read_dir_thread = threadCreate(Expl_read_dir_thread, (void*)(""), STACKSIZE, 0x28, -1, true);
+	expl_read_dir_thread = threadCreate(Expl_read_dir_thread, (void*)(""), STACKSIZE, 0x24, -1, false);
 }
 
 void Expl_exit(void)
 {
 	expl_read_dir_thread_run = false;
 	threadJoin(expl_read_dir_thread, 10000000000);
+	threadFree(expl_read_dir_thread);
 }
 
 void Expl_read_dir_thread(void* arg)
 {
-	Log_log_save("Share/Read dir thread", "Thread started.", 1234567890, false);
+	Log_log_save("Expl/Read dir thread", "Thread started.", 1234567890, false);
 	int read_dir_lou_num_return;
 	int num_of_hidden;
 	int num_of_dir;
@@ -114,7 +115,7 @@ void Expl_read_dir_thread(void* arg)
 	std::string name_of_read_only[256];
 	std::string name_of_unknown[256];
 	std::string sort_cache[256];
-	std::string name_sample = "!#$%&'()+,-.0123456789;=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{}~";
+//	std::string name_sample = "!#$%&'()+,-.0123456789;=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{}~";
 	Result_with_string read_dir_result;
 
 	for (int i = 0; i < 256; i++)
@@ -133,8 +134,8 @@ void Expl_read_dir_thread(void* arg)
 				expl_type[i] = "";
 			}
 
-			read_dir_lou_num_return = Log_log_save("Share/Read dir thread", "Share_read_dir(" + expl_current_patch + ")...", 1234567890, false);
-			read_dir_result = Share_read_dir(&expl_num_of_file, expl_files, 256, expl_type, 256, expl_current_patch);
+			read_dir_lou_num_return = Log_log_save("Expl/Read dir thread", "File_read_dir(" + expl_current_patch + ")...", 1234567890, false);
+			read_dir_result = File_read_dir(&expl_num_of_file, expl_files, 256, expl_type, 256, expl_current_patch);
 			Log_log_add(read_dir_lou_num_return, read_dir_result.string, read_dir_result.code, false);
 
 			if (read_dir_result.code == 0)
@@ -193,9 +194,9 @@ void Expl_read_dir_thread(void* arg)
 				{
 					num_offset = 1;
 					expl_num_of_file += 1;
-					if (s_setting[1] == "en")
+					if (s_setting[0] == "en")
 						expl_files[0] = "Move to parent directory";
-					else if (s_setting[1] == "jp")
+					else if (s_setting[0] == "jp")
 						expl_files[0] = "親ディレクトリへ移動";
 				}
 				else
@@ -232,7 +233,8 @@ void Expl_read_dir_thread(void* arg)
 		}
 		usleep(50000);
 	}
-	Log_log_save("Share/Read dir thread", "Thread exit.", 1234567890, false);
+	Log_log_save("Expl/Read dir thread", "Thread exit.", 1234567890, false);
+	threadExit(0);
 }
 
 

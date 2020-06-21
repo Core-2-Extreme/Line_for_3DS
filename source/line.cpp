@@ -4,7 +4,8 @@
 #include <unistd.h>
 
 #include "hid.hpp"
-#include "base64.h"
+#include "stb_image/stb_image.h"
+#include "base64/base64.h"
 #include "draw.hpp"
 #include "file.hpp"
 #include "httpc.hpp"
@@ -19,13 +20,17 @@
 
 bool line_thread_suspend = false;
 bool line_already_init = false;
+bool line_delete_id_check_request = false;
+bool line_delete_id_request = false;
 bool line_main_run = false;
+bool line_icon_load_thread_run = false;
 bool line_log_dl_thread_run = false;
 bool line_log_load_thread_run = false;
 bool line_log_parse_thread_run = false;
 bool line_send_msg_thread_run = false;
 bool line_auto_update = false;
 bool line_hide_id = false;
+bool line_icon_dl_request = false;
 bool line_parse_log_request = false;
 bool line_load_log_request = false;
 bool line_dl_log_request = false;
@@ -33,10 +38,14 @@ bool line_send_check[3] = { false, false, false };
 bool line_send_request[3] = { false, false, false };
 bool line_select_sticker_request = false;
 bool line_select_file_request = false;
+bool line_select_chat_room_request = true;
 bool line_type_id_request = false;
 bool line_type_app_ps_request = false;
 bool line_type_msg_request = false;
 bool line_type_main_url_request = false;
+bool line_type_short_url_request = false;
+bool line_check_main_url_request = false;
+bool line_solve_short_url_request = false;
 bool line_type_script_ps_request = false;
 bool line_sending_msg = false;
 bool line_send_success = false;
@@ -50,7 +59,7 @@ int line_send_fs_buffer_size = 0x1000000;
 int line_send_fs_cache_buffer_size = 0x300000;
 int line_step_max = 1;
 int line_current_step = 0;
-
+int line_num_of_ids = 0;
 int line_log_dl_progress = 0;
 int line_num_of_msg = 0;
 int line_num_of_lines = 0;
@@ -83,107 +92,32 @@ double line_max_y = 10.0;
 double line_selected_msg_num = 0.0;
 
 std::string line_script_auth = "";
-std::string line_ids[100];
+std::string line_short_url = "";
+std::string line_ids[128];
+std::string line_names[128];
+std::string line_icon_url[128];
 std::string line_input_text = "";
 std::string line_main_url = "";
 std::string line_short_msg_log[60000];
 std::string line_log_data = "";
-std::string line_msg_en[42] = {
-	" Message(s) found. (",
-	" Line(s))",
-	"Send",
-	"Copy" ,
-	"Settings" ,
-	"Advanced settings" ,
-	"Send a message(A)" ,
-	"Log update(B)" ,
-	"Auto update off",
-	"Auto update on",
-	"Selected message num : " ,
-	"",
-	"Message copy\n(ZR)",
-	"Up\n(D ↑)",
-	"Down\n(D ↓)",
-	"Increase interval\n(D ↑)",
-	"Decrease interval\n(D ↓)",
-	"Decrease size\n(L)",
-	"Increase size\n(R)",
-	"Add new ID(Y)",
-	"Change main url(X)",
-	"Yes(A)",
-	"No(B)",
-	"Change app password(A)",
-	"Change script password(B)",
-	"Send a sticker(Y)",
-	"Do you want to send a message?",
-	"Do you want to send a sticker?",
-	"Touch to download and display image ",
-	"Touch to display image ",
-	"Do you want to send a file?",
-	"(If the file's invalid it'll fail.)",
-	"Path : ",
-	"File name : ",
-	"View image(X)",
-	"Select(A) Go back(B) Move(DPAD ↑,↓,→,←) Close(Y)",
-	"Send a file(X)",
-	"Receive",
-	"Sending a message...",
-	"Sending a sticker...",
-	"Sending a file...",
-	"Success (A to close)",
-};
-std::string line_msg_jp[42] = {
-	"件のメッセージが検出されました。(",
-	" 行)",
-	"送信",
-	"コピー",
-	"設定",
-	"上級設定",
-	"メッセージ送信(A)",
-	"ログ更新(B)",
-	"自動更新 オフ",
-	"自動更新 オン",
-	"選択されたメッセージ番号 : ",
-	"",
-	"メッセージコピー\n(ZR)",
-	"上\n(十字↑)",
-	"下\n(十字↓)",
-	"間隔を広く\n(十字↑)",
-	"間隔を狭く\n(十字↓)",
-	"サイズを小さく\n(L)",
-	"サイズを大きく\n(R)",
-	"新規ID追加(Y)",
-	"メインURL変更(X)",
-	"はい(A)",
-	"いいえ(B)",
-	"アプリパスワード変更(A)",
-	"スクリプトパスワード変更(B)",
-	"スタンプ送信(Y)",
-	"メッセージを送信しますか?",
-	"スタンプを送信しますか?",
-	"タッチすると画像をダウンロードして表示",
-	"タッチすると画像を表示",
-	"ファイルを送信しますか?",
-	"(ファイルが無効な場合失敗します)",
-	"パッチ : ",
-	"ファイル名 : ",
-	"画像を見る(X)",
-	"選択(A) 戻る(B) 移動(十字 ↑,↓,→,←) 閉じる(Y)",
-	"ファイル送信(X)",
-	"受信",
-	"メッセージを送信中...",
-	"スタンプを送信中...",
-	"ファイルを送信中...",
-	"成功 (Aで閉じる)",
-};
+std::string line_msg[LINE_NUM_OF_MSG];
 std::string line_msg_log[300];
 std::string line_send_file_dir = "";
 std::string line_send_file_name = "";
 std::string line_content[60000];
+std::string line_icon_load_thread_string = "Line/Icon load thread";
+std::string line_log_dl_thread_string = "Line/Log dl thread";
+std::string line_send_msg_thread_string = "Line/Send msg thread";
+std::string line_load_thread_string = "Line/Log load thread";
+std::string line_parse_thread_string = "Line/Log parse thread";
+std::string line_init_string = "Line/init";
+std::string line_exit_string = "Line/exit";
+C3D_Tex* line_c3d_cache_tex[128];
+Tex3DS_SubTexture* line_c3d_cache_subtex[128];
+C2D_Image line_stickers_images[121], line_icon[128];
+stbi_uc* line_stb_image[128];
 
-C2D_Image line_stickers_images[121];
-
-Thread line_dl_log_thread, line_load_log_thread, line_send_msg_thread, line_parse_log_thread;
+Thread line_dl_log_thread, line_load_log_thread, line_send_msg_thread, line_parse_log_thread, line_icon_dl_thread;
 
 bool Line_query_init_flag(void)
 {
@@ -266,6 +200,20 @@ bool Line_query_operation_flag(int operation_num)
 		return line_sending_msg;
 	else if (operation_num == LINE_SEND_SUCCESS)
 		return line_send_success;
+	else if (operation_num == LINE_SELECT_CHAT_ROOM_REQUEST)
+		return line_select_chat_room_request;
+	else if (operation_num == LINE_DELETE_ID_CHECK_REQUEST)
+		return line_delete_id_check_request;
+	else if (operation_num == LINE_DELETE_ID_REQUEST)
+		return line_delete_id_request;
+	else if (operation_num == LINE_SOLVE_SHORT_URL_REQUEST)
+		return line_solve_short_url_request;
+	else if (operation_num == LINE_CHECK_MAIN_URL_REQUEST)
+		return line_check_main_url_request;
+	else if (operation_num == LINE_TYPE_SHORT_URL_REQUEST)
+		return line_type_short_url_request;
+	else if (operation_num == LINE_PARSE_LOG_REQUEST)
+		return line_parse_log_request;
 	else
 		return false;
 }
@@ -316,6 +264,50 @@ bool Line_query_setting(int setting_num)
 		return false;
 }
 
+void Line_reset_id(void)
+{
+	for (int i = 0; i < 128; i++)
+	{
+		free(line_stb_image[i]);
+		linearFree(line_c3d_cache_tex[i]->data);
+		linearFree(line_c3d_cache_tex[i]);
+		linearFree(line_c3d_cache_subtex[i]);
+		line_c3d_cache_tex[i]->data = NULL;
+		line_c3d_cache_tex[i] = NULL;
+		line_c3d_cache_subtex[i] = NULL;
+		line_stb_image[i] = NULL;
+		line_c3d_cache_tex[i] = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
+		line_c3d_cache_subtex[i] = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
+		line_ids[i] = "";
+		line_ids[i].reserve(10);
+		line_names[i] = "";
+		line_names[i].reserve(10);
+		line_icon_url[i] = "";
+		line_icon_url[i].reserve(10);
+	}
+}
+
+void Line_reset_msg(void)
+{
+	line_num_of_msg = 0;
+	line_num_of_lines = 0;
+	for (int i = 0; i < 300; i++)
+	{
+		line_msg_log[i] = "";
+		line_msg_log[i].reserve(1);
+	}
+	for (int i = 0; i < 60000; i++)
+	{
+		line_short_msg_log[i] = "";
+		line_short_msg_log[i].reserve(1);
+		line_content[i] = "";
+		line_content[i].reserve(1);
+	}
+
+	line_log_data = "";
+	line_log_data.reserve(1);
+}
+
 void Line_set_buffer_size(int buffer_num, int size)
 {
 	if (buffer_num == LINE_HTTPC_BUFFER)
@@ -326,6 +318,12 @@ void Line_set_buffer_size(int buffer_num, int size)
 		line_send_fs_buffer_size = size;
 	else if (buffer_num == LINE_SEND_FS_CACHE_BUFFER)
 		line_send_fs_cache_buffer_size = size;
+}
+
+void Line_set_msg(int msg_num, std::string msg)
+{
+	if (msg_num >= 0 && msg_num < LINE_NUM_OF_MSG)
+		line_msg[msg_num] = msg;
 }
 
 void Line_set_send_file_name(std::string file_name)
@@ -374,6 +372,20 @@ void Line_set_operation_flag(int operation_num, bool flag)
 		line_sending_msg = flag;
 	else if (operation_num == LINE_SEND_SUCCESS)
 		line_send_success = flag;
+	else if (operation_num == LINE_SELECT_CHAT_ROOM_REQUEST)
+		line_select_chat_room_request = flag;
+	else if (operation_num == LINE_DELETE_ID_CHECK_REQUEST)
+		line_delete_id_check_request = flag;
+	else if (operation_num == LINE_DELETE_ID_REQUEST)
+		line_delete_id_request = flag;
+	else if (operation_num == LINE_SOLVE_SHORT_URL_REQUEST)
+		line_solve_short_url_request = flag;
+	else if (operation_num == LINE_CHECK_MAIN_URL_REQUEST)
+		line_check_main_url_request = flag;
+	else if (operation_num == LINE_TYPE_SHORT_URL_REQUEST)
+		line_type_short_url_request = flag;
+	else if (operation_num == LINE_PARSE_LOG_REQUEST)
+		line_parse_log_request = flag;
 }
 
 void Line_set_selected_num_d(int item_num, double value)
@@ -430,7 +442,7 @@ void Line_suspend(void)
 
 void Line_init(void)
 {
-	Log_log_save("Line/Init", "Initializing...", 1234567890, s_debug_slow);
+	Log_log_save(line_init_string, "Initializing...", 1234567890, s_debug_slow);
 	bool auth_success = false;
 	u8* fs_buffer;
 	u32 read_size = 0;
@@ -446,8 +458,8 @@ void Line_init(void)
 
 	Draw_progress("0/3 [Line] Authing...");
 	memset(fs_buffer, 0x0, 0x2000);
-	log_num = Log_log_save("Line/Init/fs", "Share_load_from_file(auth)...", 1234567890, s_debug_slow);
-	result = Share_load_from_file("auth", fs_buffer, 0x2000, &read_size, "/Line/",  fs_handle, fs_archive);
+	log_num = Log_log_save(line_init_string, "File_load_from_file(auth)...", 1234567890, s_debug_slow);
+	result = File_load_from_file("auth", fs_buffer, 0x2000, &read_size, "/Line/",  fs_handle, fs_archive);
 	Log_log_add(log_num, result.string, result.code, s_debug_slow);
 
 	if (result.code == 0)
@@ -473,8 +485,8 @@ void Line_init(void)
 
 			if (input_string == s_swkb_input_text)
 			{
-				log_num = Log_log_save("Line/Init/fs", "Save_to_file(auth)...", 1234567890, s_debug_slow);
-				result = Share_save_to_file("auth", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, fs_handle, fs_archive);
+				log_num = Log_log_save(line_init_string, "Save_to_file(auth)...", 1234567890, s_debug_slow);
+				result = File_save_to_file("auth", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, fs_handle, fs_archive);
 				Log_log_add(log_num, result.string, result.code, s_debug_slow);
 				auth_code = s_swkb_input_text;
 
@@ -483,10 +495,10 @@ void Line_init(void)
 		}
 	}
 
-	Log_log_save("Line/Init/auth", "Please enter password", 1234567890, s_debug_slow);
+	Log_log_save(line_init_string, "Please enter password", 1234567890, s_debug_slow);
 	if (auth_code == "")
 	{
-		Log_log_save("Line/Init/auth", "Password is not set", 1234567890, s_debug_slow);
+		Log_log_save(line_init_string, "Password is not set", 1234567890, s_debug_slow);
 		auth_success = true;
 	}
 	else
@@ -502,17 +514,17 @@ void Line_init(void)
 			if (auth_code == s_swkb_input_text)
 			{
 				auth_success = true;
-				Log_log_save("Line/Init/auth", "Password is correct", 1234567890, s_debug_slow);
+				Log_log_save(line_init_string, "Password is correct", 1234567890, s_debug_slow);
 				break;
 			}
 			else
-				Log_log_save("Line/Init/auth", "Password is incorrect", 1234567890, s_debug_slow);
+				Log_log_save(line_init_string, "Password is incorrect", 1234567890, s_debug_slow);
 		}
 	}
 
 	if (!auth_success)
 	{
-		Log_log_save("Line/Init/auth", "Auth failed, rebooting...", 1234567890, s_debug_slow);
+		Log_log_save(line_init_string, "Auth failed, rebooting...", 1234567890, s_debug_slow);
 		Draw_progress("0/3 [Line] Auth failed.");
 		usleep(500000);
 		APT_HardwareResetAsync();
@@ -521,8 +533,8 @@ void Line_init(void)
 
 	Draw_progress("1/3 [Line] Loading settings...");
 	memset(fs_buffer, 0x0, 0x2000);
-	log_num = Log_log_save("Line/Init/fs", "Share_load_from_file(script_auth)...", 1234567890, s_debug_slow);
-	result = Share_load_from_file("script_auth", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
+	log_num = Log_log_save(line_init_string, "File_load_from_file(script_auth)...", 1234567890, s_debug_slow);
+	result = File_load_from_file("script_auth", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
 	Log_log_add(log_num, result.string, result.code, s_debug_slow);
 	if (result.code == 0)
 		line_script_auth = (char*)fs_buffer;
@@ -530,49 +542,60 @@ void Line_init(void)
 		line_script_auth = "";
 	
 	memset(fs_buffer, 0x0, 0x2000);
-	log_num = Log_log_save("Line/Init/fs", "Share_load_from_file(main_url.txt)...", 1234567890, s_debug_slow);
-	result = Share_load_from_file("main_url.txt", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
+	log_num = Log_log_save(line_init_string, "File_load_from_file(main_url.txt)...", 1234567890, s_debug_slow);
+	result = File_load_from_file("main_url.txt", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
 	Log_log_add(log_num, result.string, result.code, s_debug_slow);
 	if (result.code == 0)
 		line_main_url = (char*)fs_buffer;
 	else
 		line_main_url = "";
 
-	log_num = Log_log_save("Line/Init/fs", "Read_id...", 1234567890, false);
-	result = Line_read_id("/Line/to/");
-	Log_log_add(log_num, result.string, result.code, s_debug_slow);
+	for (int i = 0; i < 128; i++)
+	{
+		line_c3d_cache_tex[i] = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
+		line_c3d_cache_subtex[i] = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
+	}
 
 	Draw_progress("2/3 [Line] Starting threads...");
+	line_icon_load_thread_run = true;
 	line_log_dl_thread_run = true;
 	line_log_load_thread_run = true;
 	line_log_parse_thread_run = true;
 	line_send_msg_thread_run = true;
 	
-	line_dl_log_thread = threadCreate(Line_log_download_thread, (void*)(""), STACKSIZE, 0x30, -1, s_debug_slow);
-	line_load_log_thread = threadCreate(Line_log_load_thread, (void*)(""), STACKSIZE, 0x30, -1, s_debug_slow);
-	line_parse_log_thread = threadCreate(Line_log_parse_thread, (void*)(""), STACKSIZE, 0x32, -1, s_debug_slow);
-	line_send_msg_thread = threadCreate(Line_send_message_thread, (void*)(""), STACKSIZE, 0x30, -1, s_debug_slow);
+	line_icon_dl_thread = threadCreate(Line_icon_dl_thread, (void*)(""), STACKSIZE, 0x29, -1, false);
+	line_dl_log_thread = threadCreate(Line_log_download_thread, (void*)(""), STACKSIZE, 0x30, -1, false);
+	line_load_log_thread = threadCreate(Line_log_load_thread, (void*)(""), STACKSIZE, 0x30, -1, false);
+	line_parse_log_thread = threadCreate(Line_log_parse_thread, (void*)(""), STACKSIZE, 0x32, -1, false);
+	line_send_msg_thread = threadCreate(Line_send_message_thread, (void*)(""), STACKSIZE, 0x30, -1, false);
 
+	line_icon_dl_request = true;
 
 	Draw_progress("3/3 [Line] Loading textures...");
-	log_num = Log_log_save("Line/Init/c2d", "Loading texture (stickers.t3x)...", 1234567890, s_debug_slow);
-	result = Draw_load_texture("romfs:/gfx/stickers.t3x", 51, line_stickers_images, 0, 121);
+	log_num = Log_log_save(line_init_string, "Loading texture (stickers.t3x)...", 1234567890, s_debug_slow);
+	result = Draw_load_texture("romfs:/gfx/stickers.t3x", 4, line_stickers_images, 0, 121);
 	Log_log_add(log_num, result.string, result.code, s_debug_slow);
+
+	line_select_chat_room_request = true;
+	line_text_y_cache = 0.0;
 
 	Line_resume();
 	line_already_init = true;
 	free(fs_buffer);
-	Log_log_save("Line/Init", "Initialized", 1234567890, s_debug_slow);
+	fs_buffer = NULL;
+	Log_log_save(line_init_string, "Initialized", 1234567890, s_debug_slow);
 }
 
 void Line_main(void)
 {
 	int log_y = Log_query_y();
 	int font_num = 0;
+	int msg_num_list[10];
 	float text_red;
 	float text_green;
 	float text_blue;
 	float text_alpha;
+	float red[1], green[1], blue[1], alpha[1];
 	float texture_size;
 	float scroll_bar_y_size = 5.0;
 	float scroll_bar_y_pos = (195.0 / (-line_max_y / -line_text_y));
@@ -606,7 +629,7 @@ void Line_main(void)
 	line_text_y = line_text_y_cache;
 	texture_size = line_text_size_cache;
 
-	if (line_auto_update || line_dl_log_request)
+	if (line_auto_update || line_dl_log_request || line_solve_short_url_request)
 		line_log_dl_progress = Httpc_query_dl_progress();
 
 	if (Sem_query_settings(SEM_NIGHT_MODE))
@@ -615,6 +638,8 @@ void Line_main(void)
 		text_green = 1.0;
 		text_blue = 1.0;
 		text_alpha = 0.75;
+		black_or_white_tint = black_tint;
+		white_or_black_tint = white_tint;
 	}
 	else
 	{
@@ -622,7 +647,14 @@ void Line_main(void)
 		text_green = 0.0;
 		text_blue = 0.0;
 		text_alpha = 1.0;
+		black_or_white_tint = white_tint;
+		white_or_black_tint = black_tint;
 	}
+
+	red[0] = text_red;
+	green[0] = text_green;
+	blue[0] = text_blue;
+	alpha[0] = text_alpha;
 
 	Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
 	if (Sem_query_settings(SEM_NIGHT_MODE))
@@ -630,42 +662,48 @@ void Line_main(void)
 	else
 		Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
 
-	Draw_texture(Square_image, black_tint, 0, 0.0, 0.0, 400.0, 15.0);
-	Draw_texture(Wifi_icon_image, dammy_tint, s_wifi_signal, 360.0, 0.0, 15.0, 15.0);
-	Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
-	if (s_battery_charge)
-		Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 310.0, 0.0, 20.0, 15.0);
-	Draw(s_status, 0, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
-	Draw(s_battery_level_string, 0, 337.5f, 1.25f, 0.4f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f);
-
-	for (int i = 1; i <= 59999; i++)
+	Draw_top_ui();
+	if (!line_select_chat_room_request)
 	{
-		if (i > line_num_of_lines || line_text_y + line_text_interval * i >= 240)
-			break;
-		else if (line_text_y + line_text_interval * i <= -1000)
-		{
-			if ((line_text_y + line_text_interval * (i + 100)) <= -20)
-				i += 100;
-		}
-		else if (line_text_y + line_text_interval * i <= 10)
-		{
-		}
-		else
-		{
-			type_pos[0] = line_content[i].find("<type>sticker</type>");
-			type_pos[1] = line_content[i].find("<type>exist_image</type>");
-			type_pos[2] = line_content[i].find("<type>image</type>");
+		Draw_texture(Square_image, weak_aqua_tint, 0, 0.0, 15.0, 50.0 * line_log_dl_progress, 3.0);
 
-			if (!(type_pos[0] == std::string::npos))
+		for (int i = 1; i <= 59999; i++)
+		{
+			red[0] = text_red;
+			green[0] = text_green;
+			blue[0] = text_blue;
+			alpha[0] = text_alpha;
+
+			if (i > line_num_of_lines || line_text_y + line_text_interval * i >= 240)
+				break;
+			else if (line_text_y + line_text_interval * i <= -1000)
 			{
-				sticker_num_start_pos = line_content[i].find("<num>");
-				sticker_num_end_pos = line_content[i].find("</num>");;
-				Draw_texture(line_stickers_images, dammy_tint, std::stoi(line_content[i].substr((sticker_num_start_pos + 5), sticker_num_end_pos - (sticker_num_start_pos + 5))), line_text_x, (line_text_y + line_text_interval * i), (texture_size * 120.0), (texture_size * 120.0));
+				if ((line_text_y + line_text_interval * (i + 100)) <= -20)
+					i += 100;
 			}
-			else if(!(type_pos[1] == std::string::npos) || !(type_pos[2] == std::string::npos))
-				Draw_texture(Square_image, weak_red_tint, 0, line_text_x, (line_text_y + line_text_interval * i), 500.0, 20.0);
+			else if (line_text_y + line_text_interval * i <= 10)
+			{
+			}
+			else
+			{
+				type_pos[0] = line_content[i].find("<type>sticker</type>");
+				type_pos[1] = line_content[i].find("<type>image</type>");
+				type_pos[2] = line_content[i].find("<type>id</type>");
 
-			Draw(line_short_msg_log[i], font_num, line_text_x, line_text_y + line_text_interval * i, line_text_size, line_text_size, text_red, text_green, text_blue, text_alpha);
+				if (!(type_pos[0] == std::string::npos))
+				{
+					sticker_num_start_pos = line_content[i].find("<num>");
+					sticker_num_end_pos = line_content[i].find("</num>");;
+					Draw_texture(line_stickers_images, dammy_tint, std::stoi(line_content[i].substr((sticker_num_start_pos + 5), sticker_num_end_pos - (sticker_num_start_pos + 5))), line_text_x, (line_text_y + line_text_interval * i), (texture_size * 120.0), (texture_size * 120.0));
+				}
+				else if (!(type_pos[1] == std::string::npos) || !(type_pos[2] == std::string::npos))
+					Draw_texture(Square_image, weak_red_tint, 0, line_text_x, (line_text_y + line_text_interval * i), 500.0, 20.0);
+
+				if (!(type_pos[2] == std::string::npos) && (line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
+					alpha[0] = 0.25;
+
+				Draw(line_short_msg_log[i], font_num, line_text_x, line_text_y + line_text_interval * i, line_text_size, line_text_size, red[0], green[0], blue[0], alpha[0]);
+			}
 		}
 	}
 
@@ -677,58 +715,332 @@ void Line_main(void)
 			Draw(Log_query_log(log_y + i), 0, log_x, 10.0f + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
 	}
 
-	if (line_hide_id && line_ids[line_selected_room_num].length() >= 5)
-	{
-		hidden_id = line_ids[line_selected_room_num].substr(0, 5);
-
-		for (size_t i = 6; i <= line_ids[line_selected_room_num].length(); i++)
-			hidden_id += "*";
-	}
-	else
-		hidden_id = line_ids[line_selected_room_num];
-
-	Draw_texture(Square_image, weak_aqua_tint, 0, 0.0, 15.0, 50.0 * line_log_dl_progress, 3.0);
-
 	if (Sem_query_settings(SEM_NIGHT_MODE))
 		Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
-	for (int i = 1; i <= 59999; i++)
+	if (line_select_chat_room_request)
 	{
-		if (i > line_num_of_lines || (line_text_y + line_text_interval * i) - 240 >= 125)
-			break;
-		else if (line_text_y + line_text_interval * i <= -1000)
+		line_max_y = -124.0 * 35.0;
+		for (int i = 0; i < 128; i++)
 		{
-			if ((line_text_y + line_text_interval * (i + 100)) <= 10)
-				i += 100;
-		}
-		else if ((line_text_y + line_text_interval * i) - 240 <= -60)
-		{
-		}
-		else
-		{
-			type_pos[0] = line_content[i].find("<type>sticker</type>");
-			type_pos[1] = line_content[i].find("<type>exist_image</type>");
-			type_pos[2] = line_content[i].find("<type>image</type>");
-
-			if (!(type_pos[0] == std::string::npos))
+			if ((line_text_y + (i * 35.0)) >= 165)
+				break;
+			else if ((line_text_y + (i * 35.0)) <= -60)
 			{
-				sticker_num_start_pos = line_content[i].find("<num>");
-				sticker_num_end_pos = line_content[i].find("</num>");;
-				Draw_texture(line_stickers_images, dammy_tint, std::stoi(line_content[i].substr((sticker_num_start_pos + 5), sticker_num_end_pos - (sticker_num_start_pos + 5))), line_text_x - 40.0, (line_text_y + line_text_interval * i) - 240.0, (texture_size * 120.0), (texture_size * 120.0));
 			}
-			else if (!(type_pos[1] == std::string::npos) || !(type_pos[2] == std::string::npos))
-				Draw_texture(Square_image, weak_red_tint, 0, line_text_x - 40.0, (line_text_y + line_text_interval * i) - 240.0, 500.0, 20.0);
+			else
+			{
+				Draw_texture(Square_image, weak_aqua_tint, 0, 0.0, 0.0 + line_text_y + (i * 35.0), 250.0, 30.0);
+				Draw_texture(line_icon, dammy_tint, i, 0.0, 0.0 + line_text_y + (i * 35.0), 30.0, 30.0);
+				Draw(line_names[i], font_num, 45.0, 0.0 + line_text_y + (i * 35.0), 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 
-			Draw(line_short_msg_log[i], font_num, line_text_x - 40, (line_text_y + line_text_interval * i) - 240, line_text_size, line_text_size, text_red, text_green, text_blue, text_alpha);
+				if (line_hide_id && line_ids[i].length() >= 5)
+				{
+					hidden_id = line_ids[i].substr(0, 5);
+
+					for (size_t k = 6; k <= line_ids[i].length(); k++)
+						hidden_id += "*";
+				}
+				else
+					hidden_id = line_ids[i];
+
+				Draw(hidden_id, 0, 45.0, 20.0 + line_text_y + (i * 35.0), 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
+			}
+		}
+
+		Draw_texture(Square_image, black_or_white_tint, 0, 0.0, 165.0, 320.0, 60.0);
+		Draw_texture(Square_image, weak_yellow_tint, 0, 10.0, 165.0, 300.0, 60.0);
+
+		msg_num_list[0] = 40;
+		msg_num_list[1] = 18;
+		msg_num_list[2] = 19;
+		msg_num_list[3] = 41;
+		msg_num_list[4] = 22;
+		msg_num_list[5] = 23;
+
+		draw_x = 20.0;
+		draw_y = 170.0;
+		for (int i = 0; i < 6; i++)
+		{
+			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 130.0, 13.0);
+			Draw(line_msg[msg_num_list[i]], 0, draw_x, draw_y, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
+
+			draw_y += 20.0;
+			if (i == 2)
+			{
+				draw_x += 150.0;
+				draw_y = 170.0;
+			}
+		}
+
+		if (line_solve_short_url_request)
+		{
+			Draw_texture(Square_image, aqua_tint, 0, 40.0, 120.0, 240.0, 100.0);
+			Draw_texture(Square_image, weak_red_tint, 0, 60.0, 150.0, 25.0 * line_log_dl_progress, 20.0);
+			Draw(line_msg[42], 0, 40.0, 120.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		}
 	}
-
-	if (s_setting[1] == "jp")
-		status = "id = " + hidden_id + "\n" + std::to_string(line_num_of_msg) + line_msg_jp[0] + std::to_string(line_num_of_lines) + line_msg_jp[1];
 	else
-		status = "id = " + hidden_id + "\n" + std::to_string(line_num_of_msg) + line_msg_en[0] + std::to_string(line_num_of_lines) + line_msg_en[1];
+	{
+		for (int i = 1; i <= 59999; i++)
+		{
+			red[0] = text_red;
+			green[0] = text_green;
+			blue[0] = text_blue;
+			alpha[0] = text_alpha;
+			if (i > line_num_of_lines || (line_text_y + line_text_interval * i) - 240 >= 120)
+				break;
+			else if (line_text_y + line_text_interval * i <= -1000)
+			{
+				if ((line_text_y + line_text_interval * (i + 100)) <= 10)
+					i += 100;
+			}
+			else if ((line_text_y + line_text_interval * i) - 240 <= -60)
+			{
+			}
+			else
+			{
+				type_pos[0] = line_content[i].find("<type>sticker</type>");
+				type_pos[1] = line_content[i].find("<type>image</type>");
+				type_pos[2] = line_content[i].find("<type>id</type>");
+
+				if (!(type_pos[0] == std::string::npos))
+				{
+					sticker_num_start_pos = line_content[i].find("<num>");
+					sticker_num_end_pos = line_content[i].find("</num>");;
+					Draw_texture(line_stickers_images, dammy_tint, std::stoi(line_content[i].substr((sticker_num_start_pos + 5), sticker_num_end_pos - (sticker_num_start_pos + 5))), line_text_x - 40.0, (line_text_y + line_text_interval * i) - 240.0, (texture_size * 120.0), (texture_size * 120.0));
+				}
+				else if (!(type_pos[1] == std::string::npos) || !(type_pos[2] == std::string::npos))
+					Draw_texture(Square_image, weak_red_tint, 0, line_text_x - 40.0, (line_text_y + line_text_interval * i) - 240.0, 500.0, 20.0);
+
+				if (!(type_pos[2] == std::string::npos) && (line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
+					alpha[0] = 0.25;
+
+				Draw(line_short_msg_log[i], font_num, line_text_x - 40, (line_text_y + line_text_interval * i) - 240, line_text_size, line_text_size, red[0], green[0], blue[0], alpha[0]);
+			}
+		}
+
+		if (line_hide_id && line_ids[line_selected_room_num].length() >= 5)
+		{
+			hidden_id = line_ids[line_selected_room_num].substr(0, 5);
+
+			for (size_t i = 6; i <= line_ids[line_selected_room_num].length(); i++)
+				hidden_id += "*";
+		}
+		else
+			hidden_id = line_ids[line_selected_room_num];
+
+		status = "ID = " + hidden_id + "\n" + std::to_string(line_num_of_msg) + line_msg[0] + std::to_string(line_num_of_lines) + line_msg[1];
+
+		if (line_selected_menu_mode != LINE_MENU_COPY)
+		{
+			Draw_texture(line_icon, dammy_tint, line_selected_room_num, 10.0, 135.0, 32.0, 32.0);
+			Draw(status, 0, 45.0, 135.0, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
+			Draw(line_names[line_selected_room_num], font_num, 45.0, 155.0, 0.475, 0.475, text_red, text_green, text_blue, text_alpha);
+		}
+
+		Draw_texture(Square_image, yellow_tint, 0, 260.0, 135.0, 40.0, 23.0);
+		red[0] = text_red;
+		green[0] = text_green;
+		blue[0] = text_blue;
+		alpha[0] = text_alpha;
+		if((line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
+			alpha[0] = 0.25;
+
+		Draw(line_msg[43], 0, 260.0, 140.0, 0.45, 0.45, red[0], green[0], blue[0], alpha[0]);
+		Draw(s_line_ver, 0, 260.0, 155.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0f);
+
+		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 170.0, 300.0, 60.0);
+		Draw_texture(Square_image, weak_blue_tint, 0, 10.0, 170.0, 50.0, 10.0);
+		Draw_texture(Square_image, weak_white_tint, 0, 60.0, 170.0, 50.0, 10.0);
+		Draw_texture(Square_image, weak_yellow_tint, 0, 110.0, 170.0, 50.0, 10.0);
+		Draw_texture(Square_image, weak_red_tint, 0, 160.0, 170.0, 50.0, 10.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 160.0, 170.0, 50.0, 10.0);
+		Draw_texture(Square_image, weak_red_tint, 0, 210.0, 170.0, 100.0, 10.0);
+
+		if (line_selected_menu_mode == LINE_MENU_SEND && line_sending_msg)
+		{
+			Draw_texture(Square_image, blue_tint, 0, 10.0, 170.0, 50.0, 10.0);
+			Draw_texture(Square_image, weak_red_tint, 0, 20.0, 185.0, 35.0 * Httpc_query_post_and_dl_progress(), 13.0);
+
+			if (line_send_request[2])
+				Draw_texture(Square_image, yellow_tint, 0, 20.0, 205.0, (280.0 / line_step_max) * line_current_step, 13.0);
+
+			if (line_send_request[0])
+				Draw(line_msg[36], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+			else if (line_send_request[1])
+				Draw(line_msg[37], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+			else if (line_send_request[2])
+				Draw(line_msg[38], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+		}
+		else if (line_selected_menu_mode == LINE_MENU_SEND && line_send_success)
+		{
+			Draw_texture(Square_image, blue_tint, 0, 10.0, 170.0, 50.0, 10.0);
+			Draw_texture(Square_image, weak_red_tint, 0, 20.0, 185.0, 280.0, 13.0);
+
+			Draw(line_msg[39], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+		}
+		else if (line_selected_menu_mode == LINE_MENU_SEND)
+		{
+			Draw_texture(Square_image, blue_tint, 0, 10.0, 170.0, 50.0, 10.0);
+
+			Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 185.0, 280.0, 13.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 205.0, 130.0, 13.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 170.0, 205.0, 130.0, 13.0);
+
+			Draw(line_msg[6], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+			Draw(line_msg[24], 0, 22.5, 205.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+			Draw(line_msg[34], 0, 172.5, 205.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+		}
+		else if (line_selected_menu_mode == LINE_MENU_RECEIVE)
+		{
+			Draw_texture(Square_image, white_tint, 0, 60.0, 170.0, 50.0, 10.0);
+
+			Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 185.0, 280.0, 13.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 205.0, 280.0, 13.0);
+
+			Draw(line_msg[7], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+			Draw(line_msg[8 + line_auto_update], 0, 22.5, 205.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+		}
+		else if (line_selected_menu_mode == LINE_MENU_COPY)
+		{
+			Draw_texture(Square_image, yellow_tint, 0, 110.0, 170.0, 50.0, 10.0);
+			Draw_texture(Square_image, weak_blue_tint, 0, 10.0, 145.0, 250.0, 25.0);
+			Draw(line_msg[10] + std::to_string((int)line_selected_msg_num), 0, 12.5, 145.0, 0.4, 0.4, text_red, text_green, text_blue, 1.0);
+			Draw(line_msg_log[(int)line_selected_msg_num].substr(0, 100), font_num, 12.5, 155.0, 0.4, 0.4, text_red, text_green, text_blue, 1.0);
+
+			draw_x = 20.0;
+			draw_y = 185.0;
+			for (int i = 0; i < 3; i++)
+			{
+				Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 130.0, 30.0);
+				Draw(line_msg[11 + i], 0, (draw_x + 2.5), draw_y, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+
+				draw_x += 70.0;
+				if(i == 0)
+					draw_x += 80.0;
+			}
+		}
+		else if (line_selected_menu_mode == LINE_MENU_SETTINGS)
+		{
+			Draw_texture(Square_image, aqua_tint, 0, 160.0, 170.0, 50.0, 10.0);
+			
+			draw_x = 0.0;
+			for (int i = 0; i < 4; i++)
+			{
+				if (i == 2)
+					draw_x += 10.0;
+
+				Draw_texture(Square_image, weak_aqua_tint, 0, 20.0 + (i * 70.0), 185.0, 60.0, 30.0);
+				Draw(line_msg[14 + i], 0, 22.5 + (i * 70.0), 185.0, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
+			}
+		}
+		else if (line_selected_menu_mode == LINE_MENU_ADVANCED)
+		{
+			Draw_texture(Square_image, red_tint, 0, 210.0, 170.0, 100.0, 10.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 185.0, 280.0, 30.0);
+			Draw(line_msg[44], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+		}
+
+		Draw(line_msg[2], 0, 12.5, 170.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
+		Draw(line_msg[35], 0, 62.5, 170.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
+
+		draw_x = 112.5;
+		draw_y = 170.0;
+		for (int i = 0; i < 3; i++)
+		{
+			Draw(line_msg[3 + i], 0, draw_x, draw_y, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+
+			draw_x += 50.0;
+		}
+
+		if (line_send_check[0] || line_send_check[1] || line_send_check[2] || line_delete_id_check_request)
+		{
+			if ((line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request) && line_delete_id_check_request)
+				alpha[0] = 0.25;
+			else
+				alpha[0] = 0.75;
+
+			Draw_texture(Square_image, blue_tint, 0, 10.0, 110.0, 300.0, 60.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 30.0, 150.0, 70.0, 15.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 120.0, 150.0, 70.0, 15.0);
+			if (line_send_check[2])
+				Draw_texture(Square_image, weak_aqua_tint, 0, 210.0, 150.0, 70.0, 15.0);
+
+			Draw(line_msg[20], 0, 32.5, 150.0, 0.45, 0.45, 1.0, 1.0, 1.0, alpha[0]);
+			Draw(line_msg[21], 0, 122.5, 150.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+			if (line_send_check[2])
+				Draw(line_msg[32], 0, 212.5, 150.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
+
+			Draw_texture(line_icon, dammy_tint, line_selected_room_num, 10.0, 110.0, 30.0, 30.0);
+			Draw(line_names[line_selected_room_num], font_num, 45.0, 110.0, 0.475, 0.475, 1.0, 0.0, 0.0, 1.0);
+			if (line_send_check[0])
+			{
+				Draw(line_input_text, font_num, 45.0, 120.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+				Draw(line_msg[25], 0, 45.0, 130.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+			}
+			else if (line_send_check[1])
+			{
+				Draw(line_msg[26], 0, 45.0, 130.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+				Draw_texture(line_stickers_images, dammy_tint, line_selected_sticker_num, 240.0, 115.0, 45.0, 45.0);
+			}
+			else if (line_send_check[2])
+			{
+				Draw(line_msg[30] + Expl_query_current_patch(), 0, 45.0, 120.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
+				Draw(line_msg[31] + Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()), 0, 45.0, 130.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+				Draw(line_msg[29], 0, 45.0, 140.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+			}
+			else if (line_delete_id_check_request)
+			{
+				Draw(line_msg[45], 0, 45.0, 120.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+				Draw(line_msg[46], 0, 45.0, 130.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
+			}
+		}
+		else if (line_select_sticker_request)
+		{
+			Draw_texture(Square_image, aqua_tint, 0, 10.0, 140.0, 300.0, 90.0);
+			Draw_texture(Square_image, weak_yellow_tint, 0, 290.0, 120.0, 20.0, 20.0);
+			Draw("X", 0, 292.5, 120.0, 0.7, 0.7, 1.0, 0.0, 0.0, 1.0);
+
+			for (int i = 0; i < 5; i++)
+			{
+				Draw_texture(Square_image, weak_yellow_tint, 0, 10.0 + (i * 60.0), 140.0, 30.0, 10.0);
+				Draw_texture(Square_image, weak_red_tint, 0, 40.0 + (i * 60.0), 140.0, 30.0, 10.0);
+			}
+			Draw_texture(Square_image, blue_tint, 0, 10.0 + (line_selected_sticker_tab_num * 30.0), 140.0, 30.0, 10.0);
+
+			draw_x = 20.0;
+			draw_y = 150.0;
+			for (int i = 1 + (line_selected_sticker_tab_num * 12); i < 13 + (line_selected_sticker_tab_num * 12); i++)
+			{
+				Draw_texture(Square_image, weak_blue_tint, 0, draw_x, draw_y, 30.0, 30.0);
+				Draw_texture(line_stickers_images, dammy_tint, i, draw_x, draw_y, 30.0, 30.0);
+				draw_x += 50.0;
+				if (draw_x > 271.0)
+				{
+					draw_x = 20.0;
+					draw_y += 40.0;
+				}
+			}
+		}
+		else if (line_select_file_request)
+		{
+			Draw_texture(Square_image, aqua_tint, 0, 10.0, 20.0, 300.0, 190.0);
+
+			Draw(line_msg[33], 0, 12.5, 185.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
+
+			Draw(Expl_query_current_patch(), 0, 12.5, 195.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+			for (int i = 0; i < 16; i++)
+			{
+				if (i == (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM))
+					Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
+				else
+					Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
+			}
+		}
+	}
 
 	Draw_texture(Square_image, white_or_black_tint, 0, 312.5, 0.0, 7.5, 15.0);
 	Draw_texture(Square_image, white_or_black_tint, 0, 312.5, 215.0, 7.5, 10.0);
@@ -740,303 +1052,10 @@ void Line_main(void)
 	else
 		Draw_texture(Square_image, blue_tint, 0, 312.5, 15.0 + scroll_bar_y_pos, 7.5, scroll_bar_y_size);
 
-	if (line_selected_menu_mode != LINE_MENU_COPY)
-	{
-		Draw(status, 0, 12.5, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw("hide id", 0, 260.0, 140.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-		Draw(s_line_ver, 0, 260.0, 150.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0f);
-	}
-
-	Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 170.0, 300.0, 60.0);
-	Draw_texture(Square_image, weak_blue_tint, 0, 10.0, 170.0, 50.0, 10.0);
-	Draw_texture(Square_image, weak_white_tint, 0, 60.0, 170.0, 50.0, 10.0);
-	Draw_texture(Square_image, weak_yellow_tint, 0, 110.0, 170.0, 50.0, 10.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 160.0, 170.0, 50.0, 10.0);
-	Draw_texture(Square_image, weak_red_tint, 0, 210.0, 170.0, 100.0, 10.0);
-
-	if (line_selected_menu_mode == LINE_MENU_SEND && line_sending_msg)
-	{
-		Draw_texture(Square_image, blue_tint, 0, 10.0, 170.0, 50.0, 10.0);
-		Draw_texture(Square_image, weak_red_tint, 0, 20.0, 185.0, 35.0 * Httpc_query_post_and_dl_progress(), 13.0);
-
-		if (line_send_request[2])
-			Draw_texture(Square_image, yellow_tint, 0, 20.0, 205.0, (280.0 / line_step_max) * line_current_step, 13.0);
-
-		if (s_setting[1] == "en")
-		{
-			if (line_send_request[0])
-				Draw(line_msg_en[38], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-			else if (line_send_request[1])
-				Draw(line_msg_en[39], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-			else if (line_send_request[2])
-				Draw(line_msg_en[40], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-		}
-		else if (s_setting[1] == "jp")
-		{
-			if (line_send_request[0])
-				Draw(line_msg_jp[38], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-			else if (line_send_request[1])
-				Draw(line_msg_jp[39], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-			else if (line_send_request[2])
-				Draw(line_msg_jp[40], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-		}
-	}
-	else if (line_selected_menu_mode == LINE_MENU_SEND && line_send_success)
-	{
-		Draw_texture(Square_image, blue_tint, 0, 10.0, 170.0, 50.0, 10.0);
-		Draw_texture(Square_image, weak_red_tint, 0, 20.0, 185.0, 280.0, 13.0);
-
-		if (s_setting[1] == "en")
-			Draw(line_msg_en[41], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-		else if (s_setting[1] == "jp")
-			Draw(line_msg_jp[41], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-	}
-	else if (line_selected_menu_mode == LINE_MENU_SEND)
-	{
-		Draw_texture(Square_image, blue_tint, 0, 10.0, 170.0, 50.0, 10.0);
-
-		Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 185.0, 280.0, 13.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 205.0, 130.0, 13.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 170.0, 205.0, 130.0, 13.0);
-
-		if (s_setting[1] == "en")
-		{
-			Draw(line_msg_en[6], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_en[25], 0, 22.5, 205.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_en[36], 0, 172.5, 205.0f, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-		}
-		else if (s_setting[1] == "jp")
-		{
-			Draw(line_msg_jp[6], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_jp[25], 0, 22.5, 205.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_jp[36], 0, 172.5, 205.0f, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-		}
-	}
-	else if (line_selected_menu_mode == LINE_MENU_RECEIVE)
-	{
-		Draw_texture(Square_image, white_tint, 0, 60.0, 170.0, 50.0, 10.0);
-
-		Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 185.0, 130.0, 13.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 170.0, 185.0, 130.0, 13.0);
-
-		if (s_setting[1] == "en")
-		{
-			Draw(line_msg_en[7], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_en[8 + line_auto_update], 0, 172.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-		}
-		else if (s_setting[1] == "jp")
-		{
-			Draw(line_msg_jp[7], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_jp[8 + line_auto_update], 0, 172.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-		}
-	}
-	else if (line_selected_menu_mode == LINE_MENU_COPY)
-	{
-		Draw_texture(Square_image, yellow_tint, 0, 110.0, 170.0, 50.0, 10.0);
-
-		Draw_texture(Square_image, weak_blue_tint, 0, 10.0, 140.0, 300.0, 25.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 185.0, 130.0, 30.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 170.0, 185.0, 60.0, 30.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 240.0, 185.0, 60.0, 30.0);
-
-		if (s_setting[1] == "en")
-		{
-			Draw(line_msg_en[10] + std::to_string((int)line_selected_msg_num), 0, 12.5, 140.0, 0.4, 0.4, text_red, text_green, text_blue, 1.0f);
-			Draw(line_msg_log[(int)line_selected_msg_num].substr(0, 100), font_num, 12.5, 150.0, 0.4, 0.4, text_red, text_green, text_blue, 1.0f);
-
-			Draw(line_msg_en[12], 0, 22.5, 185.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_en[13], 0, 172.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_en[14], 0, 242.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-		}
-		else if (s_setting[1] == "jp")
-		{
-			Draw(line_msg_jp[10] + std::to_string((int)line_selected_msg_num), 0, 12.5, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_log[(int)line_selected_msg_num].substr(0, 100), font_num, 12.5, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-
-			Draw(line_msg_jp[12], 0, 22.5, 185.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_jp[13], 0, 172.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_jp[14], 0, 242.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		}
-	}
-	else if (line_selected_menu_mode == LINE_MENU_SETTINGS)
-	{
-		Draw_texture(Square_image, aqua_tint, 0, 160.0, 170.0, 50.0, 10.0);
-
-		Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 185.0, 60.0, 30.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 90.0, 185.0, 60.0, 30.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 170.0, 185.0, 60.0, 30.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 240.0, 185.0, 60.0, 30.0);
-		if (s_setting[1] == "en")
-		{
-			Draw(line_msg_en[15], 0, 22.5, 185.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_en[16], 0, 92.5, 185.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_en[17], 0, 172.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_en[18], 0, 242.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		}
-		else if (s_setting[1] == "jp")
-		{
-			Draw(line_msg_jp[15], 0, 22.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_jp[16], 0, 92.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_jp[17], 0, 172.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_jp[18], 0, 242.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		}
-	}
-	else if (line_selected_menu_mode == LINE_MENU_ADVANCED_SETTINGS)
-	{
-		Draw_texture(Square_image, red_tint, 0, 210.0, 170.0, 100.0, 10.0);
-
-		Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 185.0, 130.0, 13.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 205.0, 130.0, 13.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 170.0, 185.0, 130.0, 13.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 170.0, 205.0, 130.0, 13.0);
-
-		if (s_setting[1] == "en")
-		{
-			Draw(line_msg_en[19], 0, 22.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_en[20], 0, 22.5, 205.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_en[23], 0, 172.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_en[24], 0, 172.5, 205.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		}
-		else if (s_setting[1] == "jp")
-		{
-			Draw(line_msg_jp[19], 0, 22.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_jp[20], 0, 22.5, 205.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_jp[23], 0, 172.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(line_msg_jp[24], 0, 172.5, 205.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		}
-	}
-
-	if (s_setting[1] == "en")
-	{
-		Draw(line_msg_en[2], 0, 12.5, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(line_msg_en[37], 0, 62.5, 170.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-		Draw(line_msg_en[3], 0, 112.5, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(line_msg_en[4], 0, 162.5, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(line_msg_en[5], 0, 212.5, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	}
-	else if (s_setting[1] == "jp")
-	{
-		Draw(line_msg_jp[2], 0, 12.5, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(line_msg_jp[37], 0, 62.5, 170.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-		Draw(line_msg_jp[3], 0, 112.5, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(line_msg_jp[4], 0, 162.5, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw(line_msg_jp[5], 0, 212.5, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	}
-
-	if (line_send_check[0] || line_send_check[1] || line_send_check[2])
-	{
-		Draw_texture(Square_image, blue_tint, 0, 10.0, 110.0, 300.0, 60.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 30.0, 150.0, 70.0, 15.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 120.0, 150.0, 70.0, 15.0);
-		if (line_send_check[2])
-			Draw_texture(Square_image, weak_aqua_tint, 0, 210.0, 150.0, 70.0, 15.0);
-
-		if (s_setting[1] == "en")
-		{
-			Draw(line_msg_en[21], 0, 32.5, 150.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-			Draw(line_msg_en[22], 0, 122.5, 150.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-			if (line_send_check[2])
-				Draw(line_msg_en[34], 0, 212.5, 150.0, 0.4, 0.4, 1.0, 1.0, 1.0, 1.0);
-		}
-		else if (s_setting[1] == "jp")
-		{
-			Draw(line_msg_jp[21], 0, 32.5, 150.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-			Draw(line_msg_jp[22], 0, 122.5, 150.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-			if (line_send_check[2])
-				Draw(line_msg_jp[34], 0, 212.5, 150.0, 0.4, 0.4, 1.0, 1.0, 1.0, 1.0);
-		}
-
-		if (line_send_check[0])
-		{
-			if (s_setting[1] == "en")
-			{
-				Draw(line_msg_en[26], 0, 10.0, 110.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-				Draw(line_input_text, font_num, 10.0, 120.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-			}
-			else if (s_setting[1] == "jp")
-			{
-				Draw(line_msg_jp[26], 0, 10.0, 110.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-				Draw(line_input_text, font_num, 10.0, 120.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-			}
-		}
-		else if (line_send_check[1])
-		{
-			if (s_setting[1] == "en")
-				Draw(line_msg_en[27], 0, 10.0, 110.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-			else if (s_setting[1] == "jp")
-				Draw(line_msg_jp[27], 0, 10.0, 110.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-
-			Draw_texture(line_stickers_images, dammy_tint, line_selected_sticker_num, 230.0, 115.0, 45.0, 45.0);
-		}
-		else if (line_send_check[2])
-		{
-			if (s_setting[1] == "en")
-			{
-				Draw(line_msg_en[30], 0, 10.0, 110.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-				Draw(line_msg_en[31], 0, 10.0, 120.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-				Draw(line_msg_en[32] + Expl_query_current_patch(), 0, 10.0, 130.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-				Draw(line_msg_en[33] + Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()), 0, 10.0, 140.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-			}
-			else if (s_setting[1] == "jp")
-			{
-				Draw(line_msg_jp[30], 0, 10.0, 110.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-				Draw(line_msg_jp[31], 0, 10.0, 120.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-				Draw(line_msg_jp[32] + Expl_query_current_patch(), 0, 10.0, 130.0, 0.45, 0.45, 1.0, 1.0, 1.0, 1.0);
-				Draw(line_msg_jp[33] + Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()), 0, 10.0, 140.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-			}
-		}
-	}
-	else if (line_select_sticker_request)
-	{
-		Draw_texture(Square_image, aqua_tint, 0, 10.0, 140.0, 300.0, 90.0);
-		Draw_texture(Square_image, weak_yellow_tint, 0, 290.0, 120.0, 20.0, 20.0);
-		Draw("X", 0, 292.5, 120.0, 0.7, 0.7, 1.0, 0.0, 0.0, 1.0);
-
-		for (int i = 0; i < 5; i++)
-		{
-			Draw_texture(Square_image, weak_yellow_tint, 0, 10.0 + (i * 60.0), 140.0, 30.0, 10.0);
-			Draw_texture(Square_image, weak_red_tint, 0, 40.0 + (i * 60.0), 140.0, 30.0, 10.0);
-		}
-		Draw_texture(Square_image, blue_tint, 0, 10.0 + (line_selected_sticker_tab_num * 30.0), 140.0, 30.0, 10.0);
-
-		draw_x = 20.0;
-		draw_y = 150.0;
-		for (int i = 1 + (line_selected_sticker_tab_num * 12); i < 13 + (line_selected_sticker_tab_num * 12); i++)
-		{
-			Draw_texture(Square_image, weak_blue_tint, 0, draw_x, draw_y, 30.0, 30.0);
-			Draw_texture(line_stickers_images, dammy_tint, i, draw_x, draw_y, 30.0, 30.0);
-			draw_x += 50.0;
-			if (draw_x > 271.0)
-			{
-				draw_x = 20.0;
-				draw_y += 40.0;
-			}
-		}
-	}
-	else if (line_select_file_request)
-	{
-		Draw_texture(Square_image, aqua_tint, 0, 10.0, 20.0, 300.0, 190.0);
-		
-		if (s_setting[1] == "en")
-			Draw(line_msg_en[35], 0, 12.5, 185.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-		else if (s_setting[1] == "jp")
-			Draw(line_msg_jp[35], 0, 12.5, 185.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-
-		Draw(Expl_query_current_patch(), 0, 12.5, 195.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
-		for (int i = 0; i < 16; i++)
-		{
-			if(i == (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM))
-				Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-			else
-				Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-		}
-	}
-
 	if (Err_query_error_show_flag())
 		Draw_error();
 
-	Draw_texture(Square_image, black_tint, 0, 0.0, 225.0, 320.0, 15.0);
-	Draw(s_bot_button_string[0], 0, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
+	Draw_bot_ui();
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
 		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
 
@@ -1090,17 +1109,38 @@ void Line_main(void)
 			main_result = Line_save_new_id(s_swkb_input_text, "/Line/to/");
 			Log_log_add(main_log_num_return, main_result.string, main_result.code, false);
 		}
-		main_log_num_return = Log_log_save("Line/Main/fs", "Read_id...", 1234567890, false);
-		main_result = Line_read_id("/Line/to/");
-		Log_log_add(main_log_num_return, main_result.string, main_result.code, false);
+		line_icon_dl_request = true;
 		line_type_id_request = false;
 	}
-	if (line_type_main_url_request)
+	if (line_type_short_url_request)
+	{
+		memset(s_swkb_input_text, 0x0, 8192);
+		swkbdInit(&main_swkbd, SWKBD_TYPE_NORMAL, 2, 8192);
+		swkbdSetHintText(&main_swkbd, "短縮URLを入力 / Type your short url here.");
+		swkbdSetInitialText(&main_swkbd, s_clipboards[0].c_str());
+		swkbdSetValidation(&main_swkbd, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
+		swkbdSetFeatures(&main_swkbd, SWKBD_PREDICTIVE_INPUT);
+		swkbdSetDictWord(&s_swkb_words[0], "h", "https://tiny.cc/");
+		swkbdSetDictionary(&main_swkbd, s_swkb_words, 1);
+		s_swkb_press_button = swkbdInputText(&main_swkbd, s_swkb_input_text, 512);
+		if (!s_swkb_press_button == SWKBD_BUTTON_LEFT)
+		{
+			line_short_url = s_swkb_input_text;
+			line_solve_short_url_request = true;
+		}
+		line_type_short_url_request = false;
+	}
+	if (line_type_main_url_request || line_check_main_url_request)
 	{
 		memset(s_swkb_input_text, 0x0, 8192);
 		swkbdInit(&main_swkbd, SWKBD_TYPE_NORMAL, 2, 8192);
 		swkbdSetHintText(&main_swkbd, "URLを入力 / Type your url here.");
-		swkbdSetInitialText(&main_swkbd, line_main_url.c_str());
+
+		if(line_check_main_url_request)
+			swkbdSetInitialText(&main_swkbd, s_clipboards[0].c_str());
+		else if(line_type_main_url_request)
+			swkbdSetInitialText(&main_swkbd, line_main_url.c_str());
+
 		swkbdSetValidation(&main_swkbd, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
 		swkbdSetFeatures(&main_swkbd, SWKBD_PREDICTIVE_INPUT);
 		swkbdSetDictWord(&s_swkb_words[0], "h", "https://script.google.com/macros/s/");
@@ -1109,12 +1149,13 @@ void Line_main(void)
 		if (!s_swkb_press_button == SWKBD_BUTTON_LEFT)
 		{
 			main_log_num_return = Log_log_save("Line/Main/fs", "Save_to_file(main_url.txt)...", 1234567890, false);
-			main_result = Share_save_to_file("main_url.txt", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, main_fs_handle, main_fs_archive);
+			main_result = File_save_to_file("main_url.txt", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, main_fs_handle, main_fs_archive);
 			Log_log_add(main_log_num_return, main_result.string, main_result.code, false);
 			line_main_url = s_swkb_input_text;
 		}
 
 		line_type_main_url_request = false;
+		line_check_main_url_request = false;
 	}
 	if (line_type_app_ps_request)
 	{
@@ -1127,7 +1168,7 @@ void Line_main(void)
 		if (!s_swkb_press_button == SWKBD_BUTTON_LEFT)
 		{
 			main_log_num_return = Log_log_save("Line/Main/fs", "Save_to_file(auth)...", 1234567890, false);
-			main_result = Share_save_to_file("auth", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, main_fs_handle, main_fs_archive);
+			main_result = File_save_to_file("auth", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, main_fs_handle, main_fs_archive);
 			Log_log_add(main_log_num_return, main_result.string, main_result.code, false);
 		}
 
@@ -1144,7 +1185,7 @@ void Line_main(void)
 		if (!s_swkb_press_button == SWKBD_BUTTON_LEFT)
 		{
 			main_log_num_return = Log_log_save("Line/Main/fs", "Save_to_file(script_auth)...", 1234567890, false);
-			main_result = Share_save_to_file("script_auth", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, main_fs_handle, main_fs_archive);
+			main_result = File_save_to_file("script_auth", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, main_fs_handle, main_fs_archive);
 			Log_log_add(main_log_num_return, main_result.string, main_result.code, false);
 			line_script_auth = s_swkb_input_text;
 		}
@@ -1153,93 +1194,212 @@ void Line_main(void)
 	}
 }
 
-void Line_log_download_thread(void* arg)
+void Line_icon_dl_thread(void* arg)
 {
-	Log_log_save("Line/Log dl thread", "Thread started.", 1234567890, false);
-	u8* httpc_buffer ;
-	u32 downloaded_log_size;
-	u32 status_code;
-	int log_download_log_num_return;
-	size_t check;
-	std::string file_name;
-	std::string downloaded_data_string;
-	std::string check_string = "<success>";
-	FS_Archive log_dl_fs_archive = 0;
-	Handle log_dl_fs_handle = 0;
-	Result_with_string log_download_result;
+	Log_log_save(line_send_msg_thread_string, "Thread started.", 1234567890, false);
+	int log_num;
+	FS_Archive fs_archive = 0;
+	Result_with_string result;
 
-	while (line_log_dl_thread_run)
+	while (line_icon_load_thread_run)
 	{
-		if (line_auto_update || line_dl_log_request)
+		if (line_icon_dl_request)
 		{
-			downloaded_log_size = 0;
-			status_code = 0;
-			httpc_buffer = (u8*)malloc(line_log_httpc_buffer_size);
+			line_icon_dl_request = false;
+			Line_reset_id();
+			log_num = Log_log_save(line_send_msg_thread_string, "Line_read_id()...", 1234567890, false);
+			result = Line_read_id("/Line/to/");
+			Log_log_add(log_num, result.string, result.code, false);
 
-			if (httpc_buffer == NULL)
+			for (int i = 0; i < line_num_of_ids; i++)
 			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(line_log_httpc_buffer_size / 1024) + "KB). ", "Line/Log dl thread", OUT_OF_MEMORY);
-				Err_set_error_show_flag(true);
-				Log_log_save("Line/Log dl thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
-				line_auto_update = false;
+				log_num = Log_log_save(line_send_msg_thread_string, "Line_load_icon()...", 1234567890, false);
+				result = Line_load_icon(i);
+				Log_log_add(log_num, result.string, result.code, false);
 			}
-			else
+		}
+		else if (line_delete_id_request)
+		{
+			line_delete_id_request = false;
+			log_num = Log_log_save(line_send_msg_thread_string, "File_delete_file()...", 1234567890, false);
+			result = File_delete_file(line_ids[line_selected_room_num], "/Line/to/", fs_archive);
+			Log_log_add(log_num, result.string, result.code, false);
+
+			if (result.code == 0)
 			{
-				memset(httpc_buffer, 0x0, line_log_httpc_buffer_size);
-				log_download_log_num_return = Log_log_save("Line/Log dl thread/httpc", "Downloading logs...", 1234567890, false);
-				log_download_result = Httpc_dl_data(line_main_url + "?id=" + line_ids[line_selected_room_num] + "&script_auth=" + line_script_auth + "&gas_ver=" + std::to_string(s_current_gas_ver), httpc_buffer, line_log_httpc_buffer_size, &downloaded_log_size, &status_code, true);
-				line_log_dl_progress = Httpc_query_dl_progress();
-				if (log_download_result.code == 0)
-				{
-					line_log_data = (char*)httpc_buffer;
-					check = std::string::npos;
-					check = line_log_data.find("<success>");
-					if (check != std::string::npos)
-					{
-						Log_log_add(log_download_log_num_return, log_download_result.string + std::to_string(downloaded_log_size / 1024) + "KB (" + std::to_string(downloaded_log_size) + "B) ", log_download_result.code, false);
-						line_log_data = line_log_data.substr(0, line_log_data.length() - check_string.length());
-						line_parse_log_request = true;
-						file_name = line_ids[line_selected_room_num].substr(0, 16);
-						log_download_log_num_return = Log_log_save("Line/Log dl thread/fs", "Save_to_file...", 1234567890, false);
-						log_download_result = Share_save_to_file(file_name, (u8*)httpc_buffer, downloaded_log_size - (u32)check_string.length(), "/Line/", true, log_dl_fs_handle, log_dl_fs_archive);
-						Log_log_add(log_download_log_num_return, log_download_result.string, log_download_result.code, false);
-						if (log_download_result.code != 0)
-						{
-							Err_set_error_message(log_download_result.string, log_download_result.error_description, "Line/Log dl thread", log_download_result.code);
-							Err_set_error_show_flag(true);
-						}
-					}
-					else
-					{
-						Err_set_error_message("Log download failed.", line_log_data, "Line/Log dl thread/httpc", GAS_RETURNED_NOT_SUCCESS);
-						Err_set_error_show_flag(true);
-						Log_log_add(log_download_log_num_return, "[Error] Log download failed. " + std::to_string(downloaded_log_size / 1024) + "KB (" + std::to_string(downloaded_log_size) + "B) ", -4, false);
-						line_auto_update = false;
-					}
-				}
-				else
-				{
-					Err_set_error_message(log_download_result.string, log_download_result.error_description, "Line/Log dl thread/httpc", log_download_result.code);
-					Err_set_error_show_flag(true);
-					Log_log_add(log_download_log_num_return, log_download_result.string + std::to_string(downloaded_log_size / 1024) + "KB (" + std::to_string(downloaded_log_size) + "B) ", log_download_result.code, false);
-					line_auto_update = false;
-				}
+				line_select_chat_room_request = true;
+
+				log_num = Log_log_save(line_send_msg_thread_string, "File_delete_file()...", 1234567890, false);
+				result = File_delete_file(line_ids[line_selected_room_num].substr(0, 16), "/Line/", fs_archive);
+				Log_log_add(log_num, result.string, result.code, false);
+
+				Line_reset_id();
+				line_icon_dl_request = true;
 			}
-			free(httpc_buffer);
-			httpc_buffer = NULL;
-			line_dl_log_request = false;
 		}
 		usleep(100000);
 
 		while (line_thread_suspend)
 			usleep(250000);
 	}
-	Log_log_save("Line/Log dl thread", "Thread exit.", 1234567890, false);
+
+	Log_log_save(line_send_msg_thread_string, "Thread exit.", 1234567890, false);
+	threadExit(0);
+}
+
+void Line_log_download_thread(void* arg)
+{
+	Log_log_save(line_log_dl_thread_string, "Thread started.", 1234567890, false);
+	u8* httpc_buffer;
+	u32 dl_size;
+	u32 status_code;
+	int log_num;
+	bool failed = false;
+	std::string file_name;
+	std::string out_data[4];
+	std::string last_url;
+	FS_Archive fs_archive = 0;
+	Handle fs_handle = 0;
+	Result_with_string result;
+
+	while (line_log_dl_thread_run)
+	{
+		if (line_auto_update || line_dl_log_request)
+		{
+			line_dl_log_request = true;
+			failed = false;
+			dl_size = 0;
+			status_code = 0;
+			httpc_buffer = (u8*)malloc(line_log_httpc_buffer_size);
+
+			if (httpc_buffer == NULL)
+			{
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(line_log_httpc_buffer_size / 1024) + "KB). ", line_log_dl_thread_string, OUT_OF_MEMORY);
+				Err_set_error_show_flag(true);
+				Log_log_save(line_log_dl_thread_string, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
+				line_auto_update = false;
+			}
+			else
+			{
+				memset(httpc_buffer, 0x0, line_log_httpc_buffer_size);
+				log_num = Log_log_save(line_log_dl_thread_string, "Downloading logs...", 1234567890, false);
+				result = Httpc_dl_data(line_main_url + "?id=" + line_ids[line_selected_room_num] + "&script_auth=" + line_script_auth + "&gas_ver=" + std::to_string(s_current_gas_ver), httpc_buffer, line_log_httpc_buffer_size, &dl_size, &status_code, true, &last_url, false, 100);
+				Log_log_add(log_num, result.string + std::to_string(dl_size / 1024) + "KB (" + std::to_string(dl_size) + "B) ", result.code, false);
+				line_log_dl_progress = Httpc_query_dl_progress();
+
+				if (result.code == 0)
+				{
+					result = Sem_parse_file((char*)httpc_buffer, 4, out_data);
+					if(result.code == 0 && out_data[3] == "Success")
+					{
+						line_log_data = out_data[0];
+						line_names[line_selected_room_num] = out_data[1];
+						line_icon_url[line_selected_room_num] = out_data[2];
+						out_data[1] = "<0>" + out_data[1] + "</0>";
+						out_data[2] = "<1>" + out_data[2] + "</1>";
+
+						line_parse_log_request = true;
+						file_name = line_ids[line_selected_room_num].substr(0, 16);
+						log_num = Log_log_save(line_log_dl_thread_string, "File_save_to_file...", 1234567890, false);
+						result = File_save_to_file(file_name, (u8*)out_data[0].c_str(), out_data[0].length(), "/Line/", true, fs_handle, fs_archive);
+						Log_log_add(log_num, result.string, result.code, false);
+
+						if (result.code != 0)
+							failed = true;
+
+						if (!failed)
+						{
+							log_num = Log_log_save(line_log_dl_thread_string, "File_save_to_file...", 1234567890, false);
+							result = File_save_to_file(line_ids[line_selected_room_num], (u8*)(out_data[1] + out_data[2]).c_str(), (out_data[1] + out_data[2]).length(), "/Line/to/", true, fs_handle, fs_archive);
+							Log_log_add(log_num, result.string, result.code, false);
+							if (result.code != 0)
+								failed = true;
+						}
+
+						if (!failed)
+						{
+							log_num = Log_log_save(line_log_dl_thread_string, "Line_load_icon()...", 1234567890, false);
+							Line_load_icon(line_selected_room_num);
+							Log_log_add(log_num, result.string, result.code, false);
+						}
+
+						if (result.code != 0)
+						{
+							Err_set_error_message(result.string, result.error_description, line_log_dl_thread_string, result.code);
+							Err_set_error_show_flag(true);
+						}
+					}
+					else
+					{
+						Err_set_error_message("Log download failed.", line_log_data, line_log_dl_thread_string, GAS_RETURNED_NOT_SUCCESS);
+						Err_set_error_show_flag(true);
+						line_auto_update = false;
+					}
+				}
+				else
+				{
+					Err_set_error_message(result.string, result.error_description, line_log_dl_thread_string, result.code);
+					Err_set_error_show_flag(true);
+					line_auto_update = false;
+				}
+
+				for (int i = 0; i < 4; i++)
+				{
+					out_data[i] = "";
+					out_data[i].reserve(10);
+				}
+			}
+			free(httpc_buffer);
+			httpc_buffer = NULL;
+			line_dl_log_request = false;
+		}
+		else if (line_solve_short_url_request)
+		{
+			failed = false;
+			dl_size = 0;
+			status_code = 0;
+			httpc_buffer = (u8*)malloc(0x10000);
+
+			if (httpc_buffer == NULL)
+			{
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(line_log_httpc_buffer_size / 1024) + "KB). ", line_log_dl_thread_string, OUT_OF_MEMORY);
+				Err_set_error_show_flag(true);
+				Log_log_save(line_log_dl_thread_string, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
+				line_auto_update = false;
+			}
+			else
+			{
+				memset(httpc_buffer, 0x0, 0x10000);
+				log_num = Log_log_save(line_log_dl_thread_string, "Solving short url...", 1234567890, false);
+				result = Httpc_dl_data(line_short_url, httpc_buffer, 0x10000, &dl_size, &status_code, true, &last_url, true, 1);
+				Log_log_add(log_num, result.string + " " + last_url + " ", result.code, false);
+				line_log_dl_progress = Httpc_query_dl_progress();
+				s_clipboards[0] = last_url;
+				line_check_main_url_request = true;
+
+				if (result.code != 0)
+				{
+					Err_set_error_message(result.string, result.error_description, line_log_dl_thread_string, result.code);
+					Err_set_error_show_flag(true);
+				}
+			}
+			free(httpc_buffer);
+			httpc_buffer = NULL;
+			line_solve_short_url_request = false;
+		}
+
+		usleep(100000);
+
+		while (line_thread_suspend)
+			usleep(250000);
+	}
+	Log_log_save(line_log_dl_thread_string, "Thread exit.", 1234567890, false);
+	threadExit(0);
 }
 
 void Line_send_message_thread(void* arg)
 {
-	Log_log_save("Line/Send msg thread", "Thread started.", 1234567890, false);
+	Log_log_save(line_send_msg_thread_string, "Thread started.", 1234567890, false);
 	bool failed = false;
 	u8* httpc_buffer;
 	u8* content_fs_buffer[2];
@@ -1263,13 +1423,13 @@ void Line_send_message_thread(void* arg)
 		if (line_send_request[0] || line_send_request[1] || line_send_request[2])
 		{
 			if (line_send_request[0])
-				log_num[0] = Log_log_save("Line/Send msg thread/httpc", "Sending a message...", 1234567890, false);
+				log_num[0] = Log_log_save(line_send_msg_thread_string, "Sending a message...", 1234567890, false);
 			else if (line_send_request[1])
-				log_num[0] = Log_log_save("Line/Send msg thread/httpc", "Sending a sticker...", 1234567890, false);
+				log_num[0] = Log_log_save(line_send_msg_thread_string, "Sending a sticker...", 1234567890, false);
 			else if (line_send_request[2])
-				log_num[0] = Log_log_save("Line/Send msg thread/httpc", "Sending a content...", 1234567890, false);
+				log_num[0] = Log_log_save(line_send_msg_thread_string, "Sending a content...", 1234567890, false);
 			else
-				log_num[0] = Log_log_save("Line/Send msg thread/httpc", "...", 1234567890, false);
+				log_num[0] = Log_log_save(line_send_msg_thread_string, "...", 1234567890, false);
 
 			failed = false;
 			line_send_success = false;
@@ -1284,9 +1444,9 @@ void Line_send_message_thread(void* arg)
 
 			if (httpc_buffer == NULL)
 			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(0x5000 / 1024) + "KB). ", "Line/Send msg thread", OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(0x5000 / 1024) + "KB). ", line_send_msg_thread_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
-				Log_log_save("Line/Send msg thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
+				Log_log_save(line_send_msg_thread_string, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 				failed = true;
 			}
 			else
@@ -1299,14 +1459,14 @@ void Line_send_message_thread(void* arg)
 				if (content_fs_buffer[0] == NULL || content_fs_buffer[1] == NULL)
 				{
 					if (content_fs_buffer[0] == NULL && content_fs_buffer[1] == NULL)
-						Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'content fs buffer'(" + std::to_string(line_send_fs_buffer_size / 1024) + "KB) and\n'content fs cache buffer'(" + std::to_string(line_send_fs_cache_buffer_size / 1024) + "KB). ", "Line/Send msg thread", OUT_OF_MEMORY);
+						Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'content fs buffer'(" + std::to_string(line_send_fs_buffer_size / 1024) + "KB) and\n'content fs cache buffer'(" + std::to_string(line_send_fs_cache_buffer_size / 1024) + "KB). ", line_send_msg_thread_string, OUT_OF_MEMORY);
 					else if (content_fs_buffer[0])
-						Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'content fs buffer'(" + std::to_string(line_send_fs_buffer_size / 1024) + "KB). ", "Line/Send msg thread", OUT_OF_MEMORY);
+						Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'content fs buffer'(" + std::to_string(line_send_fs_buffer_size / 1024) + "KB). ", line_send_msg_thread_string, OUT_OF_MEMORY);
 					else if (content_fs_buffer[1] == NULL)
-						Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'content fs cache buffer'(" + std::to_string(line_send_fs_cache_buffer_size / 1024) + "KB). ", "Line/Send msg thread", OUT_OF_MEMORY);
+						Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'content fs cache buffer'(" + std::to_string(line_send_fs_cache_buffer_size / 1024) + "KB). ", line_send_msg_thread_string, OUT_OF_MEMORY);
 
 					Err_set_error_show_flag(true);
-					Log_log_save("Line/Send msg thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
+					Log_log_save(line_send_msg_thread_string, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 					failed = true;
 				}
 				else
@@ -1331,12 +1491,12 @@ void Line_send_message_thread(void* arg)
 				}
 				else if (line_send_request[2])
 				{
-					log_num[1] = Log_log_save("Line/Send msg thread/fs", "Share_check_file_size(" + line_send_file_name + ")...", 1234567890, false);
-					result = Share_check_file_size(line_send_file_name, line_send_file_dir, &file_size, fs_handle, fs_archive);
+					log_num[1] = Log_log_save(line_send_msg_thread_string, "File_check_file_size(" + line_send_file_name + ")...", 1234567890, false);
+					result = File_check_file_size(line_send_file_name, line_send_file_dir, &file_size, fs_handle, fs_archive);
 					Log_log_add(log_num[1], result.string, result.code, false);
 					if ((int)file_size > line_send_fs_buffer_size)
 					{
-						Err_set_error_message("File size is too big. ", "File size is too big. \nFile size is " + std::to_string((double)file_size / 1024.0 / 1024.0) + "MB. ", "Line/Send msg thread", FILE_SIZE_IS_TOO_BIG);
+						Err_set_error_message("File size is too big. ", "File size is too big. \nFile size is " + std::to_string((double)file_size / 1024.0 / 1024.0) + "MB. ", line_send_msg_thread_string, FILE_SIZE_IS_TOO_BIG);
 						Err_set_error_show_flag(true);
 						Log_log_add(log_num[0], "File size is too big. ", FILE_SIZE_IS_TOO_BIG, false);
 						failed = true;
@@ -1346,14 +1506,14 @@ void Line_send_message_thread(void* arg)
 						num_of_loop = ((int)file_size / line_send_fs_cache_buffer_size);
 						for (int i = 0; i <= num_of_loop; i++)
 						{
-							log_num[1] = Log_log_save("Line/Send msg thread/fs", "Share_load_from_file(" + line_send_file_name + ")...", 1234567890, false);
-							result = Share_load_from_file_with_range(line_send_file_name, content_fs_buffer[1], line_send_fs_cache_buffer_size, u64(i * line_send_fs_cache_buffer_size), &read_size, line_send_file_dir, fs_handle, fs_archive);
+							log_num[1] = Log_log_save(line_send_msg_thread_string, "File_load_from_file(" + line_send_file_name + ")...", 1234567890, false);
+							result = File_load_from_file_with_range(line_send_file_name, content_fs_buffer[1], line_send_fs_cache_buffer_size, u64(i * line_send_fs_cache_buffer_size), &read_size, line_send_file_dir, fs_handle, fs_archive);
 							Log_log_add(log_num[1], result.string, result.code, false);
 							memcpy(content_fs_buffer[0] + (i * line_send_fs_cache_buffer_size), content_fs_buffer[1], read_size);
 							total_read_size += read_size;
 							if (result.code != 0)
 							{
-								Err_set_error_message(result.string, result.error_description, "Line/Send msg thread", result.code);
+								Err_set_error_message(result.string, result.error_description, line_send_msg_thread_string, result.code);
 								Err_set_error_show_flag(true);
 								Log_log_add(log_num[0], result.string, result.code, false);
 								failed = true;
@@ -1369,7 +1529,7 @@ void Line_send_message_thread(void* arg)
 							check = (u8*)malloc((total_read_size * 2) + 0x1000);
 							if (check == NULL)
 							{
-								Err_set_error_message("Out of memory", "Not enough memory", "Line/Send msg thread", OUT_OF_MEMORY);
+								Err_set_error_message("Out of memory", "Not enough memory", line_send_msg_thread_string, OUT_OF_MEMORY);
 								Err_set_error_show_flag(true);
 								Log_log_add(log_num[0], "Out of memory", OUT_OF_MEMORY, false);
 								failed = true;
@@ -1391,7 +1551,7 @@ void Line_send_message_thread(void* arg)
 									check = (u8*)malloc((encoded_data.length() * 1.25)+ line_send_fs_cache_buffer_size);
 									if (check == NULL)
 									{
-										Err_set_error_message("Out of memory", "Not enough memory", "Line/Send msg thread", OUT_OF_MEMORY);
+										Err_set_error_message("Out of memory", "Not enough memory", line_send_msg_thread_string, OUT_OF_MEMORY);
 										Err_set_error_show_flag(true);
 										Log_log_add(log_num[0], "Out of memory", OUT_OF_MEMORY, false);
 										failed = true;
@@ -1405,7 +1565,7 @@ void Line_send_message_thread(void* arg)
 									else
 										send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data.substr((i * line_send_fs_cache_buffer_size), line_send_fs_cache_buffer_size) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(s_current_gas_ver) + "\" }";
 
-									log_num[1] = Log_log_save("Line/Send msg thread/httpc", "Uploading a content(" + std::to_string(i) + "/" + std::to_string(num_of_loop) + ")...", 1234567890, false);
+									log_num[1] = Log_log_save(line_send_msg_thread_string, "Uploading a content(" + std::to_string(i) + "/" + std::to_string(num_of_loop) + ")...", 1234567890, false);
 
 									result = Httpc_post_and_dl_data(line_main_url, (char*)send_data.c_str(), send_data.length(), httpc_buffer, 0x5000, &dl_size, &status_code, true);
 									line_current_step++;
@@ -1416,7 +1576,7 @@ void Line_send_message_thread(void* arg)
 											Log_log_add(log_num[1], result.string, result.code, false);
 										else
 										{
-											Err_set_error_message("Upload content failed.", (char*)httpc_buffer, "Line/Send msg thread", GAS_RETURNED_NOT_SUCCESS);
+											Err_set_error_message("Upload content failed.", (char*)httpc_buffer, line_send_msg_thread_string, GAS_RETURNED_NOT_SUCCESS);
 											Err_set_error_show_flag(true);
 											Log_log_add(log_num[1], "[Error] Send failed. ", GAS_RETURNED_NOT_SUCCESS, false);
 											failed = true;
@@ -1425,7 +1585,7 @@ void Line_send_message_thread(void* arg)
 									}
 									else
 									{
-										Err_set_error_message(result.string, result.error_description, "Line/Send msg thread", result.code);
+										Err_set_error_message(result.string, result.error_description, line_send_msg_thread_string, result.code);
 										Err_set_error_show_flag(true);
 										Log_log_add(log_num[1], result.string, result.code, false);
 										failed = true;
@@ -1439,7 +1599,7 @@ void Line_send_message_thread(void* arg)
 						}
 						else
 						{
-							Err_set_error_message(result.string, result.error_description, "Line/Send msg thread", result.code);
+							Err_set_error_message(result.string, result.error_description, line_send_msg_thread_string, result.code);
 							Err_set_error_show_flag(true);
 							Log_log_add(log_num[0], result.string, result.code, false);
 							failed = true;
@@ -1462,14 +1622,14 @@ void Line_send_message_thread(void* arg)
 					}
 					else
 					{
-						Err_set_error_message("Send message/sticker failed.", (char*)httpc_buffer, "Line/Send msg thread", GAS_RETURNED_NOT_SUCCESS);
+						Err_set_error_message("Send message/sticker failed.", (char*)httpc_buffer, line_send_msg_thread_string, GAS_RETURNED_NOT_SUCCESS);
 						Err_set_error_show_flag(true);
 						Log_log_add(log_num[0], "[Error] Send failed. ", GAS_RETURNED_NOT_SUCCESS, false);
 					}
 				}
 				else
 				{
-					Err_set_error_message(result.string, result.error_description, "Line/Send msg thread", result.code);
+					Err_set_error_message(result.string, result.error_description, line_send_msg_thread_string, result.code);
 					Err_set_error_show_flag(true);
 					Log_log_add(log_num[0], result.string, result.code, false);
 				}
@@ -1503,7 +1663,8 @@ void Line_send_message_thread(void* arg)
 		while (line_thread_suspend)
 			usleep(250000);
 	}
-	Log_log_save("Line/Send msg thread", "Thread exit.", 1234567890, false);
+	Log_log_save(line_send_msg_thread_string, "Thread exit.", 1234567890, false);
+	threadExit(0);
 }
 
 Result_with_string Line_save_new_id(std::string id, std::string dir_path)
@@ -1512,7 +1673,7 @@ Result_with_string Line_save_new_id(std::string id, std::string dir_path)
 	FS_Archive fs_save_id_archive = 0;
 	Result_with_string save_id_result;
 	save_id_result.code = 0;
-	save_id_result.string = "[Success] ";
+	save_id_result.string = s_success;
 
 	save_id_result.code = FSUSER_OpenArchive(&fs_save_id_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if (save_id_result.code != 0)
@@ -1547,18 +1708,112 @@ Result_with_string Line_save_new_id(std::string id, std::string dir_path)
 	return save_id_result;
 }
 
+Result_with_string Line_load_icon(int room_num)
+{
+	int image_width = 0;
+	int image_height = 0;
+	size_t cut_pos;
+	u8* httpc_fs_buffer;
+	u32 pic_size;
+	u32 status_code;
+	std::string file_name = "";
+	std::string last_url;
+	FS_Archive fs_archive = 0;
+	Handle fs_handle = 0;
+	Result_with_string result;
+	stbi_uc* stb_image;
+
+	httpc_fs_buffer = (u8*)malloc(0x4000);
+	stb_image = NULL;
+
+	if (line_icon_url[room_num] != "")
+	{
+		memset(httpc_fs_buffer, 0x0, 0x4000);
+		cut_pos = line_icon_url[room_num].find("lh3.googleusercontent.com/d/");
+		if (!(cut_pos == std::string::npos))
+		{
+			file_name = line_icon_url[room_num].substr(cut_pos + 28);
+			if (file_name.length() > 33)
+				file_name = file_name.substr(0, 33);
+
+			result = File_check_file_exist(file_name, "/Line/images/", fs_handle, fs_archive);
+			if(result.code == 0)
+				result = File_load_from_file(file_name, httpc_fs_buffer, 0x4000, &pic_size, "/Line/images/", fs_handle, fs_archive);
+			
+			if (result.code != 0)
+			{
+				memset(httpc_fs_buffer, 0x0, 0x4000);
+				result = Httpc_dl_data(line_icon_url[room_num], httpc_fs_buffer, 0x4000, &pic_size, &status_code, true, &last_url, false, 100);
+				File_save_to_file(file_name, (u8*)httpc_fs_buffer, pic_size, "/Line/images/", true, fs_handle, fs_archive);
+			}
+		}
+		else
+		{
+			result.code = -1;
+			result.string = "[Error] Bad icon info. ";
+		}
+
+		if (result.code == 0)
+		{
+			free(stb_image);
+			stb_image = NULL;
+			stb_image = stbi_load_from_memory((stbi_uc const*)httpc_fs_buffer, (int)pic_size, &image_width, &image_height, NULL, STBI_rgb_alpha);
+			if (stb_image != NULL)
+			{
+				linearFree(line_c3d_cache_tex[room_num]->data);
+				line_icon[room_num].tex = line_c3d_cache_tex[room_num];
+				line_icon[room_num].subtex = line_c3d_cache_subtex[room_num];
+				Draw_rgba_to_abgr(stb_image, (u32)image_width, (u32)image_height);
+				result = Draw_c3dtex_to_c2dimage(line_c3d_cache_tex[room_num], line_c3d_cache_subtex[room_num], stb_image, (u32)(image_width * image_height * 4), image_width, image_height, 0, 0, 32, 32, GPU_RGBA8);
+			}
+		}
+	}
+	else
+	{
+		result.code = -1;
+		result.string = "[Error] There is no icon info. ";
+	}
+
+	free(stb_image);
+	stb_image = NULL;
+	free(httpc_fs_buffer);
+	httpc_fs_buffer = NULL;
+	return result;
+}
+
 Result_with_string Line_read_id(std::string dir_path)
 {
-	int num_of_detected = 0;
-	std::string type[100];
-	Result_with_string read_id_result;
+	bool failed = false;
+	std::string type[128];
+	std::string data[2];
+	Result_with_string result, cache_result;
 
-	for(int i = 0; i < 100; i ++)
+	for (int i = 0; i < 128; i++)
+	{
 		line_ids[i] = "";
+		line_names[i] = "";
+		line_icon_url[i] = "";
+	}
 	
-	read_id_result = Share_read_dir(&num_of_detected, line_ids, 100, type, 100, "/Line/to/");
+	result = File_read_dir(&line_num_of_ids, line_ids, 128, type, 128, "/Line/to/");
+	if (result.code != 0)
+		failed = true;
 
-	return read_id_result;
+	if (!failed)
+	{
+		for (int i = 0; i < line_num_of_ids; i++)
+		{
+			for (int i = 0; i < 2; i++)
+				data[i] = "";
+
+			cache_result = Sem_load_setting(line_ids[i], "/Line/to/", 2, data);
+
+			line_names[i] = data[0];
+			line_icon_url[i] = data[1];
+		}
+	}
+
+	return result;
 }
 
 Result_with_string Line_load_log_from_sd(std::string file_name)
@@ -1569,7 +1824,7 @@ Result_with_string Line_load_log_from_sd(std::string file_name)
 	Handle fs_handle = 0;
 	Result_with_string result;
 	result.code = 0;
-	result.string = "[Success] ";
+	result.string = s_success;
 	result.error_description = "N/A";
 
 	fs_buffer = (u8*)malloc(line_log_fs_buffer_size);
@@ -1583,7 +1838,7 @@ Result_with_string Line_load_log_from_sd(std::string file_name)
 	{
 		memset(fs_buffer, 0x0, line_log_fs_buffer_size);
 		line_log_data = "";
-		result = Share_load_from_file(file_name, fs_buffer, line_log_fs_buffer_size, &read_size, "/Line/", fs_handle, fs_archive);
+		result = File_load_from_file(file_name, fs_buffer, line_log_fs_buffer_size, &read_size, "/Line/", fs_handle, fs_archive);
 
 		if (result.code == 0)
 		{
@@ -1612,19 +1867,20 @@ int Line_stickers_num_to_textures_num(int sticker_num)
 
 void Line_log_parse_thread(void* arg)
 {
-	Log_log_save("Line/Log parse thread", "Thread started.", 1234567890, false);
+	Log_log_save(line_parse_thread_string, "Thread started.", 1234567890, false);
 	int length_count = 0;
-	int log_num[2];
+	int log_num;
 	int cut_length = 60;
 	int text_length = 0;
 	size_t image_url_end_pos;
 	size_t image_url_start_pos;
 	size_t sticker_end_pos;
 	size_t sticker_start_pos;
+	size_t id_end_pos;
+	size_t id_start_pos;
 	size_t message_start_pos;
 	size_t message_next_pos;
 	size_t new_line_pos;
-	size_t check_file_name_start_pos[2];
 	bool failed = false;
 	bool sticker_msg = false;
 	char* parse_cache;
@@ -1633,11 +1889,11 @@ void Line_log_parse_thread(void* arg)
 	std::string image_url_start = "<image_url>";
 	std::string sticker_end = "</sticker>";
 	std::string sticker_start = "<sticker>";
+	std::string id_end = "</id>";
+	std::string id_start = "<id>";
 	std::string message_start = "";
-	std::string image_message[3] = { "", "", "", };
-	FS_Archive log_parse_fs_archive = 0;
-	Handle log_parse_fs_handle = 0;
-	Result_with_string log_parse_result;
+	std::string image_message = "";
+	std::string id_message = "";
 
 	while (line_log_parse_thread_run)
 	{
@@ -1647,8 +1903,7 @@ void Line_log_parse_thread(void* arg)
 		{
 			if (line_parse_log_request)
 			{
-				log_num[0] = Log_log_save("Line/Log parse thread", "Parsing logs...", 1234567890, false);
-				usleep(50000);
+				log_num = Log_log_save(line_parse_thread_string, "Parsing logs...", 1234567890, false);
 
 				message_start_pos = std::string::npos;
 				message_next_pos = std::string::npos;
@@ -1656,9 +1911,9 @@ void Line_log_parse_thread(void* arg)
 				image_url_end_pos = std::string::npos;
 				sticker_end_pos = std::string::npos;
 				sticker_start_pos = std::string::npos;
+				id_end_pos = std::string::npos;
+				id_start_pos = std::string::npos;
 				new_line_pos = std::string::npos;
-				check_file_name_start_pos[0] = std::string::npos;
-				check_file_name_start_pos[1] = std::string::npos;
 				line_num_of_msg = 0;
 				line_num_of_lines = 10;
 				length_count = 0;
@@ -1666,23 +1921,15 @@ void Line_log_parse_thread(void* arg)
 				text_length = 0;
 				failed = false;
 
-				if (s_setting[1] == "en")
-				{
-					image_message[0] = line_msg_en[28];
-					image_message[1] = line_msg_en[29];
-				}
-				else if (s_setting[1] == "jp")
-				{
-					image_message[0] = line_msg_jp[28];
-					image_message[1] = line_msg_jp[29];
-				}
+				image_message = line_msg[27];
+				id_message = line_msg[28];
 
 				parse_cache = (char*)malloc(0x10000);
 				if (parse_cache == NULL)
 				{
-					Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'parse cache'(" + std::to_string(0x10000 / 1024) + "KB). ", "Line/Log parse thread", OUT_OF_MEMORY);
+					Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'parse cache'(" + std::to_string(0x10000 / 1024) + "KB). ", line_parse_thread_string, OUT_OF_MEMORY);
 					Err_set_error_show_flag(true);
-					Log_log_save("Line/Log parse thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
+					Log_log_add(log_num, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 				}
 				else
 				{
@@ -1719,44 +1966,15 @@ void Line_log_parse_thread(void* arg)
 						image_url_end_pos = line_msg_log[i].find(image_url_end);
 						sticker_start_pos = line_msg_log[i].find(sticker_start);
 						sticker_end_pos = line_msg_log[i].find(sticker_end);
+						id_start_pos = line_msg_log[i].find(id_start);
+						id_end_pos = line_msg_log[i].find(id_end);
 						if (!(image_url_start_pos == std::string::npos || image_url_end_pos == std::string::npos))
 						{
 							line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((image_url_start_pos + image_url_start.length()), (image_url_end_pos - (image_url_start_pos + image_url_start.length()))) + "</url>";
+							line_content[line_num_of_lines + 1] += "<type>image</type>";
 
 							content_cache = line_msg_log[i].substr(0, image_url_start_pos);
-
-							check_file_name_start_pos[0] = line_content[line_num_of_lines + 1].find("&id=");
-							check_file_name_start_pos[1] = line_content[line_num_of_lines + 1].find("om/d/");
-							if (check_file_name_start_pos[0] == std::string::npos && check_file_name_start_pos[1] == std::string::npos)
-							{
-								line_content[line_num_of_lines + 1] += "<type>image</type>";
-								content_cache += image_message[0];
-							}
-							else
-							{
-								if(!(check_file_name_start_pos[0] == std::string::npos))
-									image_message[2] = line_content[line_num_of_lines + 1].substr(check_file_name_start_pos[0] + 4);
-								else if (!(check_file_name_start_pos[1] == std::string::npos))
-									image_message[2] = line_content[line_num_of_lines + 1].substr(check_file_name_start_pos[1] + 5);
-
-								if (image_message[2].length() > 33)
-									image_message[2] = image_message[2].substr(0, 33);
-
-								image_message[2] += ".jpg";
-								log_num[1] = Log_log_save("Line/Log parse thread", "Share_check_file_exist(" + image_message[2] + ")...", 1234567890, false);
-								log_parse_result = Share_check_file_exist(image_message[2], "/Line/images/", log_parse_fs_handle, log_parse_fs_archive);
-								Log_log_add(log_num[1], log_parse_result.string, log_parse_result.code, false);
-								if (log_parse_result.code == 0)
-								{
-									line_content[line_num_of_lines + 1] += "<type>exist_image</type>";
-									content_cache += image_message[1];
-								}
-								else
-								{
-									line_content[line_num_of_lines + 1] += "<type>image</type>";
-									content_cache += image_message[0];
-								}
-							}
+							content_cache += image_message;
 							content_cache += line_msg_log[i].substr(image_url_end_pos + image_url_end.length(), line_msg_log[i].length() - (image_url_end_pos + image_url_end.length()));
 							line_msg_log[i] = content_cache;
 						}
@@ -1772,6 +1990,16 @@ void Line_log_parse_thread(void* arg)
 
 							content_cache = line_msg_log[i].substr(0, sticker_start_pos);
 							content_cache += line_msg_log[i].substr(sticker_end_pos + sticker_end.length(), line_msg_log[i].length() - (sticker_end_pos + sticker_end.length()));				
+							line_msg_log[i] = content_cache;
+						}
+						else if (!(id_start_pos == std::string::npos || id_end_pos == std::string::npos))
+						{
+							line_content[line_num_of_lines + 1] = "<id>" + line_msg_log[i].substr((id_start_pos + id_start.length()), (id_end_pos - (id_start_pos + id_start.length()))) + "</id>";
+							line_content[line_num_of_lines + 1] += "<type>id</type>";
+
+							content_cache = line_msg_log[i].substr(0, id_start_pos);
+							content_cache += id_message + "\n" + line_msg_log[i].substr((id_start_pos + id_start.length()), (id_end_pos - (id_start_pos + id_start.length())));
+							content_cache += line_msg_log[i].substr(id_end_pos + id_end.length(), line_msg_log[i].length() - (id_end_pos + id_end.length()));
 							line_msg_log[i] = content_cache;
 						}
 
@@ -1844,12 +2072,12 @@ void Line_log_parse_thread(void* arg)
 
 					if (failed)
 					{
-						Err_set_error_message("[Error] Parsing aborted due to too many messages. ", "Parsing aborted due to too many messages.", "Line/Log parse thread", TOO_MANY_MESSAGES);
+						Err_set_error_message("[Error] Parsing aborted due to too many messages. ", "Parsing aborted due to too many messages.", line_parse_thread_string, TOO_MANY_MESSAGES);
 						Err_set_error_show_flag(true);
-						Log_log_add(log_num[0], "[Error] Parsing aborted due to too many messages. ", TOO_MANY_MESSAGES, false);
+						Log_log_add(log_num, "[Error] Parsing aborted due to too many messages. ", TOO_MANY_MESSAGES, false);
 					}
 					else
-						Log_log_add(log_num[0], "[Success] ", 1234567890, false);						
+						Log_log_add(log_num, s_success, 1234567890, false);						
 				}
 
 				free(parse_cache);
@@ -1859,12 +2087,12 @@ void Line_log_parse_thread(void* arg)
 			usleep(100000);
 		}
 	}
-	Log_log_save("Line/Log parse thread", "Thread exit.", 1234567890, false);
+	Log_log_save(line_parse_thread_string, "Thread exit.", 1234567890, false);
 }
 
 void Line_log_load_thread(void* arg)
 {
-	Log_log_save("Line/Log load thread", "Thread started.", 1234567890, false);
+	Log_log_save(line_load_thread_string , "Thread started.", 1234567890, false);
 	int log_load_log_return_num = 0;
 	Result_with_string log_load_result;
 	while (line_log_load_thread_run)
@@ -1875,12 +2103,12 @@ void Line_log_load_thread(void* arg)
 		{
 			if (line_load_log_request)
 			{
-				log_load_log_return_num = Log_log_save("Line/Log load thread/fs", "Load_from_log_sd(" + line_ids[line_selected_room_num].substr(0, 16) + ")...", 1234567890, false);
+				log_load_log_return_num = Log_log_save(line_load_thread_string, "Load_from_log_sd(" + line_ids[line_selected_room_num].substr(0, 16) + ")...", 1234567890, false);
 				log_load_result = Line_load_log_from_sd(line_ids[line_selected_room_num].substr(0, 16));
 				Log_log_add(log_load_log_return_num, log_load_result.string, log_load_result.code, false);
-				if (log_load_result.code != 0)
+				if (log_load_result.code != 0 && log_load_result.code != (int)0xC8804478 && log_load_result.code != (int)0xC92044FA)
 				{
-					Err_set_error_message(log_load_result.string, log_load_result.error_description, "Line/Log load thread", log_load_result.code);
+					Err_set_error_message(log_load_result.string, log_load_result.error_description, line_load_thread_string , log_load_result.code);
 					Err_set_error_show_flag(true);
 				}
 				line_load_log_request = false;
@@ -1888,88 +2116,77 @@ void Line_log_load_thread(void* arg)
 			usleep(100000);
 		}
 	}
-	Log_log_save("Line/Log load thread", "Thread exit.", 1234567890, false);
+	Log_log_save(line_load_thread_string , "Thread exit.", 1234567890, false);
+	threadExit(0);
 }
 
 void Line_exit(void)
 {
-	Log_log_save("Line/Exit", "Exiting...", 1234567890, s_debug_slow);
+	Log_log_save(line_exit_string , "Exiting...", 1234567890, s_debug_slow);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
 	Result_with_string result;
 
-	Draw_progress("0/1 [Line] Exiting threads...");
+	Draw_progress("[Line] Exiting...");
 	line_already_init = false;
 	line_thread_suspend = false;
+	line_icon_load_thread_run = false;
 	line_log_dl_thread_run = false;
 	line_log_load_thread_run = false;
 	line_log_parse_thread_run = false;
 	line_send_msg_thread_run = false;
 
-	log_num = Log_log_save("Line/Exit", "Exiting thread(0/3)...", 1234567890, s_debug_slow);
-	result.code = threadJoin(line_dl_log_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, "[Success] ", result.code, s_debug_slow);
-	else
-	{
-		failed = true;
-		Log_log_add(log_num, "[Error] ", result.code, s_debug_slow);
+	for(int i = 0; i < 5; i++)
+	{ 
+		log_num = Log_log_save(line_exit_string, "Exiting thread(" + std::to_string(i) + "/4)...", 1234567890, s_debug_slow);
+
+		if (i == 0)
+			result.code = threadJoin(line_dl_log_thread, time_out);
+		else if (i == 1)
+			result.code = threadJoin(line_load_log_thread, time_out);
+		else if (i == 2)
+			result.code = threadJoin(line_parse_log_thread, time_out);
+		else if (i == 3)
+			result.code = threadJoin(line_send_msg_thread, time_out);
+		else if (i == 4)
+			result.code = threadJoin(line_icon_dl_thread, time_out);
+
+		if (result.code == 0)
+			Log_log_add(log_num, s_success, result.code, s_debug_slow);
+		else
+		{
+			failed = true;
+			Log_log_add(log_num, s_error, result.code, s_debug_slow);
+		}
 	}
 
-	log_num = Log_log_save("Line/Exit", "Exiting thread(1/3)...", 1234567890, s_debug_slow);
-	result.code = threadJoin(line_load_log_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, "[Success] ", result.code, s_debug_slow);
-	else
-	{
-		failed = true;
-		Log_log_add(log_num, "[Error] ", result.code, s_debug_slow);
-	}
+	threadFree(line_dl_log_thread);
+	threadFree(line_load_log_thread);
+	threadFree(line_parse_log_thread);
+	threadFree(line_send_msg_thread);
+	threadFree(line_icon_dl_thread);
 
-	log_num = Log_log_save("Line/Exit", "Exiting thread(2/3)...", 1234567890, s_debug_slow);
-	result.code = threadJoin(line_parse_log_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, "[Success] ", result.code, s_debug_slow);
-	else
+	Line_reset_id();
+	Line_reset_msg();
+	for (int i = 0; i < 128; i++)
 	{
-		failed = true;
-		Log_log_add(log_num, "[Error] ", result.code, s_debug_slow);
-	}
-
-	log_num = Log_log_save("Line/Exit", "Exiting thread(3/3)...", 1234567890, s_debug_slow);
-	result.code = threadJoin(line_send_msg_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, "[Success] ", result.code, s_debug_slow);
-	else
-	{
-		failed = true;
-		Log_log_add(log_num, "[Error] ", result.code, s_debug_slow);
+		linearFree(line_c3d_cache_tex[i]->data);
+		linearFree(line_c3d_cache_tex[i]);
+		linearFree(line_c3d_cache_subtex[i]);
+		line_c3d_cache_tex[i]->data = NULL;
+		line_c3d_cache_tex[i] = NULL;
+		line_c3d_cache_subtex[i] = NULL;
 	}
 
 
-	Draw_progress("1/1 [Line] Cleaning up...");
-	for (int i = 0; i <= 299; i++)
-	{
-		line_msg_log[i] = "";
-		line_msg_log[i].reserve(1);
-	}
-	for (int i = 0; i <= 59999; i++)
-	{
-		line_short_msg_log[i] = "";
-		line_short_msg_log[i].reserve(1);
-		line_content[i] = "";
-		line_content[i].reserve(1);
-	}
-
-	line_log_data = "";
-	line_log_data.reserve(1);
-
-	Draw_free_texture(51);
+	Draw_free_texture(4);
+	for (int i = 0; i < 121; i++)
+		line_stickers_images[i].tex = NULL;
 
 	if(failed)
-		Log_log_save("Line/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
+		Log_log_save(line_exit_string , "[Warn] Some function returned error.", 1234567890, s_debug_slow);
 
-	Log_log_save("Line/Exit", "Exited.", 1234567890, s_debug_slow);
+	Log_log_save(line_exit_string , "Exited.", 1234567890, s_debug_slow);
 }
 

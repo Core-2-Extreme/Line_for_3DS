@@ -1,6 +1,9 @@
 #include <string>
 #include "citro2d.h"
 
+#define BitVal(data,y) ( (data>>y) & 1)      //Return Data.Y value 
+#define SetBit(data,y)    data |= (1 << y)    //Set Data.Y   to 1 
+#define ClearBit(data,y)  data &= ~(1 << y)   //Clear Data.Y to 0 
 #include "share_function.hpp"
 #include "hid.hpp"
 #include "draw.hpp"
@@ -11,11 +14,170 @@
 #include "setting_menu.hpp"
 
 bool draw_do_not_draw = false;
-C2D_Font Share_fonts[4];
+C2D_Font system_fonts[4];
 C3D_RenderTarget* Screen_top;
 C3D_RenderTarget* Screen_bot;
 C2D_SpriteSheet sheet_texture[128];
 std::string screen_clear_text = "\u25a0";//¡
+
+void Draw_rgba_to_abgr(u8* buf, u32 width, u32 height)
+{
+	// RGBA -> ABGR
+	for (u32 row = 0; row < width; row++) {
+		for (u32 col = 0; col < height; col++) {
+			u32 z = (row + col * width) * 4;
+
+			u8 r = *(u8*)(buf + z);
+			u8 g = *(u8*)(buf + z + 1);
+			u8 b = *(u8*)(buf + z + 2);
+			u8 a = *(u8*)(buf + z + 3);
+
+			*(buf + z) = a;
+			*(buf + z + 1) = b;
+			*(buf + z + 2) = g;
+			*(buf + z + 3) = r;
+		}
+	}
+}
+
+void Draw_rgb565_to_abgr888_rgb888(u8* rgb565_buffer, u8* rgba8888_buffer, u32 width, u32 height, bool rgb_888)
+{
+	int count = 0;
+	for (int i = 0; i < (int)width * (int)height * 2; i += 2)
+	{
+		uint8_t b = (rgb565_buffer[i] & 0x1F);
+		uint8_t r = ((rgb565_buffer[i + 1] >> 3) & 0x1F);
+		uint8_t g_0 = ((rgb565_buffer[i + 1]) & 0x7);
+		uint8_t g_1 = ((rgb565_buffer[i]) & 0xE0);
+		uint8_t g = 0;
+
+		if (BitVal(g_0, 2))
+			SetBit(g, 5);
+		if (BitVal(g_0, 1))
+			SetBit(g, 4);
+		if (BitVal(g_0, 0))
+			SetBit(g, 3);
+		if (BitVal(g_1, 7))
+			SetBit(g, 2);
+		if (BitVal(g_1, 6))
+			SetBit(g, 1);
+		if (BitVal(g_1, 5))
+			SetBit(g, 0);
+
+		b = 255 / 31 * b;
+		g = 255 / 63 * g;
+		r = 255 / 31 * r;
+
+		if (rgb_888)
+		{
+			memset((void*)(rgba8888_buffer + count), r, 0x1);
+			memset((void*)(rgba8888_buffer + count + 1), g, 0x1);
+			memset((void*)(rgba8888_buffer + count + 2), b, 0x1);
+			count += 3;
+		}
+		else
+		{
+			memset((void*)(rgba8888_buffer + count), 255, 0x1);
+			memset((void*)(rgba8888_buffer + count + 1), b, 0x1);
+			memset((void*)(rgba8888_buffer + count + 2), g, 0x1);
+			memset((void*)(rgba8888_buffer + count + 3), r, 0x1);
+			count += 4;
+		}
+	}
+}
+
+Result_with_string Draw_c3dtex_to_c2dimage(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_subtex, u8* buf, u32 size, u32 width, u32 height, int parse_start_width, int parse_start_height, int tex_size_x, int tex_size_y, GPU_TEXCOLOR format)
+{
+	bool init_result = false;
+	u32 x_max;
+	u32 y_max;
+	Result_with_string result;
+	result.code = 0;
+	result.string = s_success;
+
+	u32 subtex_width = width;
+	u32 subtex_height = height;
+	u32 pixel_size = (size / width / height);
+
+	if (subtex_width > (u32)tex_size_x)
+		subtex_width = (u32)tex_size_x;
+	if (subtex_height > (u32)tex_size_y)
+		subtex_height = (u32)tex_size_y;
+
+	if (parse_start_width > (int)width || parse_start_height > (int)height)
+	{
+		if (parse_start_width > (int)width&& parse_start_height > (int)height)
+		{
+			result.code = WRONG_PARSING_POS;
+			result.string = "[Error] Parse's " + std::to_string(parse_start_width) + " is bigger than image's width " + std::to_string(width) + ", Parse's " + std::to_string(parse_start_height) + " is bigger than image's height " + std::to_string(height) + " ";
+		}
+		else if (parse_start_width > (int)width)
+		{
+			result.code = WRONG_PARSING_POS;
+			result.string = "[Error] Parse's " + std::to_string(parse_start_width) + " is bigger than image's width " + std::to_string(width) + " ";
+		}
+		else if (parse_start_height > (int)height)
+		{
+			result.code = WRONG_PARSING_POS;
+			result.string = "[Error] Parse's " + std::to_string(parse_start_height) + " is bigger than image's height " + std::to_string(height) + " ";
+		}
+		return result;
+	}
+
+	/*if ((linearSpaceFree() / 1024.0 / 1024.0) < 1.0)
+	{
+		//init_result = Moded_C3D_TexInitWithParams(c3d_tex, NULL, (C3D_TexInitParams) { (u16)tex_size, (u16)tex_size, 0, format, GPU_TEX_2D, false });
+		result.code = OUT_OF_LINEAR_MEMORY;
+		result.string = "[Error] C3D_TexInit aborted. ";
+		return result;
+	}
+	else*/
+
+	init_result = C3D_TexInit(c3d_tex, (u16)tex_size_x, (u16)tex_size_y, format);
+
+	if (!init_result)
+	{
+		result.code = OUT_OF_LINEAR_MEMORY;
+		result.string = "[Error] C3D_TexInit failed. ";
+		return result;
+	}
+
+	c3d_subtex->width = (u16)subtex_width;
+	c3d_subtex->height = (u16)subtex_height;
+	c3d_subtex->left = 0.0f;
+	c3d_subtex->top = 1.0f;
+	c3d_subtex->right = subtex_width / (float)tex_size_x;
+	c3d_subtex->bottom = 1.0 - subtex_height / (float)tex_size_y;
+
+	memset(c3d_tex->data, 0x0, c3d_tex->size);
+	C3D_TexSetFilter(c3d_tex, GPU_NEAREST, GPU_NEAREST);
+
+	y_max = height - (u32)parse_start_height;
+	x_max = width - (u32)parse_start_width;
+	if ((u32)tex_size_y < y_max)
+		y_max = tex_size_y;
+	if ((u32)tex_size_x < x_max)
+		x_max = tex_size_x;
+
+	for (u32 y = 0; y <= y_max; y++)
+	{
+		for (u32 x = 0; x <= x_max; x++)
+		{
+			u32 dst_pos = ((((y >> 3)* ((u32)tex_size_x >> 3) + (x >> 3)) << 6) + ((x & 1) | ((y & 1) << 1) | ((x & 2) << 1) | ((y & 2) << 2) | ((x & 4) << 2) | ((y & 4) << 3)))* pixel_size;
+			if (dst_pos <= c3d_tex->size)
+			{
+				u32 src_pos = (((y + parse_start_height) * width + (x + parse_start_width))) * pixel_size;
+				memcpy(&((u8*)c3d_tex->data)[dst_pos], &((u8*)buf)[src_pos], pixel_size);
+			}
+		}
+	}
+
+	C3D_TexFlush(c3d_tex);
+	c3d_tex->border = 0xFFFFFF;
+	C3D_TexSetWrap(c3d_tex, GPU_CLAMP_TO_BORDER, GPU_CLAMP_TO_BORDER);
+
+	return result;
+}
 
 void Draw_set_do_not_draw_flag(bool flag)
 {
@@ -35,7 +197,7 @@ void Draw(std::string text, int type, float x, float y, float text_size_x, float
 		if (type == 0)
 			C2D_TextParse(&c2d_text, c2d_buf, text.c_str());
 		else if (type >= 1 && type <= 4)
-			C2D_TextFontParse(&c2d_text, Share_fonts[type - 1], c2d_buf, text.c_str());
+			C2D_TextFontParse(&c2d_text, system_fonts[type - 1], c2d_buf, text.c_str());
 
 		if (type == 2)
 		{
@@ -66,7 +228,7 @@ Result_with_string Draw_load_texture(std::string file_name, int sheet_map_num, C
 	bool function_fail = false;
 	Result_with_string load_texture_result;
 	load_texture_result.code = 0;
-	load_texture_result.string = "[Success] ";
+	load_texture_result.string = s_success;
 
 	sheet_texture[sheet_map_num] = C2D_SpriteSheetLoad(file_name.c_str());
 	if (sheet_texture[sheet_map_num] == NULL)
@@ -95,6 +257,23 @@ Result_with_string Draw_load_texture(std::string file_name, int sheet_map_num, C
 		}
 	}
 	return load_texture_result;
+}
+
+void Draw_top_ui(void)
+{
+	Draw_texture(Square_image, black_tint, 0, 0.0, 0.0, 400.0, 15.0);
+	Draw_texture(Wifi_icon_image, dammy_tint, s_wifi_signal, 360.0, 0.0, 15.0, 15.0);
+	Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
+	if (s_battery_charge)
+		Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 310.0, 0.0, 20.0, 15.0);
+	Draw(s_status, 0, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
+	Draw(s_battery_level_string, 0, 337.5, 1.25, 0.4, 0.4, 0.0, 0.0, 0.0, 0.5);
+}
+
+void Draw_bot_ui(void)
+{
+	Draw_texture(Square_image, black_tint, 0, 0.0, 225.0, 320.0, 15.0);
+	Draw(s_bot_button_string[1], 0, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
 }
 
 void Draw_texture(C2D_Image image[], C2D_ImageTint tint, int num, float x, float y, float x_size, float y_size)
@@ -230,23 +409,23 @@ void Draw_init(void)
 void Draw_load_system_font(int system_font_num)
 {
 	if (system_font_num == 0)
-		Share_fonts[0] = C2D_FontLoadSystem(CFG_REGION_JPN);
+		system_fonts[0] = C2D_FontLoadSystem(CFG_REGION_JPN);
 	else if (system_font_num == 1)
-		Share_fonts[1] = C2D_FontLoadSystem(CFG_REGION_CHN);
+		system_fonts[1] = C2D_FontLoadSystem(CFG_REGION_CHN);
 	else if (system_font_num == 2)
-		Share_fonts[2] = C2D_FontLoadSystem(CFG_REGION_KOR);
+		system_fonts[2] = C2D_FontLoadSystem(CFG_REGION_KOR);
 	else if (system_font_num == 3)
-		Share_fonts[3] = C2D_FontLoadSystem(CFG_REGION_TWN);
+		system_fonts[3] = C2D_FontLoadSystem(CFG_REGION_TWN);
 }
 
 void Draw_free_system_font(int system_font_num)
 {
 	if (system_font_num >= 0 && system_font_num <= 3)
 	{
-		if (Share_fonts[system_font_num] != NULL)
+		if (system_fonts[system_font_num] != NULL)
 		{
-			C2D_FontFree(Share_fonts[system_font_num]);
-			Share_fonts[system_font_num] = NULL;
+			C2D_FontFree(system_fonts[system_font_num]);
+			system_fonts[system_font_num] = NULL;
 		}
 	}
 }
@@ -348,11 +527,8 @@ bool Moded_C3D_TexInitWithParams(C3D_Tex* tex, C3D_TexCube* cube, C3D_TexInitPar
 	if (!size) return false;
 	size *= (u32)p.width * p.height / 8;
 	u32 total_size = C3D_TexCalcTotalSize(size, p.maxLevel);
-	
-	s_error_description = std::to_string(total_size);
-	Err_set_error_show_flag(true);
-	
-	tex->data = malloc(total_size);
+		
+	tex->data = aligned_alloc(0x80, total_size);
 	if (!tex->data) return false;
 
 	tex->width = p.width;
