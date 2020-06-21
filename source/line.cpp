@@ -1749,7 +1749,7 @@ Result_with_string Line_load_icon(int room_num)
 		}
 		else
 		{
-			result.code = -1;
+			result.code = BAD_ICON_INFO;
 			result.string = "[Error] Bad icon info. ";
 		}
 
@@ -1770,7 +1770,7 @@ Result_with_string Line_load_icon(int room_num)
 	}
 	else
 	{
-		result.code = -1;
+		result.code = NO_ICON_INFO;
 		result.string = "[Error] There is no icon info. ";
 	}
 
@@ -2178,7 +2178,6 @@ void Line_exit(void)
 		line_c3d_cache_tex[i] = NULL;
 		line_c3d_cache_subtex[i] = NULL;
 	}
-
 
 	Draw_free_texture(4);
 	for (int i = 0; i < 121; i++)

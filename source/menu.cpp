@@ -177,24 +177,23 @@ void Menu_exit(void)
 		Sem_exit();
 
 	Draw_progress("[Menu] Exiting...");
-	log_num = Log_log_save("Menu/Exit", "Exiting thread(0/1)...", 1234567890, s_debug_slow);
-	result.code = threadJoin(menu_update_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
-	else
-	{
-		failed = true;
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
-	}
 
-	log_num = Log_log_save("Menu/Exit", "Exiting thread(1/1)...", 1234567890, s_debug_slow);
-	result.code = threadJoin(menu_check_connectivity_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
-	else
+	for (int i = 0; i < 2; i++)
 	{
-		failed = true;
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
+		log_num = Log_log_save("Menu/Exit", "Exiting thread(" + std::to_string(i) + "/1)...", 1234567890, s_debug_slow);
+
+		if(i == 0)
+			result.code = threadJoin(menu_update_thread, time_out);
+		else if(i == 1)
+			result.code = threadJoin(menu_check_connectivity_thread, time_out);
+
+		if (result.code == 0)
+			Log_log_add(log_num, s_success, result.code, s_debug_slow);
+		else
+		{
+			failed = true;
+			Log_log_add(log_num, s_error, result.code, s_debug_slow);
+		}
 	}
 
 	threadFree(menu_update_thread);

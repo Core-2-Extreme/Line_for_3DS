@@ -480,6 +480,124 @@ void Hid_scan_hid_thread(void* arg)
 			if (hid_key_touch_press && hid_key_touch_press && hid_touch_pos_x >= 150 && hid_touch_pos_x <= 170 && hid_touch_pos_y >= 150 && hid_touch_pos_y < 170)
 				Err_set_error_show_flag(false);
 		}
+		else if ((Mup_query_operation_flag(MUP_SELECT_FILE_REQUEST) || Imv_query_operation_flag(IMV_SELECT_FILE_REQUEST) || Line_query_operation_flag(LINE_SELECT_FILE_REQUEST)) && !hid_disabled)
+		{
+			if (hid_key_Y_press)
+			{
+				if(Line_query_running_flag())
+					Line_set_operation_flag(LINE_SELECT_FILE_REQUEST, false);
+				else if(Imv_query_running_flag())
+					Imv_set_operation_flag(IMV_SELECT_FILE_REQUEST, false);
+				else if (Mup_query_running_flag())
+					Mup_set_operation_flag(MUP_SELECT_FILE_REQUEST, false);
+			}
+			else if (!(Expl_query_operation_flag(EXPL_READ_DIR_REQUEST)))
+			{
+				for (int i = 0; i < 16; i++)
+				{
+					if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 299 && hid_touch_pos_y >= 20 + (i * 10) && hid_touch_pos_y <= 30 + (i * 10)))
+					{
+						if (hid_key_A_press || i == (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM))
+						{
+							if (((int)Expl_query_view_offset_y() + (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM)) == 0 && !(Expl_query_current_patch() == "/"))
+							{
+								Expl_set_current_patch(Expl_query_current_patch().substr(0, Expl_query_current_patch().length() - 1));
+								cut_pos[0] = Expl_query_current_patch().find_last_of("/");
+								if (!(cut_pos[0] == std::string::npos))
+									Expl_set_current_patch(Expl_query_current_patch().substr(0, cut_pos[0] + 1));
+
+								Expl_set_view_offset_y(0.0);
+								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
+								Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
+							}
+							else if (Expl_query_type((int)Expl_query_view_offset_y() + (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM)) == "dir")
+							{
+								Expl_set_current_patch(Expl_query_current_patch() + Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()) + "/");
+								Expl_set_view_offset_y(0.0);
+								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
+								Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
+							}
+							else
+							{
+								if (Line_query_running_flag())
+								{
+									Line_set_operation_flag(LINE_SELECT_FILE_REQUEST, false);
+									Line_set_operation_flag(LINE_SEND_CONTENT_CHECK_REQUEST, true);
+								}
+								else if (Imv_query_running_flag())
+								{
+									Imv_set_operation_flag(IMV_SELECT_FILE_REQUEST, false);
+									Imv_set_load_dir_name(Expl_query_current_patch());
+									Imv_set_load_file_name(Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()));
+									Imv_set_operation_flag(IMV_IMG_LOAD_AND_PARSE_REQUEST, true);
+								}
+								else if (Mup_query_running_flag())
+								{
+									Mup_set_operation_flag(MUP_SELECT_FILE_REQUEST, false);
+									Mup_set_load_dir_name(Expl_query_current_patch());
+									Mup_set_load_file_name(Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()));
+									Mup_set_operation_flag(MUP_PLAY_MUSIC_REQUEST, true);
+								}
+							}
+							break;
+						}
+						else
+						{
+							if (Expl_query_num_of_file() >= (i + (int)Expl_query_view_offset_y()))
+								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, i);
+						}
+					}
+				}
+				if (hid_key_B_press)
+				{
+					if (!(Expl_query_current_patch() == "/"))
+					{
+						Expl_set_current_patch(Expl_query_current_patch().substr(0, Expl_query_current_patch().length() - 1));
+						cut_pos[0] = Expl_query_current_patch().find_last_of("/");
+						if (!(cut_pos[0] == std::string::npos))
+							Expl_set_current_patch(Expl_query_current_patch().substr(0, cut_pos[0] + 1));
+
+						Expl_set_view_offset_y(0.0);
+						Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
+						Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
+					}
+				}
+				else if (hid_key_D_DOWN_press || hid_key_D_DOWN_held || hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
+				{
+					if ((Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0) < 16.0 && (Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0) < Expl_query_num_of_file())
+					{
+						if (hid_key_D_DOWN_press || hid_key_D_DOWN_held)
+							Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 0.125);
+						else if (hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
+							Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0);
+					}
+					else if ((Expl_query_view_offset_y() + Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1) < Expl_query_num_of_file())
+					{
+						if (hid_key_D_DOWN_press || hid_key_D_DOWN_held)
+							Expl_set_view_offset_y(Expl_query_view_offset_y() + 0.125);
+						else if (hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
+							Expl_set_view_offset_y(Expl_query_view_offset_y() + 1.0);
+					}
+				}
+				else if (hid_key_D_UP_press || hid_key_D_UP_held || hid_key_D_LEFT_press || hid_key_D_LEFT_held)
+				{
+					if ((Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 1.0) > -1.0)
+					{
+						if (hid_key_D_UP_press || hid_key_D_UP_held)
+							Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, (Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 0.125));
+						else if (hid_key_D_LEFT_press || hid_key_D_LEFT_held)
+							Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, (Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 1.0));
+					}
+					else if ((Expl_query_view_offset_y() - 1) > -1)
+					{
+						if (hid_key_D_UP_press || hid_key_D_UP_held)
+							Expl_set_view_offset_y(Expl_query_view_offset_y() - 0.125);
+						else if (hid_key_D_LEFT_press || hid_key_D_LEFT_held)
+							Expl_set_view_offset_y(Expl_query_view_offset_y() - 1.0);
+					}
+				}
+			}
+		}
 		else if (Menu_query_running_flag() && !hid_disabled)
 		{
 			if (hid_key_SELECT_press)
@@ -955,100 +1073,6 @@ void Hid_scan_hid_thread(void* arg)
 					}
 				}
 			}
-			else if (Line_query_operation_flag(LINE_SELECT_FILE_REQUEST))
-			{
-				if (hid_key_Y_press)
-					Line_set_operation_flag(LINE_SELECT_FILE_REQUEST, false);
-				else if (!(Expl_query_operation_flag(EXPL_READ_DIR_REQUEST)))
-				{
-					for (int i = 0; i < 16; i++)
-					{
-						if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 299 && hid_touch_pos_y >= 20 + (i * 10) && hid_touch_pos_y <= 30 + (i * 10)))
-						{
-							if (hid_key_A_press || i == (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM))
-							{
-								if (((int)Expl_query_view_offset_y() + (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM)) == 0 && !(Expl_query_current_patch() == "/"))
-								{
-									Expl_set_current_patch(Expl_query_current_patch().substr(0, Expl_query_current_patch().length() - 1));
-									cut_pos[0] = Expl_query_current_patch().find_last_of("/");
-									if (!(cut_pos[0] == std::string::npos))
-										Expl_set_current_patch(Expl_query_current_patch().substr(0, cut_pos[0] + 1));
-
-									Expl_set_view_offset_y(0.0);
-									Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
-									Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
-								}
-								else if (Expl_query_type((int)Expl_query_view_offset_y() + (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM)) == "dir")
-								{
-									Expl_set_current_patch(Expl_query_current_patch() + Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()) + "/");
-									Expl_set_view_offset_y(0.0);
-									Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
-									Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
-								}
-								else
-								{
-									Line_set_operation_flag(LINE_SELECT_FILE_REQUEST, false);
-									Line_set_operation_flag(LINE_SEND_CONTENT_CHECK_REQUEST, true);
-								}
-								break;
-							}
-							else
-							{
-								if (Expl_query_num_of_file() >= (i + (int)Expl_query_view_offset_y()))
-									Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, i);
-							}
-						}
-					}
-					if (hid_key_B_press)
-					{
-						if (!(Expl_query_current_patch() == "/"))
-						{
-							Expl_set_current_patch(Expl_query_current_patch().substr(0, Expl_query_current_patch().length() - 1));
-							cut_pos[0] = Expl_query_current_patch().find_last_of("/");
-							if (!(cut_pos[0] == std::string::npos))
-								Expl_set_current_patch(Expl_query_current_patch().substr(0, cut_pos[0] + 1));
-
-							Expl_set_view_offset_y(0.0);
-							Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
-							Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
-						}
-					}
-					else if (hid_key_D_DOWN_press || hid_key_D_DOWN_held || hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
-					{
-						if ((Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0) < 16.0 && (Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0) < Expl_query_num_of_file())
-						{
-							if (hid_key_D_DOWN_press || hid_key_D_DOWN_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 0.125);
-							else if (hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0);
-						}
-						else if ((Expl_query_view_offset_y() + Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1) < Expl_query_num_of_file())
-						{
-							if (hid_key_D_DOWN_press || hid_key_D_DOWN_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() + 0.125);
-							else if (hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() + 1.0);
-						}
-					}
-					else if (hid_key_D_UP_press || hid_key_D_UP_held || hid_key_D_LEFT_press || hid_key_D_LEFT_held)
-					{
-						if ((Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 1.0) > -1.0)
-						{
-							if (hid_key_D_UP_press || hid_key_D_UP_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, (Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 0.125));
-							else if (hid_key_D_LEFT_press || hid_key_D_LEFT_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, (Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 1.0));
-						}
-						else if ((Expl_query_view_offset_y() - 1) > -1)
-						{
-							if (hid_key_D_UP_press || hid_key_D_UP_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() - 0.125);
-							else if (hid_key_D_LEFT_press || hid_key_D_LEFT_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() - 1.0);
-						}
-					}
-				}
-			}
 			else if (Line_query_operation_flag(LINE_SELECT_CHAT_ROOM_REQUEST))
 			{
 				if (!Line_query_operation_flag(LINE_SOLVE_SHORT_URL_REQUEST))
@@ -1072,7 +1096,7 @@ void Hid_scan_hid_thread(void* arg)
 						scroll_mode = true;
 					else if (hid_key_Y_press || (hid_key_touch_press && hid_touch_pos_x >= 20 && hid_touch_pos_x <= 149 && hid_touch_pos_y >= 190 && hid_touch_pos_y <= 202))
 						Line_set_operation_flag(LINE_TYPE_ID_REQUEST, true);
-					else if (hid_key_SELECT_press || (hid_key_touch_press && hid_touch_pos_x >= 20 && hid_touch_pos_x <= 149 && hid_touch_pos_y >= 170 && hid_touch_pos_y <= 182))
+					else if (((hid_key_L_press && hid_key_R_held) || (hid_key_L_held && hid_key_R_press)) || (hid_key_touch_press && hid_touch_pos_x >= 20 && hid_touch_pos_x <= 149 && hid_touch_pos_y >= 170 && hid_touch_pos_y <= 182))
 						Line_set_operation_flag(LINE_TYPE_SHORT_URL_REQUEST, true);
 					else if (hid_key_X_press || (hid_key_touch_press && hid_touch_pos_x >= 20 && hid_touch_pos_x <= 149 && hid_touch_pos_y >= 210 && hid_touch_pos_y <= 222))
 						Line_set_operation_flag(LINE_TYPE_MAIN_URL_REQUEST, true);
@@ -1476,160 +1500,60 @@ void Hid_scan_hid_thread(void* arg)
 			if (hid_key_START_press || (hid_key_touch_press && hid_touch_pos_x >= 110 && hid_touch_pos_x <= 230 && hid_touch_pos_y >= 220 && hid_touch_pos_y <= 240))
 				Imv_suspend();
 
-			if (Imv_query_operation_flag(IMV_SELECT_FILE_REQUEST))
+			if ((hid_key_touch_press || hid_key_touch_held) && hid_touch_pos_y)
 			{
-				if (hid_key_Y_press)
-					Imv_set_operation_flag(IMV_SELECT_FILE_REQUEST, false);
-				else if (!(Expl_query_operation_flag(EXPL_READ_DIR_REQUEST)))
+				hid_touch_pos_x_move_left = 0;
+				hid_touch_pos_y_move_left = 0;
+
+				if (scroll_mode)
 				{
-					for (int i = 0; i < 16; i++)
-					{
-						if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 299 && hid_touch_pos_y >= 20 + (i * 10) && hid_touch_pos_y <= 30 + (i * 10)))
-						{
-							if (hid_key_A_press || i == (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM))
-							{
-								if (((int)Expl_query_view_offset_y() + (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM)) == 0 && !(Expl_query_current_patch() == "/"))
-								{
-									Expl_set_current_patch(Expl_query_current_patch().substr(0, Expl_query_current_patch().length() - 1));
-									cut_pos[0] = Expl_query_current_patch().find_last_of("/");
-									if (!(cut_pos[0] == std::string::npos))
-										Expl_set_current_patch(Expl_query_current_patch().substr(0, cut_pos[0] + 1));
-
-									Expl_set_view_offset_y(0.0);
-									Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
-									Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
-								}
-								else if (Expl_query_type((int)Expl_query_view_offset_y() + (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM)) == "dir")
-								{
-									Expl_set_current_patch(Expl_query_current_patch() + Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()) + "/");
-									Expl_set_view_offset_y(0.0);
-									Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
-									Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
-								}
-								else
-								{
-									Imv_set_operation_flag(IMV_SELECT_FILE_REQUEST, false);
-									Imv_set_load_dir_name(Expl_query_current_patch());
-									Imv_set_load_file_name(Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()));
-									Imv_set_operation_flag(IMV_IMG_LOAD_AND_PARSE_REQUEST, true);
-								}
-								break;
-							}
-							else
-							{
-								if (Expl_query_num_of_file() >= (i + (int)Expl_query_view_offset_y()))
-									Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, i);
-							}
-						}
-					}
-					if (hid_key_B_press)
-					{
-						if (!(Expl_query_current_patch() == "/"))
-						{
-							Expl_set_current_patch(Expl_query_current_patch().substr(0, Expl_query_current_patch().length() - 1));
-							cut_pos[0] = Expl_query_current_patch().find_last_of("/");
-							if (!(cut_pos[0] == std::string::npos))
-								Expl_set_current_patch(Expl_query_current_patch().substr(0, cut_pos[0] + 1));
-
-							Expl_set_view_offset_y(0.0);
-							Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
-							Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
-						}
-					}
-					else if (hid_key_D_DOWN_press || hid_key_D_DOWN_held || hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
-					{
-						if ((Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0) < 16.0 && (Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0) < Expl_query_num_of_file())
-						{
-							if (hid_key_D_DOWN_press || hid_key_D_DOWN_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 0.125);
-							else if (hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0);
-						}
-						else if ((Expl_query_view_offset_y() + Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1) < Expl_query_num_of_file())
-						{
-							if (hid_key_D_DOWN_press || hid_key_D_DOWN_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() + 0.125);
-							else if (hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() + 1.0);
-						}
-					}
-					else if (hid_key_D_UP_press || hid_key_D_UP_held || hid_key_D_LEFT_press || hid_key_D_LEFT_held)
-					{
-						if ((Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 1.0) > -1.0)
-						{
-							if (hid_key_D_UP_press || hid_key_D_UP_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 0.125);
-							else if (hid_key_D_LEFT_press || hid_key_D_LEFT_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 1.0);
-						}
-						else if ((Expl_query_view_offset_y() - 1) > -1)
-						{
-							if (hid_key_D_UP_press || hid_key_D_UP_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() - 0.125);
-							else if (hid_key_D_LEFT_press || hid_key_D_LEFT_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() - 1.0);
-						}
-					}
+					hid_touch_pos_x_move_left += hid_touch_pos_x_moved;
+					hid_touch_pos_y_move_left += hid_touch_pos_y_moved;
 				}
+				else if (hid_key_touch_press && hid_touch_pos_y <= 174)
+					scroll_mode = true;
 			}
 			else
 			{
-				if ((hid_key_touch_press || hid_key_touch_held) && hid_touch_pos_y)
-				{
+				scroll_mode = false;
+				hid_touch_pos_x_move_left -= (hid_touch_pos_x_move_left * 0.025);
+				hid_touch_pos_y_move_left -= (hid_touch_pos_y_move_left * 0.025);
+				if (hid_touch_pos_x_move_left < 0.5 && hid_touch_pos_x_move_left > -0.5)
 					hid_touch_pos_x_move_left = 0;
+				if (hid_touch_pos_y_move_left < 0.5 && hid_touch_pos_y_move_left > -0.5)
 					hid_touch_pos_y_move_left = 0;
-
-					if (scroll_mode)
-					{
-						hid_touch_pos_x_move_left += hid_touch_pos_x_moved;
-						hid_touch_pos_y_move_left += hid_touch_pos_y_moved;
-					}
-					else if (hid_key_touch_press && hid_touch_pos_y <= 174)
-						scroll_mode = true;
-				}
-				else
-				{
-					scroll_mode = false;
-					hid_touch_pos_x_move_left -= (hid_touch_pos_x_move_left * 0.025);
-					hid_touch_pos_y_move_left -= (hid_touch_pos_y_move_left * 0.025);
-					if (hid_touch_pos_x_move_left < 0.5 && hid_touch_pos_x_move_left > -0.5)
-						hid_touch_pos_x_move_left = 0;
-					if (hid_touch_pos_y_move_left < 0.5 && hid_touch_pos_y_move_left > -0.5)
-						hid_touch_pos_y_move_left = 0;
-				}
-
-				if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 75 && hid_touch_pos_y >= 175 && hid_touch_pos_y <= 187))
-					Imv_set_operation_flag(IMV_IMG_PARSE_REQUEST, true);
-				else if (hid_key_B_press || (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 75 && hid_touch_pos_y >= 195 && hid_touch_pos_y <= 207))
-					Imv_set_operation_flag(IMV_IMG_DL_REQUEST, true);
-				else if (hid_key_X_press || (hid_key_touch_press && hid_touch_pos_x >= 90 && hid_touch_pos_x <= 155 && hid_touch_pos_y >= 175 && hid_touch_pos_y <= 187))
-				{
-					Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
-					Imv_set_operation_flag(IMV_SELECT_FILE_REQUEST, true);
-				}
-				else if (hid_key_Y_press || (hid_key_touch_press && hid_touch_pos_x >= 90 && hid_touch_pos_x <= 155 && hid_touch_pos_y >= 195 && hid_touch_pos_y <= 207))
-					Imv_set_operation_flag(IMV_ADJUST_URL_REQUEST, true);
-				else if ((hid_key_D_UP_press || (hid_key_touch_press && hid_touch_pos_x >= 170 && hid_touch_pos_x <= 235 && hid_touch_pos_y >= 175 && hid_touch_pos_y <= 187)) && (Imv_query_clipboard_num() + 1) <= 14)
-					Imv_set_clipboard_num(Imv_query_clipboard_num() + 1);
-				else if ((hid_key_D_DOWN_press || (hid_key_touch_press && hid_touch_pos_x >= 170 && hid_touch_pos_x <= 235 && hid_touch_pos_y >= 195 && hid_touch_pos_y <= 207)) && (Imv_query_clipboard_num() - 1) >= 0)
-					Imv_set_clipboard_num(Imv_query_clipboard_num() - 1);
-				else if (hid_key_C_UP_held || hid_key_C_DOWN_held)
-					Imv_set_img_pos_y(Imv_query_img_pos_y() + ((double)circle_pos.dy * s_scroll_speed) * 0.0625);
-				else if (hid_key_C_LEFT_held || hid_key_C_RIGHT_held)
-					Imv_set_img_pos_x(Imv_query_img_pos_x() - ((double)circle_pos.dx * s_scroll_speed) * 0.0625);
-				else if (hid_key_L_press || (hid_key_touch_press && hid_touch_pos_x >= 250 && hid_touch_pos_x <= 315 && hid_touch_pos_y >= 175 && hid_touch_pos_y <= 187))
-					button_selected[0] = true;
-				else if (hid_key_R_press || (hid_key_touch_press && hid_touch_pos_x >= 250 && hid_touch_pos_x <= 315 && hid_touch_pos_y >= 195 && hid_touch_pos_y <= 207))
-					button_selected[1] = true;
-				else if ((hid_key_L_held || (hid_key_touch_held && hid_touch_pos_x >= 250 && hid_touch_pos_x <= 315 && hid_touch_pos_y >= 175 && hid_touch_pos_y <= 187 && button_selected[0])) && (Imv_query_img_zoom() - 0.01) > 0.04)
-					Imv_set_img_zoom(Imv_query_img_zoom() - 0.01);
-				else if (hid_key_R_held || (hid_key_touch_held && hid_touch_pos_x >= 250 && hid_touch_pos_x <= 315 && hid_touch_pos_y >= 195 && hid_touch_pos_y <= 207 && button_selected[1]))
-					Imv_set_img_zoom(Imv_query_img_zoom() + 0.01);
-
-
-				Imv_set_img_pos_x(Imv_query_img_pos_x() - (hid_touch_pos_x_move_left * s_scroll_speed));
-				Imv_set_img_pos_y(Imv_query_img_pos_y() - (hid_touch_pos_y_move_left * s_scroll_speed));
 			}
+
+			if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 75 && hid_touch_pos_y >= 175 && hid_touch_pos_y <= 187))
+				Imv_set_operation_flag(IMV_IMG_PARSE_REQUEST, true);
+			else if (hid_key_B_press || (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 75 && hid_touch_pos_y >= 195 && hid_touch_pos_y <= 207))
+				Imv_set_operation_flag(IMV_IMG_DL_REQUEST, true);
+			else if (hid_key_X_press || (hid_key_touch_press && hid_touch_pos_x >= 90 && hid_touch_pos_x <= 155 && hid_touch_pos_y >= 175 && hid_touch_pos_y <= 187))
+			{
+				Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
+				Imv_set_operation_flag(IMV_SELECT_FILE_REQUEST, true);
+			}
+			else if (hid_key_Y_press || (hid_key_touch_press && hid_touch_pos_x >= 90 && hid_touch_pos_x <= 155 && hid_touch_pos_y >= 195 && hid_touch_pos_y <= 207))
+				Imv_set_operation_flag(IMV_ADJUST_URL_REQUEST, true);
+			else if ((hid_key_D_UP_press || (hid_key_touch_press && hid_touch_pos_x >= 170 && hid_touch_pos_x <= 235 && hid_touch_pos_y >= 175 && hid_touch_pos_y <= 187)) && (Imv_query_clipboard_num() + 1) <= 14)
+				Imv_set_clipboard_num(Imv_query_clipboard_num() + 1);
+			else if ((hid_key_D_DOWN_press || (hid_key_touch_press && hid_touch_pos_x >= 170 && hid_touch_pos_x <= 235 && hid_touch_pos_y >= 195 && hid_touch_pos_y <= 207)) && (Imv_query_clipboard_num() - 1) >= 0)
+				Imv_set_clipboard_num(Imv_query_clipboard_num() - 1);
+			else if (hid_key_C_UP_held || hid_key_C_DOWN_held)
+				Imv_set_img_pos_y(Imv_query_img_pos_y() + ((double)circle_pos.dy * s_scroll_speed) * 0.0625);
+			else if (hid_key_C_LEFT_held || hid_key_C_RIGHT_held)
+				Imv_set_img_pos_x(Imv_query_img_pos_x() - ((double)circle_pos.dx * s_scroll_speed) * 0.0625);
+			else if (hid_key_L_press || (hid_key_touch_press && hid_touch_pos_x >= 250 && hid_touch_pos_x <= 315 && hid_touch_pos_y >= 175 && hid_touch_pos_y <= 187))
+				button_selected[0] = true;
+			else if (hid_key_R_press || (hid_key_touch_press && hid_touch_pos_x >= 250 && hid_touch_pos_x <= 315 && hid_touch_pos_y >= 195 && hid_touch_pos_y <= 207))
+				button_selected[1] = true;
+			else if ((hid_key_L_held || (hid_key_touch_held && hid_touch_pos_x >= 250 && hid_touch_pos_x <= 315 && hid_touch_pos_y >= 175 && hid_touch_pos_y <= 187 && button_selected[0])) && (Imv_query_img_zoom() - 0.01) > 0.04)
+				Imv_set_img_zoom(Imv_query_img_zoom() - 0.01);
+			else if (hid_key_R_held || (hid_key_touch_held && hid_touch_pos_x >= 250 && hid_touch_pos_x <= 315 && hid_touch_pos_y >= 195 && hid_touch_pos_y <= 207 && button_selected[1]))
+				Imv_set_img_zoom(Imv_query_img_zoom() + 0.01);
+
+			Imv_set_img_pos_x(Imv_query_img_pos_x() - (hid_touch_pos_x_move_left * s_scroll_speed));
+			Imv_set_img_pos_y(Imv_query_img_pos_y() - (hid_touch_pos_y_move_left * s_scroll_speed));
 		}
 		else if (Cam_query_running_flag() && !hid_disabled)
 		{
@@ -1810,121 +1734,22 @@ void Hid_scan_hid_thread(void* arg)
 			if (hid_key_START_press || (hid_key_touch_press && hid_touch_pos_x >= 110 && hid_touch_pos_x <= 230 && hid_touch_pos_y >= 220 && hid_touch_pos_y <= 240))
 				Mup_suspend();
 
-			else if (Mup_query_operation_flag(MUP_SELECT_FILE_REQUEST))
+			if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 105 && hid_touch_pos_x <= 154 && hid_touch_pos_y >= 60 && hid_touch_pos_y <= 109))
+				Mup_set_operation_flag(MUP_PLAY_MUSIC_REQUEST, true);
+			else if (hid_key_B_press || (hid_key_touch_press && hid_touch_pos_x >= 165 && hid_touch_pos_x <= 214 && hid_touch_pos_y >= 60 && hid_touch_pos_y <= 109))
+				Mup_set_operation_flag(MUP_STOP_MUSIC_REQUEST, true);
+			else if (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 49 && hid_touch_pos_y >= 180 && hid_touch_pos_y <= 199)
+				Mup_set_operation_flag(MUP_LOOP_REQUEST, true);
+			else if (hid_key_touch_press && hid_touch_pos_x >= 60 && hid_touch_pos_x <= 99 && hid_touch_pos_y >= 180 && hid_touch_pos_y <= 199)
+				Mup_set_operation_flag(MUP_LOOP_REQUEST, false);
+			else if (hid_key_touch_press && hid_touch_pos_x >= 110 && hid_touch_pos_x <= 149 && hid_touch_pos_y >= 180 && hid_touch_pos_y <= 199)
+				Mup_set_allow_sleep(true);
+			else if (hid_key_touch_press && hid_touch_pos_x >= 160 && hid_touch_pos_x <= 199 && hid_touch_pos_y >= 180 && hid_touch_pos_y <= 199)
+				Mup_set_allow_sleep(false);
+			else if (hid_key_X_press || (hid_key_touch_press && hid_touch_pos_x >= 230 && hid_touch_pos_x <= 309 && hid_touch_pos_y >= 180 && hid_touch_pos_y <= 199))
 			{
-				if (hid_key_Y_press)
-					Mup_set_operation_flag(MUP_SELECT_FILE_REQUEST, false);
-				if (!(Expl_query_operation_flag(EXPL_READ_DIR_REQUEST)))
-				{
-					for (int i = 0; i < 16; i++)
-					{
-						if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 299 && hid_touch_pos_y >= 20 + (i * 10) && hid_touch_pos_y <= 30 + (i * 10)))
-						{
-							if (hid_key_A_press || i == (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM))
-							{
-								if (((int)Expl_query_view_offset_y() + (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM)) == 0 && !(Expl_query_current_patch() == "/"))
-								{
-									Expl_set_current_patch(Expl_query_current_patch().substr(0, Expl_query_current_patch().length() - 1));
-									cut_pos[0] = Expl_query_current_patch().find_last_of("/");
-									if (!(cut_pos[0] == std::string::npos))
-										Expl_set_current_patch(Expl_query_current_patch().substr(0, cut_pos[0] + 1));
-
-									Expl_set_view_offset_y(0.0);
-									Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
-									Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
-								}
-								else if (Expl_query_type((int)Expl_query_view_offset_y() + (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM)) == "dir")
-								{
-									Expl_set_current_patch(Expl_query_current_patch() + Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()) + "/");
-									Expl_set_view_offset_y(0.0);
-									Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
-									Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
-								}
-								else
-								{
-									Mup_set_operation_flag(MUP_SELECT_FILE_REQUEST, false);
-									Mup_set_load_dir_name(Expl_query_current_patch());
-									Mup_set_load_file_name(Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()));
-									Mup_set_operation_flag(MUP_PLAY_MUSIC_REQUEST, true);
-								}
-								break;
-							}
-							else
-							{
-								if (Expl_query_num_of_file() >= (i + (int)Expl_query_view_offset_y()))
-									Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, i);
-							}
-						}
-					}
-					if (hid_key_B_press)
-					{
-						if (!(Expl_query_current_patch() == "/"))
-						{
-							Expl_set_current_patch(Expl_query_current_patch().substr(0, Expl_query_current_patch().length() - 1));
-							cut_pos[0] = Expl_query_current_patch().find_last_of("/");
-							if (!(cut_pos[0] == std::string::npos))
-								Expl_set_current_patch(Expl_query_current_patch().substr(0, cut_pos[0] + 1));
-
-							Expl_set_view_offset_y(0.0);
-							Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, 0.0);
-							Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
-						}
-					}
-					else if (hid_key_D_DOWN_press || hid_key_D_DOWN_held || hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
-					{
-						if ((Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0) < 16.0 && (Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0) < Expl_query_num_of_file())
-						{
-							if (hid_key_D_DOWN_press || hid_key_D_DOWN_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 0.125);
-							else if (hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1.0);
-						}
-						else if ((Expl_query_view_offset_y() + Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + 1) < Expl_query_num_of_file())
-						{
-							if (hid_key_D_DOWN_press || hid_key_D_DOWN_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() + 0.125);
-							else if (hid_key_D_RIGHT_press || hid_key_D_RIGHT_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() + 1.0);
-						}
-					}
-					else if (hid_key_D_UP_press || hid_key_D_UP_held || hid_key_D_LEFT_press || hid_key_D_LEFT_held)
-					{
-						if ((Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 1.0) > -1.0)
-						{
-							if (hid_key_D_UP_press || hid_key_D_UP_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, (Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 0.125));
-							else if (hid_key_D_LEFT_press || hid_key_D_LEFT_held)
-								Expl_set_selected_num(EXPL_SELECTED_FILE_NUM, (Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) - 1.0));
-						}
-						else if ((Expl_query_view_offset_y() - 1) > -1)
-						{
-							if (hid_key_D_UP_press || hid_key_D_UP_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() - 0.125);
-							else if (hid_key_D_LEFT_press || hid_key_D_LEFT_held)
-								Expl_set_view_offset_y(Expl_query_view_offset_y() - 1.0);
-						}
-					}
-				}
-			}
-			else
-			{
-				if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 105 && hid_touch_pos_x <= 154 && hid_touch_pos_y >= 60 && hid_touch_pos_y <= 109))
-					Mup_set_operation_flag(MUP_PLAY_MUSIC_REQUEST, true);
-				else if (hid_key_B_press || (hid_key_touch_press && hid_touch_pos_x >= 165 && hid_touch_pos_x <= 214 && hid_touch_pos_y >= 60 && hid_touch_pos_y <= 109))
-					Mup_set_operation_flag(MUP_STOP_MUSIC_REQUEST, true);
-				else if (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 49 && hid_touch_pos_y >= 180 && hid_touch_pos_y <= 199)
-					Mup_set_operation_flag(MUP_LOOP_REQUEST, true);
-				else if (hid_key_touch_press && hid_touch_pos_x >= 60 && hid_touch_pos_x <= 99 && hid_touch_pos_y >= 180 && hid_touch_pos_y <= 199)
-					Mup_set_operation_flag(MUP_LOOP_REQUEST, false);
-				else if (hid_key_touch_press && hid_touch_pos_x >= 110 && hid_touch_pos_x <= 149 && hid_touch_pos_y >= 180 && hid_touch_pos_y <= 199)
-					Mup_set_allow_sleep(true);
-				else if (hid_key_touch_press && hid_touch_pos_x >= 160 && hid_touch_pos_x <= 199 && hid_touch_pos_y >= 180 && hid_touch_pos_y <= 199)
-					Mup_set_allow_sleep(false);
-				else if (hid_key_X_press || (hid_key_touch_press && hid_touch_pos_x >= 230 && hid_touch_pos_x <= 309 && hid_touch_pos_y >= 180 && hid_touch_pos_y <= 199))
-				{
-					Mup_set_operation_flag(MUP_SELECT_FILE_REQUEST, true);
-					Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
-				}
+				Mup_set_operation_flag(MUP_SELECT_FILE_REQUEST, true);
+				Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
 			}
 		}
 

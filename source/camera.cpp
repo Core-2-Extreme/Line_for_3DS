@@ -381,7 +381,7 @@ Result_with_string Cam_set_capture_camera(int camera_num, int width, int height,
 	else if (camera_num == 2)
 		result.code = CAMU_Activate(SELECT_IN1);
 	else
-		result.code = -999;
+		result.code = INVALID_ARG;
 
 	if (result.code != 0)
 	{
@@ -425,9 +425,9 @@ Result_with_string Cam_set_capture_contrast(int contrast_num)
 	else if (contrast_num == 10)
 		contrast = CONTRAST_PATTERN_11;
 	else
-		result.code = -999;
+		result.code = INVALID_ARG;
 
-	if(result.code != -999)
+	if(result.code != INVALID_ARG)
 		result.code = CAMU_SetContrast(SELECT_ALL, contrast);
 
 
@@ -446,7 +446,7 @@ Result_with_string Cam_set_capture_exposure(int exposure_num)
 	if (exposure_num >= 0 && exposure_num <= 5)
 		result.code = CAMU_SetExposure(SELECT_ALL, (s8)exposure_num);
 	else
-		result.code = -999;
+		result.code = INVALID_ARG;
 
 	if (result.code != 0)
 		result.string = "[Error] CAMU_SetExposure failed. ";
@@ -488,9 +488,9 @@ Result_with_string Cam_set_capture_fps(int fps_num)
 	else if (fps_num == 12)
 		framerate = FRAME_RATE_30_TO_10;
 	else
-		result.code = -999;
+		result.code = INVALID_ARG;
 
-	if (result.code != -999)
+	if (result.code != INVALID_ARG)
 		result.code = CAMU_SetFrameRate(SELECT_ALL, framerate);
 
 	if (result.code != 0)
@@ -513,9 +513,9 @@ Result_with_string Cam_set_capture_lens_correction(int lens_correction_num)
 	else if (lens_correction_num == 2)
 		lens_correction = LENS_CORRECTION_ON_90;
 	else
-		result.code = -999;
+		result.code = INVALID_ARG;
 
-	if (result.code != -999)
+	if (result.code != INVALID_ARG)
 		result.code = CAMU_SetLensCorrection(SELECT_ALL, lens_correction);
 
 	if (result.code != 0)
@@ -533,7 +533,7 @@ Result_with_string Cam_set_capture_noise_filter(int noise_filter_num)
 	if (noise_filter_num >= 0 && noise_filter_num <= 1)
 		result.code = CAMU_SetNoiseFilter(SELECT_ALL, noise_filter_num);
 	else
-		result.code = -999;
+		result.code = INVALID_ARG;
 
 	if (result.code != 0)
 		result.string = "[Error] CAMU_SetNoiseFilter failed. ";
@@ -567,9 +567,9 @@ Result_with_string Cam_set_capture_size(int width, int height, u32* out_buffer_s
 	else if (width == 160 && height == 120)
 		size = SIZE_QQVGA;
 	else
-		result.code = -999;
+		result.code = INVALID_ARG;
 
-	if (result.code != -999)
+	if (result.code != INVALID_ARG)
 		result.code = CAMU_SetSize(SELECT_ALL, size, CONTEXT_BOTH);
 
 	if (result.code != 0)
@@ -619,9 +619,9 @@ Result_with_string Cam_set_capture_white_balance(int white_balance_num)
 	else if (white_balance_num == 5)
 		white_balance = WHITE_BALANCE_7000K;
 	else
-		result.code = -999;
+		result.code = INVALID_ARG;
 
-	if (result.code != -999)
+	if (result.code != INVALID_ARG)
 		result.code = CAMU_SetWhiteBalance(SELECT_ALL, white_balance);
 
 	if (result.code != 0)
@@ -1450,8 +1450,10 @@ void Cam_main(void)
 	float text_green;
 	float text_blue;
 	float text_alpha;
+	double red[15], green[15], blue[15], alpha[15];
 	double draw_x = 0.0;
 	double draw_y = 0.0;
+	double bar_x[4];
 
 	if (Sem_query_settings(SEM_NIGHT_MODE))
 	{
@@ -1469,6 +1471,7 @@ void Cam_main(void)
 		text_alpha = 1.0f;
 		white_or_black_tint = black_tint;
 	}
+	Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 15);
 
 	Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
 	if (Sem_query_settings(SEM_NIGHT_MODE))
@@ -1512,7 +1515,7 @@ void Cam_main(void)
 	Draw(std::to_string(Cam_convert_to_resolution(cam_current_capture_resolution_mode, true)) + cam_msg[0] + std::to_string(Cam_convert_to_resolution(cam_current_capture_resolution_mode, false)) + cam_msg[1] + cam_framelate_list[cam_current_capture_fps_mode] + cam_msg[2], 0, 20.0, 20.0, 0.6, 0.6, text_red, text_green, text_blue, text_alpha);
 	Draw(cam_msg[3] + cam_contrast_list[cam_current_capture_contrast_mode] + cam_msg[4] + cam_white_balance_list[cam_current_capture_white_balance_mode], 0, 20.0, 35.0, 0.55, 0.55, text_red, text_green, text_blue, text_alpha);
 	Draw(cam_msg[5] + cam_lens_correction_list[cam_current_capture_lens_correction_mode] + cam_msg[6] + cam_exposure_list[cam_current_capture_exposure_mode], 0, 20.0, 50.0, 0.55, 0.55, text_red, text_green, text_blue, text_alpha);	
-	Draw(cam_msg[30] + cam_format_name_list[cam_encode_format_mode] + cam_msg[31], 0, 20.0, 60.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+	Draw(cam_msg[30] + cam_format_name_list[cam_encode_format_mode] + cam_msg[31], 0, 20.0, 65.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 
 	Draw_texture(Square_image, weak_yellow_tint, 0, 40.0, 110.0, 60.0, 10.0);
 	Draw_texture(Square_image, weak_blue_tint, 0, 100.0, 110.0, 60.0, 10.0);
@@ -1533,12 +1536,16 @@ void Cam_main(void)
 		draw_y = 120.0;
 		for (int i = 0; i < 9; i++)
 		{
-			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 60.0, 20.0);
-			if(i == cam_current_capture_resolution_mode)
-				Draw(cam_resolution_list[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-			else
-				Draw(cam_resolution_list[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			if (i == cam_current_capture_resolution_mode)
+			{
+				red[i] = 1.0;
+				green[i] = 0.0;
+				blue[i] = 0.0;
+				alpha[i] = 1.0;
+			}
 
+			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 60.0, 20.0);
+			Draw(cam_resolution_list[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
 			if (draw_y + 30.0 > 180.0)
 			{
 				draw_x += 90.0;
@@ -1555,12 +1562,16 @@ void Cam_main(void)
 		draw_y = 120.0;
 		for (int i = 0; i < 15; i++)
 		{
-			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 30.0, 20.0);
-			if(i == cam_current_capture_fps_mode)
-				Draw(cam_framelate_list[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-			else
-				Draw(cam_framelate_list[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			if (i == cam_current_capture_fps_mode)
+			{
+				red[i] = 1.0;
+				green[i] = 0.0;
+				blue[i] = 0.0;
+				alpha[i] = 1.0;
+			}
 
+			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 30.0, 20.0);
+			Draw(cam_framelate_list[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
 			if (draw_y + 30.0 > 180.0)
 			{
 				draw_x += 50.0;
@@ -1573,22 +1584,25 @@ void Cam_main(void)
 	else if (cam_selected_menu_mode == CAM_MENU_ADVANCED_0)
 	{
 		Draw_texture(Square_image, weak_aqua_tint, 0, 160.0, 110.0, 60.0, 10.0);
-		
-		Draw(cam_msg[7], 0, 42.5, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, weak_red_tint, 0, 40.0, 137.5, 100.0, 5.0);
-		Draw_texture(Square_image, white_or_black_tint, 0, (40.0 + 9.5 * cam_request_capture_contrast_mode), 130.0, 5.0, 20.0);
+		draw_x = 40.0;
+		draw_y = 120.0;
+		bar_x[0] = 40.0 + 9.5 * cam_request_capture_contrast_mode;
+		bar_x[1] = 40.0 + 19.0 * cam_request_capture_white_balance_mode;
+		bar_x[2] = 180.0 + 47.5 * cam_request_capture_lens_correction_mode;
+		bar_x[3] = 180.0 + 19.0 * cam_request_capture_exposure_mode;
+		for (int i = 0; i < 4; i++)
+		{
+			Draw(cam_msg[7 + i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			Draw_texture(Square_image, weak_red_tint, 0, draw_x, (draw_y + 17.5), 100.0, 5.0);
+			Draw_texture(Square_image, white_or_black_tint, 0, bar_x[i], (draw_y + 10.0), 5.0, 20.0);
 
-		Draw(cam_msg[8], 0, 42.5, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, weak_red_tint, 0, 40.0, 167.5, 100.0, 5.0);
-		Draw_texture(Square_image, white_or_black_tint, 0, (40.0 + 19.0 * cam_request_capture_white_balance_mode), 160.0, 5.0, 20.0);
-
-		Draw(cam_msg[9], 0, 182.5, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, weak_red_tint, 0, 180.0, 137.5, 100.0, 5.0);
-		Draw_texture(Square_image, white_or_black_tint, 0, (180.0 + 47.5 * cam_request_capture_lens_correction_mode), 130.0, 5.0, 20.0);
-
-		Draw(cam_msg[10], 0, 182.5, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, weak_red_tint, 0, 180.0, 167.5, 100.0, 5.0);
-		Draw_texture(Square_image, white_or_black_tint, 0, (180.0 + 19.0 * cam_request_capture_exposure_mode), 160.0, 5.0, 20.0);
+			draw_y += 30.0;
+			if (150.0 < draw_y)
+			{
+				draw_x = 180.0;
+				draw_y = 120.0;
+			}
+		}
 	}
 	else if (cam_selected_menu_mode == CAM_MENU_ADVANCED_1)
 	{
@@ -1612,31 +1626,54 @@ void Cam_main(void)
 		}
 
 		Draw(cam_msg[15], 0, 182.5, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 180.0, 130.0, 40.0, 20.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 240.0, 130.0, 40.0, 20.0);
-		if (cam_request_capture_noise_filter_mode == 1)
+		draw_x = 180.0;
+		draw_y = 130.0;
+		if (cam_request_capture_noise_filter_mode == 1)//Noise filter
 		{
-			Draw(cam_msg[16], 0, 182.5, 130.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-			Draw(cam_msg[17], 0, 242.5, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			red[0] = 1.0;
+			green[0] = 0.0;
+			blue[0] = 0.0;
+			alpha[0] = 1.0;
 		}
 		else
 		{
-			Draw(cam_msg[16], 0, 182.5, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(cam_msg[17], 0, 242.5, 130.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
+			red[1] = 1.0;
+			green[1] = 0.0;
+			blue[1] = 0.0;
+			alpha[1] = 1.0;
 		}
 
-		Draw(cam_msg[18], 0, 182.5, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 180.0, 160.0, 40.0, 20.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 240.0, 160.0, 40.0, 20.0);
+		for (int i = 0; i < 2; i++)
+		{
+			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 40.0, 20.0);
+			Draw(cam_msg[16 + i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
+			draw_x += 60.0;
+		}
+
+		Draw(cam_msg[18], 0, 182.5, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);//Shutter sound
+		Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 2);
+		draw_x = 180.0;
+		draw_y = 160.0;
 		if (cam_shutter_sound_mode == 1)
 		{
-			Draw(cam_msg[16], 0, 182.5, 160.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-			Draw(cam_msg[17], 0, 242.5, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			red[0] = 1.0;
+			green[0] = 0.0;
+			blue[0] = 0.0;
+			alpha[0] = 1.0;
 		}
 		else
 		{
-			Draw(cam_msg[16], 0, 182.5, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(cam_msg[17], 0, 242.5, 160.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
+			red[1] = 1.0;
+			green[1] = 0.0;
+			blue[1] = 0.0;
+			alpha[1] = 1.0;
+		}
+
+		for (int i = 0; i < 2; i++)
+		{
+			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 40.0, 20.0);
+			Draw(cam_msg[16 + i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
+			draw_x += 60.0;
 		}
 
 		//Draw(cam_msg[19] + std::to_string(cam_selected_num_of_encode_threads), 0, 20.0, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);

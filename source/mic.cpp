@@ -319,9 +319,9 @@ void Mic_main(void)
 		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
 	Draw(s_mic_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
-	Draw(mic_msg[3], 0, 45.0, 60.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+	Draw(mic_msg[3], 0, 45.0, 50.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 	if(mic_start_record_request)
-		Draw(mic_msg[2], 0, 95.0, 70.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(mic_msg[2], 0, 95.0, 65.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 
 	draw_x = 95.0;
 	draw_y = 80.0;

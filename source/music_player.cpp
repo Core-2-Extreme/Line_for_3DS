@@ -408,24 +408,22 @@ void Mup_exit(void)
 	aptSetSleepAllowed(true);
 	Draw_progress("[Mup] Exiting...");
 
-	log_num = Log_log_save("Mup/Exit", "Exiting thread(0/1)...", 1234567890, s_debug_slow);
-	result.code = threadJoin(mup_play_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
-	else
+	for (int i = 0; i < 2; i++)
 	{
-		failed = true;
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
-	}
+		log_num = Log_log_save("Mup/Exit", "Exiting thread(" + std::to_string(i) + "/1)...", 1234567890, s_debug_slow);
+	
+		if(i == 0)
+			result.code = threadJoin(mup_play_thread, time_out);
+		else if(i == 1)
+			result.code = threadJoin(mup_timer_thread, time_out);
 
-	log_num = Log_log_save("Mup/Exit", "Exiting thread(1/1)...", 1234567890, s_debug_slow);
-	result.code = threadJoin(mup_timer_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
-	else
-	{
-		failed = true;
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
+		if (result.code == 0)
+			Log_log_add(log_num, s_success, result.code, s_debug_slow);
+		else
+		{
+			failed = true;
+			Log_log_add(log_num, s_error, result.code, s_debug_slow);
+		}
 	}
 
 	threadFree(mup_play_thread);
@@ -523,7 +521,6 @@ void Mup_main(void)
 	Draw(mup_msg[5] + std::to_string(mup_music_length).substr(0, std::to_string(mup_music_length).length() - 4) + mup_msg[6], 0, 0.0, 65.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 	Draw(mup_msg[7] + mup_file_type, 0, 0.0, 80.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 	
-
 	if (Sem_query_settings(SEM_DEBUG_MODE))
 		Draw_debug_info();
 	if (Log_query_log_show_flag())
