@@ -33,15 +33,15 @@ include $(DEVKITARM)/3ds_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source
+SOURCES		:=	source library/base64 library/openmp3
 DATA		:=	data
-INCLUDES	:=	include
+INCLUDES	:=	include library
 GRAPHICS	:=	gfx
 #GFXBUILD	:=	$(BUILD)
 ROMFS		:=	romfs
 GFXBUILD	:=	$(ROMFS)/gfx
 #---------------------------------------------------------------------------------
-APP_VER					:= 1090
+APP_VER					:= 1104
 APP_TITLE				:= Line for 3DS
 APP_DESCRIPTION				:= Line for 3DS
 APP_AUTHOR				:= Core_2_Extreme
@@ -59,7 +59,7 @@ RSF_PATH				:= resource/app.rsf
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
-CFLAGS	:=	-g -Wall -O2 -mword-relocations \
+CFLAGS	:=	-Wall -O2 -mword-relocations \
 		-fomit-frame-pointer -ffunction-sections \
 		$(ARCH)
 
