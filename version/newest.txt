@@ -10,7 +10,7 @@
 <gas_ver>5</gas_ver>
 <patch_note>【App】 Ver 1.5.0
 【App】 Added- Camera, Mic and Music player.
-【App】 Build with the latest version(v1.9.0) of ctrlib
+【App】 Build with the latest version of ctrlib(v1.9.0)
 【Line】 Fixed- UI design.
 【Line】 Fixed- Made setup steps easier.
 【Line】 Added- Display user/group name and
