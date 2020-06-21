@@ -89,3 +89,4 @@ Result_with_string Cam_cam_init(void);
 void Cam_init(void);
 
 void Cam_main(void);
+
