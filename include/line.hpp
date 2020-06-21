@@ -2,6 +2,8 @@
 
 #include "types.hpp"
 
+#define LINE_NUM_OF_MSG 47
+
 #define LINE_HTTPC_BUFFER 0
 #define LINE_FS_BUFFER 1
 #define LINE_SEND_FS_BUFFER 2
@@ -24,12 +26,19 @@
 #define LINE_SELECT_FILE_REQUEST 14
 #define LINE_SENDING_MSG 15
 #define LINE_SEND_SUCCESS 16
+#define LINE_SELECT_CHAT_ROOM_REQUEST 17
+#define LINE_DELETE_ID_CHECK_REQUEST 18
+#define LINE_DELETE_ID_REQUEST 19
+#define LINE_SOLVE_SHORT_URL_REQUEST 20
+#define LINE_CHECK_MAIN_URL_REQUEST 21
+#define LINE_TYPE_SHORT_URL_REQUEST 22
+#define LINE_PARSE_LOG_REQUEST 23
 
 #define LINE_MENU_SEND 0 
 #define LINE_MENU_RECEIVE 1
 #define LINE_MENU_COPY 2
 #define LINE_MENU_SETTINGS 3
-#define LINE_MENU_ADVANCED_SETTINGS 4
+#define LINE_MENU_ADVANCED 4
 
 #define LINE_HIDE_ID 0
 #define LINE_AUTO_UPDATE 1
@@ -68,7 +77,13 @@ double Line_query_x_y_size_interval(int item_num);
 
 bool Line_query_setting(int setting_num);
 
+void Line_reset_id(void);
+
+void Line_reset_msg(void);
+
 void Line_set_buffer_size(int buffer_num, int size);
+
+void Line_set_msg(int msg_num, std::string msg);
 
 void Line_set_send_file_name(std::string file_name);
 
@@ -92,6 +107,8 @@ void Line_init(void);
 
 void Line_main(void);
 
+void Line_icon_dl_thread(void* arg);
+
 void Line_log_download_thread(void* arg);
 
 void Line_update_thread(void* arg);
@@ -101,6 +118,8 @@ void Line_send_message_thread(void* arg);
 void Line_pic_parse_thread(void* arg);
 
 Result_with_string Line_save_new_id(std::string id, std::string dir_path);
+
+Result_with_string Line_load_icon(int room_num);
 
 Result_with_string Line_read_id(std::string dir_path);
 

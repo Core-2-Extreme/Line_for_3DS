@@ -4,6 +4,8 @@
 
 #include "types.hpp"
 
+#define IMV_NUM_OF_MSG 10
+
 #define IMV_HTTPC_BUFFER 0
 #define IMV_FS_BUFFER 1
 
@@ -37,6 +39,8 @@ void Imv_set_buffer_size(int buffer_num, int size);
 
 void Imv_set_clipboard_num(int num);
 
+void Imv_set_msg(int msg_num, std::string msg);
+
 void Imv_set_operation_flag(int operation_num, bool flag);
 
 void Imv_set_img_pos_x(double x);
@@ -52,10 +56,6 @@ void Imv_set_load_dir_name(std::string dir_name);
 void Imv_suspend(void);
 
 void Imv_resume(void);
-
-void RGBA_to_ABGR(u8* buf, u32 width, u32 height);
-
-Result_with_string Draw_C3DTexToC2DImage(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_subtex, u8* buf, u32 size, u32 width, u32 height, int parse_start_width, int parse_start_height, int tex_size, GPU_TEXCOLOR format);
 
 void Imv_init(void);
 

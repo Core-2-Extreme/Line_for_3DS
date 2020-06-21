@@ -1,5 +1,7 @@
 #pragma once
 
+#define SPT_NUM_OF_MSG 12
+
 #define SPT_HTTPC_BUFFER 0
 
 bool Spt_query_init_flag(void);
@@ -9,6 +11,8 @@ bool Spt_query_running_flag(void);
 int Spt_query_buffer_size(int buffer_num);
 
 void Spt_set_buffer_size(int buffer_num, int size);
+
+void Spt_set_msg(int msg_num, std::string msg);
 
 void Spt_set_spt_data_size(int size);
 

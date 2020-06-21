@@ -1,5 +1,9 @@
 #pragma once
 
+#define GTR_NUM_OF_MSG 10
+#define GTR_NUM_OF_LANG_LIST_MSG 105
+#define GTR_NUM_OF_LANG_SHORT_LIST_MSG 105
+
 #define GTR_TYPE_TEXT_REQUEST 0
 #define GTR_SELECT_SORCE_LANG_REQUEST 1
 #define GTR_SELECT_TARGET_LANG_REQUEST 2
@@ -11,6 +15,10 @@
 
 #define GTR_SORCE_LANG_OFFSET 0
 #define GTR_TARGET_LANG_OFFSET 1
+
+#define GTR_SHORT_LANG_LIST 0
+#define GTR_LANG_LIST 1
+#define GTR_MSG 2
 
 bool Gtr_query_init_flag(void);
 
@@ -27,6 +35,8 @@ double Gtr_query_selected_num_d(int item_num);
 double Gtr_query_text_pos_x(void);
 
 std::string Gtr_query_tr_history(int num);
+
+void Gtr_set_msg(int msg_num, int num_of_msg, std::string msg);
 
 void Gtr_set_offset(int item_num, double value);
 
