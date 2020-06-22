@@ -23,7 +23,7 @@
 * 【Setting menu】 Fixed- UI design.
 
 ## Summary
-
+![00000028](https://user-images.githubusercontent.com/45873899/85299815-b9bbfb80-b4e0-11ea-8ee1-7551cedd83d4.jpg)
 ![00000002](https://user-images.githubusercontent.com/45873899/77538658-676c3e00-6ee3-11ea-8a9a-9c37ee7ba69b.png)
 [![Video](https://img.youtube.com/vi/4FMCwcwEEi8/0.jpg)](https://www.youtube.com/watch?v=4FMCwcwEEi8)
 
