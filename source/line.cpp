@@ -1120,8 +1120,10 @@ void Line_main(void)
 		swkbdSetInitialText(&main_swkbd, s_clipboards[0].c_str());
 		swkbdSetValidation(&main_swkbd, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
 		swkbdSetFeatures(&main_swkbd, SWKBD_PREDICTIVE_INPUT);
-		swkbdSetDictWord(&s_swkb_words[0], "h", "https://tiny.cc/");
-		swkbdSetDictionary(&main_swkbd, s_swkb_words, 1);
+		swkbdSetDictWord(&s_swkb_words[0], "h", "http://rb.gy/");
+		swkbdSetDictWord(&s_swkb_words[1], "h", "https://tiny.cc/");
+		swkbdSetDictWord(&s_swkb_words[2], "h", "http://tinyurl.com/");
+		swkbdSetDictionary(&main_swkbd, s_swkb_words, 3);
 		s_swkb_press_button = swkbdInputText(&main_swkbd, s_swkb_input_text, 512);
 		if (!s_swkb_press_button == SWKBD_BUTTON_LEFT)
 		{
@@ -1331,7 +1333,7 @@ void Line_log_download_thread(void* arg)
 					}
 					else
 					{
-						Err_set_error_message("Log download failed.", line_log_data, line_log_dl_thread_string, GAS_RETURNED_NOT_SUCCESS);
+						Err_set_error_message("Log download failed.", (char*)httpc_buffer, line_log_dl_thread_string, GAS_RETURNED_NOT_SUCCESS);
 						Err_set_error_show_flag(true);
 						line_auto_update = false;
 					}
@@ -1372,7 +1374,7 @@ void Line_log_download_thread(void* arg)
 				memset(httpc_buffer, 0x0, 0x10000);
 				log_num = Log_log_save(line_log_dl_thread_string, "Solving short url...", 1234567890, false);
 				result = Httpc_dl_data(line_short_url, httpc_buffer, 0x10000, &dl_size, &status_code, true, &last_url, true, 1);
-				Log_log_add(log_num, result.string + " " + last_url + " ", result.code, false);
+				Log_log_add(log_num, result.string + " " + last_url + " status code" + std::to_string(status_code), result.code, false);
 				line_log_dl_progress = Httpc_query_dl_progress();
 				s_clipboards[0] = last_url;
 				line_check_main_url_request = true;

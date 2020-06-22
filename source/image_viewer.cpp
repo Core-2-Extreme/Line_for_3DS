@@ -202,7 +202,7 @@ void Imv_init(void)
 	else
 		memset(imv_image_buffer, 0x0, 0x500000);
 
-	if (imv_first)
+	if (imv_first && !failed)
 	{
 		imv_failed_reason = (const char*)malloc(0x100);
 		imv_first = false;
