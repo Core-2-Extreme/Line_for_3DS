@@ -24,6 +24,7 @@ int spt_total_dl_size = 0;
 double spt_total_dl_time = 0.0;
 double spt_test_result = 0.0;
 std::string spt_msg[SPT_NUM_OF_MSG];
+std::string spt_ver = "v1.0.4";
 
 Thread spt_spt_thread;
 
@@ -111,11 +112,11 @@ void Spt_exit(void)
 	log_num = Log_log_save("Spt/Exit", "Exiting thread(0/0)...", 1234567890, s_debug_slow);
 	result.code = threadJoin(spt_spt_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 	}
 
 	threadFree(spt_spt_thread);
@@ -134,7 +135,7 @@ void Spt_main(void)
 	float text_green;
 	float text_blue;
 	float text_alpha;
-	osTickCounterUpdate(&s_tcount_frame_time);
+
 	if (Sem_query_settings(SEM_NIGHT_MODE))
 	{
 		text_red = 1.0;
@@ -174,7 +175,7 @@ void Spt_main(void)
 	else
 		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
-	Draw(s_spt_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
+	Draw(spt_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
 
 	Draw(spt_msg[3], 0, 70.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
 	for (int i = 0; i < 7; i++)
@@ -195,11 +196,9 @@ void Spt_main(void)
 
 	Draw_bot_ui();
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
+		Draw_touch_pos();
 
 	Draw_apply_draw();
-	s_fps += 1;
-	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 }
 
 void Spt_spt_thread(void* arg)

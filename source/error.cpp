@@ -8,6 +8,8 @@ std::string err_error_summary = "N/A";
 std::string err_error_description = "N/A";
 std::string err_error_place = "N/A";
 std::string err_error_code = "0x0";
+std::string err_error_string = "[Error] ";
+std::string err_success_string = "[Success] ";
 
 bool Err_query_error_show_flag(void)
 {
@@ -26,6 +28,16 @@ std::string Err_query_error_data(int error_num)
 		return err_error_code;
 	else
 		return "";
+}
+
+std::string Err_query_general_error_string(void)
+{
+	return err_error_string;
+}
+
+std::string Err_query_general_success_string(void)
+{
+	return err_success_string;
 }
 
 void Err_set_error_code(long error_code)

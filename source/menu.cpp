@@ -45,13 +45,17 @@ bool menu_connect_test_succes = false;
 bool menu_main_run = true;
 bool menu_must_exit = false;
 bool menu_check_exit_request = false;
-int menu_cam_fps_show = 0;
+int menu_cam_fps = 0;
 int menu_hours = -1;
 int menu_minutes = -1;
 int menu_seconds = -1;
 int menu_days = -1;
 int menu_months = -1;
-
+int menu_fps = 0;
+int menu_free_ram = 0;
+int menu_free_linear_ram = 0;
+int menu_afk_time;
+std::string menu_app_ver = "v1.5.1";
 
 Thread menu_update_thread, menu_send_app_info_thread, menu_check_connectivity_thread;
 
@@ -59,6 +63,22 @@ bool Menu_query_running_flag(void)
 {
 	return menu_main_run;
 }
+
+int Menu_query_afk_time(void)
+{
+	return menu_afk_time;
+}
+
+int Menu_query_free_ram(void)
+{
+	return menu_free_ram;
+}
+
+int Menu_query_free_linear_ram(void)
+{
+	return menu_free_linear_ram;
+}
+
 
 bool Menu_query_must_exit_flag(void)
 {
@@ -69,6 +89,16 @@ std::string Menu_query_time(void)
 {
 	std::string return_time = std::to_string(menu_months) + "_" + std::to_string(menu_days) + "_" + std::to_string(menu_hours) + "_" + std::to_string(menu_minutes) + "_" + std::to_string(menu_seconds);
 	return return_time;
+}
+
+std::string Menu_query_ver(void)
+{
+	return menu_app_ver;
+}
+
+void Menu_reset_afk_time(void)
+{
+		menu_afk_time = 0;
 }
 
 void Menu_set_operation_flag(int operation_num, bool flag)
@@ -128,13 +158,13 @@ void Menu_init(void)
 	menu_update_thread_run = true;
 	menu_check_connectivity_thread_run = true;
 	menu_update_thread = threadCreate(Menu_update_thread, (void*)(""), STACKSIZE, 0x18, -1, false);
-	menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, 0x30, -1, false);
+	//menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, 0x30, -1, false);
 
 	if (Sem_query_settings(SEM_ALLOW_SEND_APP_INFO))
 	{
 		for (int i = 1; i <= 1000; i++)
 		{
-			if (s_num_of_app_start == i * 10)
+			if (Sem_query_settings_i(SEM_NUM_OF_APP_START) == i * 10)
 			{
 				menu_send_app_info_thread = threadCreate(Menu_send_app_info_thread, (void*)(""), STACKSIZE, 0x24, -1, true);
 				break;
@@ -188,11 +218,11 @@ void Menu_exit(void)
 			result.code = threadJoin(menu_check_connectivity_thread, time_out);
 
 		if (result.code == 0)
-			Log_log_add(log_num, s_success, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 		else
 		{
 			failed = true;
-			Log_log_add(log_num, s_error, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 		}
 	}
 
@@ -221,9 +251,9 @@ void Menu_main(void)
 	Menu_get_system_info();
 
 	if (Cam_query_running_flag())
-		sprintf(s_status, "%dfps %.1fms %02d/%02d %02d:%02d:%02d cam %dfps ", s_fps_show, s_frame_time, menu_months, menu_days, menu_hours, menu_minutes, menu_seconds, menu_cam_fps_show);
+		sprintf(s_status, "%dfps %.1fms %02d/%02d %02d:%02d:%02d cam %dfps ", menu_fps, Draw_query_frametime(), menu_months, menu_days, menu_hours, menu_minutes, menu_seconds, menu_cam_fps);
 	else
-		sprintf(s_status, "%dfps %.1fms %02d/%02d %02d:%02d:%02d ", s_fps_show, s_frame_time, menu_months, menu_days, menu_hours, menu_minutes, menu_seconds);
+		sprintf(s_status, "%dfps %.1fms %02d/%02d %02d:%02d:%02d ", menu_fps,  Draw_query_frametime(), menu_months, menu_days, menu_hours, menu_minutes, menu_seconds);
 
 	if (menu_main_run)
 	{
@@ -311,12 +341,9 @@ void Menu_main(void)
 
 		Draw_bot_ui();
 		if (Hid_query_key_held_state(KEY_H_TOUCH))
-			Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
-		s_fps += 1;
+			Draw_touch_pos();
 
 		Draw_apply_draw();
-		osTickCounterUpdate(&s_tcount_frame_time);
-		s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 
 		if (menu_check_exit_request)
 		{
@@ -567,11 +594,11 @@ void Menu_get_system_info(void)
 	menu_minutes = timeStruct->tm_min;
 	menu_seconds = timeStruct->tm_sec;
 
-	if (Sem_query_settings(SEM_DEBUG_MODE)) 
+	if (Sem_query_settings(SEM_DEBUG_MODE))
 	{
 		//check free RAM
-		s_free_ram = Menu_check_free_ram();
-		s_free_linear_ram = linearSpaceFree();
+		menu_free_ram = Menu_check_free_ram();
+		menu_free_linear_ram = linearSpaceFree();
 	}
 }
 
@@ -619,10 +646,11 @@ void Menu_send_app_info_thread(void* arg)
 	else
 		new3ds = "no";
 
-	std::string send_data = "{ \"app_ver\": \"" + s_app_ver + "\",\"system_ver\" : \"" + system_ver + "\",\"start_num_of_app\" : \"" + std::to_string(s_num_of_app_start) + "\",\"language\" : \"" + s_setting[1] + "\",\"new3ds\" : \"" + new3ds + "\",\"time_to_enter_sleep\" : \"" + std::to_string(s_time_to_enter_afk) + "\",\"scroll_speed\" : \"" + std::to_string(s_scroll_speed) + "\" }";
+	std::string send_data = "{ \"app_ver\": \"" + menu_app_ver + "\",\"system_ver\" : \"" + system_ver + "\",\"start_num_of_app\" : \"" + std::to_string(Sem_query_settings_i(SEM_NUM_OF_APP_START)) + "\",\"language\" : \"" + s_setting[1] + "\",\"new3ds\" : \"" + new3ds + "\",\"time_to_enter_sleep\" : \"" + std::to_string(Sem_query_settings_i(SEM_TIME_TO_TURN_OFF_LCD)) + "\",\"scroll_speed\" : \"" + std::to_string(Sem_query_settings_d(SEM_SCROLL_SPEED)) + "\" }";
 
 	Httpc_post_and_dl_data("https://script.google.com/macros/s/AKfycbyn_blFyKWXCgJr6NIF8x6ETs7CHRN5FXKYEAAIrzV6jPYcCkI/exec", (char*)send_data.c_str(), send_data.length(), dl_data, 0x1000, &downloaded_size, &status_code, true);
 	free(dl_data);
+	dl_data = NULL;
 
 	Log_log_save("Menu/Send app info thread", "Thread exit.", 1234567890, false);
 	threadExit(0);
@@ -674,9 +702,9 @@ void Menu_update_thread(void* arg)
 			menu_change_brightness_request = true;
 			//fps
 
-			s_fps_show = s_fps;
-			menu_cam_fps_show = Cam_query_framerate();
-			s_fps = 0;
+			menu_fps = Draw_query_fps();
+			menu_cam_fps = Cam_query_framerate();
+			Draw_reset_fps();
 			Cam_reset_framerate();
 			update_thread_count = 0;
 		}
@@ -684,20 +712,20 @@ void Menu_update_thread(void* arg)
 		if (menu_change_brightness_request)
 		{
 			if (s_disabled_enter_afk_mode)
-				Change_brightness(true, true, s_lcd_brightness);
+				Change_brightness(true, true, Sem_query_settings_i(SEM_LCD_BRIGHTNESS));
 			else
 			{
-				if (s_afk_time > (s_time_to_enter_afk + 100) * 2)
+				if (menu_afk_time > (Sem_query_settings_i(SEM_TIME_TO_TURN_OFF_LCD) + 100) * 2)
 					Change_screen_state(true, true, false);
-				else if (s_afk_time >= s_time_to_enter_afk * 2)
+				else if (menu_afk_time >= Sem_query_settings_i(SEM_TIME_TO_TURN_OFF_LCD) * 2)
 				{
 					Change_screen_state(true, true, true);
-					Change_brightness(true, true, s_afk_lcd_brightness);
+					Change_brightness(true, true, Sem_query_settings_i(SEM_LCD_BRIGHTNESS_BEFORE_TURN_OFF));
 				}
 				else
 				{
 					Change_screen_state(true, true, true);
-					Change_brightness(true, true, s_lcd_brightness);
+					Change_brightness(true, true, Sem_query_settings_i(SEM_LCD_BRIGHTNESS));
 				}
 			}
 			menu_change_brightness_request = false;
@@ -712,7 +740,7 @@ void Menu_update_thread(void* arg)
 
 			Sem_set_settings(SEM_NIGHT_MODE, !Sem_query_settings(SEM_NIGHT_MODE));
 		}
-		s_afk_time++;
+		menu_afk_time++;
 	}
 	Log_log_save("Menu/Update thread", "Thread exit.", 1234567890, false);
 	threadExit(0);

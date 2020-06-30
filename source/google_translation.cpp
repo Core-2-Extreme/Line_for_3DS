@@ -12,6 +12,7 @@
 #include "menu.hpp"
 #include "log.hpp"
 #include "types.hpp"
+#include "swkbd.hpp"
 
 bool gtr_already_init = false;
 bool gtr_main_run = false;
@@ -35,7 +36,7 @@ std::string gtr_history[10] = { "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a",
 std::string gtr_lang_short_list[GTR_NUM_OF_LANG_SHORT_LIST_MSG];
 std::string gtr_lang_list[GTR_NUM_OF_LANG_SHORT_LIST_MSG];
 std::string gtr_msg[GTR_NUM_OF_MSG];
-
+std::string gtr_ver = "v1.1.1";
 
 Thread gtr_tr_thread;
 
@@ -197,7 +198,7 @@ void Gtr_tr_thread(void* arg)
 	std::string send_data;
 	std::string url = "https://script.google.com/macros/s/AKfycbwbL6swXIeycS-WpVBrfKLh40bXg2CAv1PdAzuIhalqq2SGrJM/exec";
 	Result_with_string result;
-	
+
 	httpc_buffer = (u8*)malloc(0x10000);
 
 	while (gtr_tr_thread_run)
@@ -213,7 +214,7 @@ void Gtr_tr_thread(void* arg)
 			gtr_history[gtr_current_history_num] = gtr_msg[3];
 
 			send_data = "{ \"text\": \"" + gtr_input_text + "\",\"sorce\" : \"" + gtr_sorce_lang + "\",\"target\" : \"" + gtr_target_lang + "\" }";
-			
+
 			memset(httpc_buffer, 0x0, 0x10000);
 			result = Httpc_post_and_dl_data(url, (char*)send_data.c_str(), send_data.length(), httpc_buffer, 0x10000, &dl_size, &status_code, true);
 
@@ -266,11 +267,11 @@ void Gtr_exit(void)
 	log_num = Log_log_save("Gtr/Exit", "Exiting thread...", 1234567890, s_debug_slow);
 	result.code = threadJoin(gtr_tr_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 	}
 
 	threadFree(gtr_tr_thread);
@@ -299,7 +300,7 @@ void Gtr_main(void)
 	float green;
 	float blue;
 	float alpha;
-	osTickCounterUpdate(&s_tcount_frame_time);
+	std::string swkbd_data;
 
 	if (Sem_query_font_flag(SEM_USE_DEFAULT_FONT))
 		font_num = 0;
@@ -345,7 +346,7 @@ void Gtr_main(void)
 	else
 		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
-	Draw(s_gtr_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
+	Draw(gtr_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
 	for (int i = 0; i < 10; i++)
 	{
 		if(i == gtr_selected_history_num)
@@ -401,27 +402,17 @@ void Gtr_main(void)
 
 	Draw_bot_ui();
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
-	
+		Draw_touch_pos();
+
 	Draw_apply_draw();
-	s_fps += 1;
-	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 
 	Hid_set_disable_flag(true);
 	if (gtr_type_text_request)
 	{
-		memset(s_swkb_input_text, 0x0, 8192);
-		swkbdInit(&s_swkb, SWKBD_TYPE_NORMAL, 2, 8192);
-		swkbdSetHintText(&s_swkb, "メッセージを入力 / Type message here.");
-		swkbdSetValidation(&s_swkb, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
-		swkbdSetFeatures(&s_swkb, SWKBD_PREDICTIVE_INPUT);
-		swkbdSetInitialText(&s_swkb, s_clipboards[0].c_str());
-		swkbdSetLearningData(&s_swkb, &s_swkb_learn_data, true, true);
-		s_swkb_press_button = swkbdInputText(&s_swkb, s_swkb_input_text, 8192);
-
-		if (s_swkb_press_button == SWKBD_BUTTON_RIGHT)
+		Swkbd_set_parameter(SWKBD_TYPE_NORMAL, SWKBD_NOTEMPTY_NOTBLANK, SWKBD_PREDICTIVE_INPUT, -1, 2, 8192, "メッセージを入力 / Type message here.", s_clipboards[0]);
+		if (Swkbd_launch(8192, &swkbd_data, SWKBD_BUTTON_RIGHT))
 		{
-			gtr_input_text = s_swkb_input_text;
+			gtr_input_text = swkbd_data;
 			gtr_tr_request = true;
 		}
 		gtr_type_text_request = false;

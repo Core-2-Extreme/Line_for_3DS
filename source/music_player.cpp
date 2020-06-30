@@ -15,7 +15,6 @@
 #include "types.hpp"
 #include "share_function.hpp"
 #include "setting_menu.hpp"
-#include "explorer.hpp"
 #include "music_player.hpp"
 
 bool mup_main_run = false;
@@ -41,6 +40,7 @@ std::string mup_load_file_name = "";
 std::string mup_load_dir_name = "";
 std::string mup_file_type = "unknown";
 std::string mup_msg[MUP_NUM_OF_MSG];
+std::string mup_ver = "v1.0.1";
 Thread mup_play_thread, mup_timer_thread;
 
 bool Mup_query_init_flag(void)
@@ -136,8 +136,6 @@ void Mup_set_load_dir_name(std::string dir_name)
 Result_with_string Mup_play_sound(u8* sound_buffer, int buffer_size, int sample_rate, int num_of_ch)
 {
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	result.code = GSPGPU_FlushDataCache(sound_buffer, buffer_size);
 
@@ -162,7 +160,7 @@ void Mup_timer_thread(void* arg)
 			osTickCounterUpdate(&elapsed_time);
 			mup_bar_pos = 0.0;
 		}
-		
+
 		while (mup_count_request)
 		{
 			if (mup_count_reset_request)
@@ -202,6 +200,10 @@ void Mup_play_thread(void* arg)
 	Handle fs_handle = 0;
 	FS_Archive fs_archive = 0;
 	Result_with_string result;
+	mp3dec_t mp3_decode;
+	mp3dec_init(&mp3_decode);
+	mp3dec_file_info_t mp3_info;
+	MP3D_PROGRESS_CB mp3_progress;
 
 	sound_buffer[0] = (u8*)linearAlloc(mup_sound_fs_out_buffer_size / 2);
 	sound_buffer[1] = (u8*)linearAlloc(mup_sound_fs_out_buffer_size / 2);
@@ -234,11 +236,6 @@ void Mup_play_thread(void* arg)
 			memset(sound_in_buffer, 0x0, mup_sound_fs_in_buffer_size);
 			memset(sound_header[0], 0x0, 0x4000);
 			memset(sound_header[1], 0x0, 0x4);
-
-			mp3dec_t mp3_decode;
-			mp3dec_init(&mp3_decode);
-			mp3dec_file_info_t mp3_info;
-			MP3D_PROGRESS_CB mp3_progress;
 
 			result = File_load_from_file_with_range(mup_load_file_name, sound_header[0], 0x4000, 0, &read_size, mup_load_dir_name, fs_handle, fs_archive);
 
@@ -280,6 +277,8 @@ void Mup_play_thread(void* arg)
 			}
 			else if (mup_file_type == "mp3")
 			{
+				free(mp3_info.buffer);
+				mp3_info.buffer = NULL;
 				result = File_check_file_size(file_name, dir_name, &mp3_file_size, fs_handle, fs_archive);
 				mp3_result = mp3dec_load_buf(&mp3_decode, (const uint8_t*)sound_header[0], read_size, &mp3_info, mp3_progress, NULL, 0x50000);
 				if (result.code == 0)
@@ -303,7 +302,7 @@ void Mup_play_thread(void* arg)
 				}
 			}
 
-			for (int i = 0; i < 10000; i++)
+			for (int i = 0; i < 100000; i++)
 			{
 				if (mup_file_type == "wav")
 				{
@@ -328,7 +327,7 @@ void Mup_play_thread(void* arg)
 
 						memset(sound_buffer[buffer_num], 0x0, mup_sound_fs_out_buffer_size / 2);
 						memcpy((void*)(sound_buffer[buffer_num]), mp3_info.buffer, mp3_info.samples * 2);
-						
+
 						raw_buffer_size = mp3_info.samples * 2;
 					}
 					else
@@ -374,9 +373,11 @@ void Mup_play_thread(void* arg)
 		usleep(250000);
 	}
 
+	free(mp3_info.buffer);
 	free(sound_in_buffer);
 	free(wav_sample);
 	free(mp3_sample);
+	mp3_info.buffer = NULL;
 	sound_in_buffer = NULL;
 	mp3_sample = NULL;
 	wav_sample = NULL;
@@ -411,18 +412,18 @@ void Mup_exit(void)
 	for (int i = 0; i < 2; i++)
 	{
 		log_num = Log_log_save("Mup/Exit", "Exiting thread(" + std::to_string(i) + "/1)...", 1234567890, s_debug_slow);
-	
+
 		if(i == 0)
 			result.code = threadJoin(mup_play_thread, time_out);
 		else if(i == 1)
 			result.code = threadJoin(mup_timer_thread, time_out);
 
 		if (result.code == 0)
-			Log_log_add(log_num, s_success, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 		else
 		{
 			failed = true;
-			Log_log_add(log_num, s_error, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 		}
 	}
 
@@ -445,13 +446,13 @@ void Mup_init(void)
 	log_num= Log_log_save("Mup/Init", "csndInit...", 1234567890, s_debug_slow);
 	result.code = csndInit();
 	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 	else
 	{
 		failed = true;
 		Err_set_error_message("csndInit failed.", "", "Mup/Init", result.code);
 		Err_set_error_show_flag(true);
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 	}
 
 	Draw_progress("1/1 [Mup] Starting threads...");
@@ -520,7 +521,7 @@ void Mup_main(void)
 	Draw(mup_msg[3] + std::to_string(mup_num_of_music_ch) + mup_msg[4], 0, 0.0, 50.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 	Draw(mup_msg[5] + std::to_string(mup_music_length).substr(0, std::to_string(mup_music_length).length() - 4) + mup_msg[6], 0, 0.0, 65.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 	Draw(mup_msg[7] + mup_file_type, 0, 0.0, 80.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-	
+
 	if (Sem_query_settings(SEM_DEBUG_MODE))
 		Draw_debug_info();
 	if (Log_query_log_show_flag())
@@ -540,7 +541,7 @@ void Mup_main(void)
 		Draw(mup_msg[16 + i], 0, 107.5 + (i * 60.0), 80.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 	}
 
-	Draw(s_mup_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);	
+	Draw(mup_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
 	Draw(std::to_string(mup_bar_pos / 1000).substr(0, std::to_string(mup_bar_pos / 1000).length() - 4) + "/" + std::to_string(mup_music_length).substr(0, std::to_string(mup_music_length).length() - 4), 0, 12.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 	Draw_texture(Square_image, aqua_tint, 0, 10.0, 120.0, 300.0, 5.0);
 	if(mup_music_length != 0.0)
@@ -580,18 +581,7 @@ void Mup_main(void)
 	Draw_texture(Square_image, weak_aqua_tint, 0, 230.0, 180.0, 80.0, 20.0);
 	Draw(mup_msg[15], 0, 232.5, 180.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 	if (mup_select_file_request)
-	{
-		Draw_texture(Square_image, aqua_tint, 10, 10.0, 20.0, 300.0, 190.0);
-		Draw(mup_msg[8], 0, 12.5, 185.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-		Draw(Expl_query_current_patch(), 0, 12.5, 195.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
-		for (int i = 0; i < 16; i++)
-		{
-			if (i == (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM))
-				Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-			else
-				Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-		}
-	}
+		Draw_expl(mup_msg[8]);
 
 	if (Err_query_error_show_flag())
 		Draw_error();
@@ -599,10 +589,7 @@ void Mup_main(void)
 	Draw_bot_ui();
 
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
-	s_fps += 1;
+		Draw_touch_pos();
 
 	Draw_apply_draw();
-	osTickCounterUpdate(&s_tcount_frame_time);
-	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 }

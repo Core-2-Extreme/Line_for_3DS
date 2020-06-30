@@ -12,10 +12,10 @@
 #include "share_function.hpp"
 #include "error.hpp"
 #include "menu.hpp"
-#include "explorer.hpp"
 #include "log.hpp"
 #include "types.hpp"
 #include "setting_menu.hpp"
+#include "swkbd.hpp"
 
 bool imv_already_init = false;
 bool imv_main_run = false;
@@ -47,6 +47,7 @@ const char* imv_failed_reason;
 std::string imv_img_load_dir_name = "";
 std::string imv_img_load_file_name = "";
 std::string imv_msg[IMV_NUM_OF_MSG];
+std::string imv_ver = "v1.0.3";
 Thread imv_parse_img_thread, imv_dl_img_thread, imv_load_img_thread;
 C2D_Image imv_c2d_image[64];
 
@@ -209,7 +210,7 @@ void Imv_init(void)
 	}
 
 	Draw_progress("0/0 [Imv] Starting threads...");
-	
+
 	if (!failed)
 	{
 		imv_dl_thread_run = true;
@@ -235,12 +236,9 @@ void Imv_main(void)
 	int img_pos_x_offset = 0;
 	int img_pos_y_offset = 0;
 	double log_x = Log_query_x();
-	float text_red;
-	float text_green;
-	float text_blue;
-	float text_alpha;
-	SwkbdState main_swkbd;
-	SwkbdStatusData main_swkbd_status;
+	double text_red, text_green, text_blue, text_alpha;
+	double draw_x, draw_y;
+	std::string swkbd_data;
 
 	if (imv_img_dl_request || imv_img_dl_and_parse_request)
 		imv_img_dl_progress = Httpc_query_dl_progress();
@@ -273,7 +271,6 @@ void Imv_main(void)
 	img_size_x *= imv_img_zoom;
 	img_size_y *= imv_img_zoom;
 
-	osTickCounterUpdate(&s_tcount_frame_time);
 	Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
 
 	if (Sem_query_settings(SEM_NIGHT_MODE))
@@ -339,67 +336,42 @@ void Imv_main(void)
 	}
 	//}
 
-	Draw(s_imv_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 175.0, 65.0, 13.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 195.0, 65.0, 13.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 90.0, 175.0, 65.0, 13.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 90.0, 195.0, 65.0, 13.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 170.0, 175.0, 65.0, 13.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 170.0, 195.0, 65.0, 13.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 250.0, 175.0, 65.0, 13.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 250.0, 195.0, 65.0, 13.0);
+	Draw(imv_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
 
-	Draw(imv_msg[0], 0, 12.5, 175.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw(imv_msg[1], 0, 12.5, 195.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw(imv_msg[2], 0, 92.5, 175.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw(imv_msg[3], 0, 92.5, 195.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw(imv_msg[4], 0, 172.5, 175.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-	Draw(imv_msg[5], 0, 172.5, 195.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-	Draw(imv_msg[6], 0, 252.5, 175.0, 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
-	Draw(imv_msg[7], 0, 252.5, 195.0, 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
+	draw_x = 10.0;
+	draw_y = 175.0;
+	for(int i = 0; i < 8; i++)
+	{
+		Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 65.0, 13.0);
+		Draw(imv_msg[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+
+		draw_y += 20.0;
+		if(draw_y > 195.0)
+		{
+			draw_x += 80.0;
+			draw_y = 175.0;
+		}
+	}
 	Draw(imv_msg[8] + std::to_string(imv_clipboard_selected_num) + "\n" + s_clipboards[imv_clipboard_selected_num], 0, 0.0, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 
 	if (imv_select_file_request)
-	{
-		Draw_texture(Square_image, aqua_tint, 10, 10.0, 20.0, 300.0, 190.0);
-		Draw(imv_msg[9], 0, 12.5, 185.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-
-		Draw(Expl_query_current_patch(), 0, 12.5, 195.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
-		for (int i = 0; i < 16; i++)
-		{
-			if (i == (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM))
-				Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-			else
-				Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-		}
-	}
+		Draw_expl(imv_msg[9]);
 
 	if (Err_query_error_show_flag())
 		Draw_error();
 
 	Draw_bot_ui();
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
+		Draw_touch_pos();
 
 	Draw_apply_draw();
-	s_fps += 1;
-	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 
 	Hid_set_disable_flag(true);
 	if (imv_adjust_url_request)
 	{
-		memset(s_swkb_input_text, 0x0, 8192);
-		swkbdInit(&main_swkbd, SWKBD_TYPE_NORMAL, 2, 8192);
-		swkbdSetHintText(&main_swkbd, "画像URLを入力 / Type image url here.");
-		swkbdSetValidation(&main_swkbd, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
-		swkbdSetFeatures(&main_swkbd, SWKBD_PREDICTIVE_INPUT);
-		swkbdSetInitialText(&main_swkbd, s_clipboards[imv_clipboard_selected_num].c_str());
-
-		swkbdSetStatusData(&main_swkbd, &main_swkbd_status, true, true);
-		swkbdSetLearningData(&main_swkbd, &s_swkb_learn_data, true, true);
-		s_swkb_press_button = swkbdInputText(&main_swkbd, s_swkb_input_text, 8192);
-		if (s_swkb_press_button == SWKBD_BUTTON_RIGHT)
-			s_clipboards[imv_clipboard_selected_num] = s_swkb_input_text;
+		Swkbd_set_parameter(SWKBD_TYPE_NORMAL, SWKBD_NOTEMPTY_NOTBLANK, SWKBD_PREDICTIVE_INPUT, -1, 2, 8192, "画像URLを入力 / Type image url here.", s_clipboards[imv_clipboard_selected_num]);
+		if (Swkbd_launch(8192, &swkbd_data, SWKBD_BUTTON_RIGHT))
+			s_clipboards[imv_clipboard_selected_num] = swkbd_data;
 
 		imv_adjust_url_request = false;
 	}
@@ -436,9 +408,9 @@ void Imv_img_parse_thread(void* arg)
 				log_num = Log_log_save("Imv/Img parse thread", "APT_SetAppCpuTimeLimit_80...", 1234567890, false);
 				result.code = APT_SetAppCpuTimeLimit(80);
 				if (result.code == 0)
-					Log_log_add(log_num, s_success, result.code, false);
+					Log_log_add(log_num, Err_query_general_success_string(), result.code, false);
 				else
-					Log_log_add(log_num,s_error, result.code, false);
+					Log_log_add(log_num, Err_query_general_error_string(), result.code, false);
 
 				imv_image_height = 0;
 				imv_image_width = 0;
@@ -483,6 +455,7 @@ void Imv_img_parse_thread(void* arg)
 					{
 						if (!(parse_start_pos_x > imv_image_width || parse_start_pos_y > imv_image_height))
 						{
+							imv_enable[i] = true;
 							log_num = Log_log_save("Imv/Img parse thread", "Draw_c3dtex_to_c2dimage...", 1234567890, false);
 							result = Draw_c3dtex_to_c2dimage(c3d_cache_tex[i], c3d_cache_subtex[i], stb_image, (u32)(imv_image_width * imv_image_height * 4), imv_image_width, imv_image_height, parse_start_pos_x, parse_start_pos_y, 512, 512, GPU_RGBA8);
 							Log_log_add(log_num, result.string, result.code, false);
@@ -491,8 +464,6 @@ void Imv_img_parse_thread(void* arg)
 								Err_set_error_message(result.string, result.error_description, "Imv/Image parse thread", result.code);
 								Err_set_error_show_flag(true);
 							}
-							else
-								imv_enable[i] = true;
 						}
 
 						parse_start_pos_x += 512;
@@ -543,9 +514,9 @@ void Imv_img_parse_thread(void* arg)
 				log_num = Log_log_save("Imv/Img parse thread", "APT_SetAppCpuTimeLimit_30...", 1234567890, false);
 				result.code = APT_SetAppCpuTimeLimit(30);
 				if (result.code == 0)
-					Log_log_add(log_num, s_success, result.code, false);
+					Log_log_add(log_num, Err_query_general_success_string(), result.code, false);
 				else
-					Log_log_add(log_num,s_error, result.code, false);
+					Log_log_add(log_num, Err_query_general_error_string(), result.code, false);
 
 				imv_img_parse_request = false;
 			}
@@ -724,34 +695,24 @@ void Imv_exit(void)
 	imv_parse_thread_run = false;
 	imv_thread_suspend = false;
 
-	log_num = Log_log_save("Imv/Exit", "Exiting thread(2/2)...", 1234567890, s_debug_slow);
-	result.code = threadJoin(imv_parse_img_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
-	else
+	for(int i = 0; i < 3; i++)
 	{
-		failed = true;
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
-	}
+		log_num = Log_log_save("Imv/Exit", "Exiting thread(" + std::to_string(i) + "/2)...", 1234567890, s_debug_slow);
 
-	log_num = Log_log_save("Imv/Exit", "Exiting thread(0/2)...", 1234567890, s_debug_slow);
-	result.code = threadJoin(imv_dl_img_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
-	else
-	{
-		failed = true;
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
-	}
+		if(i == 0)
+			result.code = threadJoin(imv_parse_img_thread, time_out);
+		else	if(i == 1)
+			result.code = threadJoin(imv_dl_img_thread, time_out);
+		else	if(i == 2)
+			result.code = threadJoin(imv_load_img_thread, time_out);
 
-	log_num = Log_log_save("Imv/Exit", "Exiting thread(1/2)...", 1234567890, s_debug_slow);
-	result.code = threadJoin(imv_load_img_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
-	else
-	{
-		failed = true;
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
+		if (result.code == 0)
+			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
+		else
+		{
+			failed = true;
+			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
+		}
 	}
 
 	threadFree(imv_parse_img_thread);

@@ -80,6 +80,7 @@ std::string cam_encode_thread_string = "Cam/Encode thread";
 std::string cam_parse_thread_string = "Cam/Parse thread";
 std::string cam_init_string = "Cam/Init";
 std::string cam_exit_string = "Cam/Exit";
+std::string cam_ver = "v1.0.0";
 Thread cam_capture_thread, cam_encode_thread[3], cam_parse_thread;
 C2D_Image cam_capture_image[4];
 
@@ -260,7 +261,7 @@ void Cam_set_cam_settings(int setting_num, int num)
 			if (num == 13)
 			{
 				random_num = 13;
-				while (random_num == 13 || random_num == 0 || random_num == 3 || random_num == 4 || random_num == 5 
+				while (random_num == 13 || random_num == 0 || random_num == 3 || random_num == 4 || random_num == 5
 					|| random_num == 6 || random_num == 8)
 				{
 					random_num = rand() % 13;
@@ -369,8 +370,6 @@ Result_with_string Cam_set_capture_camera(int camera_num, int width, int height,
 {
 	bool failed = false;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	CAMU_Activate(SELECT_NONE);
 
@@ -399,8 +398,6 @@ Result_with_string Cam_set_capture_contrast(int contrast_num)
 {
 	CAMU_Contrast contrast;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	if (contrast_num == 0)
 		contrast = CONTRAST_PATTERN_01;
@@ -440,8 +437,6 @@ Result_with_string Cam_set_capture_contrast(int contrast_num)
 Result_with_string Cam_set_capture_exposure(int exposure_num)
 {
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	if (exposure_num >= 0 && exposure_num <= 5)
 		result.code = CAMU_SetExposure(SELECT_ALL, (s8)exposure_num);
@@ -458,9 +453,7 @@ Result_with_string Cam_set_capture_fps(int fps_num)
 {
 	CAMU_FrameRate framerate;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
-
+	
 	if (fps_num == 0)
 		framerate = FRAME_RATE_15;
 	else if (fps_num == 1)
@@ -503,8 +496,6 @@ Result_with_string Cam_set_capture_lens_correction(int lens_correction_num)
 {
 	CAMU_LensCorrection lens_correction;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	if (lens_correction_num == 0)
 		lens_correction = LENS_CORRECTION_OFF;
@@ -527,8 +518,6 @@ Result_with_string Cam_set_capture_lens_correction(int lens_correction_num)
 Result_with_string Cam_set_capture_noise_filter(int noise_filter_num)
 {
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	if (noise_filter_num >= 0 && noise_filter_num <= 1)
 		result.code = CAMU_SetNoiseFilter(SELECT_ALL, noise_filter_num);
@@ -547,8 +536,6 @@ Result_with_string Cam_set_capture_size(int width, int height, u32* out_buffer_s
 	bool failed = false;
 	u32 buffer_size;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	if (width == 640 && height == 480)
 		size = SIZE_VGA;
@@ -603,8 +590,6 @@ Result_with_string Cam_set_capture_white_balance(int white_balance_num)
 {
 	CAMU_WhiteBalance white_balance;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	if (white_balance_num == 0)
 		white_balance = WHITE_BALANCE_AUTO;
@@ -635,8 +620,6 @@ Result_with_string Cam_take_picture(u8* capture_buffer, int size, bool out_cam_1
 	bool failed = false;
 	Handle receive = 0;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	memset(capture_buffer, 0x0, size);
 
@@ -722,7 +705,7 @@ void Cam_encode_thread(void* arg)
 				}
 				else if (cam_capture_buffer[k] != NULL)
 				{
-					
+
 					Draw_rgb565_to_abgr888_rgb888(cam_capture_buffer[k], cam_rgb888_buffer, Cam_convert_to_resolution(cam_current_capture_resolution_mode, true), Cam_convert_to_resolution(cam_current_capture_resolution_mode, false), true);
 					free(cam_capture_buffer[k]);
 					cam_capture_buffer[k] = NULL;
@@ -1250,16 +1233,17 @@ void Cam_exit(void)
 			result.code = threadJoin(cam_capture_thread, time_out);
 
 		if (result.code == 0)
-			Log_log_add(log_num, s_success, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 		else
 		{
 			failed = true;
-			Log_log_add(log_num, s_error, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 		}
 	}
 
 	for (int i = 0; i < 3; i++)
 		threadFree(cam_encode_thread[i]);
+
 	threadFree(cam_parse_thread);
 	threadFree(cam_capture_thread);
 
@@ -1285,8 +1269,6 @@ Result_with_string Cam_cam_init(void)
 {
 	Result_with_string result;
 	bool failed = false;
-	result.code = 0;
-	result.string = s_success;
 
 	result = Cam_set_capture_size(400, 240, &cam_buffer_size);
 	if (result.code != 0)
@@ -1362,13 +1344,13 @@ void Cam_init(void)
 	log_num = Log_log_save(cam_init_string , "camInit...", 1234567890, s_debug_slow);
 	result.code = camInit();
 	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 	else
 	{
 		failed = true;
 		Err_set_error_message("camInit failed. ", "", cam_init_string , result.code);
 		Err_set_error_show_flag(true);
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 	}
 
 	Draw_progress("1/2 [Cam] Initializing camera...");
@@ -1386,9 +1368,9 @@ void Cam_init(void)
 		log_num = Log_log_save(cam_init_string , "APT_SetAppCpuTimeLimit_80...", 1234567890, s_debug_slow);
 		result.code = APT_SetAppCpuTimeLimit(80);
 		if (result.code == 0)
-			Log_log_add(log_num, s_success, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 		else
-			Log_log_add(log_num,s_error, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 	}
 
 	if (!failed)
@@ -1478,7 +1460,7 @@ void Cam_main(void)
 		Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 	else
 		Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
-	
+
 	if (cam_current_display_img_num != -1)
 	{
 		if (cam_current_display_img_num == 1)
@@ -1511,10 +1493,10 @@ void Cam_main(void)
 	else
 		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
-	Draw(s_cam_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
+	Draw(cam_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
 	Draw(std::to_string(Cam_convert_to_resolution(cam_current_capture_resolution_mode, true)) + cam_msg[0] + std::to_string(Cam_convert_to_resolution(cam_current_capture_resolution_mode, false)) + cam_msg[1] + cam_framelate_list[cam_current_capture_fps_mode] + cam_msg[2], 0, 20.0, 20.0, 0.6, 0.6, text_red, text_green, text_blue, text_alpha);
 	Draw(cam_msg[3] + cam_contrast_list[cam_current_capture_contrast_mode] + cam_msg[4] + cam_white_balance_list[cam_current_capture_white_balance_mode], 0, 20.0, 35.0, 0.55, 0.55, text_red, text_green, text_blue, text_alpha);
-	Draw(cam_msg[5] + cam_lens_correction_list[cam_current_capture_lens_correction_mode] + cam_msg[6] + cam_exposure_list[cam_current_capture_exposure_mode], 0, 20.0, 50.0, 0.55, 0.55, text_red, text_green, text_blue, text_alpha);	
+	Draw(cam_msg[5] + cam_lens_correction_list[cam_current_capture_lens_correction_mode] + cam_msg[6] + cam_exposure_list[cam_current_capture_exposure_mode], 0, 20.0, 50.0, 0.55, 0.55, text_red, text_green, text_blue, text_alpha);
 	Draw(cam_msg[30] + cam_format_name_list[cam_encode_format_mode] + cam_msg[31], 0, 20.0, 65.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 
 	Draw_texture(Square_image, weak_yellow_tint, 0, 40.0, 110.0, 60.0, 10.0);
@@ -1708,10 +1690,7 @@ void Cam_main(void)
 
 	Draw_bot_ui();
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
-	s_fps += 1;
+		Draw_touch_pos();
 
 	Draw_apply_draw();
-	osTickCounterUpdate(&s_tcount_frame_time);
-	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 }

@@ -52,11 +52,19 @@ bool sem_night_mode = false;
 bool sem_vsync_mode = true;
 bool sem_flash_mode = false;
 bool sem_wifi_enabled = false;
+bool sem_system_setting_menu_show = false;
+int sem_lcd_brightness = 100;
+int sem_time_to_turn_off_lcd = 1500;
+int sem_lcd_brightness_before_turn_off = 20;
 int sem_selected_menu_mode = 0;
 int sem_update_progress = -1;
 int sem_check_update_progress = 0;
 int sem_selected_lang_num = 0;
 int sem_selected_edition_num = 0;
+int sem_current_app_ver = 15;
+int sem_current_gas_ver = 5;
+int sem_num_of_app_start = 0;
+double sem_scroll_speed = 0.5;
 double sem_y_offset = 0.0;
 double sem_y_max = 0.0;
 
@@ -79,8 +87,6 @@ Result_with_string Sem_load_setting(std::string file_name, std::string dir_name,
 	Result_with_string result;
 	fs_buffer = (u8*)malloc(0x2000);
 	memset(fs_buffer, 0x0, 0x2000);
-	result.code = 0;
-	result.string = s_success;
 
 	result = File_load_from_file(file_name, fs_buffer, 0x2000, &read_size, dir_name, fs_handle, fs_archive);
 
@@ -94,8 +100,7 @@ Result_with_string Sem_load_setting(std::string file_name, std::string dir_name,
 Result_with_string Sem_parse_file(std::string source_data, int num_of_items, std::string out_data[])
 {
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
+
 	size_t parse_start_num = 0;
 	size_t parse_end_num = 0;
 	std::string parse_start_text;
@@ -147,6 +152,16 @@ bool Sem_query_available_edtion(int edtion_num)
 		return false;
 
 	return false;
+}
+
+int Sem_query_app_ver(void)
+{
+	return sem_current_app_ver;
+}
+
+int Sem_query_gas_ver(void)
+{
+	return sem_current_gas_ver;
 }
 
 bool Sem_query_font_flag(int font_num)
@@ -221,8 +236,32 @@ bool Sem_query_settings(int item_num)
 		return sem_allow_send_app_info;
 	else if (item_num == SEM_WIFI_ENABLED)
 		return sem_wifi_enabled;
+	else if(item_num == SEM_SYSTEM_SETTING_MENU_SHOW)
+		return sem_system_setting_menu_show;
 	else
 		return false;
+}
+
+int Sem_query_settings_i(int item_num)
+{
+	if(item_num == SEM_LCD_BRIGHTNESS)
+		return sem_lcd_brightness;
+	else if(item_num == SEM_TIME_TO_TURN_OFF_LCD)
+		return sem_time_to_turn_off_lcd;
+	else if(item_num == SEM_LCD_BRIGHTNESS_BEFORE_TURN_OFF)
+		return sem_lcd_brightness_before_turn_off;
+	else if(item_num == SEM_NUM_OF_APP_START)
+		return sem_num_of_app_start;
+	else
+	return -1;
+}
+
+double Sem_query_settings_d(int item_num)
+{
+	if(item_num == SEM_SCROLL_SPEED)
+		return sem_scroll_speed;
+	else
+		return -1;
 }
 
 double Sem_query_y_max(void)
@@ -305,6 +344,26 @@ void Sem_set_settings(int item_num, bool flag)
 		sem_allow_send_app_info = flag;
 	else if (item_num == SEM_WIFI_ENABLED)
 		sem_wifi_enabled = flag;
+	else if(item_num == SEM_SYSTEM_SETTING_MENU_SHOW)
+		sem_system_setting_menu_show = flag;
+}
+
+void Sem_set_settings_i(int item_num, int value)
+{
+	if(item_num == SEM_LCD_BRIGHTNESS)
+		sem_lcd_brightness = value;
+	else if(item_num == SEM_TIME_TO_TURN_OFF_LCD)
+		sem_time_to_turn_off_lcd = value;
+	else if(item_num == SEM_LCD_BRIGHTNESS_BEFORE_TURN_OFF)
+		sem_lcd_brightness_before_turn_off = value;
+	else if(item_num == SEM_NUM_OF_APP_START)
+		sem_num_of_app_start = value;
+}
+
+void Sem_set_settings_d(int item_num, double value)
+{
+	if(item_num == SEM_SCROLL_SPEED)
+		sem_scroll_speed = value;
 }
 
 void Sem_set_y_max(double y_max)
@@ -375,21 +434,21 @@ void Sem_exit(void)
 	log_num = Log_log_save(sem_exit_string, "Exiting thread(0/1)...", 1234567890, s_debug_slow);
 	result.code = threadJoin(sem_check_update_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 	}
 
 	log_num = Log_log_save(sem_exit_string, "Exiting thread(1/1)...", 1234567890, s_debug_slow);
 	result.code = threadJoin(sem_worker_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num, s_error, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 	}
 
 	threadFree(sem_check_update_thread);
@@ -413,7 +472,6 @@ void Sem_main(void)
 	double text_red, text_green, text_blue, text_alpha;
 	double red[46], green[46], blue[46], alpha[46];
 	C2D_ImageTint draw_tint[2];
-	osTickCounterUpdate(&s_tcount_frame_time);
 
 	if (sem_night_mode)
 	{
@@ -482,7 +540,7 @@ void Sem_main(void)
 		}
 	}
 	else if (sem_selected_menu_mode == 1)
-	{		
+	{
 		//Check for updates
 		draw_y = 25.0;
 		if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
@@ -591,27 +649,27 @@ void Sem_main(void)
 		draw_y = 105.0;
 		if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 		{
-			Draw(sem_msg[15] + std::to_string(s_lcd_brightness), 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(sem_msg[15] + std::to_string(sem_lcd_brightness), 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			Draw_texture(Square_image, weak_red_tint, 0, 10.0, draw_y + sem_y_offset + 22.5, 300.0, 5.0);
-			Draw_texture(Square_image, white_or_black_tint, 0, (s_lcd_brightness - 10) * 2, draw_y + sem_y_offset + 15.0, 4.0, 20.0);
+			Draw_texture(Square_image, white_or_black_tint, 0, (sem_lcd_brightness - 10) * 2, draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 		}
 
 		//Time to turn off LCDs
 		draw_y = 145.0;
 		if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 		{
-			Draw(sem_msg[16] + std::to_string(s_time_to_enter_afk / 10) + sem_msg[17], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(sem_msg[16] + std::to_string(sem_time_to_turn_off_lcd / 10) + sem_msg[17], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			Draw_texture(Square_image, weak_red_tint, 0, 10.0, draw_y + sem_y_offset + 22.5, 300.0, 5.0);
-			Draw_texture(Square_image, white_or_black_tint, 0, (s_time_to_enter_afk / 10), draw_y + sem_y_offset + 15.0, 4.0, 20.0);
+			Draw_texture(Square_image, white_or_black_tint, 0, (sem_time_to_turn_off_lcd / 10), draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 		}
 
 		//Screen brightness before turn off LCDs
 		draw_y = 185.0;
 		if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 		{
-			Draw(sem_msg[18] + std::to_string(s_afk_lcd_brightness), 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(sem_msg[18] + std::to_string(sem_lcd_brightness_before_turn_off), 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			Draw_texture(Square_image, weak_red_tint, 0, 10.0, draw_y + sem_y_offset + 22.5, 300.0, 5.0);
-			Draw_texture(Square_image, white_or_black_tint, 0, (s_afk_lcd_brightness - 10) * 2, draw_y + sem_y_offset + 15.0, 4.0, 20.0);
+			Draw_texture(Square_image, white_or_black_tint, 0, (sem_lcd_brightness_before_turn_off - 10) * 2, draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 		}
 	}
 	else if (sem_selected_menu_mode == 4)
@@ -620,9 +678,9 @@ void Sem_main(void)
 		draw_y = 25.0;
 		if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 		{
-			Draw(sem_msg[19] + std::to_string(s_scroll_speed), 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(sem_msg[19] + std::to_string(sem_scroll_speed), 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			Draw_texture(Square_image, weak_red_tint, 0, 10.0, draw_y + sem_y_offset + 22.5, 300.0, 5.0);
-			Draw_texture(Square_image, white_or_black_tint, 0, (s_scroll_speed * 300), draw_y + sem_y_offset + 15.0, 4.0, 20.0);
+			Draw_texture(Square_image, white_or_black_tint, 0, (sem_scroll_speed * 300), draw_y + sem_y_offset + 15.0, 4.0, 20.0);
 		}
 	}
 	else if (sem_selected_menu_mode == 5)
@@ -695,7 +753,7 @@ void Sem_main(void)
 		{
 			draw_x = 10.0;
 			draw_y = 65.0;
-			Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 1); 
+			Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 1);
 			if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 			{
 				draw_tint[0] = weak_red_tint;
@@ -857,7 +915,7 @@ void Sem_main(void)
 		{
 			Draw(sem_msg[71], 0, (draw_x - 10.0), draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset + 15.0, 190.0, 20.0);
-			
+
 			if (sem_delete_line_img_cache_request)
 				alpha[0] = 0.25;
 
@@ -931,11 +989,9 @@ void Sem_main(void)
 
 	Draw_bot_ui();
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
+		Draw_touch_pos();
 
 	Draw_apply_draw();
-	s_fps += 1;
-	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 }
 
 void Sem_worker_thread(void* arg)
@@ -952,8 +1008,7 @@ void Sem_worker_thread(void* arg)
 	std::string load_file_name[8] = {"line_", "sem_", "imv_", "spt_", "gtr_", "cam_", "mup_", "mic_" };
 	FS_Archive fs_archive = 0;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
+
 	fs_buffer = (u8*)malloc(0x2000);
 
 	while (sem_worker_thread_run)
@@ -1096,7 +1151,7 @@ void Sem_check_update_thread(void* arg)
 {
 	Log_log_save(sem_check_update_string, "Thread started.", 1234567890, false);
 
-	u8* httpc_buffer;	
+	u8* httpc_buffer;
 	u32 downloaded_size;
 	u32 status_code;
 	u32 write_size;
@@ -1108,9 +1163,9 @@ void Sem_check_update_thread(void* arg)
 	std::string last_url;
 	std::string parse_cache;
 	std::string operation = "";
-	std::string parse_start[11] = {"<newest>", "<3dsx_available>", "<cia_32mb_ram_available>", 
-	"<cia_64mb_ram_available>", "<cia_72mb_ram_available>", "<cia_80mb_ram_available>", 
-	"<cia_96mb_ram_available>", "<cia_124mb_ram_available>", "<cia_178mb_ram_available>", 
+	std::string parse_start[11] = {"<newest>", "<3dsx_available>", "<cia_32mb_ram_available>",
+	"<cia_64mb_ram_available>", "<cia_72mb_ram_available>", "<cia_80mb_ram_available>",
+	"<cia_96mb_ram_available>", "<cia_124mb_ram_available>", "<cia_178mb_ram_available>",
 	"<gas_ver>", "<patch_note>", };
 	std::string parse_end[11] = { "</newest>", "</3dsx_available>", "</cia_32mb_ram_available>",
 	"</cia_64mb_ram_available>", "</cia_72mb_ram_available>", "</cia_80mb_ram_available>",
@@ -1203,14 +1258,14 @@ void Sem_check_update_thread(void* arg)
 								sem_available_ver[i - 1] = stoi(sem_newest_ver_data[i]);
 							else if (i == 9)
 							{
-								if (s_current_gas_ver == stoi(sem_newest_ver_data[i]))
+								if (sem_current_gas_ver == stoi(sem_newest_ver_data[i]))
 									need_gas_update = false;
 								else
 									need_gas_update = true;
 							}
 						}
 
-						if (s_current_app_ver < newest_ver)
+						if (sem_current_app_ver < newest_ver)
 						{
 							new_version_available = true;
 							Log_log_save(sem_check_update_string, sem_msg[46] + " : " + std::to_string(newest_ver), 1234567890, false);
@@ -1252,7 +1307,7 @@ void Sem_check_update_thread(void* arg)
 								sem_update_progress = 3;
 						}
 					}
-				}				
+				}
 			}
 
 			free(httpc_buffer);
@@ -1268,4 +1323,3 @@ void Sem_check_update_thread(void* arg)
 	Log_log_save(sem_check_update_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
 }
-

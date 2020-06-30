@@ -17,6 +17,7 @@
 #include "explorer.hpp"
 #include "log.hpp"
 #include "types.hpp"
+#include "swkbd.hpp"
 
 bool line_thread_suspend = false;
 bool line_already_init = false;
@@ -63,16 +64,16 @@ int line_num_of_ids = 0;
 int line_log_dl_progress = 0;
 int line_num_of_msg = 0;
 int line_num_of_lines = 0;
-int line_sticker_num_list[121] = { 0, 
+int line_sticker_num_list[121] = { 0,
 // 11537
-52002734, 52002735, 52002736, 52002737, 52002738, 52002739, 52002740, 52002741, 52002742, 52002743, 
+52002734, 52002735, 52002736, 52002737, 52002738, 52002739, 52002740, 52002741, 52002742, 52002743,
 52002744, 52002745, 52002746, 52002747, 52002748, 52002749, 52002750, 52002751, 52002752, 52002753,
-52002754, 52002755, 52002756, 52002757, 52002758, 52002759, 52002760, 52002761, 52002762, 52002763, 
-52002764, 52002765, 52002766, 52002767, 52002768, 52002769, 52002770, 52002771, 52002772, 52002773, 
+52002754, 52002755, 52002756, 52002757, 52002758, 52002759, 52002760, 52002761, 52002762, 52002763,
+52002764, 52002765, 52002766, 52002767, 52002768, 52002769, 52002770, 52002771, 52002772, 52002773,
 // 11538
-51626494, 51626495, 51626496, 51626497, 51626498, 51626499, 51626500, 51626501, 51626502, 51626503, 
-51626504, 51626505, 51626506, 51626507, 51626508, 51626509, 51626510, 51626511, 51626512, 51626513, 
-51626514, 51626515, 51626516, 51626517, 51626518, 51626519, 51626520, 51626521, 51626522, 51626523, 
+51626494, 51626495, 51626496, 51626497, 51626498, 51626499, 51626500, 51626501, 51626502, 51626503,
+51626504, 51626505, 51626506, 51626507, 51626508, 51626509, 51626510, 51626511, 51626512, 51626513,
+51626514, 51626515, 51626516, 51626517, 51626518, 51626519, 51626520, 51626521, 51626522, 51626523,
 51626524, 51626525, 51626526, 51626527, 51626528, 51626529, 51626530, 51626531, 51626532, 51626533,
 // 11539
 52114110, 52114111, 52114112, 52114113, 52114114, 52114115, 52114116, 52114117, 52114118, 52114119,
@@ -112,6 +113,7 @@ std::string line_load_thread_string = "Line/Log load thread";
 std::string line_parse_thread_string = "Line/Log parse thread";
 std::string line_init_string = "Line/init";
 std::string line_exit_string = "Line/exit";
+std::string line_ver = "v1.5.1";
 C3D_Tex* line_c3d_cache_tex[128];
 Tex3DS_SubTexture* line_c3d_cache_subtex[128];
 C2D_Image line_stickers_images[121], line_icon[128];
@@ -448,10 +450,10 @@ void Line_init(void)
 	u32 read_size = 0;
 	int log_num;
 	std::string auth_code = "";
-	std::string input_string;
+	std::string input_string = "";
+	std::string swkbd_data = ".";
 	FS_Archive fs_archive = 0;
 	Handle fs_handle = 0;
-	SwkbdState swkbd_state;
 	Result_with_string result;
 	fs_buffer = (u8*)malloc(0x2000);
 
@@ -468,28 +470,22 @@ void Line_init(void)
 	{
 		while (true)
 		{
-			memset(s_swkb_input_text, 0x0, 8192);
-			swkbdInit(&swkbd_state, SWKBD_TYPE_QWERTY, 1, 256);
-			swkbdSetHintText(&swkbd_state, "パスワードを入力 / Type password here.");
-			swkbdSetValidation(&swkbd_state, SWKBD_ANYTHING, 0, 0);
-			swkbdSetPasswordMode(&swkbd_state, SWKBD_PASSWORD_HIDE);
-			swkbdInputText(&swkbd_state, s_swkb_input_text, 256);
-			input_string = s_swkb_input_text;
 
-			memset(s_swkb_input_text, 0x0, 8192);
-			swkbdInit(&swkbd_state, SWKBD_TYPE_QWERTY, 1, 256);
-			swkbdSetHintText(&swkbd_state, "パスワードを入力(再度) / Type password here.(again)");
-			swkbdSetValidation(&swkbd_state, SWKBD_ANYTHING, 0, 0);
-			swkbdSetPasswordMode(&swkbd_state, SWKBD_PASSWORD_HIDE);
-			swkbdInputText(&swkbd_state, s_swkb_input_text, 256);
+			Swkbd_set_parameter(SWKBD_TYPE_QWERTY, SWKBD_ANYTHING, -1, -1, 2, 512, "アプリパスワードを入力 / Type app password here.", "");
+	//		swkbdSetPasswordMode(&main_swkbd, SWKBD_PASSWORD_HIDE);
+			Swkbd_launch(512, &swkbd_data, SWKBD_BUTTON_RIGHT);
+			input_string = swkbd_data;
 
-			if (input_string == s_swkb_input_text)
+			Swkbd_set_parameter(SWKBD_TYPE_QWERTY, SWKBD_ANYTHING, -1, -1, 2, 512, "アプリパスワードを入力(再度) / Type app password here.(again)", "");
+	//		swkbdSetPasswordMode(&main_swkbd, SWKBD_PASSWORD_HIDE);
+			Swkbd_launch(512, &swkbd_data, SWKBD_BUTTON_RIGHT);
+
+			if (input_string == swkbd_data)
 			{
 				log_num = Log_log_save(line_init_string, "Save_to_file(auth)...", 1234567890, s_debug_slow);
-				result = File_save_to_file("auth", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, fs_handle, fs_archive);
+				result = File_save_to_file("auth", (u8*)swkbd_data.c_str(), swkbd_data.length(), "/Line/", true, fs_handle, fs_archive);
 				Log_log_add(log_num, result.string, result.code, s_debug_slow);
-				auth_code = s_swkb_input_text;
-
+				auth_code = swkbd_data;
 				break;
 			}
 		}
@@ -501,17 +497,16 @@ void Line_init(void)
 		Log_log_save(line_init_string, "Password is not set", 1234567890, s_debug_slow);
 		auth_success = true;
 	}
+	else if (input_string == swkbd_data)
+		auth_success = true;
 	else
 	{
 		for (int i = 0; i < 3; i++)
 		{
-			swkbdInit(&swkbd_state, SWKBD_TYPE_QWERTY, 1, 256);
-			swkbdSetHintText(&swkbd_state, "パスワードを入力 / Type password here.");
-			swkbdSetValidation(&swkbd_state, SWKBD_ANYTHING, 0, 0);
-			swkbdSetPasswordMode(&swkbd_state, SWKBD_PASSWORD_HIDE);
-
-			swkbdInputText(&swkbd_state, s_swkb_input_text, 256);
-			if (auth_code == s_swkb_input_text)
+			Swkbd_set_parameter(SWKBD_TYPE_QWERTY, SWKBD_ANYTHING, -1, -1, 2, 512, "アプリパスワードを入力 / Type app password here.", "");
+	//		swkbdSetPasswordMode(&main_swkbd, SWKBD_PASSWORD_HIDE);
+			Swkbd_launch(512, &swkbd_data, SWKBD_BUTTON_RIGHT);
+			if (auth_code == swkbd_data)
 			{
 				auth_success = true;
 				Log_log_save(line_init_string, "Password is correct", 1234567890, s_debug_slow);
@@ -540,7 +535,7 @@ void Line_init(void)
 		line_script_auth = (char*)fs_buffer;
 	else
 		line_script_auth = "";
-	
+
 	memset(fs_buffer, 0x0, 0x2000);
 	log_num = Log_log_save(line_init_string, "File_load_from_file(main_url.txt)...", 1234567890, s_debug_slow);
 	result = File_load_from_file("main_url.txt", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
@@ -562,7 +557,7 @@ void Line_init(void)
 	line_log_load_thread_run = true;
 	line_log_parse_thread_run = true;
 	line_send_msg_thread_run = true;
-	
+
 	line_icon_dl_thread = threadCreate(Line_icon_dl_thread, (void*)(""), STACKSIZE, 0x29, -1, false);
 	line_dl_log_thread = threadCreate(Line_log_download_thread, (void*)(""), STACKSIZE, 0x30, -1, false);
 	line_load_log_thread = threadCreate(Line_log_load_thread, (void*)(""), STACKSIZE, 0x30, -1, false);
@@ -591,6 +586,9 @@ void Line_main(void)
 	int log_y = Log_query_y();
 	int font_num = 0;
 	int msg_num_list[10];
+	int num_of_words = 0;
+	int max_length = 512;
+	u32 feature[2];
 	float text_red;
 	float text_green;
 	float text_blue;
@@ -608,13 +606,16 @@ void Line_main(void)
 	size_t sticker_num_end_pos;
 	std::string status;
 	std::string hidden_id;
+	std::string swkbd_data;
+	std::string line_dic_first_spell[7];
+	std::string line_dic_full_spell[7];
+	std::string init_text;
+	std::string hint_text;
 	FS_Archive main_fs_archive = 0;
 	Handle main_fs_handle = 0;
-	SwkbdState main_swkbd;
-	SwkbdStatusData main_swkbd_status;
+	SwkbdType type;
+	SwkbdValidInput valid_input;
 	Result_with_string main_result;
-
-	osTickCounterUpdate(&s_tcount_frame_time);
 
 	if (Sem_query_font_flag(SEM_USE_DEFAULT_FONT))
 		font_num = 0;
@@ -846,11 +847,12 @@ void Line_main(void)
 		green[0] = text_green;
 		blue[0] = text_blue;
 		alpha[0] = text_alpha;
-		if((line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
+		if((line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request
+			|| line_send_request[0] || line_send_request[1] || line_send_request[2]))
 			alpha[0] = 0.25;
 
 		Draw(line_msg[43], 0, 260.0, 140.0, 0.45, 0.45, red[0], green[0], blue[0], alpha[0]);
-		Draw(s_line_ver, 0, 260.0, 155.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0f);
+		Draw(line_ver, 0, 260.0, 155.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0f);
 
 		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 170.0, 300.0, 60.0);
 		Draw_texture(Square_image, weak_blue_tint, 0, 10.0, 170.0, 50.0, 10.0);
@@ -926,7 +928,7 @@ void Line_main(void)
 		else if (line_selected_menu_mode == LINE_MENU_SETTINGS)
 		{
 			Draw_texture(Square_image, aqua_tint, 0, 160.0, 170.0, 50.0, 10.0);
-			
+
 			draw_x = 0.0;
 			for (int i = 0; i < 4; i++)
 			{
@@ -1026,20 +1028,7 @@ void Line_main(void)
 			}
 		}
 		else if (line_select_file_request)
-		{
-			Draw_texture(Square_image, aqua_tint, 0, 10.0, 20.0, 300.0, 190.0);
-
-			Draw(line_msg[33], 0, 12.5, 185.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-
-			Draw(Expl_query_current_patch(), 0, 12.5, 195.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
-			for (int i = 0; i < 16; i++)
-			{
-				if (i == (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM))
-					Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-				else
-					Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-			}
-		}
+			Draw_expl(line_msg[33]);
 	}
 
 	Draw_texture(Square_image, white_or_black_tint, 0, 312.5, 0.0, 7.5, 15.0);
@@ -1057,143 +1046,179 @@ void Line_main(void)
 
 	Draw_bot_ui();
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
+		Draw_touch_pos();
 
 	Draw_apply_draw();
-	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
-	s_fps += 1;
 
 	Hid_set_disable_flag(true);
-	if (line_type_msg_request)
+	if (line_type_msg_request || line_type_id_request || line_type_short_url_request || line_type_main_url_request
+		|| line_check_main_url_request || line_type_app_ps_request || line_type_script_ps_request)
 	{
-		memset(s_swkb_input_text, 0x0, 8192);
-		swkbdInit(&main_swkbd, SWKBD_TYPE_NORMAL, 2, 8192);
-		swkbdSetHintText(&main_swkbd, "メッセージを入力 / Type message here.");
-		swkbdSetValidation(&main_swkbd, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
-		swkbdSetFeatures(&main_swkbd, SWKBD_PREDICTIVE_INPUT);
-		swkbdSetInitialText(&main_swkbd, s_clipboards[0].c_str());
-		swkbdSetDictWord(&s_swkb_words[0], "ぬべ", "壁|՞ةڼ)イーヒヒヒヒヒヒｗｗｗｗｗｗｗｗｗｗｗ");
-		swkbdSetDictWord(&s_swkb_words[1], "ぬべ", "┌(☝┌՞ ՞)☝キエェェェエェェwwwww");
-		swkbdSetDictWord(&s_swkb_words[2], "ぬべ", "┌(┌ ՞ةڼ)┐<ｷｴｪｪｪｴｴｪｪｪ");
-		swkbdSetDictWord(&s_swkb_words[3], "ぬべ", "└(՞ةڼ◔)」");
-		swkbdSetDictWord(&s_swkb_words[4], "ぬべ", "(  ՞ةڼ  )");
-		swkbdSetDictWord(&s_swkb_words[5], "ぬべ", "└(՞ةڼ◔)」");
-		swkbdSetDictWord(&s_swkb_words[6], "びぇ", "。゜( ;⊃՞ةڼ⊂; )゜。びぇぇえええんｗｗｗｗ");
-		swkbdSetDictWord(&s_swkb_words[7], "うえ", "(✌ ՞ةڼ ✌ )");
-		swkbdSetDictionary(&main_swkbd, s_swkb_words, 8);
+		init_text = s_clipboards[0];
+		max_length = 512;
+		type = SWKBD_TYPE_NORMAL;
+		valid_input = SWKBD_NOTEMPTY_NOTBLANK;
+		feature[0] = -1;
+		feature[1] = -1;
 
-		swkbdSetStatusData(&main_swkbd, &main_swkbd_status, true, true);
-		swkbdSetLearningData(&main_swkbd, &s_swkb_learn_data, true, true);
-		s_swkb_press_button = swkbdInputText(&main_swkbd, s_swkb_input_text, 8192);
-		if (s_swkb_press_button == SWKBD_BUTTON_RIGHT)
+		if(line_type_msg_request)
 		{
-			line_input_text = s_swkb_input_text;
-			if (line_input_text.length() > 4000)
-				line_input_text = line_input_text.substr(0, 3990);
+			line_dic_full_spell[0] = "└(՞ةڼ◔)」";
+			line_dic_full_spell[1] = "┌(☝┌՞ ՞)☝キエェェェエェェwwwww";
+			line_dic_full_spell[2] = "┌(┌ ՞ةڼ)┐<ｷｴｪｪｪｴｴｪｪｪ";
+			line_dic_full_spell[3] = "(  ՞ةڼ  )";
+			line_dic_full_spell[4] = "壁|՞ةڼ)イーヒヒヒヒヒヒｗｗｗｗｗｗｗｗｗｗｗ";
+			line_dic_full_spell[5] = "。゜( ;⊃՞ةڼ⊂; )゜。びぇぇえええんｗｗｗｗ";
+			line_dic_full_spell[6] = "(✌ ՞ةڼ ✌ )";
+			for(int i = 0; i < 5; i++)
+				line_dic_first_spell[i] = "ぬべ";
 
-			line_send_check[0] = true;
+			line_dic_first_spell[5] = "びぇ";
+			line_dic_first_spell[6] = "うえ";
+
+			num_of_words = 7;
+			hint_text = "メッセージを入力 / Type message here.";
+			max_length = 8192;
+			feature[0] = SWKBD_MULTILINE;
+			feature[1] = SWKBD_PREDICTIVE_INPUT;
 		}
-		line_type_msg_request = false;
-	}
-	if (line_type_id_request)
-	{
-		memset(s_swkb_input_text, 0x0, 8192);
-		swkbdInit(&main_swkbd, SWKBD_TYPE_QWERTY, 2, 39);
-		swkbdSetHintText(&main_swkbd, "idを入力 / Type id here.");
-		swkbdSetInitialText(&main_swkbd, s_clipboards[0].c_str());
-		swkbdSetValidation(&main_swkbd, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
-		s_swkb_press_button = swkbdInputText(&main_swkbd, s_swkb_input_text, 39);
-		if (!s_swkb_press_button == SWKBD_BUTTON_LEFT)
+		else if (line_type_id_request)
 		{
-			main_log_num_return = Log_log_save("Line/Main/fs", "Save_new_id...", 1234567890, false);
-			main_result = Line_save_new_id(s_swkb_input_text, "/Line/to/");
-			Log_log_add(main_log_num_return, main_result.string, main_result.code, false);
+			num_of_words = 0;
+			hint_text = "idを入力 / Type id here.";
+			max_length = 39;
+			type = SWKBD_TYPE_QWERTY;
 		}
-		line_icon_dl_request = true;
-		line_type_id_request = false;
-	}
-	if (line_type_short_url_request)
-	{
-		memset(s_swkb_input_text, 0x0, 8192);
-		swkbdInit(&main_swkbd, SWKBD_TYPE_NORMAL, 2, 8192);
-		swkbdSetHintText(&main_swkbd, "短縮URLを入力 / Type your short url here.");
-		swkbdSetInitialText(&main_swkbd, s_clipboards[0].c_str());
-		swkbdSetValidation(&main_swkbd, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
-		swkbdSetFeatures(&main_swkbd, SWKBD_PREDICTIVE_INPUT);
-		swkbdSetDictWord(&s_swkb_words[0], "h", "http://rb.gy/");
-		swkbdSetDictWord(&s_swkb_words[1], "h", "https://tiny.cc/");
-		swkbdSetDictWord(&s_swkb_words[2], "h", "http://tinyurl.com/");
-		swkbdSetDictionary(&main_swkbd, s_swkb_words, 3);
-		s_swkb_press_button = swkbdInputText(&main_swkbd, s_swkb_input_text, 512);
-		if (!s_swkb_press_button == SWKBD_BUTTON_LEFT)
+		else if(line_type_short_url_request)
 		{
-			line_short_url = s_swkb_input_text;
-			line_solve_short_url_request = true;
+			line_dic_full_spell[0] = "http://rb.gy/";
+			line_dic_full_spell[1] = "https://tiny.cc/";
+			line_dic_full_spell[2] = "http://tinyurl.com/";
+			for(int i = 0; i < 3; i++)
+				line_dic_first_spell[i] = "h";
+
+			num_of_words = 3;
+			hint_text = "短縮URLを入力 / Type your short url here.";
+			feature[0] = SWKBD_PREDICTIVE_INPUT;
 		}
-		line_type_short_url_request = false;
-	}
-	if (line_type_main_url_request || line_check_main_url_request)
-	{
-		memset(s_swkb_input_text, 0x0, 8192);
-		swkbdInit(&main_swkbd, SWKBD_TYPE_NORMAL, 2, 8192);
-		swkbdSetHintText(&main_swkbd, "URLを入力 / Type your url here.");
-
-		if(line_check_main_url_request)
-			swkbdSetInitialText(&main_swkbd, s_clipboards[0].c_str());
-		else if(line_type_main_url_request)
-			swkbdSetInitialText(&main_swkbd, line_main_url.c_str());
-
-		swkbdSetValidation(&main_swkbd, SWKBD_NOTEMPTY_NOTBLANK, 0, 0);
-		swkbdSetFeatures(&main_swkbd, SWKBD_PREDICTIVE_INPUT);
-		swkbdSetDictWord(&s_swkb_words[0], "h", "https://script.google.com/macros/s/");
-		swkbdSetDictionary(&main_swkbd, s_swkb_words, 1);
-		s_swkb_press_button = swkbdInputText(&main_swkbd, s_swkb_input_text, 512);
-		if (!s_swkb_press_button == SWKBD_BUTTON_LEFT)
+		else if(line_type_main_url_request || line_check_main_url_request)
 		{
-			main_log_num_return = Log_log_save("Line/Main/fs", "Save_to_file(main_url.txt)...", 1234567890, false);
-			main_result = File_save_to_file("main_url.txt", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, main_fs_handle, main_fs_archive);
-			Log_log_add(main_log_num_return, main_result.string, main_result.code, false);
-			line_main_url = s_swkb_input_text;
+			line_dic_full_spell[0] = "https://script.google.com/macros/s/";
+			line_dic_first_spell[0] = "h";
+
+			num_of_words = 1;
+			hint_text = "URLを入力 / Type your url here.";
+			if(line_type_main_url_request)
+				init_text = line_main_url;
+
+			feature[0] = SWKBD_PREDICTIVE_INPUT;
+		}
+		else if(line_type_app_ps_request)
+		{
+			num_of_words = 0;
+			hint_text = "アプリパスワードを入力 / Type app password here.";
+			init_text = "";
+			type = SWKBD_TYPE_QWERTY;
+			valid_input = SWKBD_ANYTHING;
+		}
+		else if(line_type_script_ps_request)
+		{
+			num_of_words = 0;
+			hint_text = "スクリプトパスワードを入力 / Type script password here.";
+			init_text = "";
+			type = SWKBD_TYPE_QWERTY;
+			valid_input = SWKBD_ANYTHING;
 		}
 
-		line_type_main_url_request = false;
-		line_check_main_url_request = false;
-	}
-	if (line_type_app_ps_request)
-	{
-		memset(s_swkb_input_text, 0x0, 8192);
-		swkbdInit(&main_swkbd, SWKBD_TYPE_QWERTY, 2, 512);
-		swkbdSetHintText(&main_swkbd, "アプリパスワードを入力 / Type app password here.");
-		swkbdSetValidation(&main_swkbd, SWKBD_ANYTHING, 0, 0);
-		s_swkb_press_button = swkbdInputText(&main_swkbd, s_swkb_input_text, 512);
-		swkbdSetPasswordMode(&main_swkbd, SWKBD_PASSWORD_HIDE);
-		if (!s_swkb_press_button == SWKBD_BUTTON_LEFT)
+		Swkbd_set_parameter(type, valid_input, feature[0], feature[1], 2, max_length, hint_text, init_text);
+		if(num_of_words != 0)
+			Swkbd_set_dic_word(line_dic_first_spell, line_dic_full_spell, num_of_words);
+
+		if (Swkbd_launch(max_length, &swkbd_data, SWKBD_BUTTON_RIGHT))
 		{
-			main_log_num_return = Log_log_save("Line/Main/fs", "Save_to_file(auth)...", 1234567890, false);
-			main_result = File_save_to_file("auth", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, main_fs_handle, main_fs_archive);
-			Log_log_add(main_log_num_return, main_result.string, main_result.code, false);
+			main_log_num_return = 0;
+			if (line_type_msg_request)
+			{
+				line_input_text = Line_encode_to_escape(swkbd_data);
+				if (line_input_text.length() > 4000)
+					line_input_text = line_input_text.substr(0, 3990);
+
+				line_send_check[0] = true;
+			}
+			else if(line_type_id_request)
+			{
+				main_log_num_return = Log_log_save("Line/Main/fs", "Save_new_id...", 1234567890, false);
+				main_result = Line_save_new_id(swkbd_data, "/Line/to/");
+			}
+			else if(line_type_short_url_request)
+			{
+				line_short_url = swkbd_data;
+				line_solve_short_url_request = true;
+			}
+			else if(line_type_main_url_request || line_check_main_url_request)
+			{
+				main_log_num_return = Log_log_save("Line/Main/fs", "Save_to_file(main_url.txt)...", 1234567890, false);
+				main_result = File_save_to_file("main_url.txt", (u8*)swkbd_data.c_str(), swkbd_data.length(), "/Line/", true, main_fs_handle, main_fs_archive);
+				line_main_url = swkbd_data;
+			}
+			else if(line_type_app_ps_request)
+			{
+				main_log_num_return = Log_log_save("Line/Main/fs", "Save_to_file(auth)...", 1234567890, false);
+				main_result = File_save_to_file("auth", (u8*) swkbd_data.c_str(),  swkbd_data.length(), "/Line/", true, main_fs_handle, main_fs_archive);
+			}
+			else if(line_type_script_ps_request)
+			{
+				main_log_num_return = Log_log_save("Line/Main/fs", "Save_to_file(script_auth)...", 1234567890, false);
+				main_result = File_save_to_file("script_auth", (u8*)swkbd_data.c_str(), swkbd_data.length(), "/Line/", true, main_fs_handle, main_fs_archive);
+				line_script_auth = swkbd_data;
+			}
+
+			if(line_type_id_request || line_type_main_url_request || line_check_main_url_request
+				|| line_type_app_ps_request || line_type_script_ps_request)
+				Log_log_add(main_log_num_return, main_result.string, main_result.code, false);
 		}
 
-		line_type_app_ps_request = false;
-	}
-	if (line_type_script_ps_request)
-	{
-		memset(s_swkb_input_text, 0x0, 8192);
-		swkbdInit(&main_swkbd, SWKBD_TYPE_QWERTY, 2, 512);
-		swkbdSetHintText(&main_swkbd, "スクリプトパスワードを入力 / Type script password here.");
-		swkbdSetValidation(&main_swkbd, SWKBD_ANYTHING, 0, 0);
-		swkbdSetPasswordMode(&main_swkbd, SWKBD_PASSWORD_HIDE);
-		s_swkb_press_button = swkbdInputText(&main_swkbd, s_swkb_input_text, 512);
-		if (!s_swkb_press_button == SWKBD_BUTTON_LEFT)
+		if (line_type_msg_request)
+			line_type_msg_request = false;
+		else if(line_type_id_request)
 		{
-			main_log_num_return = Log_log_save("Line/Main/fs", "Save_to_file(script_auth)...", 1234567890, false);
-			main_result = File_save_to_file("script_auth", (u8*)s_swkb_input_text, sizeof(s_swkb_input_text), "/Line/", true, main_fs_handle, main_fs_archive);
-			Log_log_add(main_log_num_return, main_result.string, main_result.code, false);
-			line_script_auth = s_swkb_input_text;
+			line_icon_dl_request = true;
+			line_type_id_request = false;
 		}
-
-		line_type_script_ps_request = false;
+		else if(line_type_short_url_request)
+			line_type_short_url_request = false;
+		else if(line_type_main_url_request || line_check_main_url_request)
+		{
+			line_type_main_url_request = false;
+			line_check_main_url_request = false;
+		}
+		else if(line_type_app_ps_request)
+			line_type_app_ps_request = false;
+		else if(line_type_script_ps_request)
+			line_type_script_ps_request = false;
 	}
+}
+
+std::string Line_encode_to_escape(std::string in_data)
+{
+	int string_length = in_data.length();
+	std::string check;
+	std::string return_data = "";
+
+	for(int i = 0; i < string_length; i++)
+	{
+		check = in_data.substr(i, 1);
+		if(check == "\n")
+			return_data += "\\n";
+		else if(check == "\u0022")
+			return_data += "\\\u0022";
+		else if(check == "\u005c")
+			return_data += "\\\u005c";
+		else
+			return_data += in_data.substr(i, 1);
+	}
+
+	return return_data;
 }
 
 void Line_icon_dl_thread(void* arg)
@@ -1285,7 +1310,7 @@ void Line_log_download_thread(void* arg)
 			{
 				memset(httpc_buffer, 0x0, line_log_httpc_buffer_size);
 				log_num = Log_log_save(line_log_dl_thread_string, "Downloading logs...", 1234567890, false);
-				result = Httpc_dl_data(line_main_url + "?id=" + line_ids[line_selected_room_num] + "&script_auth=" + line_script_auth + "&gas_ver=" + std::to_string(s_current_gas_ver), httpc_buffer, line_log_httpc_buffer_size, &dl_size, &status_code, true, &last_url, false, 100);
+				result = Httpc_dl_data(line_main_url + "?id=" + line_ids[line_selected_room_num] + "&script_auth=" + line_script_auth + "&gas_ver=" + std::to_string(Sem_query_gas_ver()), httpc_buffer, line_log_httpc_buffer_size, &dl_size, &status_code, true, &last_url, false, 100);
 				Log_log_add(log_num, result.string + std::to_string(dl_size / 1024) + "KB (" + std::to_string(dl_size) + "B) ", result.code, false);
 				line_log_dl_progress = Httpc_query_dl_progress();
 
@@ -1481,15 +1506,15 @@ void Line_send_message_thread(void* arg)
 			if (!failed)
 			{
 				if (line_send_request[0])
-					send_data = "{ \"type\": \"send_text\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"message\" : \"" + line_input_text + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(s_current_gas_ver) + "\" }";
+					send_data = "{ \"type\": \"send_text\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"message\" : \"" + line_input_text + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
 				else if (line_send_request[1])
 				{
 					if (line_selected_sticker_num >= 1 && line_selected_sticker_num <= 40)
-						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11537\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(s_current_gas_ver) + "\" }";
+						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11537\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
 					else if (line_selected_sticker_num >= 41 && line_selected_sticker_num <= 80)
-						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11538\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(s_current_gas_ver) + "\" }";
+						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11538\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
 					else if (line_selected_sticker_num >= 81 && line_selected_sticker_num <= 120)
-						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11539\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(s_current_gas_ver) + "\" }";
+						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11539\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
 				}
 				else if (line_send_request[2])
 				{
@@ -1563,9 +1588,9 @@ void Line_send_message_thread(void* arg)
 									check = NULL;
 
 									if (num_of_loop <= i)
-										send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data.substr((i * line_send_fs_cache_buffer_size), (encoded_data.length() - (i * line_send_fs_cache_buffer_size))) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(s_current_gas_ver) + "\" }";
+										send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data.substr((i * line_send_fs_cache_buffer_size), (encoded_data.length() - (i * line_send_fs_cache_buffer_size))) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
 									else
-										send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data.substr((i * line_send_fs_cache_buffer_size), line_send_fs_cache_buffer_size) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(s_current_gas_ver) + "\" }";
+										send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data.substr((i * line_send_fs_cache_buffer_size), line_send_fs_cache_buffer_size) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
 
 									log_num[1] = Log_log_save(line_send_msg_thread_string, "Uploading a content(" + std::to_string(i) + "/" + std::to_string(num_of_loop) + ")...", 1234567890, false);
 
@@ -1597,7 +1622,7 @@ void Line_send_message_thread(void* arg)
 							}
 
 							if(!failed)
-								send_data = "{ \"type\": \"send_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"name\" : \"" + line_send_file_name + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(s_current_gas_ver) + "\" }";
+								send_data = "{ \"type\": \"send_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"name\" : \"" + line_send_file_name + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
 						}
 						else
 						{
@@ -1674,8 +1699,6 @@ Result_with_string Line_save_new_id(std::string id, std::string dir_path)
 	bool failed = false;
 	FS_Archive fs_save_id_archive = 0;
 	Result_with_string save_id_result;
-	save_id_result.code = 0;
-	save_id_result.string = s_success;
 
 	save_id_result.code = FSUSER_OpenArchive(&fs_save_id_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if (save_id_result.code != 0)
@@ -1741,7 +1764,7 @@ Result_with_string Line_load_icon(int room_num)
 			result = File_check_file_exist(file_name, "/Line/images/", fs_handle, fs_archive);
 			if(result.code == 0)
 				result = File_load_from_file(file_name, httpc_fs_buffer, 0x4000, &pic_size, "/Line/images/", fs_handle, fs_archive);
-			
+
 			if (result.code != 0)
 			{
 				memset(httpc_fs_buffer, 0x0, 0x4000);
@@ -1796,7 +1819,7 @@ Result_with_string Line_read_id(std::string dir_path)
 		line_names[i] = "";
 		line_icon_url[i] = "";
 	}
-	
+
 	result = File_read_dir(&line_num_of_ids, line_ids, 128, type, 128, "/Line/to/");
 	if (result.code != 0)
 		failed = true;
@@ -1825,9 +1848,6 @@ Result_with_string Line_load_log_from_sd(std::string file_name)
 	FS_Archive fs_archive = 0;
 	Handle fs_handle = 0;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
-	result.error_description = "N/A";
 
 	fs_buffer = (u8*)malloc(line_log_fs_buffer_size);
 	if (fs_buffer == NULL)
@@ -1991,7 +2011,7 @@ void Line_log_parse_thread(void* arg)
 								line_content[line_num_of_lines + 2] += "<num>0</num>";
 
 							content_cache = line_msg_log[i].substr(0, sticker_start_pos);
-							content_cache += line_msg_log[i].substr(sticker_end_pos + sticker_end.length(), line_msg_log[i].length() - (sticker_end_pos + sticker_end.length()));				
+							content_cache += line_msg_log[i].substr(sticker_end_pos + sticker_end.length(), line_msg_log[i].length() - (sticker_end_pos + sticker_end.length()));
 							line_msg_log[i] = content_cache;
 						}
 						else if (!(id_start_pos == std::string::npos || id_end_pos == std::string::npos))
@@ -2056,12 +2076,12 @@ void Line_log_parse_thread(void* arg)
 									cut_length++;
 							}
 						}
-						
+
 						if(sticker_msg)
 							line_num_of_lines += 3;
 						else
 							line_num_of_lines++;
-	
+
 						length_count = 0;
 						cut_length = 60;
 
@@ -2079,7 +2099,7 @@ void Line_log_parse_thread(void* arg)
 						Log_log_add(log_num, "[Error] Parsing aborted due to too many messages. ", TOO_MANY_MESSAGES, false);
 					}
 					else
-						Log_log_add(log_num, s_success, 1234567890, false);						
+						Log_log_add(log_num, Err_query_general_success_string(), 1234567890, false);
 				}
 
 				free(parse_cache);
@@ -2140,7 +2160,7 @@ void Line_exit(void)
 	line_send_msg_thread_run = false;
 
 	for(int i = 0; i < 5; i++)
-	{ 
+	{
 		log_num = Log_log_save(line_exit_string, "Exiting thread(" + std::to_string(i) + "/4)...", 1234567890, s_debug_slow);
 
 		if (i == 0)
@@ -2155,11 +2175,11 @@ void Line_exit(void)
 			result.code = threadJoin(line_icon_dl_thread, time_out);
 
 		if (result.code == 0)
-			Log_log_add(log_num, s_success, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 		else
 		{
 			failed = true;
-			Log_log_add(log_num, s_error, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 		}
 	}
 
@@ -2190,4 +2210,3 @@ void Line_exit(void)
 
 	Log_log_save(line_exit_string , "Exited.", 1234567890, s_debug_slow);
 }
-

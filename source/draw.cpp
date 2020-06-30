@@ -1,9 +1,9 @@
 #include <string>
 #include "citro2d.h"
 
-#define BitVal(data,y) ( (data>>y) & 1)      //Return Data.Y value 
-#define SetBit(data,y)    data |= (1 << y)    //Set Data.Y   to 1 
-#define ClearBit(data,y)  data &= ~(1 << y)   //Clear Data.Y to 0 
+#define BitVal(data,y) ( (data>>y) & 1)      //Return Data.Y value
+#define SetBit(data,y)    data |= (1 << y)    //Set Data.Y   to 1
+#define ClearBit(data,y)  data &= ~(1 << y)   //Clear Data.Y to 0
 #include "share_function.hpp"
 #include "hid.hpp"
 #include "draw.hpp"
@@ -12,13 +12,38 @@
 #include "log.hpp"
 #include "types.hpp"
 #include "setting_menu.hpp"
+#include "explorer.hpp"
+#include "menu.hpp"
 
 bool draw_do_not_draw = false;
+int draw_fps = 0;
+double draw_frametime = 0.0;
+std::string screen_clear_text = "\u25a0";//ï¿½ï¿½
 C2D_Font system_fonts[4];
 C3D_RenderTarget* Screen_top;
 C3D_RenderTarget* Screen_bot;
 C2D_SpriteSheet sheet_texture[128];
-std::string screen_clear_text = "\u25a0";//¡
+C2D_Image Wifi_icon_image[9];
+C2D_Image Battery_level_icon_image[21];
+C2D_Image Battery_charge_icon_image[1];
+C2D_Image Square_image[1];
+C2D_ImageTint texture_tint, dammy_tint, black_or_white_tint, white_or_black_tint, white_tint, weak_white_tint, red_tint, weak_red_tint, aqua_tint, weak_aqua_tint, yellow_tint, weak_yellow_tint, blue_tint, weak_blue_tint, black_tint, weak_black_tint;
+TickCounter draw_frame_time_timer;
+
+int Draw_query_fps(void)
+{
+	return draw_fps;
+}
+
+double Draw_query_frametime(void)
+{
+	return draw_frametime;
+}
+
+void Draw_reset_fps(void)
+{
+	draw_fps = 0;
+}
 
 void Draw_rgba_to_abgr(u8* buf, u32 width, u32 height)
 {
@@ -92,8 +117,6 @@ Result_with_string Draw_c3dtex_to_c2dimage(C3D_Tex* c3d_tex, Tex3DS_SubTexture* 
 	u32 x_max;
 	u32 y_max;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	u32 subtex_width = width;
 	u32 subtex_height = height;
@@ -227,8 +250,6 @@ Result_with_string Draw_load_texture(std::string file_name, int sheet_map_num, C
 	size_t num_of_images;
 	bool function_fail = false;
 	Result_with_string load_texture_result;
-	load_texture_result.code = 0;
-	load_texture_result.string = s_success;
 
 	sheet_texture[sheet_map_num] = C2D_SpriteSheetLoad(file_name.c_str());
 	if (sheet_texture[sheet_map_num] == NULL)
@@ -259,6 +280,11 @@ Result_with_string Draw_load_texture(std::string file_name, int sheet_map_num, C
 	return load_texture_result;
 }
 
+void Draw_touch_pos(void)
+{
+		Draw("â—", 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20, 0.20, 1.0, 0.0, 0.0, 1.0);
+}
+
 void Draw_top_ui(void)
 {
 	Draw_texture(Square_image, black_tint, 0, 0.0, 0.0, 400.0, 15.0);
@@ -273,7 +299,7 @@ void Draw_top_ui(void)
 void Draw_bot_ui(void)
 {
 	Draw_texture(Square_image, black_tint, 0, 0.0, 225.0, 320.0, 15.0);
-	Draw(s_bot_button_string[1], 0, 30.0f, 220.0f, 0.75f, 0.75f, 0.75f, 0.75f, 0.75f, 1.0f);
+	Draw("â–½", 0, 155.0, 220.0, 0.75, 0.75, 0.75, 0.75, 0.75, 1.0);
 }
 
 void Draw_texture(C2D_Image image[], C2D_ImageTint tint, int num, float x, float y, float x_size, float y_size)
@@ -282,7 +308,7 @@ void Draw_texture(C2D_Image image[], C2D_ImageTint tint, int num, float x, float
 	{
 		{
 			x,
-			y, 
+			y,
 			x_size,
 			y_size
 		},
@@ -301,6 +327,24 @@ void Draw_texture(C2D_Image image[], C2D_ImageTint tint, int num, float x, float
 		else
 			C2D_DrawImage(image[num], &c2d_parameter, &tint);
 
+	}
+}
+
+void Draw_expl(std::string msg)
+{
+	double red = 0.0;
+
+	Draw_texture(Square_image, aqua_tint, 10, 10.0, 20.0, 300.0, 190.0);
+	Draw(msg, 0, 12.5, 185.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
+	Draw(Expl_query_current_patch(), 0, 12.5, 195.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+	for (int i = 0; i < 16; i++)
+	{
+		if (i == (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM))
+			red = 1.0;
+		else
+			red = 0.0;
+
+		Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, red, 0.0, 0.0, 1.0);
 	}
 }
 
@@ -325,25 +369,18 @@ void Draw_progress(std::string message)
 	if (draw_do_not_draw)
 		return;
 
-	Draw_set_draw_mode(1);
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-		Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
-	else
-		Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
+  for(int i = 0;i < 2; i++)
+	{
+		Draw_set_draw_mode(1);
+		if (Sem_query_settings(SEM_NIGHT_MODE))
+			Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
+		else
+			Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
 
-	Draw(message, 0, 80.0, 110.0, 0.75, 0.75, 0.0, 0.5, 1.0, 1.0);
+		Draw(message, 0, 80.0, 110.0, 0.75, 0.75, 0.0, 0.5, 1.0, 1.0);
 
-	Draw_apply_draw();
-
-	Draw_set_draw_mode(1);
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-		Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
-	else
-		Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
-
-	Draw(message, 0, 80.0, 110.0, 0.75, 0.75, 0.0, 0.5, 1.0, 1.0);
-
-	Draw_apply_draw();
+		Draw_apply_draw();
+  }
 }
 
 void Draw_log(void)
@@ -393,8 +430,8 @@ void Draw_debug_info(void)
 	Draw("x pos : " + std::to_string(Hid_query_touch_pos(true)) + " y pos : " + std::to_string(Hid_query_touch_pos(false)), 0, 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 	Draw("CPU : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0, 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 	Draw("GPU : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0, 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("Free RAM " + std::to_string((double)s_free_ram / 10.0).substr(0, 5) + " MB", 0, 0.0f, 140.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("Free linear RAM " + std::to_string((double)s_free_linear_ram / 1024.0 / 1024.0).substr(0, 5) +" MB", 0, 0.0f, 150.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("Free RAM " + std::to_string((double)Menu_query_free_ram() / 10.0).substr(0, 5) + " MB", 0, 0.0f, 140.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("Free linear RAM " + std::to_string((double)Menu_query_free_linear_ram() / 1024.0 / 1024.0).substr(0, 5) +" MB", 0, 0.0f, 150.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
 }
 
 void Draw_init(void)
@@ -403,7 +440,26 @@ void Draw_init(void)
 	Screen_top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
 	Screen_bot = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 	C2D_TargetClear(Screen_top, C2D_Color32f(0, 0, 0, 0));
-	C2D_TargetClear(Screen_bot, C2D_Color32f(0, 0, 0, 0));	
+	C2D_TargetClear(Screen_bot, C2D_Color32f(0, 0, 0, 0));
+	dammy_tint.corners[0].color = 56738247;
+	if (Sem_query_settings(SEM_NIGHT_MODE))
+		C2D_PlainImageTint(&texture_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.75), true);
+	else
+		C2D_PlainImageTint(&texture_tint, C2D_Color32f(0.0, 0.0, 0.0, 1.0), true);
+
+	C2D_PlainImageTint(&white_tint, C2D_Color32f(1.0, 1.0, 1.0, 1.0), true);
+	C2D_PlainImageTint(&weak_white_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.3), true);
+	C2D_PlainImageTint(&red_tint, C2D_Color32f(1.0, 0.0, 0.0, 1.0), true);
+	C2D_PlainImageTint(&weak_red_tint, C2D_Color32f(1.0, 0.0, 0.0, 0.3), true);
+	C2D_PlainImageTint(&aqua_tint, C2D_Color32f(0.0, 0.75, 1.0, 1.0), true);
+	C2D_PlainImageTint(&weak_aqua_tint, C2D_Color32f(0.0, 0.75, 1.0, 0.3), true);
+	C2D_PlainImageTint(&yellow_tint, C2D_Color32f(0.5, 0.5, 0.0, 1.0), true);
+	C2D_PlainImageTint(&weak_yellow_tint, C2D_Color32f(0.5, 0.5, 0.0, 0.3), true);
+	C2D_PlainImageTint(&blue_tint, C2D_Color32f(0.0, 0.0, 1.0, 1.0), true);
+	C2D_PlainImageTint(&weak_blue_tint, C2D_Color32f(0.0, 0.0, 1.0, 0.3), true);
+	C2D_PlainImageTint(&black_tint, C2D_Color32f(0.0, 0.0, 0.0, 1.0), true);
+	C2D_PlainImageTint(&weak_black_tint, C2D_Color32f(0.0, 0.0, 0.0, 0.3), true);
+	osTickCounterStart(&draw_frame_time_timer);
 }
 
 void Draw_load_system_font(int system_font_num)
@@ -471,7 +527,7 @@ void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_v
 			else
 				C2D_TargetClear(Screen_top, C2D_Color32f(red, green, blue, 0));
 		}
-			
+
 	}
 	else if(screen == 1)
 	{
@@ -491,6 +547,9 @@ void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_v
 void Draw_apply_draw(void)
 {
 	C3D_FrameEnd(0);
+	draw_fps++;
+	osTickCounterUpdate(&draw_frame_time_timer);
+	draw_frametime = osTickCounterRead(&draw_frame_time_timer);
 }
 
 /*static inline size_t fmtSize(GPU_TEXCOLOR fmt)
@@ -527,7 +586,7 @@ bool Moded_C3D_TexInitWithParams(C3D_Tex* tex, C3D_TexCube* cube, C3D_TexInitPar
 	if (!size) return false;
 	size *= (u32)p.width * p.height / 8;
 	u32 total_size = C3D_TexCalcTotalSize(size, p.maxLevel);
-		
+
 	tex->data = aligned_alloc(0x80, total_size);
 	if (!tex->data) return false;
 

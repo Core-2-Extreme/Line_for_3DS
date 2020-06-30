@@ -32,19 +32,19 @@ void Init(void)
 	u8* init_buffer;
 	u32 read_size;
 	int log_num;
+	int setting_num[3] = { SEM_LCD_BRIGHTNESS, SEM_TIME_TO_TURN_OFF_LCD, SEM_LCD_BRIGHTNESS_BEFORE_TURN_OFF, };
 	int buffer_max_size[10] = { 0xA00000, 0xA00000, 0x700000, 0x500000, 0x500000, 0x4C0000, 0x1400000, 0xA00000, 0x200000,};
 	int num_of_msg_list[4] = { GTR_NUM_OF_LANG_LIST_MSG, GTR_NUM_OF_LANG_SHORT_LIST_MSG, CAM_NUM_OF_OPTION_MSG, EXFONT_NUM_OF_FONT_NAME, };
 	std::string setting_data[128];
 	std::string texture_name_list[4] = { "wifi_signal", "battery_level", "battery_charge", "square", };
 	std::string file_name_list[4] = { "gtr_lang_list", "gtr_short_lang_list", "cam_options", "font_name", };
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
+
 	Log_start_up_time_timer();
 	init_buffer = (u8*)malloc(0x2000);
 	memset(init_buffer, 0x0, 0x2000);
 	Log_log_save(main_init_string , "Initializing...", 1234567890, false);
-	Log_log_save(main_init_string, s_app_ver, 1234567890, false);
+	Log_log_save(main_init_string, Menu_query_ver(), 1234567890, false);
 
 	osSetSpeedupEnable(true);
 	gfxInitDefault();
@@ -57,8 +57,6 @@ void Init(void)
 	Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
 	Draw_screen_ready_to_draw(1, true, 0, 1.0, 1.0, 1.0);
 	Draw_apply_draw();
-	osTickCounterStart(&s_tcount_frame_time);
-
 
 	Draw_progress("0/3 [Main] Initializing service...");
 
@@ -87,23 +85,23 @@ void Init(void)
 
 		if (result.code == 0)
 		{
-			Log_log_add(log_num, s_success, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 			if(i == 3)
 				s_mcu_success = true;
 		}
 		else
-			Log_log_add(log_num, s_error, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 	}
 
 	log_num = Log_log_save(main_init_string, "APT_SetAppCpuTimeLimit_30...", 1234567890, s_debug_slow);
 	result.code = APT_SetAppCpuTimeLimit(30);
 	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 	else
-		Log_log_add(log_num,s_error, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 
 	aptSetSleepAllowed(true);
-	
+
 	Draw_progress("1/3 [Main] Loading settings...");
 
 	log_num = Log_log_save(main_init_string , "Sem_load_setting(app)...", 1234567890, s_debug_slow);
@@ -134,52 +132,45 @@ void Init(void)
 		}
 	}
 
-	s_lcd_brightness = 100;
-	s_time_to_enter_afk = 1500;
-	s_afk_lcd_brightness = 10;
+	if(s_setting[0] != "jp" || s_setting[0] != "en")
+		s_setting[0] = "en";
 
-	for (int i = 1; i < 4; i++)
+	for (int i = 1; i < 6; i++)
 	{
-		if (std::all_of(s_setting[i].cbegin(), s_setting[i].cend(), isdigit) && !(s_setting[i] == ""))
+		if(i >= 1 && i <= 3)
 		{
-			if(i == 1)
-				s_lcd_brightness = stoi(s_setting[i]);
-			else if (i == 2)
-				s_time_to_enter_afk = stoi(s_setting[i]);
-			else if (i == 3)
-				s_afk_lcd_brightness = stoi(s_setting[i]);
+			if (!(s_setting[i] == "") && std::all_of(s_setting[i].cbegin(), s_setting[i].cend(), isdigit))
+					Sem_set_settings_i(setting_num[i - 1], stoi(s_setting[i]));
+		}
+		else if(i == 4)
+		{
+			if(s_setting[i] == "true")
+				Sem_set_settings_i(SEM_SYSTEM_SETTING_MENU_SHOW, true);
+		}
+		else if(i == 5)
+		{
+			if (!(s_setting[i] == "") && stod(s_setting[i]) >= 0.01 && stod(s_setting[i]) <= 1.1)
+				Sem_set_settings_d(SEM_SCROLL_SPEED, stod(s_setting[i]));
 		}
 	}
 
-	if (s_setting[4] == "true")
-		s_system_setting_menu_show = true;
-	else
-		s_system_setting_menu_show = false;
-
-	if (!(s_setting[5] == "") && stod(s_setting[5]) >= 0.01 && stod(s_setting[5]) <= 1.1)
-		s_scroll_speed = stod(s_setting[5]);
-	else
-		s_scroll_speed = 0.5;
-	
 	if (s_setting[6] == "allow")
 		Sem_set_settings(SEM_ALLOW_SEND_APP_INFO, true);
 	else
 		Sem_set_settings(SEM_ALLOW_SEND_APP_INFO, false);
 
 	if (std::all_of(s_setting[7].cbegin(), s_setting[7].cend(), isdigit) && !(s_setting[7] == ""))
-		s_num_of_app_start = stoi(s_setting[7]);
-	else
-		s_num_of_app_start = 0;
+		Sem_set_settings_i(SEM_NUM_OF_APP_START, stoi(s_setting[7]));
 
 	if (s_setting[8] == "true")
 		Sem_set_settings(SEM_NIGHT_MODE, true);
 	else
 		Sem_set_settings(SEM_NIGHT_MODE, false);
 
-	if (s_setting[9] == "true")
-		Sem_set_settings(SEM_VSYNC_MODE, true);
-	else
+	if (s_setting[9] == "false")
 		Sem_set_settings(SEM_VSYNC_MODE, false);
+	else
+		Sem_set_settings(SEM_VSYNC_MODE, true);
 
 	if (s_setting[10] == "true")
 		Line_set_setting(LINE_HIDE_ID, true);
@@ -195,7 +186,7 @@ void Init(void)
 		Line_set_x_y_size_interval(LINE_TEXT_INTERVAL, stod(s_setting[12]));
 	else
 		Line_set_x_y_size_interval(LINE_TEXT_INTERVAL, 35.0);
-	
+
 	Line_set_buffer_size(LINE_HTTPC_BUFFER, 0x100000);
 	Line_set_buffer_size(LINE_FS_BUFFER, 0x100000);
 	Spt_set_buffer_size(SPT_HTTPC_BUFFER, 0x700000);
@@ -253,28 +244,9 @@ void Init(void)
 			result = Draw_load_texture("romfs:/gfx/" + texture_name_list[i] + ".t3x", i, Battery_charge_icon_image, 0, 1);
 		else if (i == 3)
 			result = Draw_load_texture("romfs:/gfx/" + texture_name_list[i] + ".t3x", i, Square_image, 0, 1);
-		
+
 		Log_log_add(log_num, result.string, result.code, s_debug_slow);
 	}
-	
-	dammy_tint.corners[0].color = 56738247;
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-		C2D_PlainImageTint(&texture_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.75), true);
-	else
-		C2D_PlainImageTint(&texture_tint, C2D_Color32f(0.0, 0.0, 0.0, 1.0), true);
-
-	C2D_PlainImageTint(&white_tint, C2D_Color32f(1.0, 1.0, 1.0, 1.0), true);
-	C2D_PlainImageTint(&weak_white_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.3), true);
-	C2D_PlainImageTint(&red_tint, C2D_Color32f(1.0, 0.0, 0.0, 1.0), true);
-	C2D_PlainImageTint(&weak_red_tint, C2D_Color32f(1.0, 0.0, 0.0, 0.3), true);
-	C2D_PlainImageTint(&aqua_tint, C2D_Color32f(0.0, 0.75, 1.0, 1.0), true);
-	C2D_PlainImageTint(&weak_aqua_tint, C2D_Color32f(0.0, 0.75, 1.0, 0.3), true);
-	C2D_PlainImageTint(&yellow_tint, C2D_Color32f(0.5, 0.5, 0.0, 1.0), true);
-	C2D_PlainImageTint(&weak_yellow_tint, C2D_Color32f(0.5, 0.5, 0.0, 0.3), true);
-	C2D_PlainImageTint(&blue_tint, C2D_Color32f(0.0, 0.0, 1.0, 1.0), true);
-	C2D_PlainImageTint(&weak_blue_tint, C2D_Color32f(0.0, 0.0, 1.0, 0.3), true);
-	C2D_PlainImageTint(&black_tint, C2D_Color32f(0.0, 0.0, 0.0, 1.0), true);
-	C2D_PlainImageTint(&weak_black_tint, C2D_Color32f(0.0, 0.0, 0.0, 0.3), true);
 
 	wifi_state = (u8*)malloc(0x1);
 	memset(wifi_state, 0xff, 0x1);
@@ -317,20 +289,21 @@ int main()
 	Result_with_string result;
 
 	log_num = Log_log_save(main_exit_string, "File_save_to_file(Setting.txt)...", 1234567890, s_debug_slow);
-	s_setting[1] = std::to_string(s_lcd_brightness);
-	s_setting[2] = std::to_string(s_time_to_enter_afk);
-	s_setting[3] = std::to_string(s_afk_lcd_brightness);
-	if (s_system_setting_menu_show)
+	s_setting[1] = std::to_string(Sem_query_settings_i(SEM_LCD_BRIGHTNESS));
+	s_setting[2] = std::to_string(Sem_query_settings_i(SEM_TIME_TO_TURN_OFF_LCD));
+	s_setting[3] = std::to_string(Sem_query_settings_i(SEM_LCD_BRIGHTNESS_BEFORE_TURN_OFF));
+	if (Sem_query_settings(SEM_SYSTEM_SETTING_MENU_SHOW))
 		s_setting[4] = "true";
 	else
 		s_setting[4] = "false";
-	s_setting[5] = std::to_string(s_scroll_speed);
+
+	s_setting[5] = std::to_string(Sem_query_settings_d(SEM_SCROLL_SPEED));
 	if (Sem_query_settings(SEM_ALLOW_SEND_APP_INFO))
 		s_setting[6] = "allow";
 	else
 		s_setting[6] = "deny";
 
-	s_setting[7] = std::to_string(s_num_of_app_start + 1);
+	s_setting[7] = std::to_string(Sem_query_settings_i(SEM_NUM_OF_APP_START) + 1);
 
 	if (Sem_query_settings(SEM_NIGHT_MODE))
 		s_setting[8] = "true";
@@ -368,7 +341,7 @@ int main()
 	for (int i = 0; i < 9; i++)
 	{
 		Log_log_save(main_exit_string, main_svc_name_list[i] + "Exit...", 1234567890, s_debug_slow);
-	
+
 		if (i == 0)
 			fsExit();
 		else if (i == 1)

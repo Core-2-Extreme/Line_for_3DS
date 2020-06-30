@@ -3,10 +3,11 @@
 
 #include "error.hpp"
 #include "types.hpp"
-#include "share_function.hpp"
+#include "menu.hpp"
 
 int dl_progress = 0;
 int post_and_dl_progress = 0;
+std::string httpc_user_agent = "Line for 3DS " + Menu_query_ver();
 
 int Httpc_query_dl_progress(void)
 {
@@ -28,8 +29,6 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 	std::string dl_string;
 	httpcContext dl_httpc;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 	*last_url = url;
 
 	moved_url = (char*)malloc(0x1000);
@@ -85,7 +84,7 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 		if (!function_fail)
 		{
 			httpcAddRequestHeaderField(&dl_httpc, "Connection", "Keep-Alive");
-			httpcAddRequestHeaderField(&dl_httpc, "User-Agent", s_httpc_user_agent.c_str());
+			httpcAddRequestHeaderField(&dl_httpc, "User-Agent", httpc_user_agent.c_str());
 			result.code = httpcBeginRequest(&dl_httpc);
 			if (result.code != 0)
 			{
@@ -133,7 +132,7 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 					result.error_description = "In the case that the buffer size is too small, this'll occur.\nPlease increase buffer size from settings.";
 				else
 					result.error_description = "It may occur in case of wrong internet connection.\nPlease check internet connection.";
-				
+
 				result.string = "[Error] httpcDownloadData failed. ";
 				function_fail = true;
 			}
@@ -170,8 +169,6 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 	std::string dl_string;
 	httpcContext post_and_dl_httpc;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	moved_url = (char*)malloc(0x1000);
 	if (moved_url == NULL)
@@ -191,7 +188,7 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 		{
 			if (post)
 				result.code = httpcOpenContext(&post_and_dl_httpc, HTTPC_METHOD_POST, url.c_str(), 0);
-			else 
+			else
 				result.code = httpcOpenContext(&post_and_dl_httpc, HTTPC_METHOD_GET, url.c_str(), 0);
 
 			if (result.code != 0)
@@ -230,7 +227,7 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 		if (!function_fail)
 		{
 			httpcAddRequestHeaderField(&post_and_dl_httpc, "Connection", "Keep-Alive");
-			httpcAddRequestHeaderField(&post_and_dl_httpc, "User-Agent", s_httpc_user_agent.c_str());
+			httpcAddRequestHeaderField(&post_and_dl_httpc, "User-Agent", httpc_user_agent.c_str());
 			if (post)
 			{
 				httpcAddPostDataRaw(&post_and_dl_httpc, (u32*)post_data_buffer, post_buffer_size);

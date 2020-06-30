@@ -16,14 +16,15 @@
 #include "mic.hpp"
 
 bool mic_main_run = false;
-bool mic_record_thread_run = false; 
+bool mic_record_thread_run = false;
 bool mic_already_init = false;
 bool mic_thread_suspend = true;
 bool mic_start_record_request = false;
-bool mic_stop_record_request = false; 
+bool mic_stop_record_request = false;
 u8* mic_buffer;
 u32 mic_buffer_size = 0x300000;
 std::string mic_msg[MIC_NUM_OF_MSG];
+std::string mic_ver = "v1.0.0";
 Thread mic_record_thread;
 
 bool Mic_query_init_flag(void)
@@ -198,11 +199,11 @@ void Mic_exit(void)
 	log_num = Log_log_save("Mic/Exit", "Exiting thread(0/0)...", 1234567890, s_debug_slow);
 	result.code = threadJoin(mic_record_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, s_success, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num, s_error, result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 	}
 
 	threadFree(mic_record_thread);
@@ -237,26 +238,26 @@ void Mic_init(void)
 		result.code = micInit(mic_buffer, mic_buffer_size);
 		Log_log_add(log_num, result.string, result.code, s_debug_slow);
 		if (result.code == 0)
-			Log_log_add(log_num, s_success, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 		else
 		{
 			failed = true;
 			Err_set_error_message("micInit failed.", "", "Mic/Init", result.code);
 			Err_set_error_show_flag(true);
-			Log_log_add(log_num,s_error, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 		}
 
 		log_num = Log_log_save("Mic/Init", "MICU_SetPower()...", 1234567890, s_debug_slow);
 		result.code = MICU_SetPower(true);
 		Log_log_add(log_num, result.string, result.code, s_debug_slow);
 		if (result.code == 0)
-			Log_log_add(log_num, s_success, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
 		else
 		{
 			failed = true;
 			Err_set_error_message("MICU_SetPower().", "", "Mic/Init", result.code);
 			Err_set_error_show_flag(true);
-			Log_log_add(log_num, s_error, result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
 		}
 	}
 
@@ -320,7 +321,7 @@ void Mic_main(void)
 	else
 		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
-	Draw(s_mic_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
+	Draw(mic_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
 	Draw(mic_msg[3], 0, 45.0, 50.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 	if(mic_start_record_request)
 		Draw(mic_msg[2], 0, 95.0, 65.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
@@ -340,10 +341,7 @@ void Mic_main(void)
 
 	Draw_bot_ui();
 	if (Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw(s_circle_string, 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20f, 0.20f, 1.0f, 0.0f, 0.0f, 1.0f);
-	s_fps += 1;
+		Draw_touch_pos();
 
 	Draw_apply_draw();
-	osTickCounterUpdate(&s_tcount_frame_time);
-	s_frame_time = osTickCounterRead(&s_tcount_frame_time);
 }

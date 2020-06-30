@@ -18,8 +18,6 @@ Result_with_string File_save_to_file(std::string file_name, u8* write_data, int 
 	TickCounter write_time;
 	Result_with_string save_file_result;
 
-	save_file_result.code = 0;
-	save_file_result.string = s_success;
 
 	save_file_result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if(save_file_result.code != 0)
@@ -70,7 +68,7 @@ Result_with_string File_save_to_file(std::string file_name, u8* write_data, int 
 			failed = true;
 		}
 	}
-	
+
 	if (!failed)
 	{
 		if (!(delete_old_file))
@@ -99,7 +97,7 @@ Result_with_string File_save_to_file(std::string file_name, u8* write_data, int 
 			failed = true;
 		}
 	}
-	
+
 	FSFILE_Close(fs_handle);
 	FSUSER_CloseArchive(fs_archive);
 	return save_file_result;
@@ -117,8 +115,6 @@ Result_with_string File_load_from_rom(std::string file_name, u8* read_data, int 
 	u64 file_size;
 	std::string file_path = dir_path + file_name;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	FILE* f = fopen(file_path.c_str(), "rb");
 	if (f == NULL)
@@ -166,8 +162,6 @@ Result_with_string File_load_from_file_with_range(std::string file_name, u8* rea
 	std::string file_path = dir_path + file_name;
 	TickCounter read_time;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if (result.code != 0)
@@ -215,9 +209,6 @@ Result_with_string File_delete_file(std::string file_name, std::string dir_path,
 	std::string file_path = dir_path + file_name;
 	Result_with_string result;
 
-	result.code = 0;
-	result.string = s_success;
-
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if (result.code != 0)
 	{
@@ -246,8 +237,6 @@ Result_with_string File_check_file_size(std::string file_name, std::string dir_p
 	bool failed = false;
 	std::string file_path = dir_path + file_name;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if (result.code != 0)
@@ -289,8 +278,6 @@ Result_with_string File_check_file_exist(std::string file_name, std::string dir_
 	bool failed = false;
 	std::string file_path = dir_path + file_name;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if (result.code != 0)
@@ -327,10 +314,8 @@ Result_with_string File_read_dir(int* num_of_detected, std::string file_dir_name
 	Handle fs_handle;
 	FS_Archive fs_archive;
 	Result_with_string result;
-	result.code = 0;
-	result.string = s_success;
 	cache = (char*)malloc(0x500);
-	
+
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if (result.code != 0)
 	{
