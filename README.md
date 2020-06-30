@@ -11,16 +11,11 @@
 * [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 
 ## Patch note
-* 【App】 Ver 1.5.0
-* 【App】 Added- Camera, Mic and Music player.
-* 【App】 Build with the latest version of ctrlib(v1.9.0)
-* 【Line】 Fixed- UI design.
-* 【Line】 Fixed- Made setup steps easier.
-* 【Line】 Added- Display user/group name and user/group icon.
-* 【Google translation】 Fixed- Some wrong control.
-* 【Speed test】 Fixed- Some text color.
-* 【Image viewer】 Fixed- Some crash.
-* 【Setting menu】 Fixed- UI design.
+* 【App】 Ver 1.5.1
+* 【App】 Fixed- The message will not be displayed correctly if the Line folder does not exist.
+* 【Line】Fixed- The message will not be sent if double quote or backslash was included.
+* 【Line】Added- Now, you can include new lines in the message.
+* 【Music player】 Fixed- A memory leak occurs when playing .mp3 files.
 
 ## Summary
 ![00000028](https://user-images.githubusercontent.com/45873899/85299815-b9bbfb80-b4e0-11ea-8ee1-7551cedd83d4.jpg)
