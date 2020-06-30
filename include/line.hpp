@@ -34,7 +34,7 @@
 #define LINE_TYPE_SHORT_URL_REQUEST 22
 #define LINE_PARSE_LOG_REQUEST 23
 
-#define LINE_MENU_SEND 0 
+#define LINE_MENU_SEND 0
 #define LINE_MENU_RECEIVE 1
 #define LINE_MENU_COPY 2
 #define LINE_MENU_SETTINGS 3
@@ -106,6 +106,8 @@ void Line_suspend(void);
 void Line_init(void);
 
 void Line_main(void);
+
+std::string Line_encode_to_escape(std::string in_data);
 
 void Line_icon_dl_thread(void* arg);
 

@@ -21,9 +21,19 @@
 
 bool Menu_query_running_flag(void);
 
+int Menu_query_afk_time(void);
+
+int Menu_query_free_ram(void);
+
+int Menu_query_free_linear_ram(void);
+
 bool Menu_query_must_exit_flag(void);
 
 std::string Menu_query_time(void);
+
+std::string Menu_query_ver(void);
+
+void Menu_reset_afk_time(void);
 
 void Menu_set_operation_flag(int operation_num, bool flag);
 

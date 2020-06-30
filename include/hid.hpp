@@ -1,3 +1,4 @@
+#pragma once
 
 //Press
 #define KEY_P_A 0 //A

@@ -25,6 +25,10 @@ void Err_set_error_code(long error_code);
 
 void Err_set_error_data(int error_num, std::string error_data);
 
+std::string Err_query_general_error_string(void);
+
+std::string Err_query_general_success_string(void);
+
 void Err_set_error_message(std::string summary, std::string description, std::string place, long error_code);
 
 void Err_set_error_show_flag(bool flag);
