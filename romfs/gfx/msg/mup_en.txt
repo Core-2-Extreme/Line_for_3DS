@@ -16,3 +16,4 @@
 <15>Select file(X)</15>
 <16>Play(A)</16>
 <17>Stop(B)</17>
+<18>Shuffle</18>
