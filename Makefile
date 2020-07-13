@@ -41,7 +41,7 @@ GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 GFXBUILD	:=	$(ROMFS)/gfx
 #---------------------------------------------------------------------------------
-APP_VER					:= 1105
+APP_VER					:= 1106
 APP_TITLE				:= Line for 3DS
 APP_DESCRIPTION				:= Line for 3DS
 APP_AUTHOR				:= Core_2_Extreme
