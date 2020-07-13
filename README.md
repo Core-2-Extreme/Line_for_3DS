@@ -11,11 +11,12 @@
 * [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 
 ## Patch note
-* 【App】 Ver 1.5.1
-* 【App】 Fixed- The message will not be displayed correctly if the Line folder does not exist.
-* 【Line】Fixed- The message will not be sent if double quote or backslash was included.
-* 【Line】Added- Now, you can include new lines in the message.
-* 【Music player】 Fixed- A memory leak occurs when playing .mp3 files.
+* 【App】 Ver 1.5.2
+* 【Line】 Fixed- Adjust some UI.
+* 【Camera】 Fixed- Some settings will be reset after restarting the camera.
+* 【Mic】 Fixed- The app will crash if couldn't allocate memory(out of memory).
+* 【Music player】 Fixed- The app sometimes crash when try playing .mp3 files.
+* 【Music player】 Added- Shuffle function.
 
 ## Summary
 ![00000028](https://user-images.githubusercontent.com/45873899/85299815-b9bbfb80-b4e0-11ea-8ee1-7551cedd83d4.jpg)
