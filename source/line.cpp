@@ -98,6 +98,7 @@ std::string line_ids[128];
 std::string line_names[128];
 std::string line_icon_url[128];
 std::string line_input_text = "";
+std::string line_encoded_input_text = "";
 std::string line_main_url = "";
 std::string line_short_msg_log[60000];
 std::string line_log_data = "";
@@ -113,7 +114,7 @@ std::string line_load_thread_string = "Line/Log load thread";
 std::string line_parse_thread_string = "Line/Log parse thread";
 std::string line_init_string = "Line/init";
 std::string line_exit_string = "Line/exit";
-std::string line_ver = "v1.5.1";
+std::string line_ver = "v1.5.2";
 C3D_Tex* line_c3d_cache_tex[128];
 Tex3DS_SubTexture* line_c3d_cache_subtex[128];
 C2D_Image line_stickers_images[121], line_icon[128];
@@ -275,8 +276,6 @@ void Line_reset_id(void)
 		linearFree(line_c3d_cache_tex[i]);
 		linearFree(line_c3d_cache_subtex[i]);
 		line_c3d_cache_tex[i]->data = NULL;
-		line_c3d_cache_tex[i] = NULL;
-		line_c3d_cache_subtex[i] = NULL;
 		line_stb_image[i] = NULL;
 		line_c3d_cache_tex[i] = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
 		line_c3d_cache_subtex[i] = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
@@ -747,7 +746,7 @@ void Line_main(void)
 				else
 					hidden_id = line_ids[i];
 
-				Draw(hidden_id, 0, 45.0, 20.0 + line_text_y + (i * 35.0), 0.325, 0.325, text_red, text_green, text_blue, text_alpha);
+				Draw(hidden_id, 0, 45.0, 20.0 + line_text_y + (i * 35.0), 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
 			}
 		}
 
@@ -838,7 +837,7 @@ void Line_main(void)
 		if (line_selected_menu_mode != LINE_MENU_COPY)
 		{
 			Draw_texture(line_icon, dammy_tint, line_selected_room_num, 10.0, 135.0, 32.0, 32.0);
-			Draw(status, 0, 45.0, 135.0, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
+			Draw(status, 0, 45.0, 135.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
 			Draw(line_names[line_selected_room_num], font_num, 45.0, 155.0, 0.475, 0.475, text_red, text_green, text_blue, text_alpha);
 		}
 
@@ -965,38 +964,41 @@ void Line_main(void)
 			else
 				alpha[0] = 0.75;
 
-			Draw_texture(Square_image, blue_tint, 0, 10.0, 110.0, 300.0, 60.0);
-			Draw_texture(Square_image, weak_aqua_tint, 0, 30.0, 150.0, 70.0, 15.0);
-			Draw_texture(Square_image, weak_aqua_tint, 0, 120.0, 150.0, 70.0, 15.0);
-			if (line_send_check[2])
-				Draw_texture(Square_image, weak_aqua_tint, 0, 210.0, 150.0, 70.0, 15.0);
+			Draw_texture(Square_image, blue_tint, 0, 10.0, 110.0, 300.0, 110.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 30.0, 200.0, 70.0, 15.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 120.0, 200.0, 70.0, 15.0);
+			if (line_send_check[0] || line_send_check[2])
+				Draw_texture(Square_image, weak_aqua_tint, 0, 210.0, 200.0, 70.0, 15.0);
 
-			Draw(line_msg[20], 0, 32.5, 150.0, 0.45, 0.45, 1.0, 1.0, 1.0, alpha[0]);
-			Draw(line_msg[21], 0, 122.5, 150.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
-			if (line_send_check[2])
-				Draw(line_msg[32], 0, 212.5, 150.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
+			Draw(line_msg[20], 0, 32.5, 200.0, 0.45, 0.45, 1.0, 1.0, 1.0, alpha[0]);
+			Draw(line_msg[21], 0, 122.5, 200.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+			if (line_send_check[0])
+				Draw(line_msg[47], 0, 212.5, 200.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
+			else if (line_send_check[2])
+				Draw(line_msg[32], 0, 212.5, 200.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
 
 			Draw_texture(line_icon, dammy_tint, line_selected_room_num, 10.0, 110.0, 30.0, 30.0);
 			Draw(line_names[line_selected_room_num], font_num, 45.0, 110.0, 0.475, 0.475, 1.0, 0.0, 0.0, 1.0);
 			if (line_send_check[0])
 			{
-				Draw(line_input_text, font_num, 45.0, 120.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
-				Draw(line_msg[25], 0, 45.0, 130.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+				Draw(line_msg[25], 0, 45.0, 120.0, 0.55, 0.55, 1.0, 1.0, 1.0, 0.75);
+				Draw(line_input_text, font_num, 45.0, 135.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
 			}
 			else if (line_send_check[1])
 			{
-				Draw(line_msg[26], 0, 45.0, 130.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
-				Draw_texture(line_stickers_images, dammy_tint, line_selected_sticker_num, 240.0, 115.0, 45.0, 45.0);
+				Draw(line_msg[26], 0, 45.0, 120.0, 0.55, 0.55, 1.0, 1.0, 1.0, 0.75);
+				Draw_texture(line_stickers_images, dammy_tint, line_selected_sticker_num, 45.0, 135.0, 60.0, 60.0);
 			}
 			else if (line_send_check[2])
 			{
-				Draw(line_msg[30] + Expl_query_current_patch(), 0, 45.0, 120.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
-				Draw(line_msg[31] + Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()), 0, 45.0, 130.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
-				Draw(line_msg[29], 0, 45.0, 140.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+				Draw(line_msg[29], 0, 45.0, 120.0, 0.55, 0.55, 1.0, 1.0, 1.0, 0.75);
+				Draw(line_msg[30] + Expl_query_current_patch(), 0, 45.0, 140.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
+				Draw(line_msg[48] + std::to_string(Expl_query_size((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()) / 1024.0 / 1024.0).substr(0, 5) + line_msg[49], 0, 45.0, 150.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+				Draw(line_msg[31] + Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()), 0, 45.0, 160.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
 			}
 			else if (line_delete_id_check_request)
 			{
-				Draw(line_msg[45], 0, 45.0, 120.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+				Draw(line_msg[45], 0, 45.0, 120.0, 0.55, 0.55, 1.0, 1.0, 1.0, 0.75);
 				Draw(line_msg[46], 0, 45.0, 130.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
 			}
 		}
@@ -1077,6 +1079,9 @@ void Line_main(void)
 			line_dic_first_spell[6] = "うえ";
 
 			num_of_words = 7;
+			if(line_input_text != "")
+				init_text = line_input_text;
+
 			hint_text = "メッセージを入力 / Type message here.";
 			max_length = 8192;
 			feature[0] = SWKBD_MULTILINE;
@@ -1139,9 +1144,10 @@ void Line_main(void)
 			main_log_num_return = 0;
 			if (line_type_msg_request)
 			{
-				line_input_text = Line_encode_to_escape(swkbd_data);
-				if (line_input_text.length() > 4000)
-					line_input_text = line_input_text.substr(0, 3990);
+				line_input_text = swkbd_data;
+				line_encoded_input_text = Line_encode_to_escape(swkbd_data);
+				if (line_encoded_input_text.length() > 4000)
+					line_encoded_input_text = line_encoded_input_text.substr(0, 3990);
 
 				line_send_check[0] = true;
 			}
@@ -1301,7 +1307,7 @@ void Line_log_download_thread(void* arg)
 
 			if (httpc_buffer == NULL)
 			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(line_log_httpc_buffer_size / 1024) + "KB). ", line_log_dl_thread_string, OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", line_log_dl_thread_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
 				Log_log_save(line_log_dl_thread_string, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 				line_auto_update = false;
@@ -1389,7 +1395,7 @@ void Line_log_download_thread(void* arg)
 
 			if (httpc_buffer == NULL)
 			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(line_log_httpc_buffer_size / 1024) + "KB). ", line_log_dl_thread_string, OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", line_log_dl_thread_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
 				Log_log_save(line_log_dl_thread_string, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 				line_auto_update = false;
@@ -1467,11 +1473,14 @@ void Line_send_message_thread(void* arg)
 			total_read_size = 0;
 			line_step_max = 1;
 			line_current_step = 0;
+			content_fs_buffer[0] = NULL;
+			content_fs_buffer[1] = NULL;
+			check = NULL;
 			httpc_buffer = (u8*)malloc(0x5000);
 
 			if (httpc_buffer == NULL)
 			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(0x5000 / 1024) + "KB). ", line_send_msg_thread_string, OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", line_send_msg_thread_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
 				Log_log_save(line_send_msg_thread_string, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 				failed = true;
@@ -1485,13 +1494,7 @@ void Line_send_message_thread(void* arg)
 				content_fs_buffer[1] = (u8*)malloc(line_send_fs_cache_buffer_size);
 				if (content_fs_buffer[0] == NULL || content_fs_buffer[1] == NULL)
 				{
-					if (content_fs_buffer[0] == NULL && content_fs_buffer[1] == NULL)
-						Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'content fs buffer'(" + std::to_string(line_send_fs_buffer_size / 1024) + "KB) and\n'content fs cache buffer'(" + std::to_string(line_send_fs_cache_buffer_size / 1024) + "KB). ", line_send_msg_thread_string, OUT_OF_MEMORY);
-					else if (content_fs_buffer[0])
-						Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'content fs buffer'(" + std::to_string(line_send_fs_buffer_size / 1024) + "KB). ", line_send_msg_thread_string, OUT_OF_MEMORY);
-					else if (content_fs_buffer[1] == NULL)
-						Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'content fs cache buffer'(" + std::to_string(line_send_fs_cache_buffer_size / 1024) + "KB). ", line_send_msg_thread_string, OUT_OF_MEMORY);
-
+					Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", line_send_msg_thread_string, OUT_OF_MEMORY);
 					Err_set_error_show_flag(true);
 					Log_log_save(line_send_msg_thread_string, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 					failed = true;
@@ -1506,7 +1509,7 @@ void Line_send_message_thread(void* arg)
 			if (!failed)
 			{
 				if (line_send_request[0])
-					send_data = "{ \"type\": \"send_text\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"message\" : \"" + line_input_text + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
+					send_data = "{ \"type\": \"send_text\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"message\" : \"" + line_encoded_input_text + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
 				else if (line_send_request[1])
 				{
 					if (line_selected_sticker_num >= 1 && line_selected_sticker_num <= 40)
@@ -1554,15 +1557,14 @@ void Line_send_message_thread(void* arg)
 						if (!failed)
 						{
 							check = (u8*)malloc((total_read_size * 2) + 0x1000);
-							if (check == NULL)
+							if(check == NULL)
 							{
-								Err_set_error_message("Out of memory", "Not enough memory", line_send_msg_thread_string, OUT_OF_MEMORY);
+								Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", line_send_msg_thread_string, OUT_OF_MEMORY);
 								Err_set_error_show_flag(true);
-								Log_log_add(log_num[0], "Out of memory", OUT_OF_MEMORY, false);
+								Log_log_add(log_num[0], "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 								failed = true;
 							}
 							free(check);
-							check = NULL;
 
 							if (!failed)
 							{
@@ -1574,18 +1576,16 @@ void Line_send_message_thread(void* arg)
 								line_step_max = num_of_loop + 2;
 								for (int i = 0; i <= num_of_loop; i++)
 								{
-									send_data.reserve(100);
 									check = (u8*)malloc((encoded_data.length() * 1.25)+ line_send_fs_cache_buffer_size);
-									if (check == NULL)
+									if(check == NULL)
 									{
-										Err_set_error_message("Out of memory", "Not enough memory", line_send_msg_thread_string, OUT_OF_MEMORY);
+										Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", line_send_msg_thread_string, OUT_OF_MEMORY);
 										Err_set_error_show_flag(true);
-										Log_log_add(log_num[0], "Out of memory", OUT_OF_MEMORY, false);
+										Log_log_add(log_num[0], "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 										failed = true;
 										break;
 									}
 									free(check);
-									check = NULL;
 
 									if (num_of_loop <= i)
 										send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data.substr((i * line_send_fs_cache_buffer_size), (encoded_data.length() - (i * line_send_fs_cache_buffer_size))) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
@@ -1645,6 +1645,7 @@ void Line_send_message_thread(void* arg)
 					if (response_string == "Success")
 					{
 						line_send_success = true;
+						line_input_text = "";
 						Log_log_add(log_num[0], result.string, result.code, false);
 					}
 					else
@@ -1669,12 +1670,12 @@ void Line_send_message_thread(void* arg)
 			encoded_data = "";
 			encoded_data.reserve(1);
 			free(httpc_buffer);
-			httpc_buffer = NULL;
 			free(content_fs_buffer[0]);
-			content_fs_buffer[0] = NULL;
 			free(content_fs_buffer[1]);
-			content_fs_buffer[1] = NULL;
 			free(check);
+			httpc_buffer = NULL;
+			content_fs_buffer[0] = NULL;
+			content_fs_buffer[1] = NULL;
 			check = NULL;
 
 			line_sending_msg = false;
@@ -1746,10 +1747,10 @@ Result_with_string Line_load_icon(int room_num)
 	FS_Archive fs_archive = 0;
 	Handle fs_handle = 0;
 	Result_with_string result;
-	stbi_uc* stb_image;
 
 	httpc_fs_buffer = (u8*)malloc(0x4000);
-	stb_image = NULL;
+	free(line_stb_image[room_num]);
+	line_stb_image[room_num] = NULL;
 
 	if (line_icon_url[room_num] != "")
 	{
@@ -1780,16 +1781,16 @@ Result_with_string Line_load_icon(int room_num)
 
 		if (result.code == 0)
 		{
-			free(stb_image);
-			stb_image = NULL;
-			stb_image = stbi_load_from_memory((stbi_uc const*)httpc_fs_buffer, (int)pic_size, &image_width, &image_height, NULL, STBI_rgb_alpha);
-			if (stb_image != NULL)
+			free(line_stb_image[room_num]);
+			line_stb_image[room_num] = NULL;
+			line_stb_image[room_num] = stbi_load_from_memory((stbi_uc const*)httpc_fs_buffer, (int)pic_size, &image_width, &image_height, NULL, STBI_rgb_alpha);
+			if (line_stb_image[room_num] != NULL)
 			{
 				linearFree(line_c3d_cache_tex[room_num]->data);
 				line_icon[room_num].tex = line_c3d_cache_tex[room_num];
 				line_icon[room_num].subtex = line_c3d_cache_subtex[room_num];
-				Draw_rgba_to_abgr(stb_image, (u32)image_width, (u32)image_height);
-				result = Draw_c3dtex_to_c2dimage(line_c3d_cache_tex[room_num], line_c3d_cache_subtex[room_num], stb_image, (u32)(image_width * image_height * 4), image_width, image_height, 0, 0, 32, 32, GPU_RGBA8);
+				Draw_rgba_to_abgr(line_stb_image[room_num], (u32)image_width, (u32)image_height);
+				result = Draw_c3dtex_to_c2dimage(line_c3d_cache_tex[room_num], line_c3d_cache_subtex[room_num], line_stb_image[room_num], (u32)(image_width * image_height * 4), image_width, image_height, 0, 0, 32, 32, GPU_RGBA8);
 			}
 		}
 	}
@@ -1799,8 +1800,6 @@ Result_with_string Line_load_icon(int room_num)
 		result.string = "[Error] There is no icon info. ";
 	}
 
-	free(stb_image);
-	stb_image = NULL;
 	free(httpc_fs_buffer);
 	httpc_fs_buffer = NULL;
 	return result;
@@ -1854,7 +1853,7 @@ Result_with_string Line_load_log_from_sd(std::string file_name)
 	{
 		result.code = OUT_OF_MEMORY;
 		result.string = "[Error] Out of memory.";
-		result.error_description = "Couldn't allocate 'fs buffer'(" + std::to_string(line_log_fs_buffer_size / 1024) + "KB).";
+		result.error_description = "Couldn't allocate memory.";
 	}
 	else
 	{
@@ -1949,7 +1948,7 @@ void Line_log_parse_thread(void* arg)
 				parse_cache = (char*)malloc(0x10000);
 				if (parse_cache == NULL)
 				{
-					Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'parse cache'(" + std::to_string(0x10000 / 1024) + "KB). ", line_parse_thread_string, OUT_OF_MEMORY);
+					Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", line_parse_thread_string, OUT_OF_MEMORY);
 					Err_set_error_show_flag(true);
 					Log_log_add(log_num, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 				}

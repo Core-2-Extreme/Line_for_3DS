@@ -195,9 +195,9 @@ void Imv_init(void)
 	imv_image_buffer = (u8*)malloc(0x500000);
 	if (imv_image_buffer == NULL)
 	{
-		Err_set_error_message("Out of memory.", "Couldn't allocate 'imv image buffer'(" + std::to_string(0x500000 / 1024) + "KB).", "Imv/Init", OUT_OF_MEMORY);
-		Log_log_save("Imv/Init", "[Error] Out of memory. ", OUT_OF_MEMORY, s_debug_slow);
+		Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", "Imv/Init", OUT_OF_MEMORY);
 		Err_set_error_show_flag(true);
+		Log_log_save("Imv/Init", "[Error] Out of memory. ", OUT_OF_MEMORY, s_debug_slow);
 		failed = true;
 	}
 	else
@@ -530,8 +530,6 @@ void Imv_img_parse_thread(void* arg)
 		linearFree(c3d_cache_tex[i]);
 		linearFree(c3d_cache_subtex[i]);
 		c3d_cache_tex[i]->data = NULL;
-		c3d_cache_tex[i] = NULL;
-		c3d_cache_subtex[i] = NULL;
 		imv_enable[i] = false;
 	}
 	free(stb_image);
@@ -558,7 +556,7 @@ void Imv_img_load_thread(void* arg)
 			fs_buffer = (u8*)malloc(imv_img_fs_buffer_size);
 			if (fs_buffer == NULL)
 			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'fs buffer'(" + std::to_string(imv_img_fs_buffer_size / 1024) + "KB). ", "Imv/Img load thread", OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", "Imv/Img load thread", OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
 				Log_log_save("Imv/Img load thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 			}
@@ -623,7 +621,7 @@ void Imv_img_dl_thread(void* arg)
 			httpc_buffer = (u8*)malloc(imv_img_httpc_buffer_size);
 			if (httpc_buffer == NULL)
 			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(imv_img_httpc_buffer_size / 1024) + "KB). ", "Imv/Img dl thread", OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory. ", "Imv/Img dl thread", OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
 				Log_log_save("Imv/Img dl thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 			}

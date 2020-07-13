@@ -227,7 +227,7 @@ void Spt_spt_thread(void* arg)
 
 			if (httpc_buffer == NULL)
 			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(spt_httpc_buffer_size / 1024) + "KB). ", "Spt/Spt thread", OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", "Spt/Spt thread", OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
 				Log_log_save("Spt/Spt thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 			}

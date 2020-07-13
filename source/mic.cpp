@@ -24,7 +24,7 @@ bool mic_stop_record_request = false;
 u8* mic_buffer;
 u32 mic_buffer_size = 0x300000;
 std::string mic_msg[MIC_NUM_OF_MSG];
-std::string mic_ver = "v1.0.0";
+std::string mic_ver = "v1.0.1";
 Thread mic_record_thread;
 
 bool Mic_query_init_flag(void)
@@ -101,16 +101,16 @@ void Mic_record_thread(void* arg)
 			*chunk_size = 0;
 			header = (u8*)malloc(44);
 			fs_buffer = (u8*)malloc(mic_buffer_size);
-			memset(header, 0x0, 44);
-			memset(fs_buffer, 0x0, mic_buffer_size);
 			if (fs_buffer == NULL)
 			{
-				Err_set_error_message("Out of memory.", "Couldn't allocate 'fs_buffer(" + std::to_string(mic_buffer_size) + "KB).", "Mic/Record thread", OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", "Mic/Record thread", OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
-				Log_log_save("Mic/Record thread", "Out of memory...", 1234567890, false);
+				Log_log_save("Mic/Record thread", "[Error] Out of memory.", OUT_OF_MEMORY, false);
 			}
 			else
 			{
+				memset(header, 0x0, 44);
+				memset(fs_buffer, 0x0, mic_buffer_size);
 				buffer_offset = 0;
 				data_size = micGetSampleDataSize();
 				log_num = Log_log_save("Mic/Record thread", "MICU_StartSampling()...", 1234567890, false);
@@ -226,8 +226,9 @@ void Mic_init(void)
 	mic_buffer = (u8*)memalign(0x1000, mic_buffer_size);
 	if (mic_buffer == NULL)
 	{
-		Err_set_error_message("Out of memory.", "Couldn't allocate 'mic_buffer(" + std::to_string(mic_buffer_size) + "KB).", "Mic/Init", OUT_OF_MEMORY);
+		Err_set_error_message("Out of memory.", "Couldn't allocate memory.", "Mic/Init", OUT_OF_MEMORY);
 		Err_set_error_show_flag(true);
+		Log_log_save("Mic/Init", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 		failed = true;
 	}
 

@@ -55,7 +55,7 @@ int menu_fps = 0;
 int menu_free_ram = 0;
 int menu_free_linear_ram = 0;
 int menu_afk_time;
-std::string menu_app_ver = "v1.5.1";
+std::string menu_app_ver = "v1.5.2";
 
 Thread menu_update_thread, menu_send_app_info_thread, menu_check_connectivity_thread;
 
@@ -158,7 +158,7 @@ void Menu_init(void)
 	menu_update_thread_run = true;
 	menu_check_connectivity_thread_run = true;
 	menu_update_thread = threadCreate(Menu_update_thread, (void*)(""), STACKSIZE, 0x18, -1, false);
-	//menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, 0x30, -1, false);
+	menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, 0x30, -1, false);
 
 	if (Sem_query_settings(SEM_ALLOW_SEND_APP_INFO))
 	{

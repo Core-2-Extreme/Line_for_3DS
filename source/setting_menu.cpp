@@ -1202,7 +1202,7 @@ void Sem_check_update_thread(void* arg)
 			httpc_buffer = (u8*)malloc(0x300000);
 			if (httpc_buffer == NULL)
 			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate 'httpc buffer'(" + std::to_string(0x300000 / 1024) + "KB). ", sem_check_update_string, OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", sem_check_update_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
 				Log_log_save(sem_check_update_string, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 			}

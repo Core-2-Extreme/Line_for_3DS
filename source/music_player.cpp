@@ -16,6 +16,7 @@
 #include "share_function.hpp"
 #include "setting_menu.hpp"
 #include "music_player.hpp"
+#include "explorer.hpp"
 
 bool mup_main_run = false;
 bool mup_play_thread_run = false;
@@ -28,6 +29,7 @@ bool mup_loop_request = false;
 bool mup_count_request = false;
 bool mup_count_reset_request = false;
 bool mup_select_file_request = false;
+bool mup_shuffle_request = false;
 bool mup_allow_sleep = false;
 double mup_music_length = 0.0;
 float mup_bar_pos = 0.0;
@@ -37,10 +39,10 @@ int mup_music_bit_rate = 0;
 int mup_sound_fs_out_buffer_size = 0x100000;
 int mup_sound_fs_in_buffer_size = 0x100000;
 std::string mup_load_file_name = "";
-std::string mup_load_dir_name = "";
+std::string mup_load_dir_name = "/";
 std::string mup_file_type = "unknown";
 std::string mup_msg[MUP_NUM_OF_MSG];
-std::string mup_ver = "v1.0.1";
+std::string mup_ver = "v1.0.2";
 Thread mup_play_thread, mup_timer_thread;
 
 bool Mup_query_init_flag(void)
@@ -87,6 +89,8 @@ bool Mup_query_operation_flag(int operation_num)
 		return mup_select_file_request;
 	else if (operation_num == MUP_LOOP_REQUEST)
 		return mup_loop_request;
+	else if(operation_num == MUP_SHUFFLE_REQUEST)
+		return mup_shuffle_request;
 	else
 		return false;
 }
@@ -115,6 +119,8 @@ void Mup_set_operation_flag(int operation_num, bool flag)
 		mup_select_file_request = flag;
 	else if (operation_num == MUP_LOOP_REQUEST)
 		mup_loop_request = flag;
+	else if(operation_num == MUP_SHUFFLE_REQUEST)
+		mup_shuffle_request = flag;
 }
 
 void Mup_set_allow_sleep(bool flag)
@@ -186,6 +192,9 @@ void Mup_play_thread(void* arg)
 	int mp3_result = 0;
 	int mp3_estimated_output = 0;
 	int mp3_input_size = 128 * 1024;
+	int random_num = 0;
+	int previous_random_num = -1;
+	int count = 0;
 	double multiple[2] = { 0.0, 0.0 };
 	u8* sound_buffer[2];
 	u8* sound_header[2];
@@ -203,22 +212,35 @@ void Mup_play_thread(void* arg)
 	mp3dec_t mp3_decode;
 	mp3dec_init(&mp3_decode);
 	mp3dec_file_info_t mp3_info;
-	MP3D_PROGRESS_CB mp3_progress;
 
+	mp3_info.buffer = NULL;
 	sound_buffer[0] = (u8*)linearAlloc(mup_sound_fs_out_buffer_size / 2);
 	sound_buffer[1] = (u8*)linearAlloc(mup_sound_fs_out_buffer_size / 2);
 	sound_in_buffer = (u8*)malloc(mup_sound_fs_in_buffer_size);
 	sound_header[0] = (u8*)malloc(0x4000);
-	sound_header[1] = (u8*)malloc(0x4);
-	wav_sample = (u8*)malloc(0x4);
-	mp3_sample = (u8*)malloc(0x3);
-	memset(wav_sample, 0x52, 0x1);
-	memset((wav_sample + 1), 0x49, 0x1);
-	memset((wav_sample + 2), 0x46, 0x1);
-	memset((wav_sample + 3), 0x46, 0x1);
-	memset(mp3_sample, 0x49, 0x1);
-	memset((mp3_sample + 1), 0x44, 0x1);
-	memset((mp3_sample + 2), 0x33, 0x1);
+	if(sound_buffer[0] == NULL || sound_buffer[1] == NULL || sound_in_buffer == NULL)
+	{
+		Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", "Mup/Play thread", OUT_OF_MEMORY);
+		Err_set_error_show_flag(true);
+		Log_log_save("Mup/Play thread", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
+		mp3_sample = NULL;
+		wav_sample = NULL;
+		sound_header[1] = NULL;
+		mup_play_thread_run = false;
+	}
+	else
+	{
+		sound_header[1] = (u8*)malloc(0x4);
+		wav_sample = (u8*)malloc(0x4);
+		mp3_sample = (u8*)malloc(0x3);
+		memset(wav_sample, 0x52, 0x1);
+		memset((wav_sample + 1), 0x49, 0x1);
+		memset((wav_sample + 2), 0x46, 0x1);
+		memset((wav_sample + 3), 0x46, 0x1);
+		memset(mp3_sample, 0x49, 0x1);
+		memset((mp3_sample + 1), 0x44, 0x1);
+		memset((mp3_sample + 2), 0x33, 0x1);
+	}
 
 	while (mup_play_thread_run)
 	{
@@ -231,139 +253,155 @@ void Mup_play_thread(void* arg)
 			mup_bar_pos = 0.0;
 			mp3_input_size = mup_sound_fs_in_buffer_size;
 			file_size = 0;
+			count = 0;
 			memset(sound_buffer[0], 0x0, mup_sound_fs_out_buffer_size / 2);
 			memset(sound_buffer[1], 0x0, mup_sound_fs_out_buffer_size / 2);
 			memset(sound_in_buffer, 0x0, mup_sound_fs_in_buffer_size);
 			memset(sound_header[0], 0x0, 0x4000);
 			memset(sound_header[1], 0x0, 0x4);
 
-			result = File_load_from_file_with_range(mup_load_file_name, sound_header[0], 0x4000, 0, &read_size, mup_load_dir_name, fs_handle, fs_archive);
+			if(mup_shuffle_request)
+			{
+				do {
+					srand(time(NULL));
+					random_num = rand() % Expl_query_num_of_file();
+					usleep(5000);
+					count++;
+					if(count >= 50)
+						break;
+				}
+				while(Expl_query_type(random_num) != "file" || previous_random_num == random_num);
+
+				previous_random_num = random_num;
+				file_name = Expl_query_file_name(random_num);
+			}
+
+			result = File_load_from_file_with_range(file_name, sound_header[0], 0x4000, 0, &read_size, mup_load_dir_name, fs_handle, fs_archive);
 
 			if (result.code != 0)
-			{
-				Log_log_save("", "File_load_from_file..." + result.string, result.code, false);
-				break;
-			}
-
-			memcpy((void*)sound_header[1], (void*)(sound_header[0]), 0x4);
-
-			mup_file_type = (char*)sound_header[1];
-			if (memcmp(mp3_sample, sound_header[1], 3) == 0)
-				mup_file_type = "mp3";
-			else if (memcmp(wav_sample, sound_header[1], 4) == 0)
-				mup_file_type = "wav";
+				Log_log_save("Mup/Play thread", "File_load_from_file..." + result.string, result.code, false);
 			else
-				mup_file_type = "unsupported";
-
-			if (mup_file_type == "wav")
 			{
-				memset(sound_header[1], 0x0, 0x4);
-				memcpy((void*)sound_header[1], (void*)(sound_header[0] + 4), 0x4);//file size
-				file_size = *(int*)sound_header[1];
+				memcpy((void*)sound_header[1], (void*)(sound_header[0]), 0x4);
+				mup_file_type = (char*)sound_header[1];
+				if (memcmp(mp3_sample, sound_header[1], 3) == 0)
+					mup_file_type = "mp3";
+				else if (memcmp(wav_sample, sound_header[1], 4) == 0)
+					mup_file_type = "wav";
+				else
+					mup_file_type = "unsupported";
 
-				memset(sound_header[1], 0x0, 0x4);
-				memcpy((void*)sound_header[1], (void*)(sound_header[0] + 22), 0x2);//ch
-				mup_num_of_music_ch = *(int*)sound_header[1];
-
-				memset(sound_header[1], 0x0, 0x4);
-				memcpy((void*)sound_header[1], (void*)(sound_header[0] + 24), 0x4);//sample rate
-				mup_music_sample_rate = *(int*)sound_header[1];
-
-				memset(sound_header[1], 0x0, 0x4);
-				memcpy((void*)sound_header[1], (void*)(sound_header[0] + 28), 0x4);//byte rate
-				mup_music_bit_rate = *(int*)sound_header[1];
-				mup_music_bit_rate = mup_music_bit_rate * 8;
-				mup_music_length = (double)file_size / ((double)mup_music_bit_rate / 8);
-			}
-			else if (mup_file_type == "mp3")
-			{
-				free(mp3_info.buffer);
-				mp3_info.buffer = NULL;
-				result = File_check_file_size(file_name, dir_name, &mp3_file_size, fs_handle, fs_archive);
-				mp3_result = mp3dec_load_buf(&mp3_decode, (const uint8_t*)sound_header[0], read_size, &mp3_info, mp3_progress, NULL, 0x50000);
-				if (result.code == 0)
-				{
-					mup_num_of_music_ch = mp3_info.channels;//ch
-					mup_music_sample_rate = mp3_info.hz;//sample rate
-					mup_music_bit_rate = mp3_info.avg_bitrate_kbps;//kb rate
-					mup_music_bit_rate = mup_music_bit_rate * 1000;//bit rate
-					mup_music_length = (double)((mp3_file_size - mp3_info.samples) * 8) / (double)mup_music_bit_rate;
-					multiple[0] = (double)mup_music_sample_rate / 48000.0;
-					multiple[1] = 320.0 / (double)(mup_music_bit_rate / 1000);
-
-					while (true)
-					{
-						mp3_estimated_output = mp3_input_size * 2.4 * multiple[0] * multiple[1] * mup_num_of_music_ch;
-						if ((mp3_estimated_output <= (int)mup_sound_fs_out_buffer_size / 2 && mp3_input_size <= 0x100000) || mp3_input_size <= 1)
-							break;
-						else
-							mp3_input_size = mp3_input_size / 2;
-					}
-				}
-			}
-
-			for (int i = 0; i < 100000; i++)
-			{
 				if (mup_file_type == "wav")
 				{
-					result = File_load_from_file_with_range(file_name, sound_buffer[buffer_num], mup_sound_fs_out_buffer_size / 2, (i * (mup_sound_fs_out_buffer_size / 2)), &read_size, dir_name, fs_handle, fs_archive);
+					memset(sound_header[1], 0x0, 0x4);
+					memcpy((void*)sound_header[1], (void*)(sound_header[0] + 4), 0x4);//file size
+					file_size = *(int*)sound_header[1];
 
-					if(result.code != 0)
-						Log_log_save("", "File_load_from_file..." + result.string, result.code, false);
+					memset(sound_header[1], 0x0, 0x4);
+					memcpy((void*)sound_header[1], (void*)(sound_header[0] + 22), 0x2);//ch
+					mup_num_of_music_ch = *(int*)sound_header[1];
 
-					raw_buffer_size = read_size;
+					memset(sound_header[1], 0x0, 0x4);
+					memcpy((void*)sound_header[1], (void*)(sound_header[0] + 24), 0x4);//sample rate
+					mup_music_sample_rate = *(int*)sound_header[1];
+
+					memset(sound_header[1], 0x0, 0x4);
+					memcpy((void*)sound_header[1], (void*)(sound_header[0] + 28), 0x4);//byte rate
+					mup_music_bit_rate = *(int*)sound_header[1];
+					mup_music_bit_rate = mup_music_bit_rate * 8;
+					mup_music_length = (double)file_size / ((double)mup_music_bit_rate / 8);
 				}
 				else if (mup_file_type == "mp3")
 				{
-					result = File_load_from_file_with_range(file_name, sound_in_buffer, mp3_input_size, (i * mp3_input_size), &read_size, dir_name, fs_handle, fs_archive);
+					free(mp3_info.buffer);
+					mp3_info.buffer = NULL;
+					result = File_check_file_size(file_name, dir_name, &mp3_file_size, fs_handle, fs_archive);
+					mp3_result = mp3dec_load_buf(&mp3_decode, (const uint8_t*)sound_header[0], read_size, &mp3_info, NULL, NULL, 0x50000);
 
 					if (result.code == 0)
 					{
-						free(mp3_info.buffer);
-						mp3_info.buffer = NULL;
-						mp3_result = mp3dec_load_buf(&mp3_decode, (const uint8_t*)sound_in_buffer, read_size, &mp3_info, mp3_progress, NULL, mup_sound_fs_out_buffer_size / 2);
-						if(mp3_result != 0)
-							Log_log_save("", "mp3dec_load_buf()...input " + std::to_string(read_size / 1024) + "KB. ""decoded " + std::to_string(mp3_info.samples * 2 / 1024) + "KB [Error] ", mp3_result, false);
+						mup_num_of_music_ch = mp3_info.channels;//ch
+						mup_music_sample_rate = mp3_info.hz;//sample rate
+						mup_music_bit_rate = mp3_info.avg_bitrate_kbps;//kb rate
+						mup_music_bit_rate = mup_music_bit_rate * 1000;//bit rate
+						mup_music_length = (double)((mp3_file_size - mp3_info.samples) * 8) / (double)mup_music_bit_rate;
+						multiple[0] = (double)mup_music_sample_rate / 48000.0;
+						multiple[1] = 320.0 / (double)(mup_music_bit_rate / 1000);
 
-						memset(sound_buffer[buffer_num], 0x0, mup_sound_fs_out_buffer_size / 2);
-						memcpy((void*)(sound_buffer[buffer_num]), mp3_info.buffer, mp3_info.samples * 2);
+						while (true)
+						{
+							mp3_estimated_output = mp3_input_size * 2.4 * multiple[0] * multiple[1] * mup_num_of_music_ch;
+							if ((mp3_estimated_output <= (int)mup_sound_fs_out_buffer_size / 2 && mp3_input_size <= 0x100000) || mp3_input_size <= 1)
+								break;
+							else
+								mp3_input_size = mp3_input_size / 2;
+						}
+					}
+				}
 
-						raw_buffer_size = mp3_info.samples * 2;
+				for (int i = 0; i < 100000; i++)
+				{
+					if (mup_file_type == "wav")
+					{
+						result = File_load_from_file_with_range(file_name, sound_buffer[buffer_num], mup_sound_fs_out_buffer_size / 2, (i * (mup_sound_fs_out_buffer_size / 2)), &read_size, dir_name, fs_handle, fs_archive);
+
+						if(result.code != 0)
+							Log_log_save("", "File_load_from_file..." + result.string, result.code, false);
+
+						raw_buffer_size = read_size;
+					}
+					else if (mup_file_type == "mp3")
+					{
+						result = File_load_from_file_with_range(file_name, sound_in_buffer, mp3_input_size, (i * mp3_input_size), &read_size, dir_name, fs_handle, fs_archive);
+
+						if (result.code == 0)
+						{
+							free(mp3_info.buffer);
+							mp3_info.buffer = NULL;
+							mp3_result = mp3dec_load_buf(&mp3_decode, (const uint8_t*)sound_in_buffer, read_size, &mp3_info, NULL, NULL, mup_sound_fs_out_buffer_size / 2);
+							if(mp3_result != 0)
+								Log_log_save("", "mp3dec_load_buf()...input " + std::to_string(read_size / 1024) + "KB. ""decoded " + std::to_string(mp3_info.samples * 2 / 1024) + "KB [Error] ", mp3_result, false);
+
+							memset(sound_buffer[buffer_num], 0x0, mup_sound_fs_out_buffer_size / 2);
+							memcpy((void*)(sound_buffer[buffer_num]), mp3_info.buffer, mp3_info.samples * 2);
+
+							raw_buffer_size = mp3_info.samples * 2;
+						}
+						else
+							Log_log_save("", "File_load_from_file..." + result.string, result.code, false);
 					}
 					else
-						Log_log_save("", "File_load_from_file..." + result.string, result.code, false);
-				}
-				else
-					break;
-
-				while (true)
-				{
-					csndIsPlaying(31, &status);
-					if (status == 0 || !mup_play_thread_run || mup_stop_request)
 						break;
 
-					usleep(7500);
-				}
+					while (true)
+					{
+						csndIsPlaying(31, &status);
+						if (status == 0 || !mup_play_thread_run || mup_stop_request)
+							break;
 
-				if (!mup_play_thread_run || mup_stop_request || result.code != 0)
-				{
-					CSND_SetPlayState(31, 0);
-					CSND_UpdateInfo(0);
-					break;
-				}
+						usleep(7500);
+					}
 
-				mup_count_request = false;
-				if (raw_buffer_size > 0)
-				{
-					result = Mup_play_sound(sound_buffer[buffer_num], raw_buffer_size, mup_music_sample_rate, mup_num_of_music_ch);
+					if (!mup_play_thread_run || mup_stop_request || result.code != 0)
+					{
+						CSND_SetPlayState(31, 0);
+						CSND_UpdateInfo(0);
+						break;
+					}
 
-					if (buffer_num == 0)
-						buffer_num = 1;
-					else if (buffer_num == 1)
-						buffer_num = 0;
+					mup_count_request = false;
+					if (raw_buffer_size > 0)
+					{
+						result = Mup_play_sound(sound_buffer[buffer_num], raw_buffer_size, mup_music_sample_rate, mup_num_of_music_ch);
+
+						if (buffer_num == 0)
+							buffer_num = 1;
+						else if (buffer_num == 1)
+							buffer_num = 0;
+					}
+					mup_count_request = true;
 				}
-				mup_count_request = true;
-			}
+		  }
 
 			mup_count_request = false;
 			if (!mup_loop_request)
@@ -580,6 +618,26 @@ void Mup_main(void)
 
 	Draw_texture(Square_image, weak_aqua_tint, 0, 230.0, 180.0, 80.0, 20.0);
 	Draw(mup_msg[15], 0, 232.5, 180.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+
+	for (int i = 0; i < 2; i++)
+	{
+		red[i] = text_red;
+		green[i] = text_green;
+		blue[i] = text_blue;
+		alpha[i] = text_alpha;
+	}
+	red[!mup_shuffle_request] = 1.0;
+	green[!mup_shuffle_request] = 0.0;
+	blue[!mup_shuffle_request] = 0.0;
+	alpha[!mup_shuffle_request] = 1.0;
+
+	Draw(mup_msg[18], 0, 12.5, 135.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+	for (int i = 0; i < 2; i++)
+	{
+		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0 + (i * 50.0), 150.0, 40.0, 20.0);
+		Draw(mup_msg[10 + i], 0, 12.5 + (i * 50.0), 150.0, 0.5, 0.5, red[i], green[i], blue[i], alpha[i]);
+	}
+
 	if (mup_select_file_request)
 		Draw_expl(mup_msg[8]);
 

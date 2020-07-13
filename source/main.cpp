@@ -43,6 +43,8 @@ void Init(void)
 	Log_start_up_time_timer();
 	init_buffer = (u8*)malloc(0x2000);
 	memset(init_buffer, 0x0, 0x2000);
+	Log_log_save(main_init_string , "", 1234567890, false);
+	Log_log_save(main_init_string , "", 1234567890, false);
 	Log_log_save(main_init_string , "Initializing...", 1234567890, false);
 	Log_log_save(main_init_string, Menu_query_ver(), 1234567890, false);
 
@@ -132,7 +134,7 @@ void Init(void)
 		}
 	}
 
-	if(s_setting[0] != "jp" || s_setting[0] != "en")
+	if(s_setting[0] != "jp" && s_setting[0] != "en")
 		s_setting[0] = "en";
 
 	for (int i = 1; i < 6; i++)

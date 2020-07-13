@@ -10,6 +10,7 @@
 bool expl_read_dir_thread_run = false;
 bool expl_read_dir_request = false;
 int expl_num_of_file = 0;
+int expl_size[256];
 double expl_view_offset_y = 0.0;
 double expl_selected_file_num = 0.0;
 std::string expl_current_patch = "/";
@@ -30,7 +31,7 @@ std::string Expl_query_file_name(int file_num)
 		return "";
 }
 
-double Expl_query_num_of_file(void)
+int Expl_query_num_of_file(void)
 {
 	return expl_num_of_file;
 }
@@ -49,6 +50,14 @@ double Expl_query_selected_num(int item_num)
 		return expl_selected_file_num;
 	else
 		return -1.0;
+}
+
+int Expl_query_size(int file_num)
+{
+	if (file_num >= 0 && file_num <= 255)
+		return expl_size[file_num];
+	else
+		return -1;
 }
 
 std::string Expl_query_type(int file_num)
@@ -109,19 +118,22 @@ void Expl_read_dir_thread(void* arg)
 	int num_of_read_only;
 	int num_of_unknown;
 	int num_offset;
+  u64 file_size;
 	std::string name_of_hidden[256];
 	std::string name_of_dir[256];
 	std::string name_of_file[256];
 	std::string name_of_read_only[256];
 	std::string name_of_unknown[256];
 	std::string sort_cache[256];
-//	std::string name_sample = "!#$%&'()+,-.0123456789;=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{}~";
-	Result_with_string read_dir_result;
+  FS_Archive fs_archive = 0;
+	Handle fs_handle = 0;
+  Result_with_string read_dir_result;
 
 	for (int i = 0; i < 256; i++)
 	{
 		expl_files[i] = "";
 		expl_type[i] = "";
+    expl_size[i] = 0;
 	}
 
 	while (expl_read_dir_thread_run)
@@ -132,6 +144,7 @@ void Expl_read_dir_thread(void* arg)
 			{
 				expl_files[i] = "";
 				expl_type[i] = "";
+        expl_size[i] = 0;
 			}
 
 			read_dir_lou_num_return = Log_log_save("Expl/Read dir thread", "File_read_dir(" + expl_current_patch + ")...", 1234567890, false);
@@ -206,26 +219,41 @@ void Expl_read_dir_thread(void* arg)
 				{
 					expl_type[i + num_offset] = "hidden";
 					expl_files[i + num_offset] = name_of_hidden[i];
+          read_dir_result = File_check_file_size(expl_files[i + num_offset], expl_current_patch, &file_size, fs_handle, fs_archive);
+          if(read_dir_result.code == 0)
+            expl_size[i + num_offset] = (int)file_size;
 				}
 				for (int i = 0; i < num_of_dir; i++)
 				{
 					expl_type[i + num_of_hidden + num_offset] = "dir";
 					expl_files[i + num_of_hidden + num_offset] = name_of_dir[i];
+          read_dir_result = File_check_file_size(expl_files[i + num_of_hidden + num_offset], expl_current_patch, &file_size, fs_handle, fs_archive);
+          if(read_dir_result.code == 0)
+            expl_size[i + num_of_hidden + num_offset] = (int)file_size;
 				}
 				for (int i = 0; i < num_of_file; i++)
 				{
 					expl_type[i + num_of_hidden + num_of_dir + num_offset] = "file";
 					expl_files[i + num_of_hidden + num_of_dir + num_offset] = name_of_file[i];
+          read_dir_result = File_check_file_size(expl_files[i + num_of_hidden + num_of_dir + num_offset], expl_current_patch, &file_size, fs_handle, fs_archive);
+          if(read_dir_result.code == 0)
+            expl_size[i + num_of_hidden + num_of_dir + num_offset] = (int)file_size;
 				}
 				for (int i = 0; i < num_of_read_only; i++)
 				{
 					expl_type[i + num_of_hidden + num_of_dir + num_of_file + num_offset] = "read only";
 					expl_files[i + num_of_hidden + num_of_dir + num_of_file + num_offset] = name_of_read_only[i];
+          read_dir_result = File_check_file_size(expl_files[i + num_of_hidden + num_of_dir + num_of_file + num_offset], expl_current_patch, &file_size, fs_handle, fs_archive);
+          if(read_dir_result.code == 0)
+            expl_size[i + num_of_hidden + num_of_dir + num_of_file + num_offset] = (int)file_size;
 				}
 				for (int i = 0; i < num_of_unknown; i++)
 				{
 					expl_type[i + num_of_hidden + num_of_dir + num_of_file + num_of_read_only + num_offset] = "unknown";
 					expl_files[i + num_of_hidden + num_of_dir + num_of_file + num_of_read_only + num_offset] = name_of_unknown[i];
+          read_dir_result = File_check_file_size(expl_files[i + num_of_hidden + num_of_dir + num_of_file + num_of_read_only + num_offset], expl_current_patch, &file_size, fs_handle, fs_archive);
+          if(read_dir_result.code == 0)
+            expl_size[i + num_of_hidden + num_of_dir + num_of_file + num_of_read_only + num_offset] = (int)file_size;
 				}
 			}
 
@@ -236,5 +264,3 @@ void Expl_read_dir_thread(void* arg)
 	Log_log_save("Expl/Read dir thread", "Thread exit.", 1234567890, false);
 	threadExit(0);
 }
-
-

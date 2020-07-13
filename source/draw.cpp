@@ -344,7 +344,7 @@ void Draw_expl(std::string msg)
 		else
 			red = 0.0;
 
-		Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, red, 0.0, 0.0, 1.0);
+		Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + std::to_string(Expl_query_size(i + (int)Expl_query_view_offset_y()) / 1024.0 / 1024.0).substr(0, 4) + "MB) (" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, red, 0.0, 0.0, 1.0);
 	}
 }
 

@@ -34,7 +34,7 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 	moved_url = (char*)malloc(0x1000);
 	if (moved_url == NULL)
 	{
-		result.error_description = "Couldn't malloc to 'moved_url'(" + std::to_string(0x1000 / 1024) + "KB).";
+		result.error_description = "Couldn't allocate memory.";
 		result.code = OUT_OF_MEMORY;
 		result.string = "[Error] Out of memory. ";
 		return result;
@@ -173,7 +173,7 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 	moved_url = (char*)malloc(0x1000);
 	if (moved_url == NULL)
 	{
-		result.error_description = "Couldn't malloc to 'moved_url'(" + std::to_string(0x1000 / 1024) + "KB).";
+		result.error_description = "Couldn't allocate memory.";
 		result.code = OUT_OF_MEMORY;
 		result.string = "[Error] Out of memory. ";
 		return result;

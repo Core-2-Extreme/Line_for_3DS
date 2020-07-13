@@ -80,7 +80,7 @@ std::string cam_encode_thread_string = "Cam/Encode thread";
 std::string cam_parse_thread_string = "Cam/Parse thread";
 std::string cam_init_string = "Cam/Init";
 std::string cam_exit_string = "Cam/Exit";
-std::string cam_ver = "v1.0.0";
+std::string cam_ver = "v1.0.1";
 Thread cam_capture_thread, cam_encode_thread[3], cam_parse_thread;
 C2D_Image cam_capture_image[4];
 
@@ -453,7 +453,7 @@ Result_with_string Cam_set_capture_fps(int fps_num)
 {
 	CAMU_FrameRate framerate;
 	Result_with_string result;
-	
+
 	if (fps_num == 0)
 		framerate = FRAME_RATE_15;
 	else if (fps_num == 1)
@@ -699,8 +699,8 @@ void Cam_encode_thread(void* arg)
 				memset(cam_png_buffer, 0x0, 0x80000);
 				if (cam_png_buffer == NULL)
 				{
-					Err_set_error_message("Out of memory.", "Couldn't allocate 'cam_png_buffer'(" + std::to_string((Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 3) / 1024) + "KB).", cam_encode_thread_string + std::to_string(thread_num), OUT_OF_MEMORY);
-					Log_log_save(cam_encode_thread_string + std::to_string(thread_num), "Out of memory. ", OUT_OF_MEMORY, false);
+					Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_encode_thread_string + std::to_string(thread_num), OUT_OF_MEMORY);
+					Log_log_save(cam_encode_thread_string + std::to_string(thread_num), "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 					Err_set_error_show_flag(true);
 				}
 				else if (cam_capture_buffer[k] != NULL)
@@ -769,8 +769,8 @@ void Cam_capture_thread(void* arg)
 			cam_capture_buffer[0] = (u8*)malloc(Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2);
 			if (cam_capture_buffer[0] == NULL)
 			{
-				Err_set_error_message("Out of memory.", "Couldn't allocate 'cam capture buffer[0]'(" + std::to_string((Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2) / 1024) + "KB).", cam_capture_thread_string, OUT_OF_MEMORY);
-				Log_log_add(log_num, "Out of memory. ", OUT_OF_MEMORY, false);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_capture_thread_string, OUT_OF_MEMORY);
+				Log_log_add(log_num, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 				Err_set_error_show_flag(true);
 			}
 			else
@@ -811,8 +811,8 @@ void Cam_capture_thread(void* arg)
 				cam_capture_buffer[i] = (u8*)malloc(Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2);
 				if (cam_capture_buffer[i] == NULL)
 				{
-					Err_set_error_message("Out of memory.", "Couldn't allocate 'cam capture buffer[" + std::to_string(i) + "]'(" + std::to_string((Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2) / 1024) + "KB).", cam_capture_thread_string, OUT_OF_MEMORY);
-					Log_log_add(log_num, "Out of memory. ", OUT_OF_MEMORY, false);
+					Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_capture_thread_string, OUT_OF_MEMORY);
+					Log_log_add(log_num, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 					Err_set_error_show_flag(true);
 				}
 				else
@@ -1187,6 +1187,12 @@ void Cam_parse_thread(void* arg)
 					else
 						cam_current_display_img_num = 0;
 				}
+				else
+				{
+					Err_set_error_message(result.string, result.error_description, cam_parse_thread_string, result.code);
+					Err_set_error_show_flag(true);
+					usleep(1000000);
+				}
 			}
 		}
 		else
@@ -1270,7 +1276,7 @@ Result_with_string Cam_cam_init(void)
 	Result_with_string result;
 	bool failed = false;
 
-	result = Cam_set_capture_size(400, 240, &cam_buffer_size);
+	result = Cam_set_capture_size(Cam_convert_to_resolution(cam_request_capture_resolution_mode, true), Cam_convert_to_resolution(cam_request_capture_resolution_mode, false), &cam_buffer_size);
 	if (result.code != 0)
 		failed = true;
 
@@ -1283,21 +1289,21 @@ Result_with_string Cam_cam_init(void)
 
 	if (!failed)
 	{
-		result.code = CAMU_SetNoiseFilter(SELECT_ALL, false);
+		result = Cam_set_capture_noise_filter(cam_request_capture_noise_filter_mode);
 		if (result.code != 0)
 			failed = true;
 	}
 
 	if (!failed)
 	{
-		result.code = CAMU_SetAutoExposure(SELECT_ALL, false);
+		result = Cam_set_capture_exposure(cam_request_capture_exposure_mode);
 		if (result.code != 0)
 			failed = true;
 	}
 
 	if (!failed)
 	{
-		result = Cam_set_capture_white_balance(0);
+		result = Cam_set_capture_white_balance(cam_request_capture_white_balance_mode);
 		if (result.code != 0)
 			failed = true;
 	}
@@ -1318,14 +1324,21 @@ Result_with_string Cam_cam_init(void)
 
 	if (!failed)
 	{
-		result = Cam_set_capture_fps(8);
+		result = Cam_set_capture_fps(cam_request_capture_fps_mode);
 		if (result.code != 0)
 			failed = true;
 	}
 
 	if (!failed)
 	{
-		result = Cam_set_capture_contrast(5);
+		result = Cam_set_capture_contrast(cam_request_capture_contrast_mode);
+		if (result.code != 0)
+			failed = true;
+	}
+
+	if(!failed)
+	{
+		result = Cam_set_capture_lens_correction(cam_request_capture_lens_correction_mode);
 		if (result.code != 0)
 			failed = true;
 	}
@@ -1380,8 +1393,9 @@ void Cam_init(void)
 			cam_rgba8888_frame_buffer[i] = (u8*)malloc(640 * 480 * 4);
 			if (cam_rgba8888_frame_buffer[i] == NULL)
 			{
-				Err_set_error_message("Out of memory.", "Couldn't allocate 'cam_rgba8888_frame_buffer[" + std::to_string(i) + "]'\n(" + std::to_string(640 * 480 * 4 / 1024) + "KB).", cam_init_string , OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_init_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
+				Log_log_save(cam_init_string, "[Error] Out of memory. ", OUT_OF_MEMORY, s_debug_slow);
 				failed = true;
 				break;
 			}
@@ -1394,8 +1408,9 @@ void Cam_init(void)
 			cam_capture_frame_buffer[i] = (u8*)malloc(640 * 480 * 2);
 			if (cam_capture_frame_buffer[i] == NULL)
 			{
-				Err_set_error_message("Out of memory.", "Couldn't allocate 'cam_capture_frame_buffer[" + std::to_string(i) + "]'\n(" + std::to_string(640 * 480 * 2 / 1024) + "KB).", cam_init_string , OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_init_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
+				Log_log_save(cam_init_string, "[Error] Out of memory. ", OUT_OF_MEMORY, s_debug_slow);
 				failed = true;
 				break;
 			}
@@ -1416,7 +1431,7 @@ void Cam_init(void)
 	}
 
 	cam_current_display_img_num = -1;
-	cam_current_capture_resolution_mode = 2;
+	cam_current_capture_camera_mode = 0;
 
 	Cam_resume();
 	cam_already_init = true;
