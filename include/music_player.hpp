@@ -1,11 +1,12 @@
 #pragma once
 
-#define MUP_NUM_OF_MSG 18
+#define MUP_NUM_OF_MSG 19
 
 #define MUP_PLAY_MUSIC_REQUEST 0
 #define MUP_STOP_MUSIC_REQUEST 1
 #define MUP_SELECT_FILE_REQUEST 2
 #define MUP_LOOP_REQUEST 3
+#define MUP_SHUFFLE_REQUEST 4
 
 #define MUP_FS_OUT_BUFFER 0
 #define MUP_FS_IN_BUFFER 1

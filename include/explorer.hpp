@@ -8,11 +8,13 @@ std::string Expl_query_current_patch(void);
 
 std::string Expl_query_file_name(int file_num);
 
-double Expl_query_num_of_file(void);
+int Expl_query_num_of_file(void);
 
 bool Expl_query_operation_flag(int operation_num);
 
 double Expl_query_selected_num(int item_num);
+
+int Expl_query_size(int file_num);
 
 std::string Expl_query_type(int file_num);
 

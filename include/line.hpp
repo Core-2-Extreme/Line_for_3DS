@@ -2,7 +2,7 @@
 
 #include "types.hpp"
 
-#define LINE_NUM_OF_MSG 47
+#define LINE_NUM_OF_MSG 50
 
 #define LINE_HTTPC_BUFFER 0
 #define LINE_FS_BUFFER 1
