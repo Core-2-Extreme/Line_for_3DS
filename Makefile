@@ -41,7 +41,7 @@ GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 GFXBUILD	:=	$(ROMFS)/gfx
 #---------------------------------------------------------------------------------
-APP_VER					:= 1106
+APP_VER					:= 1120
 APP_TITLE				:= Line for 3DS
 APP_DESCRIPTION				:= Line for 3DS
 APP_AUTHOR				:= Core_2_Extreme
@@ -59,13 +59,13 @@ RSF_PATH				:= resource/app.rsf
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
-CFLAGS	:=	-Wall -O2 -mword-relocations \
+CFLAGS	:=	-Wall -Os -mword-relocations \
 		-fomit-frame-pointer -ffunction-sections \
 		$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -DARM11 -D_3DS
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11 
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
