@@ -6,6 +6,7 @@ extern C2D_Image Wifi_icon_image[9];
 extern C2D_Image Battery_level_icon_image[21];
 extern C2D_Image Battery_charge_icon_image[1];
 extern C2D_Image Square_image[1];
+extern C2D_Image ui_image[4];
 extern C2D_ImageTint texture_tint, dammy_tint, black_or_white_tint, white_or_black_tint, white_tint, weak_white_tint, red_tint, weak_red_tint, aqua_tint, weak_aqua_tint, yellow_tint, weak_yellow_tint, blue_tint, weak_blue_tint, black_tint, weak_black_tint;
 
 int Draw_query_fps(void);
@@ -26,6 +27,8 @@ void Draw(std::string text, int type, float x, float y, float text_size_x, float
 
 Result_with_string Draw_load_texture(std::string file_name, int sheet_map_num, C2D_Image return_image[], int start_num, int num_of_array);
 
+bool Draw_query_need_reflesh(void);
+
 void Draw_touch_pos(void);
 
 void Draw_top_ui(void);
@@ -40,7 +43,7 @@ void Draw_error(void);
 
 void Draw_progress(std::string message);
 
-void Draw_log(void);
+void Draw_log(bool force_draw);
 
 void Draw_debug_info(void);
 

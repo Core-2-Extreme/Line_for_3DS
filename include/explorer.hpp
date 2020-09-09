@@ -8,6 +8,8 @@ std::string Expl_query_current_patch(void);
 
 std::string Expl_query_file_name(int file_num);
 
+bool Expl_query_need_reflesh(void);
+
 int Expl_query_num_of_file(void);
 
 bool Expl_query_operation_flag(int operation_num);

@@ -1,7 +1,7 @@
 #pragma once
 #include "types.hpp"
 
-#define SEM_NUM_OF_MSG 73
+#define SEM_NUM_OF_MSG 75
 
 #define SEM_CHECK_UPDATE_REQUEST 0
 #define SEM_SHOW_PATCH_NOTE_REQUEST 1
@@ -29,6 +29,7 @@
 #define SEM_ALLOW_SEND_APP_INFO 4
 #define SEM_WIFI_ENABLED 5
 #define SEM_SYSTEM_SETTING_MENU_SHOW 6
+#define SEM_ECO_MODE 7
 
 #define SEM_LCD_BRIGHTNESS 0
 #define SEM_TIME_TO_TURN_OFF_LCD 1
@@ -37,9 +38,13 @@
 
 #define SEM_SCROLL_SPEED 0
 
+#define SEM_HTTP_PORT0 1
+
 Result_with_string Sem_load_setting(std::string file_name, std::string dir_name, int item_num, std::string out_data[]);
 
 Result_with_string Sem_parse_file(std::string source_data, int num_of_items, std::string out_data[]);
+
+std::string Sem_convert_seconds_to_time(double input_seconds);
 
 bool Sem_query_init_flag(void);
 
@@ -52,6 +57,8 @@ int Sem_query_app_ver(void);
 int Sem_query_gas_ver(void);
 
 bool Sem_query_font_flag(int font_num);
+
+std::string Sem_query_lang(void);
 
 bool Sem_query_loaded_external_font_flag(int external_font_num);
 
@@ -71,9 +78,11 @@ double Sem_query_y_offset(void);
 
 void Sem_set_font_flag(int font_num, bool flag);
 
-void Sem_set_msg(int msg_num, std::string msg);
+void Sem_set_lang(std::string lang);
 
 void Sem_set_load_external_font_request(int external_font_num, bool flag);
+
+void Sem_set_msg(int msg_num, std::string msg);
 
 void Sem_set_operation_flag(int operation_num, bool flag);
 

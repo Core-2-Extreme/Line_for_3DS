@@ -20,6 +20,8 @@
 #define GTR_LANG_LIST 1
 #define GTR_MSG 2
 
+#define GTR_HTTP_POST_PORT0 2
+
 bool Gtr_query_init_flag(void);
 
 double Gtr_query_offset(int item_num);

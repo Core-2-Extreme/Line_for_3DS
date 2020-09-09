@@ -2,7 +2,7 @@
 
 #include "types.hpp"
 
-#define LINE_NUM_OF_MSG 50
+#define LINE_NUM_OF_MSG 53
 
 #define LINE_HTTPC_BUFFER 0
 #define LINE_FS_BUFFER 1
@@ -33,12 +33,16 @@
 #define LINE_CHECK_MAIN_URL_REQUEST 21
 #define LINE_TYPE_SHORT_URL_REQUEST 22
 #define LINE_PARSE_LOG_REQUEST 23
+#define LINE_DL_LOG_NO_PARSE_REQUEST 24
+#define LINE_DL_ALL_LOG_NO_PARSE_REQUEST 25
+#define LINE_DEBUG_REQUEST 99
 
 #define LINE_MENU_SEND 0
 #define LINE_MENU_RECEIVE 1
 #define LINE_MENU_COPY 2
-#define LINE_MENU_SETTINGS 3
-#define LINE_MENU_ADVANCED 4
+#define LINE_MENU_SEARCH 3
+#define LINE_MENU_SETTINGS 4
+#define LINE_MENU_ADVANCED 5
 
 #define LINE_HIDE_ID 0
 #define LINE_AUTO_UPDATE 1
@@ -47,13 +51,25 @@
 #define LINE_SELECTED_STICKER_NUM 1
 #define LINE_SELECTED_STICKER_TAB_NUM 2
 #define LINE_SELECTED_ROOM_NUM 3
-
-#define LINE_SELECTED_MSG_NUM_D 0
+#define LINE_SELECTED_NUM_OF_LOGS 4
+#define LINE_SELECTED_HIGHLIGHT_NUM 5
+#define LINE_SELECTED_SEARCH_HIGHLIGHT_NUM 6
 
 #define LINE_TEXT_X 0
 #define LINE_TEXT_Y 1
 #define LINE_TEXT_SIZE 2
 #define LINE_TEXT_INTERVAL 3
+
+#define LINE_HTTP_PORT0 2
+#define LINE_HTTP_PORT1 3
+#define LINE_HTTP_PORT2 4
+#define LINE_HTTP_POST_PORT0 1
+
+void Line_main(void);
+
+void Line_init(void);
+
+void Line_exit(void);
 
 bool Line_query_init_flag(void);
 
@@ -65,11 +81,17 @@ std::string Line_query_content_info(int log_num);
 
 double Line_query_max_y(void);
 
+int Line_query_max_msg(void);
+
+int Line_query_max_search_result(void);
+
 std::string Line_query_msg_log(int log_num);
+
+double Line_query_msg_pos(int log_num);
 
 bool Line_query_operation_flag(int operation_num);
 
-double Line_query_selected_num_d(int item_num);
+int Line_query_search_num(int search_num);
 
 int Line_query_selected_num(int item_num);
 
@@ -91,8 +113,6 @@ void Line_set_send_dir_name(std::string dir_name);
 
 void Line_set_operation_flag(int operation_num, bool flag);
 
-void Line_set_selected_num_d(int item_num, double value);
-
 void Line_set_selected_num(int item_num, int value);
 
 void Line_set_x_y_size_interval(int item_num, double value);
@@ -103,13 +123,9 @@ void Line_resume(void);
 
 void Line_suspend(void);
 
-void Line_init(void);
-
-void Line_main(void);
-
 std::string Line_encode_to_escape(std::string in_data);
 
-void Line_icon_dl_thread(void* arg);
+void Line_worker_thread(void* arg);
 
 void Line_log_download_thread(void* arg);
 
@@ -132,5 +148,3 @@ int Line_stickers_num_to_textures_num(int sticker_num);
 void Line_log_parse_thread(void* arg);
 
 void Line_log_load_thread(void* arg);
-
-void Line_exit(void);

@@ -4,7 +4,7 @@
 
 #include "types.hpp"
 
-#define IMV_NUM_OF_MSG 10
+#define IMV_NUM_OF_MSG 7
 
 #define IMV_HTTPC_BUFFER 0
 #define IMV_FS_BUFFER 1
@@ -17,14 +17,14 @@
 #define IMV_ADJUST_URL_REQUEST 5
 #define IMV_SELECT_FILE_REQUEST 6
 
+#define IMV_HTTP_PORT0 6
+
 bool Imv_query_init_flag(void);
 
 bool Imv_query_running_flag(void);
 
 //0 = httpc buffer size, 1 = fs buffer size
 int Imv_query_buffer_size(int buffer_num);
-
-int Imv_query_clipboard_num(void);
 
 bool Imv_query_operation_flag(int operation_num);
 
@@ -37,11 +37,11 @@ double Imv_query_img_zoom(void);
 //0 = httpc buffer size, 1 = fs buffer size
 void Imv_set_buffer_size(int buffer_num, int size);
 
-void Imv_set_clipboard_num(int num);
-
 void Imv_set_msg(int msg_num, std::string msg);
 
 void Imv_set_operation_flag(int operation_num, bool flag);
+
+void Imv_set_url(std::string url);
 
 void Imv_set_img_pos_x(double x);
 

@@ -10,6 +10,8 @@ bool Log_query_log_show_flag(void);
 
 std::string Log_query_log(int log_num);
 
+bool Log_query_need_reflesh(void);
+
 void Log_set_x(double value);
 
 void Log_set_y(int value);

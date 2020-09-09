@@ -4,6 +4,8 @@
 
 #define SPT_HTTPC_BUFFER 0
 
+#define SPT_HTTP_PORT0 5
+
 bool Spt_query_init_flag(void);
 
 bool Spt_query_running_flag(void);
@@ -18,6 +20,10 @@ void Spt_set_spt_data_size(int size);
 
 void Spt_start_request(void);
 
+void Spt_reset_data(void);
+
+void Spt_reset_draw_data(void);
+
 void Spt_resume(void);
 
 void Spt_suspend(void);
@@ -27,5 +33,7 @@ void Spt_init(void);
 void Spt_exit(void);
 
 void Spt_main(void);
+
+void Spt_timer_thread(void* arg);
 
 void Spt_spt_thread(void* arg);

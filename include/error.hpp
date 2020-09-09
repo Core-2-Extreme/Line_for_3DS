@@ -10,12 +10,13 @@
 #define GAS_RETURNED_NOT_SUCCESS -3
 #define STB_IMG_RETURNED_NOT_SUCCESS -4
 #define BUFFER_SIZE_IS_TOO_SMALL -5
-#define FILE_SIZE_IS_TOO_BIG -6
-#define WRONG_PARSING_POS -7
-#define TOO_MANY_MESSAGES -8
-#define INVALID_ARG -9
-#define BAD_ICON_INFO -10
-#define NO_ICON_INFO -11
+#define WRONG_PARSING_POS -6
+#define TOO_MANY_MESSAGES -7
+#define INVALID_ARG -8
+#define BAD_ICON_INFO -9
+#define NO_ICON_INFO -10
+#define MINIMP3_RETURNED_NOT_SUCCESS -11
+#define INVALID_PORT_NUM -12
 
 bool Err_query_error_show_flag(void);
 
@@ -25,9 +26,11 @@ void Err_set_error_code(long error_code);
 
 void Err_set_error_data(int error_num, std::string error_data);
 
-std::string Err_query_general_error_string(void);
+bool Err_query_need_reflesh(void);
 
-std::string Err_query_general_success_string(void);
+std::string Err_query_template_summary(long error_code);
+
+std::string Err_query_template_detail(long error_code);
 
 void Err_set_error_message(std::string summary, std::string description, std::string place, long error_code);
 

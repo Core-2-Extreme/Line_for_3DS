@@ -7,6 +7,7 @@
 #define MUP_SELECT_FILE_REQUEST 2
 #define MUP_LOOP_REQUEST 3
 #define MUP_SHUFFLE_REQUEST 4
+#define MUP_CHANGE_MUSIC_REQUEST 5
 
 #define MUP_FS_OUT_BUFFER 0
 #define MUP_FS_IN_BUFFER 1
@@ -26,6 +27,8 @@ bool Mup_query_operation_flag(int operation_num);
 void Mup_set_buffer_size(int buffer_num, int size);
 
 void Mup_set_msg(int msg_num, std::string msg);
+
+void Mup_set_offset(int offset);
 
 void Mup_set_operation_flag(int operation_num, bool flag);
 

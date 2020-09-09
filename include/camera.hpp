@@ -1,18 +1,14 @@
 #pragma once
 
-#define CAM_NUM_OF_MSG 32
+#define CAM_NUM_OF_MSG 29
 #define CAM_NUM_OF_OPTION_MSG 52
 
-#define CAM_BURST_PICTURES_REQUEST 0
-#define CAM_TAKE_PICTURES_REQUEST 1
-#define CAM_ENCODE_PICTURES_REQUEST_0 2
-#define CAM_ENCODE_PICTURES_REQUEST_1 3
-#define CAM_ENCODE_PICTURES_REQUEST_2 4
+#define CAM_TAKE_PICTURES_REQUEST 0
+#define CAM_ENCODE_PICTURES_REQUEST 1
 
-#define CAM_SELECTED_ENCODE_THREAD_NUM 0
-#define CAM_SELECTED_MENU_MODE 1
-#define CAM_SELECTED_FORMAT_MODE 2
-#define CAM_SELECTED_JPG_QUALITY 3
+#define CAM_SELECTED_MENU_MODE 0
+#define CAM_SELECTED_FORMAT_MODE 1
+#define CAM_SELECTED_JPG_QUALITY 2
 
 #define CAM_MENU_RESOLUTION 0
 #define CAM_MENU_FPS 1
@@ -31,6 +27,18 @@
 
 #define CAM_MSG 0
 #define CAM_OPTION_MSG 1
+
+void Cam_main(void);
+
+void Cam_init(void);
+
+void Cam_exit(void);
+
+void Cam_encode_thread(void* arg);
+
+void Cam_capture_thread(void* arg);
+
+void Cam_parse_thread(void* arg);
 
 bool Cam_query_init_flag(void);
 
@@ -76,16 +84,7 @@ Result_with_string Cam_set_capture_size(int width, int height, u32* out_buffer_s
 
 Result_with_string Cam_set_capture_white_balance(int white_balance_num);
 
-Result_with_string Cam_take_picture(u8* capture_buffer, int size, bool out_cam_1);
+Result_with_string Cam_take_picture(u8* capture_buffer, int size, bool out_cam_1, bool play_shutter_sound);
 
-void Cam_encode_thread(void* arg);
-
-void Cam_capture_thread(void* arg);
-
-void Cam_exit(void);
-
-Result_with_string Cam_cam_init(void);
-
-void Cam_init(void);
-
-void Cam_main(void);
+Result_with_string Cam_cam_init(int camera_moide, int resolution_mode, int noise_filter_mode, int exposure_mode,
+	int white_balance_mode, int fps_mode, int contrast_mode, int lens_correction_mode, u32* buffer_size);
