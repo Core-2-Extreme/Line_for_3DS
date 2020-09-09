@@ -71,3 +71,5 @@
 <70>Download & install (X)</70>
 <71>Delete line image cache</71>
 <72>Delete</72>
+<73>Battery</73>
+<74>Eco mode</74>

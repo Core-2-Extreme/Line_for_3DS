@@ -3,15 +3,16 @@
 <2>Send</2>
 <3>Copy</3>
 <4>Settings</4>
-<5>Advanced settings</5>
+<5>Advanced</5>
 <6>Send a message(A)</6>
 <7>Log update(B)</7>
 <8>Auto update(X) off</8>
 <9>Auto update(X) on</9>
-<10>Selected message num : </10>
-<11>Message copy(ZR)</11>
-<12>Up(D ↑)</12>
-<13>Down(D ↓)</13>
+<10></10>
+<11>Message
+copy(X)</11>
+<12>Down(D ↓)</12>
+<13>Up(D ↑)</13>
 <14>Increase
 interval(D ↑)</14>
 <15>Decrease
@@ -52,3 +53,6 @@ size(R)</17>
 <47>Edit(X)</47>
 <48>Size : </48>
 <49>MB</49>
+<50>Max messages : </50>
+<51>Search</51>
+<52>Search (A)</52>
