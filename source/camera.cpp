@@ -1,6 +1,7 @@
 #include <3ds.h>
 #include <unistd.h>
 #include <string>
+#include <algorithm>
 #include "citro2d.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -12,9 +13,25 @@
 #include "error.hpp"
 #include "menu.hpp"
 #include "types.hpp"
-#include "share_function.hpp"
 #include "setting_menu.hpp"
 #include "camera.hpp"
+
+/*For draw*/
+bool cam_need_reflesh = false;
+bool cam_pre_encode_request = false;
+int cam_pre_selected_menu_mode = 0;
+int cam_pre_display_img_num = -1;
+int cam_pre_resolution_mode = 2;
+int cam_pre_exposure_mode = 0;
+int cam_pre_noise_filter_mode = 1;
+int cam_pre_fps_mode = 8;
+int cam_pre_contrast_mode = 5;
+int cam_pre_white_balance_mode = 0;
+int cam_pre_lens_correction_mode = 0;
+int cam_pre_camera_mode = 0;
+int cam_pre_shutter_sound_mode = 0;
+int cam_pre_encode_format_mode = 1;
+/*---------------------------------------------*/
 
 bool cam_main_run = false;
 bool cam_already_init = false;
@@ -22,10 +39,9 @@ bool cam_capture_thread_run = false;
 bool cam_encode_thread_run = false;
 bool cam_parse_thread_run = false;
 bool cam_thread_suspend = false;
-bool cam_burst_request = false;
 bool cam_take_request = false;
 bool cam_parse_request = false;
-bool cam_encode_request[3] = { false, false, false, };
+bool cam_encode_request = false;
 bool cam_change_resolution_request = false;
 bool cam_change_fps_request = false;
 bool cam_change_contrast_request = false;
@@ -34,38 +50,32 @@ bool cam_change_lens_correction_request = false;
 bool cam_change_camera_request = false;
 bool cam_change_exposure_request = false;
 bool cam_change_noise_filter_request = false;
-u8* cam_capture_buffer[60];
+u8* cam_capture_buffer;
 u8* cam_capture_frame_buffer[4];
 u8* cam_rgba8888_frame_buffer[2];
 u32 cam_buffer_size = 0;
-int cam_encode_thread_job_start_num[3] = { 0, 20, 40, };
-int cam_encode_thread_progress[3] = { 0, 0, 0, };
-int cam_encode_thread_num_of_jobs[3] = { 20, 20, 20, };
-int cam_selected_num_of_encode_threads = 1;
 int cam_selected_menu_mode = 0;
-int cam_selected_jpg_quality = 90;
+int cam_selected_jpg_quality = 95;
 int cam_current_img_num = 0;
-int cam_current_display_img_num = -1;
-int cam_current_capture_resolution_mode = 2;
-int cam_request_capture_resolution_mode = 2;
-int cam_current_capture_exposure_mode = 0;
-int cam_request_capture_exposure_mode = 0;
-int cam_current_capture_noise_filter_mode = 1;
-int cam_request_capture_noise_filter_mode = 1;
-int cam_current_capture_fps_mode = 8;
-int cam_request_capture_fps_mode = 8;
-int cam_current_capture_contrast_mode = 5;
-int cam_request_capture_contrast_mode = 5;
-int cam_current_capture_white_balance_mode = 0;
-int cam_request_capture_white_balance_mode = 0;
-int cam_current_capture_lens_correction_mode = 0;
-int cam_request_capture_lens_correction_mode = 0;
-int cam_current_capture_camera_mode = 0;
-int cam_request_capture_camera_mode = 0;
+int cam_display_img_num = -1;
+int cam_resolution_mode = 2;
+int cam_request_resolution_mode = 2;
+int cam_exposure_mode = 0;
+int cam_request_exposure_mode = 0;
+int cam_noise_filter_mode = 1;
+int cam_request_noise_filter_mode = 1;
+int cam_fps_mode = 8;
+int cam_request_fps_mode = 8;
+int cam_contrast_mode = 5;
+int cam_request_contrast_mode = 5;
+int cam_white_balance_mode = 0;
+int cam_request_white_balance_mode = 0;
+int cam_lens_correction_mode = 0;
+int cam_request_lens_correction_mode = 0;
+int cam_camera_mode = 0;
+int cam_request_camera_mode = 0;
 int cam_shutter_sound_mode = 0;
 int cam_fps = 0;
-int cam_writing = -1;
-int cam_reading = -1;
 int cam_encode_format_mode = 1;
 std::string cam_msg[CAM_NUM_OF_MSG];
 std::string cam_resolution_list[9];
@@ -80,9 +90,905 @@ std::string cam_encode_thread_string = "Cam/Encode thread";
 std::string cam_parse_thread_string = "Cam/Parse thread";
 std::string cam_init_string = "Cam/Init";
 std::string cam_exit_string = "Cam/Exit";
-std::string cam_ver = "v1.0.1";
-Thread cam_capture_thread, cam_encode_thread[3], cam_parse_thread;
+std::string cam_ver = "v1.0.2";
+Thread cam_capture_thread, cam_encode_thread, cam_parse_thread;
 C2D_Image cam_capture_image[4];
+
+void Cam_main(void)
+{
+	int image_num = 0;
+	float text_red;
+	float text_green;
+	float text_blue;
+	float text_alpha;
+	double red[15], green[15], blue[15], alpha[15];
+	double draw_x = 0.0;
+	double draw_y = 0.0;
+	double bar_x[4];
+
+	if (Sem_query_settings(SEM_NIGHT_MODE))
+	{
+		text_red = 1.0;
+		text_green = 1.0;
+		text_blue = 1.0;
+		text_alpha = 0.75;
+		white_or_black_tint = white_tint;
+	}
+	else
+	{
+		text_red = 0.0;
+		text_green = 0.0;
+		text_blue = 0.0;
+		text_alpha = 1.0;
+		white_or_black_tint = black_tint;
+	}
+	Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 15);
+
+	if(cam_pre_display_img_num != cam_display_img_num || cam_pre_resolution_mode != cam_resolution_mode
+	|| cam_pre_fps_mode != cam_fps_mode || cam_pre_contrast_mode != cam_contrast_mode
+	|| cam_pre_white_balance_mode != cam_white_balance_mode || cam_pre_lens_correction_mode != cam_lens_correction_mode
+	|| cam_pre_exposure_mode != cam_exposure_mode || cam_pre_encode_format_mode != cam_encode_format_mode
+	|| cam_pre_selected_menu_mode != cam_selected_menu_mode || cam_pre_encode_request != cam_encode_request || cam_pre_shutter_sound_mode != cam_shutter_sound_mode
+	|| cam_pre_noise_filter_mode != cam_noise_filter_mode || cam_pre_camera_mode != cam_camera_mode)
+	{
+		cam_pre_display_img_num = cam_display_img_num;
+		cam_pre_resolution_mode = cam_resolution_mode;
+		cam_pre_fps_mode = cam_fps_mode;
+		cam_pre_contrast_mode = cam_contrast_mode;
+		cam_pre_white_balance_mode = cam_white_balance_mode;
+		cam_pre_lens_correction_mode = cam_lens_correction_mode;
+		cam_pre_exposure_mode = cam_exposure_mode;
+		cam_pre_encode_format_mode = cam_encode_format_mode;
+		cam_pre_selected_menu_mode = cam_selected_menu_mode;
+		cam_pre_encode_request = cam_encode_request;
+		cam_pre_shutter_sound_mode = cam_shutter_sound_mode;
+		cam_pre_noise_filter_mode = cam_noise_filter_mode;
+		cam_pre_camera_mode = cam_camera_mode;
+		cam_need_reflesh = true;
+	}
+
+	if(Draw_query_need_reflesh() || !Sem_query_settings(SEM_ECO_MODE))
+		cam_need_reflesh = true;
+
+	if(cam_need_reflesh)
+	{
+		Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+		if (Sem_query_settings(SEM_NIGHT_MODE))
+			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
+		else
+			Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
+
+		if (cam_display_img_num != -1)
+		{
+			if (cam_display_img_num == 1)
+				image_num = 0;
+			else
+				image_num = 2;
+
+			if (Cam_convert_to_resolution(cam_resolution_mode, true) == 400 && Cam_convert_to_resolution(cam_resolution_mode, false) == 240)
+				Draw_texture(cam_capture_image, dammy_tint, image_num, 0.0, 0.0, 400.0, 240.0);
+			else if (cam_resolution_mode == 0)
+			{
+				Draw_texture(cam_capture_image, dammy_tint, image_num, 40.0, 0.0, 256.0, 240.0);
+				Draw_texture(cam_capture_image, dammy_tint, image_num + 1, 296.0, 0.0, 64.0, 240.0);
+			}
+			else
+				Draw_texture(cam_capture_image, dammy_tint, image_num, 40.0, 0.0, 320.0, 240.0);
+		}
+		Draw_top_ui();
+
+		if (Sem_query_settings(SEM_NIGHT_MODE))
+			Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
+		else
+			Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
+
+		Draw(cam_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
+		Draw(std::to_string(Cam_convert_to_resolution(cam_resolution_mode, true)) + cam_msg[0] + std::to_string(Cam_convert_to_resolution(cam_resolution_mode, false)) + cam_msg[1] + cam_framelate_list[cam_fps_mode] + cam_msg[2], 0, 20.0, 15.0, 0.6, 0.6, text_red, text_green, text_blue, text_alpha);
+		Draw(cam_msg[3] + cam_contrast_list[cam_contrast_mode] + cam_msg[4] + cam_white_balance_list[cam_white_balance_mode], 0, 20.0, 30.0, 0.55, 0.55, text_red, text_green, text_blue, text_alpha);
+		Draw(cam_msg[5] + cam_lens_correction_list[cam_lens_correction_mode] + cam_msg[6] + cam_exposure_list[cam_exposure_mode], 0, 20.0, 45.0, 0.55, 0.55, text_red, text_green, text_blue, text_alpha);
+		Draw(cam_msg[28] + cam_format_name_list[cam_encode_format_mode] + "/" + Menu_query_time(1) + "/", 0, 20.0, 60.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
+
+		Draw_texture(Square_image, weak_yellow_tint, 0, 40.0, 110.0, 60.0, 10.0);
+		Draw_texture(Square_image, weak_blue_tint, 0, 100.0, 110.0, 60.0, 10.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 160.0, 110.0, 60.0, 10.0);
+		Draw_texture(Square_image, weak_red_tint, 0, 220.0, 110.0, 60.0, 10.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 40.0, 120.0, 240.0, 80.0);
+
+		for (int i = 0; i < 3; i++)
+		{
+			if(i == cam_camera_mode)
+			{
+				red[i] = 1.0;
+			}
+
+			Draw_texture(Square_image, weak_aqua_tint, 0, 40.0 + (i * 85.0), 85.0, 70.0, 20.0);
+			Draw(cam_msg[25 + i], 0, 40.0 + (i * 85.0), 85.0, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
+		}
+		Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 15);
+
+		if (cam_selected_menu_mode == CAM_MENU_RESOLUTION)
+		{
+			Draw_texture(Square_image, yellow_tint, 0, 40.0, 110.0, 60.0, 10.0);
+			draw_x = 40.0;
+			draw_y = 120.0;
+			for (int i = 0; i < 9; i++)
+			{
+				if (i == cam_resolution_mode)
+				{
+					red[i] = 1.0;
+					green[i] = 0.0;
+					blue[i] = 0.0;
+					alpha[i] = 1.0;
+				}
+
+				Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 60.0, 20.0);
+				Draw(cam_resolution_list[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
+				if (draw_y + 30.0 > 180.0)
+				{
+					draw_x += 90.0;
+					draw_y = 120.0;
+				}
+				else
+					draw_y += 30.0;
+			}
+		}
+		else if (cam_selected_menu_mode == CAM_MENU_FPS)
+		{
+			Draw_texture(Square_image, weak_blue_tint, 0, 100.0, 110.0, 60.0, 10.0);
+			draw_x = 40.0;
+			draw_y = 120.0;
+			for (int i = 0; i < 15; i++)
+			{
+				if (i == cam_fps_mode)
+				{
+					red[i] = 1.0;
+					green[i] = 0.0;
+					blue[i] = 0.0;
+					alpha[i] = 1.0;
+				}
+
+				Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 30.0, 20.0);
+				Draw(cam_framelate_list[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
+				if (draw_y + 30.0 > 180.0)
+				{
+					draw_x += 50.0;
+					draw_y = 120.0;
+				}
+				else
+					draw_y += 30.0;
+			}
+		}
+		else if (cam_selected_menu_mode == CAM_MENU_ADVANCED_0)
+		{
+			Draw_texture(Square_image, weak_aqua_tint, 0, 160.0, 110.0, 60.0, 10.0);
+			draw_x = 40.0;
+			draw_y = 120.0;
+			bar_x[0] = 40.0 + 9.5 * cam_contrast_mode;
+			bar_x[1] = 40.0 + 19.0 * cam_white_balance_mode;
+			bar_x[2] = 180.0 + 47.5 * cam_lens_correction_mode;
+			bar_x[3] = 180.0 + 19.0 * cam_exposure_mode;
+			for (int i = 0; i < 4; i++)
+			{
+				Draw(cam_msg[7 + i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw_texture(Square_image, weak_red_tint, 0, draw_x, (draw_y + 17.5), 100.0, 5.0);
+				Draw_texture(Square_image, white_or_black_tint, 0, bar_x[i], (draw_y + 10.0), 5.0, 20.0);
+
+				draw_y += 30.0;
+				if (150.0 < draw_y)
+				{
+					draw_x = 180.0;
+					draw_y = 120.0;
+				}
+			}
+		}
+		else if (cam_selected_menu_mode == CAM_MENU_ADVANCED_1)
+		{
+			Draw_texture(Square_image, red_tint, 0, 220.0, 110.0, 60.0, 10.0);
+
+			Draw(cam_msg[11], 0, 42.5, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 40.0, 130.0, 40.0, 20.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 100.0, 130.0, 40.0, 20.0);
+			if (cam_encode_format_mode == 0)
+			{
+				Draw(cam_msg[12], 0, 42.5, 130.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
+				Draw(cam_msg[13], 0, 102.5, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			}
+			else if(cam_encode_format_mode == 1)
+			{
+				Draw(cam_msg[12], 0, 42.5, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw(cam_msg[13], 0, 102.5, 130.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
+				Draw(cam_msg[14] + std::to_string(cam_selected_jpg_quality), 0, 42.5, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw_texture(Square_image, weak_red_tint, 0, 41.0, 167.5, 100.0, 5.0);
+				Draw_texture(Square_image, white_or_black_tint, 0, (40.0 + 1.0 * cam_selected_jpg_quality), 160.0, 5.0, 20.0);
+			}
+
+			Draw(cam_msg[15], 0, 182.5, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			draw_x = 180.0;
+			draw_y = 130.0;
+			if (cam_noise_filter_mode == 1)//Noise filter
+			{
+				red[0] = 1.0;
+				green[0] = 0.0;
+				blue[0] = 0.0;
+				alpha[0] = 1.0;
+			}
+			else
+			{
+				red[1] = 1.0;
+				green[1] = 0.0;
+				blue[1] = 0.0;
+				alpha[1] = 1.0;
+			}
+
+			for (int i = 0; i < 2; i++)
+			{
+				Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 40.0, 20.0);
+				Draw(cam_msg[16 + i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
+				draw_x += 60.0;
+			}
+
+			Draw(cam_msg[18], 0, 182.5, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);//Shutter sound
+			Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 2);
+			draw_x = 180.0;
+			draw_y = 160.0;
+			if (cam_shutter_sound_mode == 1)
+			{
+				red[0] = 1.0;
+				green[0] = 0.0;
+				blue[0] = 0.0;
+				alpha[0] = 1.0;
+			}
+			else
+			{
+				red[1] = 1.0;
+				green[1] = 0.0;
+				blue[1] = 0.0;
+				alpha[1] = 1.0;
+			}
+
+			for (int i = 0; i < 2; i++)
+			{
+				Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 40.0, 20.0);
+				Draw(cam_msg[16 + i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
+				draw_x += 60.0;
+			}
+		}
+		for (int i = 0; i < 4; i++)
+			Draw(cam_msg[i + 21], 0, 40.0 + (i * 60.0), 110.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
+
+		if (cam_encode_request)
+		{
+			Draw_texture(Square_image, aqua_tint, 0, 40.0, 80.0, 240.0, 50.0);
+
+			if (Sem_query_lang() == "jp")
+				Draw(cam_format_name_list[cam_encode_format_mode] + cam_msg[19] + cam_msg[20], 0, 52.5, 100.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			else
+				Draw(cam_msg[19] + cam_format_name_list[cam_encode_format_mode] + cam_msg[20], 0, 52.5, 100.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		}
+		Draw_bot_ui();
+		Draw_touch_pos();
+
+		Draw_apply_draw();
+		cam_need_reflesh = false;
+	}
+	else
+		gspWaitForVBlank();
+}
+
+void Cam_init(void)
+{
+	Log_log_save(cam_init_string , "Initializing...", 1234567890, DEBUG);
+	bool failed = false;
+	int log_num;
+	u8* fs_buffer;
+	u32 read_size;
+	std::string data[11];
+	FS_Archive fs_archive = 0;
+	Handle fs_handle = 0;
+	Result_with_string result;
+	fs_buffer = (u8*)malloc(0x1000);
+
+	Draw_progress("0/3 [Cam] Initializing service...");
+	log_num = Log_log_save(cam_init_string , "camInit()...", 1234567890, DEBUG);
+	result.code = camInit();
+	if (result.code == 0)
+		Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+	else
+	{
+		failed = true;
+		Err_set_error_message("camInit() failed. ", "", cam_init_string , result.code);
+		Err_set_error_show_flag(true);
+		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+	}
+
+	Draw_progress("1/3 [Cam] Loading settings...");
+	memset(fs_buffer, 0x0, 0x1000);
+	log_num = Log_log_save(cam_init_string, "File_load_from_file()...", 1234567890, DEBUG);
+	result = File_load_from_file("Cam_setting.txt", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
+	Log_log_add(log_num, result.string, result.code, DEBUG);
+	if (result.code == 0)
+	{
+		result = Sem_parse_file((char*)fs_buffer, 11, data);
+		if(result.code == 0)
+		{
+			for(int i = 0; i < 11; i++)
+			{
+				if (!(data[i] == "") && std::all_of(data[i].cbegin(), data[i].cend(), isdigit))
+				{
+					if(i == 0)
+						cam_camera_mode = std::stoi(data[i]);
+					else if(i == 1)
+						cam_resolution_mode = std::stoi(data[i]);
+					else if(i == 2)
+						cam_fps_mode = std::stoi(data[i]);
+					else if(i == 3)
+						cam_contrast_mode = std::stoi(data[i]);
+					else if(i == 4)
+						cam_white_balance_mode = std::stoi(data[i]);
+					else if(i == 5)
+						cam_lens_correction_mode = std::stoi(data[i]);
+					else if(i == 6)
+						cam_exposure_mode = std::stoi(data[i]);
+					else if(i == 7)
+						cam_encode_format_mode= std::stoi(data[i]);
+					else if(i == 8)
+						cam_noise_filter_mode = std::stoi(data[i]);
+					else if(i == 9)
+						cam_selected_jpg_quality = std::stoi(data[i]);
+					else if(i == 10)
+						cam_shutter_sound_mode = std::stoi(data[i]);
+				}
+			}
+		}
+	}
+	if(!(cam_camera_mode >= 0 && cam_camera_mode <= 2))
+		cam_camera_mode = 0;
+	if(!(cam_resolution_mode >= 0 && cam_resolution_mode <= 8) || cam_resolution_mode == 4)
+		cam_resolution_mode = 2;
+	if(!(cam_fps_mode >= 0 && cam_fps_mode <= 12))
+		cam_fps_mode = 8;
+	if(!(cam_contrast_mode >= 0 && cam_contrast_mode <= 10))
+		cam_contrast_mode = 5;
+	if(!(cam_white_balance_mode >= 0 && cam_white_balance_mode <= 5))
+		cam_white_balance_mode = 0;
+	if(!(cam_lens_correction_mode >= 0 && cam_lens_correction_mode <= 2))
+		cam_lens_correction_mode = 0;
+	if(!(cam_exposure_mode >= 0 && cam_exposure_mode <= 5))
+		cam_exposure_mode = 0;
+	if(!(cam_encode_format_mode >= 0 && cam_encode_format_mode <= 1))
+		cam_encode_format_mode = 1;
+	if(!(cam_noise_filter_mode >= 0 && cam_noise_filter_mode <= 1))
+		cam_noise_filter_mode = 1;
+	if(!(cam_selected_jpg_quality >= 1 && cam_selected_jpg_quality <= 100))
+		cam_selected_jpg_quality = 95;
+	if(!(cam_shutter_sound_mode >= 0 && cam_shutter_sound_mode <= 1))
+		cam_shutter_sound_mode = 0;
+
+	cam_request_camera_mode = cam_camera_mode;
+	cam_request_resolution_mode = cam_resolution_mode;
+	cam_request_fps_mode = cam_fps_mode;
+	cam_request_contrast_mode = cam_contrast_mode;
+	cam_request_white_balance_mode = cam_white_balance_mode;
+	cam_request_lens_correction_mode = cam_lens_correction_mode;
+	cam_request_exposure_mode = cam_exposure_mode;
+
+	Draw_progress("2/3 [Cam] Initializing camera...");
+	if (!failed)
+	{
+		log_num = Log_log_save(cam_init_string, "Initializing camera...", 1234567890, DEBUG);
+		result = Cam_cam_init(cam_camera_mode, cam_resolution_mode, cam_noise_filter_mode, cam_exposure_mode, cam_white_balance_mode,
+			cam_fps_mode, cam_contrast_mode, cam_lens_correction_mode, &cam_buffer_size);
+		Log_log_add(log_num, result.string, result.code, DEBUG);
+		if (result.code != 0)
+		{
+			Err_set_error_message(result.string, result.error_description, cam_init_string , result.code);
+			Err_set_error_show_flag(true);
+		}
+	}
+
+	if (!failed)
+	{
+		for (int i = 0; i < 2; i++)
+		{
+			cam_rgba8888_frame_buffer[i] = (u8*)malloc(640 * 480 * 4);
+			if (cam_rgba8888_frame_buffer[i] == NULL)
+			{
+				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_init_string, OUT_OF_MEMORY);
+				Err_set_error_show_flag(true);
+				Log_log_save(cam_init_string, Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, DEBUG);
+				failed = true;
+				break;
+			}
+		}
+	}
+	if (!failed)
+	{
+		for (int i = 0; i < 4; i++)
+		{
+			cam_capture_frame_buffer[i] = (u8*)malloc(640 * 480 * 2);
+			if (cam_capture_frame_buffer[i] == NULL)
+			{
+				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_init_string, OUT_OF_MEMORY);
+				Err_set_error_show_flag(true);
+				Log_log_save(cam_init_string, Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, DEBUG);
+				failed = true;
+				break;
+			}
+		}
+	}
+
+	Draw_progress("3/3 [Cam] Starting threads...");
+	if (!failed)
+	{
+		cam_capture_thread_run = true;
+		cam_encode_thread_run = true;
+		cam_parse_thread_run = true;
+		cam_capture_thread = threadCreate(Cam_capture_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, -1, false);
+		cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, 0, false);
+		cam_parse_thread = threadCreate(Cam_parse_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, -1, false);
+	}
+	cam_display_img_num = -1;
+
+	Cam_resume();
+	cam_already_init = true;
+	Log_log_save(cam_init_string , "Initialized", 1234567890, DEBUG);
+}
+
+void Cam_exit(void)
+{
+	Log_log_save(cam_exit_string , "Exiting...", 1234567890, DEBUG);
+	u64 time_out = 10000000000;
+	int log_num;
+	bool failed = false;
+	std::string data =  "<0>" + std::to_string(cam_camera_mode) + "</0><1>" + std::to_string(cam_resolution_mode) + "</1><2>" + std::to_string(cam_fps_mode) + "</2>"
+	 + "<3>" + std::to_string(cam_contrast_mode) + "</3><4>" + std::to_string(cam_white_balance_mode) + "</4><5>" + std::to_string(cam_lens_correction_mode) + "</5>"
+	 + "<6>" + std::to_string(cam_exposure_mode) + "</6><7>" + std::to_string(cam_encode_format_mode) + "</7><8>" + std::to_string(cam_noise_filter_mode) + "</8>"
+	 + "<9>" + std::to_string(cam_selected_jpg_quality) + "</9><10>" + std::to_string(cam_shutter_sound_mode) + "</10>";
+	FS_Archive fs_archive = 0;
+	Handle fs_handle = 0;
+	Result_with_string result;
+
+	Draw_progress("[Cam] Exiting...");
+	cam_already_init = false;
+	cam_thread_suspend = false;
+	cam_capture_thread_run = false;
+	cam_encode_thread_run = false;
+	cam_parse_thread_run = false;
+
+	log_num = Log_log_save(cam_exit_string, "File_save_to_file()...", 1234567890, DEBUG);
+	result = File_save_to_file("Cam_setting.txt", (u8*)data.c_str(), data.length(), "/Line/", true, fs_handle, fs_archive);
+	Log_log_add(log_num, result.string, result.code, DEBUG);
+
+	for (int i = 0; i < 3; i++)
+	{
+		log_num = Log_log_save(cam_exit_string, "threadJoin()" + std::to_string(i) + "/2...", 1234567890, DEBUG);
+
+		if (i == 0)
+			result.code = threadJoin(cam_encode_thread, time_out);
+		else if (i == 1)
+			result.code = threadJoin(cam_parse_thread, time_out);
+		else if (i == 2)
+			result.code = threadJoin(cam_capture_thread, time_out);
+
+		if (result.code == 0)
+			Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+		else
+		{
+			failed = true;
+			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+		}
+	}
+
+	threadFree(cam_encode_thread);
+	threadFree(cam_parse_thread);
+	threadFree(cam_capture_thread);
+
+	camExit();
+
+	for (int i = 0; i < 2; i++)
+	{
+		free(cam_rgba8888_frame_buffer[i]);
+		cam_rgba8888_frame_buffer[i] = NULL;
+	}
+	for (int i = 0; i < 4; i++)
+	{
+		free(cam_capture_frame_buffer[i]);
+		cam_capture_frame_buffer[i] = NULL;
+	}
+
+	if (failed)
+		Log_log_save(cam_exit_string , "[Warn] Some function returned error.", 1234567890, DEBUG);
+
+}
+
+void Cam_encode_thread(void* arg)
+{
+	Log_log_save(cam_encode_thread_string, "Thread started.", 1234567890, false);
+	int log_num;
+	int file_size;
+	int stbi_result;
+	u8* cam_rgb888_buffer;
+	uint8_t* cam_png_buffer;
+	std::string file_name = "";
+	std::string extension = "";
+	std::string dir_patch = "";
+	FS_Archive fs_archive = 0;
+	Handle fs_handle = 0;
+	Result_with_string result;
+
+	//create directory
+	File_save_to_file(".", NULL, 0, "/Line/dcim/", true, fs_handle, fs_archive);
+	File_save_to_file(".", NULL, 0, "/Line/dcim/JPG/", true, fs_handle, fs_archive);
+	File_save_to_file(".", NULL, 0, "/Line/dcim/PNG/", true, fs_handle, fs_archive);
+
+	while (cam_encode_thread_run)
+	{
+		if (cam_encode_request)
+		{
+			log_num = Log_log_save(cam_encode_thread_string, "APT_SetAppCpuTimeLimit()...", 1234567890, DEBUG);
+			result.code = APT_SetAppCpuTimeLimit(80);
+			if (result.code == 0)
+				Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+			else
+				Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+
+			file_name = Menu_query_time(2) + "_";
+			if(cam_encode_format_mode == 0)
+			{
+				extension = ".png";
+			 	dir_patch = "/Line/dcim/PNG/" + Menu_query_time(1) + "/";
+			}
+			else if(cam_encode_format_mode == 1)
+			{
+				extension = ".jpg";
+				dir_patch = "/Line/dcim/JPG/" + Menu_query_time(1) + "/";
+			}
+
+			for(int i = 0; i < 100; i++)
+			{
+				result = File_check_file_exist(file_name + std::to_string(i) + extension, dir_patch, fs_handle, fs_archive);
+				if(result.code != 0)
+				{
+					file_name = file_name + std::to_string(i) + extension;
+					break;
+				}
+			}
+
+			cam_rgb888_buffer = (uint8_t*)malloc((Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 3));
+
+			memset(cam_rgb888_buffer, 0x0, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 3));
+			cam_png_buffer = (uint8_t*)malloc(0x80000);
+			memset(cam_png_buffer, 0x0, 0x80000);
+			if (cam_png_buffer == NULL)
+			{
+				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_encode_thread_string, OUT_OF_MEMORY);
+				Log_log_save(cam_encode_thread_string, Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, false);
+				Err_set_error_show_flag(true);
+			}
+			else if (cam_capture_buffer != NULL)
+			{
+				Draw_rgb565_to_abgr888_rgb888(cam_capture_buffer, cam_rgb888_buffer, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), true);
+				free(cam_capture_buffer);
+				cam_capture_buffer = NULL;
+
+				if (cam_encode_format_mode == 0)
+				{
+					log_num = Log_log_save(cam_encode_thread_string, "stbi_write_png_to_mem()...", 1234567890, false);
+					cam_png_buffer = stbi_write_png_to_mem((const unsigned char*)cam_rgb888_buffer, 0, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), 3, &file_size);
+					Log_log_add(log_num, "size : " + std::to_string(file_size / 1024) + "KB. ", 1234567890, false);
+					if (cam_png_buffer != NULL)
+					{
+						log_num = Log_log_save(cam_encode_thread_string, "File_save_to_file()...", 1234567890, false);
+						result = File_save_to_file(file_name, (u8*)cam_png_buffer, file_size, dir_patch, true, fs_handle, fs_archive);
+						Log_log_add(log_num, result.string, result.code, false);
+					}
+				}
+				else if (cam_encode_format_mode == 1)
+				{
+					log_num = Log_log_save(cam_encode_thread_string, "stbi_write_jpg_to_mem()...", 1234567890, false);
+					stbi_result = stbi_write_jpg_to_mem((void*)cam_png_buffer, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), 3, (const void*)cam_rgb888_buffer, cam_selected_jpg_quality, &file_size);
+					Log_log_add(log_num, "size : " + std::to_string(file_size / 1024) + "KB. ", 1234567890, false);
+					if (stbi_result != 0)
+					{
+						log_num = Log_log_save(cam_encode_thread_string, "File_save_to_file()...", 1234567890, false);
+						result = File_save_to_file(file_name, (u8*)cam_png_buffer, file_size, dir_patch, true, fs_handle, fs_archive);
+						Log_log_add(log_num, result.string, result.code, false);
+					}
+				}
+
+				free(cam_png_buffer);
+				cam_png_buffer = NULL;
+			}
+			free(cam_rgb888_buffer);
+			cam_rgb888_buffer = NULL;
+			log_num = Log_log_save(cam_encode_thread_string, "APT_SetAppCpuTimeLimit()...", 1234567890, DEBUG);
+			result.code = APT_SetAppCpuTimeLimit(30);
+			if (result.code == 0)
+				Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+			else
+				Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+
+			cam_encode_request = false;
+		}
+		else
+			usleep(ACTIW_THREAD_SLEEP_TIME);
+
+		while (cam_thread_suspend)
+			usleep(INACTIW_THREAD_SLEEP_TIME);
+	}
+	Log_log_save(cam_encode_thread_string, "Thread exit.", 1234567890, false);
+	threadExit(0);
+}
+
+void Cam_capture_thread(void* arg)
+{
+	Log_log_save(cam_capture_thread_string, "Thread started.", 1234567890, false);
+	bool out_left = false;
+	int log_num;
+	Result_with_string result;
+
+	while (cam_capture_thread_run)
+	{
+		if (cam_take_request && !cam_encode_request)
+		{
+			log_num = Log_log_save(cam_capture_thread_string , "Cam_take_picture()...", 1234567890, false);
+			cam_capture_buffer = (u8*)malloc(Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
+			if (cam_capture_buffer == NULL)
+			{
+				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_capture_thread_string, OUT_OF_MEMORY);
+				Log_log_add(log_num, Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, false);
+				Err_set_error_show_flag(true);
+			}
+			else
+			{
+				if (cam_camera_mode == 1)
+					out_left = true;
+				else
+					out_left = false;
+
+				result = Cam_take_picture(cam_capture_buffer, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2), out_left, cam_shutter_sound_mode);
+
+				Log_log_add(log_num, result.string, result.code, false);
+				if (result.code != 0 && result.code != 0x9401BFE)
+				{
+					Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
+					Err_set_error_show_flag(true);
+				}
+			}
+			cam_take_request = false;
+			cam_encode_request = true;
+		}
+		else if (cam_change_resolution_request || cam_change_fps_request || cam_change_contrast_request || cam_change_white_balance_request
+			|| cam_change_lens_correction_request || cam_change_camera_request || cam_change_exposure_request || cam_change_noise_filter_request)
+		{
+			if (cam_change_resolution_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_size()...", 1234567890, false);
+				result = Cam_set_capture_size(Cam_convert_to_resolution(cam_request_resolution_mode, true), Cam_convert_to_resolution(cam_request_resolution_mode, false), &cam_buffer_size);
+			}
+			else if (cam_change_fps_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_fps()...", 1234567890, false);
+				result = Cam_set_capture_fps(cam_request_fps_mode);
+			}
+			else if (cam_change_contrast_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "CAMU_SetContrast()...", 1234567890, false);
+				result = Cam_set_capture_contrast(cam_request_contrast_mode);
+			}
+			else if (cam_change_white_balance_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_white_balance()...", 1234567890, false);
+				result = Cam_set_capture_white_balance(cam_request_white_balance_mode);
+			}
+			else if (cam_change_lens_correction_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_lens_correction()...", 1234567890, false);
+				result = Cam_set_capture_lens_correction(cam_request_lens_correction_mode);
+			}
+			else if (cam_change_camera_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_camera()...", 1234567890, false);
+				result = Cam_set_capture_camera(cam_request_camera_mode, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), &cam_buffer_size);
+			}
+			else if (cam_change_exposure_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_exposure()...", 1234567890, false);
+				result = Cam_set_capture_exposure(cam_request_exposure_mode);
+			}
+			else if (cam_change_noise_filter_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_noise_filter()...", 1234567890, false);
+				result = Cam_set_capture_noise_filter(cam_request_noise_filter_mode);
+			}
+			else
+				log_num = 0;
+
+			Log_log_add(log_num, result.string, result.code, false);
+
+			if (result.code != 0)
+			{
+				cam_request_resolution_mode = cam_resolution_mode;
+				Err_set_error_message(result.string, result.error_description, cam_capture_thread_string, result.code);
+				Err_set_error_show_flag(true);
+			}
+			else
+			{
+				if (cam_change_resolution_request)
+				{
+					cam_display_img_num = -1;
+					cam_resolution_mode = cam_request_resolution_mode;
+				}
+				else if (cam_change_fps_request)
+					cam_fps_mode = cam_request_fps_mode;
+				else if (cam_change_contrast_request)
+					cam_contrast_mode = cam_request_contrast_mode;
+				else if (cam_change_white_balance_request)
+					cam_white_balance_mode = cam_request_white_balance_mode;
+				else if (cam_change_lens_correction_request)
+					cam_lens_correction_mode = cam_request_lens_correction_mode;
+				else if (cam_change_camera_request)
+					cam_camera_mode = cam_request_camera_mode;
+				else if (cam_change_exposure_request)
+					cam_exposure_mode = cam_request_exposure_mode;
+				else if (cam_change_noise_filter_request)
+					cam_noise_filter_mode = cam_request_noise_filter_mode;
+			}
+
+			if (cam_change_resolution_request)
+				cam_change_resolution_request = false;
+			else if (cam_change_fps_request)
+				cam_change_fps_request = false;
+			else if (cam_change_contrast_request)
+				cam_change_contrast_request = false;
+			else if (cam_change_white_balance_request)
+				cam_change_white_balance_request = false;
+			else if (cam_change_lens_correction_request)
+				cam_change_lens_correction_request = false;
+			else if (cam_change_camera_request)
+				cam_change_camera_request = false;
+			else if (cam_change_exposure_request)
+				cam_change_exposure_request = false;
+			else if (cam_change_noise_filter_request)
+				cam_change_noise_filter_request = false;
+		}
+		else
+		{
+			if (cam_camera_mode == 1)
+				out_left = true;
+			else
+				out_left = false;
+
+			result = Cam_take_picture(cam_capture_frame_buffer[3], (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2), out_left, false);
+
+			if (result.code == 0)
+			{
+				memcpy(cam_capture_frame_buffer[0], cam_capture_frame_buffer[3], (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2));
+				if (cam_current_img_num == 0)
+					cam_current_img_num = 1;
+				else
+					cam_current_img_num = 0;
+
+				cam_fps++;
+				cam_parse_request = true;
+			}
+			else
+			{
+				Log_log_save(cam_capture_thread_string, result.string, result.code, false);
+				usleep(1000);
+			}
+		}
+
+		usleep(1500);
+
+		while (cam_thread_suspend)
+			usleep(INACTIW_THREAD_SLEEP_TIME);
+	}
+
+	result.code = CAMU_Activate(SELECT_NONE);
+
+	Log_log_save(cam_capture_thread_string, "Thread exit.", 1234567890, false);
+	threadExit(0);
+}
+
+void Cam_parse_thread(void* arg)
+{
+	Log_log_save(cam_parse_thread_string, "Thread started.", 1234567890, false);
+	int previous_num = 0;
+	int processing_num[2] = { 0, 2, };
+	int tex_size = 512;
+	int width = 0;
+	int height = 0;
+	C3D_Tex* c3d_cache_tex[4];
+	Tex3DS_SubTexture* c3d_cache_subtex[4];
+	Result_with_string result;
+
+	for (int i = 0; i < 4; i++)
+	{
+		c3d_cache_tex[i] = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
+		c3d_cache_subtex[i] = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
+	}
+
+	while (cam_parse_thread_run)
+	{
+		if (cam_parse_request)
+		{
+			cam_parse_request = false;
+
+			if (previous_num!= cam_current_img_num)
+			{
+				previous_num = cam_current_img_num;
+				width = Cam_convert_to_resolution(cam_resolution_mode, true);
+				height = Cam_convert_to_resolution(cam_resolution_mode, false);
+
+				if (cam_current_img_num == 0)
+					memcpy(cam_capture_frame_buffer[1], cam_capture_frame_buffer[0], (width * height * 2));
+				else
+					memcpy(cam_capture_frame_buffer[2], cam_capture_frame_buffer[0], (width * height * 2));
+
+				if (cam_display_img_num == 0)
+				{
+					processing_num[0] = 0;
+					processing_num[1] = 0;
+				}
+				else
+				{
+					processing_num[0] = 1;
+					processing_num[1] = 2;
+				}
+
+				for (int i = 0; i < 2; i++)
+				{
+					C3D_TexDelete(c3d_cache_tex[processing_num[1] + i]);
+					cam_capture_image[processing_num[1] + i].tex = c3d_cache_tex[processing_num[1] + i];
+					cam_capture_image[processing_num[1] + i].subtex = c3d_cache_subtex[processing_num[1] + i];
+				}
+
+				Draw_rgb565_to_abgr888_rgb888(cam_capture_frame_buffer[0], cam_rgba8888_frame_buffer[processing_num[0]], width, Cam_convert_to_resolution(cam_resolution_mode, false), false);
+
+				if(cam_resolution_mode >= 0 && cam_resolution_mode <= 5)
+					tex_size = 512;
+				else if(cam_resolution_mode >= 6)
+					tex_size = 256;
+
+				result = Draw_c3dtex_to_c2dimage(c3d_cache_tex[processing_num[1]], c3d_cache_subtex[processing_num[1]], cam_rgba8888_frame_buffer[processing_num[0]], (width * height * 4), width, height, 0, 0, tex_size, tex_size, GPU_RGBA8);
+				if(cam_resolution_mode == 0)
+					result = Draw_c3dtex_to_c2dimage(c3d_cache_tex[processing_num[1] + 1], c3d_cache_subtex[processing_num[1] + 1], cam_rgba8888_frame_buffer[processing_num[0]], (width * height * 4), width, height, 512, 0, 128, 512, GPU_RGBA8);
+
+				if (result.code == 0)
+				{
+					if (processing_num[1] == 2)
+						cam_display_img_num = 0;
+					else
+						cam_display_img_num = 1;
+				}
+				else
+				{
+					Err_set_error_message(result.string, result.error_description, cam_parse_thread_string, result.code);
+					Err_set_error_show_flag(true);
+					usleep(1000000);
+				}
+			}
+		}
+		else
+			usleep(5000);
+
+		while (cam_thread_suspend)
+			usleep(INACTIW_THREAD_SLEEP_TIME);
+	}
+
+	for (int i = 0; i < 4; i++)
+	{
+		C3D_TexDelete(c3d_cache_tex[i]);
+		linearFree(c3d_cache_tex[i]);
+		c3d_cache_tex[i] = NULL;
+		linearFree(c3d_cache_subtex[i]);
+		c3d_cache_subtex[i] = NULL;
+	}
+
+	Log_log_save(cam_parse_thread_string, "Thread exit.", 1234567890, false);
+	threadExit(0);
+}
 
 bool Cam_query_init_flag(void)
 {
@@ -98,6 +1004,7 @@ void Cam_resume(void)
 {
 	cam_thread_suspend = false;
 	cam_main_run = true;
+	cam_need_reflesh = true;
 	Menu_suspend();
 }
 
@@ -173,21 +1080,21 @@ int Cam_convert_to_resolution(int resolution_mode, bool width)
 int Cam_query_cam_settings(int setting_num)
 {
 	if (setting_num == CAM_RESOLUTION)
-		return cam_request_capture_resolution_mode;
+		return cam_request_resolution_mode;
 	else if (setting_num == CAM_FPS)
-		return cam_request_capture_fps_mode;
+		return cam_request_fps_mode;
 	else if (setting_num == CAM_CONTRAST)
-		return cam_request_capture_contrast_mode;
+		return cam_request_contrast_mode;
 	else if (setting_num == CAM_WHITE_BALANCE)
-		return cam_request_capture_white_balance_mode;
+		return cam_request_white_balance_mode;
 	else if (setting_num == CAM_LENS_CORRECTION)
-		return cam_request_capture_lens_correction_mode;
+		return cam_request_lens_correction_mode;
 	else if (setting_num == CAM_CAMERA)
-		return cam_request_capture_camera_mode;
+		return cam_request_camera_mode;
 	else if (setting_num == CAM_EXPOSURE)
-		return cam_request_capture_exposure_mode;
+		return cam_request_exposure_mode;
 	else if (setting_num == CAM_NOISE_FILTER)
-		return cam_request_capture_noise_filter_mode;
+		return cam_request_noise_filter_mode;
 	else if (setting_num == CAM_SHUTTER_SOUND)
 		return cam_shutter_sound_mode;
 	else
@@ -203,23 +1110,15 @@ bool Cam_query_operation_flag(int operation_num)
 {
 	if (operation_num == CAM_TAKE_PICTURES_REQUEST)
 		return cam_take_request;
-	else if (operation_num == CAM_BURST_PICTURES_REQUEST)
-		return cam_burst_request;
-	else if (operation_num == CAM_ENCODE_PICTURES_REQUEST_0)
-		return cam_encode_request[0];
-	else if (operation_num == CAM_ENCODE_PICTURES_REQUEST_1)
-		return cam_encode_request[1];
-	else if (operation_num == CAM_ENCODE_PICTURES_REQUEST_2)
-		return cam_encode_request[2];
+	else if (operation_num == CAM_ENCODE_PICTURES_REQUEST)
+		return cam_encode_request;
 	else
 		return false;
 }
 
 int Cam_query_selected_num(int item_num)
 {
-	if (item_num == CAM_SELECTED_ENCODE_THREAD_NUM)
-		return cam_selected_num_of_encode_threads;
-	else if (item_num == CAM_SELECTED_MENU_MODE)
+	if (item_num == CAM_SELECTED_MENU_MODE)
 		return cam_selected_menu_mode;
 	else if (item_num == CAM_SELECTED_FORMAT_MODE)
 		return cam_encode_format_mode;
@@ -250,7 +1149,7 @@ void Cam_set_cam_settings(int setting_num, int num)
 			}
 			num = random_num;
 		}
-		cam_request_capture_resolution_mode = num;
+		cam_request_resolution_mode = num;
 		cam_change_resolution_request = true;
 	}
 	else if (setting_num == CAM_FPS && num >= 0 && num <= 14)
@@ -280,37 +1179,37 @@ void Cam_set_cam_settings(int setting_num, int num)
 			}
 			num = random_num;
 		}
-		cam_request_capture_fps_mode = num;
+		cam_request_fps_mode = num;
 		cam_change_fps_request = true;
 	}
 	else if (setting_num == CAM_CONTRAST && num >= 0 && num <= 10)
 	{
-		cam_request_capture_contrast_mode = num;
+		cam_request_contrast_mode = num;
 		cam_change_contrast_request = true;
 	}
 	else if (setting_num == CAM_WHITE_BALANCE && num >= 0 && num <= 5)
 	{
-		cam_request_capture_white_balance_mode = num;
+		cam_request_white_balance_mode = num;
 		cam_change_white_balance_request = true;
 	}
 	else if (setting_num == CAM_LENS_CORRECTION && num >= 0 && num <= 2)
 	{
-		cam_request_capture_lens_correction_mode = num;
+		cam_request_lens_correction_mode = num;
 		cam_change_lens_correction_request = true;
 	}
 	else if (setting_num == CAM_CAMERA && num >= 0 && num <= 2)
 	{
-		cam_request_capture_camera_mode = num;
+		cam_request_camera_mode = num;
 		cam_change_camera_request = true;
 	}
 	else if (setting_num == CAM_EXPOSURE && num >= 0 && num <= 5)
 	{
-		cam_request_capture_exposure_mode = num;
+		cam_request_exposure_mode = num;
 		cam_change_exposure_request = true;
 	}
 	else if (setting_num == CAM_NOISE_FILTER && num >= 0 && num <= 1)
 	{
-		cam_request_capture_noise_filter_mode = num;
+		cam_request_noise_filter_mode = num;
 		cam_change_noise_filter_request = true;
 	}
 	else if (setting_num == CAM_SHUTTER_SOUND && num >= 0 && num <= 1)
@@ -344,21 +1243,13 @@ void Cam_set_operation_flag(int operation_num, bool flag)
 {
 	if (operation_num == CAM_TAKE_PICTURES_REQUEST)
 		cam_take_request = flag;
-	else if (operation_num == CAM_BURST_PICTURES_REQUEST)
-		cam_burst_request = flag;
-	else if (operation_num == CAM_ENCODE_PICTURES_REQUEST_0)
-		cam_encode_request[0] = flag;
-	else if (operation_num == CAM_ENCODE_PICTURES_REQUEST_1)
-		cam_encode_request[1] = flag;
-	else if (operation_num == CAM_ENCODE_PICTURES_REQUEST_2)
-		cam_encode_request[2] = flag;
+	else if (operation_num == CAM_ENCODE_PICTURES_REQUEST)
+		cam_encode_request = flag;
 }
 
 void Cam_set_selected_num(int item_num, int value)
 {
-	if (item_num == CAM_SELECTED_ENCODE_THREAD_NUM)
-		cam_selected_num_of_encode_threads = value;
-	else if (item_num == CAM_SELECTED_MENU_MODE)
+	if (item_num == CAM_SELECTED_MENU_MODE)
 		cam_selected_menu_mode = value;
 	else if (item_num == CAM_SELECTED_FORMAT_MODE)
 		cam_encode_format_mode = value;
@@ -368,65 +1259,85 @@ void Cam_set_selected_num(int item_num, int value)
 
 Result_with_string Cam_set_capture_camera(int camera_num, int width, int height, u32* out_buffer_size)
 {
-	bool failed = false;
+	int camera = 0;
 	Result_with_string result;
 
-	CAMU_Activate(SELECT_NONE);
+	result = Cam_set_capture_size(width, height, out_buffer_size);
 
-	if (camera_num == 0)
-		result.code = CAMU_Activate(SELECT_OUT1);
-	else if (camera_num == 1)
-		result.code = CAMU_Activate(SELECT_OUT2);
-	else if (camera_num == 2)
-		result.code = CAMU_Activate(SELECT_IN1);
-	else
-		result.code = INVALID_ARG;
-
-	if (result.code != 0)
+	if (result.code == 0)
 	{
-		failed = true;
-		result.string = "[Error] CAMU_Activate failed. ";
+		CAMU_Activate(SELECT_NONE);
+
+		switch (camera_num)
+		{
+			case 0:
+				camera = SELECT_OUT1;
+			break;
+			case 1:
+				camera = SELECT_OUT2;
+			break;
+			case 2:
+				camera = SELECT_IN1;
+			break;
+			default:
+				result.code = INVALID_ARG;
+		}
+
+		if(result.code != INVALID_ARG)
+			result.code = CAMU_Activate(camera);
+
+		if (result.code != 0)
+			result.string = "[Error] CAMU_Activate failed. ";
 	}
-
-	if (!failed)
-		result = Cam_set_capture_size(width, height, out_buffer_size);
-
 	return result;
 }
 
 Result_with_string Cam_set_capture_contrast(int contrast_num)
 {
-	CAMU_Contrast contrast;
+	CAMU_Contrast contrast = CONTRAST_PATTERN_01;
 	Result_with_string result;
 
-	if (contrast_num == 0)
-		contrast = CONTRAST_PATTERN_01;
-	else if (contrast_num == 1)
-		contrast = CONTRAST_PATTERN_02;
-	else if (contrast_num == 2)
-		contrast = CONTRAST_PATTERN_03;
-	else if (contrast_num == 3)
-		contrast = CONTRAST_PATTERN_04;
-	else if (contrast_num == 4)
-		contrast = CONTRAST_PATTERN_05;
-	else if (contrast_num == 5)
-		contrast = CONTRAST_PATTERN_06;
-	else if (contrast_num == 6)
-		contrast = CONTRAST_PATTERN_07;
-	else if (contrast_num == 7)
-		contrast = CONTRAST_PATTERN_08;
-	else if (contrast_num == 8)
-		contrast = CONTRAST_PATTERN_09;
-	else if (contrast_num == 9)
-		contrast = CONTRAST_PATTERN_10;
-	else if (contrast_num == 10)
-		contrast = CONTRAST_PATTERN_11;
-	else
-		result.code = INVALID_ARG;
+	switch(contrast_num)
+	{
+		case 0:
+			contrast = CONTRAST_PATTERN_01;
+			break;
+		case 1:
+			contrast = CONTRAST_PATTERN_02;
+			break;
+  	case 2:
+			contrast = CONTRAST_PATTERN_03;
+			break;
+		case 3:
+			contrast = CONTRAST_PATTERN_04;
+			break;
+		case 4:
+			contrast = CONTRAST_PATTERN_05;
+			break;
+		case 5:
+			contrast = CONTRAST_PATTERN_06;
+			break;
+		case 6:
+			contrast = CONTRAST_PATTERN_07;
+			break;
+		case 7:
+			contrast = CONTRAST_PATTERN_08;
+			break;
+		case 8:
+			contrast = CONTRAST_PATTERN_09;
+			break;
+		case 9:
+			contrast = CONTRAST_PATTERN_10;
+			break;
+		case 10:
+			contrast = CONTRAST_PATTERN_11;
+			break;
+		default:
+			result.code = INVALID_ARG;
+	}
 
 	if(result.code != INVALID_ARG)
 		result.code = CAMU_SetContrast(SELECT_ALL, contrast);
-
 
 	if (result.code != 0)
 		result.string = "[Error] CAMU_SetContrast failed. ";
@@ -451,37 +1362,53 @@ Result_with_string Cam_set_capture_exposure(int exposure_num)
 
 Result_with_string Cam_set_capture_fps(int fps_num)
 {
-	CAMU_FrameRate framerate;
+	CAMU_FrameRate framerate = FRAME_RATE_15;
 	Result_with_string result;
 
-	if (fps_num == 0)
-		framerate = FRAME_RATE_15;
-	else if (fps_num == 1)
-		framerate = FRAME_RATE_15_TO_5;
-	else if (fps_num == 2)
-		framerate = FRAME_RATE_15_TO_2;
-	else if (fps_num == 3)
-		framerate = FRAME_RATE_10;
-	else if (fps_num == 4)
-		framerate = FRAME_RATE_8_5;
-	else if (fps_num == 5)
-		framerate = FRAME_RATE_5;
-	else if (fps_num == 6)
-		framerate = FRAME_RATE_20;
-	else if (fps_num == 7)
-		framerate = FRAME_RATE_20_TO_5;
-	else if (fps_num == 8)
-		framerate = FRAME_RATE_30;
-	else if (fps_num == 9)
-		framerate = FRAME_RATE_30_TO_5;
-	else if (fps_num == 10)
-		framerate = FRAME_RATE_15_TO_10;
-	else if (fps_num == 11)
-		framerate = FRAME_RATE_20_TO_10;
-	else if (fps_num == 12)
-		framerate = FRAME_RATE_30_TO_10;
-	else
-		result.code = INVALID_ARG;
+	switch (fps_num)
+	{
+		case 0:
+			framerate = FRAME_RATE_15;
+			break;
+		case 1:
+			framerate = FRAME_RATE_15_TO_5;
+			break;
+		case 2:
+			framerate = FRAME_RATE_15_TO_2;
+			break;
+		case 3:
+			framerate = FRAME_RATE_10;
+			break;
+		case 4:
+			framerate = FRAME_RATE_8_5;
+			break;
+		case 5:
+			framerate = FRAME_RATE_5;
+			break;
+		case 6:
+			framerate = FRAME_RATE_20;
+			break;
+		case 7:
+			framerate = FRAME_RATE_20_TO_5;
+			break;
+		case 8:
+			framerate = FRAME_RATE_30;
+			break;
+		case 9:
+			framerate = FRAME_RATE_30_TO_5;
+			break;
+		case 10:
+			framerate = FRAME_RATE_15_TO_10;
+			break;
+		case 11:
+			framerate = FRAME_RATE_20_TO_10;
+			break;
+		case 12:
+			framerate = FRAME_RATE_30_TO_10;
+			break;
+		default:
+			result.code = INVALID_ARG;
+	}
 
 	if (result.code != INVALID_ARG)
 		result.code = CAMU_SetFrameRate(SELECT_ALL, framerate);
@@ -494,7 +1421,7 @@ Result_with_string Cam_set_capture_fps(int fps_num)
 
 Result_with_string Cam_set_capture_lens_correction(int lens_correction_num)
 {
-	CAMU_LensCorrection lens_correction;
+	CAMU_LensCorrection lens_correction = LENS_CORRECTION_OFF;
 	Result_with_string result;
 
 	if (lens_correction_num == 0)
@@ -532,7 +1459,7 @@ Result_with_string Cam_set_capture_noise_filter(int noise_filter_num)
 
 Result_with_string Cam_set_capture_size(int width, int height, u32* out_buffer_size)
 {
-	CAMU_Size size;
+	CAMU_Size size = SIZE_VGA;
 	bool failed = false;
 	u32 buffer_size;
 	Result_with_string result;
@@ -588,7 +1515,7 @@ Result_with_string Cam_set_capture_size(int width, int height, u32* out_buffer_s
 
 Result_with_string Cam_set_capture_white_balance(int white_balance_num)
 {
-	CAMU_WhiteBalance white_balance;
+	CAMU_WhiteBalance white_balance = WHITE_BALANCE_AUTO;
 	Result_with_string result;
 
 	if (white_balance_num == 0)
@@ -648,7 +1575,7 @@ Result_with_string Cam_take_picture(u8* capture_buffer, int size, bool out_cam_1
 
 	if (!failed)
 	{
-		result.code = svcWaitSynchronization(receive, 250000000);
+		result.code = svcWaitSynchronization(receive, 100000000);
 		if (result.code != 0)
 		{
 			result.string = "[Error] svcWaitSynchronization failed. ";
@@ -671,639 +1598,33 @@ Result_with_string Cam_take_picture(u8* capture_buffer, int size, bool out_cam_1
 	return result;
 }
 
-void Cam_encode_thread(void* arg)
-{
-	int thread_num = std::stoi((char*)arg);
-	Log_log_save(cam_encode_thread_string + std::to_string(thread_num), "Thread started.", 1234567890, false);
-	int log_num;
-	int file_size;
-	int stbi_result;
-	u8* cam_rgb888_buffer;
-	uint8_t* cam_png_buffer;
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
-	Result_with_string result;
-
-	File_save_to_file(".", NULL, 0, "/Line/dcim/", true, fs_handle, fs_archive);
-
-	while (cam_encode_thread_run)
-	{
-		if (cam_encode_request[thread_num])
-		{
-			cam_rgb888_buffer = (uint8_t*)malloc((Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 3));
-
-			for (int k = cam_encode_thread_job_start_num[thread_num]; k < cam_encode_thread_job_start_num[thread_num] + cam_encode_thread_num_of_jobs[thread_num]; k++)
-			{
-				memset(cam_rgb888_buffer, 0x0, (Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 3));
-				cam_png_buffer = (uint8_t*)malloc(0x80000);
-				memset(cam_png_buffer, 0x0, 0x80000);
-				if (cam_png_buffer == NULL)
-				{
-					Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_encode_thread_string + std::to_string(thread_num), OUT_OF_MEMORY);
-					Log_log_save(cam_encode_thread_string + std::to_string(thread_num), "[Error] Out of memory. ", OUT_OF_MEMORY, false);
-					Err_set_error_show_flag(true);
-				}
-				else if (cam_capture_buffer[k] != NULL)
-				{
-
-					Draw_rgb565_to_abgr888_rgb888(cam_capture_buffer[k], cam_rgb888_buffer, Cam_convert_to_resolution(cam_current_capture_resolution_mode, true), Cam_convert_to_resolution(cam_current_capture_resolution_mode, false), true);
-					free(cam_capture_buffer[k]);
-					cam_capture_buffer[k] = NULL;
-
-					if (cam_encode_format_mode == 0)
-					{
-						log_num = Log_log_save("Cam/Encode thread " + std::to_string(thread_num), "stbi_write_png_to_mem()...", 1234567890, false);
-						cam_png_buffer = stbi_write_png_to_mem((const unsigned char*)cam_rgb888_buffer, 0, Cam_convert_to_resolution(cam_current_capture_resolution_mode, true), Cam_convert_to_resolution(cam_current_capture_resolution_mode, false), 3, &file_size);
-						Log_log_add(log_num, "size : " + std::to_string(file_size / 1024) + "KB. ", 1234567890, false);
-						if (cam_png_buffer != NULL)
-						{
-							log_num = Log_log_save("Cam/Encode thread " + std::to_string(thread_num), "(" + Menu_query_time() + ".png)...", 1234567890, false);
-							result = File_save_to_file(Menu_query_time() + ".png", (u8*)cam_png_buffer, file_size, "/Line/dcim/PNG/", true, fs_handle, fs_archive);
-							Log_log_add(log_num, result.string, result.code, false);
-						}
-					}
-					else if (cam_encode_format_mode == 1)
-					{
-						log_num = Log_log_save("Cam/Encode thread " + std::to_string(thread_num), "stbi_write_jpg_to_mem()...", 1234567890, false);
-						stbi_result = stbi_write_jpg_to_mem((void*)cam_png_buffer, Cam_convert_to_resolution(cam_current_capture_resolution_mode, true), Cam_convert_to_resolution(cam_current_capture_resolution_mode, false), 3, (const void*)cam_rgb888_buffer, cam_selected_jpg_quality, &file_size);
-						Log_log_add(log_num, "size : " + std::to_string(file_size / 1024) + "KB. ", 1234567890, false);
-						if (stbi_result != 0)
-						{
-							log_num = Log_log_save("Cam/Encode thread " + std::to_string(thread_num), "(" + Menu_query_time() + ".jpg)...", 1234567890, false);
-							result = File_save_to_file(Menu_query_time() + ".jpg", (u8*)cam_png_buffer, file_size, "/Line/dcim/JPG/", true, fs_handle, fs_archive);
-							Log_log_add(log_num, result.string, result.code, false);
-						}
-					}
-				}
-
-				free(cam_png_buffer);
-				cam_png_buffer = NULL;
-				cam_encode_thread_progress[thread_num]++;
-			}
-			free(cam_rgb888_buffer);
-			cam_rgb888_buffer = NULL;
-			cam_encode_request[thread_num] = false;
-		}
-		usleep(250000);
-	}
-	Log_log_save(cam_encode_thread_string + std::to_string(thread_num), "Thread exit.", 1234567890, false);
-	threadExit(0);
-}
-
-void Cam_capture_thread(void* arg)
-{
-	Log_log_save(cam_capture_thread_string, "Thread started.", 1234567890, false);
-	bool out_left = false;
-	int log_num;
-	Result_with_string result;
-	result.code = CAMU_Activate(SELECT_OUT1);
-
-	while (cam_capture_thread_run)
-	{
-		while (cam_thread_suspend)
-			usleep(250000);
-
-		if (cam_take_request && !cam_encode_request[0] && !cam_encode_request[1] && !cam_encode_request[2])
-		{
-			log_num = Log_log_save(cam_capture_thread_string , "Cam_take_picture()...", 1234567890, false);
-			cam_capture_buffer[0] = (u8*)malloc(Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2);
-			if (cam_capture_buffer[0] == NULL)
-			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_capture_thread_string, OUT_OF_MEMORY);
-				Log_log_add(log_num, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
-				Err_set_error_show_flag(true);
-			}
-			else
-			{
-				if (cam_request_capture_camera_mode == 1)
-					out_left = true;
-				else
-					out_left = false;
-
-				result = Cam_take_picture(cam_capture_buffer[0], (Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2), out_left, cam_shutter_sound_mode);
-
-				Log_log_add(log_num, result.string, result.code, false);
-				if (result.code != 0 && result.code != 0x9401BFE)
-				{
-					Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
-					Err_set_error_show_flag(true);
-				}
-			}
-			cam_take_request = false;
-
-			cam_encode_thread_job_start_num[0] = 0;
-			cam_encode_thread_job_start_num[1] = 0;
-			cam_encode_thread_job_start_num[2] = 0;
-			cam_encode_thread_num_of_jobs[0] = 1;
-			cam_encode_thread_num_of_jobs[1] = 0;
-			cam_encode_thread_num_of_jobs[2] = 0;
-
-			for (int i = 0; i < 3; i++)
-				cam_encode_thread_progress[i] = 0;
-
-			cam_encode_request[0] = true;
-		}
-		/*else if (cam_burst_request && !cam_encode_request[0] && !cam_encode_request[1] && !cam_encode_request[2])
-		{
-			for (int i = 0; i < 60; i++)
-			{
-				log_num = Log_log_save(cam_capture_thread_string , "Cam_take_picture()...", 1234567890, false);
-				cam_capture_buffer[i] = (u8*)malloc(Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2);
-				if (cam_capture_buffer[i] == NULL)
-				{
-					Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_capture_thread_string, OUT_OF_MEMORY);
-					Log_log_add(log_num, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
-					Err_set_error_show_flag(true);
-				}
-				else
-				{
-					if (cam_request_capture_camera_mode == 1)
-						result = Cam_take_picture(cam_capture_buffer[i], (Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2), true, cam_shutter_sound_mode);
-					else
-						result = Cam_take_picture(cam_capture_buffer[i], (Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2), false, cam_shutter_sound_mode);
-
-					Log_log_add(log_num, result.string, result.code, false);
-					if (result.code != 0 && result.code != 0x9401BFE)
-					{
-						Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
-						Err_set_error_show_flag(true);
-					}
-				}
-			}
-			cam_burst_request = false;
-
-			if (cam_selected_num_of_encode_threads == 1)
-			{
-				cam_encode_thread_job_start_num[0] = 0;
-				cam_encode_thread_num_of_jobs[0] = 60;
-			}
-			else if (cam_selected_num_of_encode_threads == 2)
-			{
-				cam_encode_thread_job_start_num[0] = 0;
-				cam_encode_thread_job_start_num[1] = 30;
-				cam_encode_thread_num_of_jobs[0] = 30;
-				cam_encode_thread_num_of_jobs[1] = 30;
-			}
-			else if (cam_selected_num_of_encode_threads == 3)
-			{
-				cam_encode_thread_job_start_num[0] = 0;
-				cam_encode_thread_job_start_num[1] = 20;
-				cam_encode_thread_job_start_num[2] = 40;
-				cam_encode_thread_num_of_jobs[0] = 20;
-				cam_encode_thread_num_of_jobs[1] = 20;
-				cam_encode_thread_num_of_jobs[2] = 20;
-			}
-			for (int i = 0; i < 3; i++)
-				cam_encode_thread_progress[i] = 0;
-			for (int i = 0; i < cam_selected_num_of_encode_threads; i++)
-				cam_encode_request[i] = true;
-		}*/
-		else if (cam_change_resolution_request || cam_change_fps_request || cam_change_contrast_request || cam_change_white_balance_request
-			|| cam_change_lens_correction_request || cam_change_camera_request || cam_change_exposure_request || cam_change_noise_filter_request)
-		{
-			if (cam_change_resolution_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_size()...", 1234567890, false);
-				result = Cam_set_capture_size(Cam_convert_to_resolution(cam_request_capture_resolution_mode, true), Cam_convert_to_resolution(cam_request_capture_resolution_mode, false), &cam_buffer_size);
-			}
-			else if (cam_change_fps_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_fps()...", 1234567890, false);
-				result = Cam_set_capture_fps(cam_request_capture_fps_mode);
-			}
-			else if (cam_change_contrast_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "CAMU_SetContrast()...", 1234567890, false);
-				result = Cam_set_capture_contrast(cam_request_capture_contrast_mode);
-			}
-			else if (cam_change_white_balance_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_white_balance()...", 1234567890, false);
-				result = Cam_set_capture_white_balance(cam_request_capture_white_balance_mode);
-			}
-			else if (cam_change_lens_correction_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_lens_correction()...", 1234567890, false);
-				result = Cam_set_capture_lens_correction(cam_request_capture_lens_correction_mode);
-			}
-			else if (cam_change_camera_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_camera()...", 1234567890, false);
-				result = Cam_set_capture_camera(cam_request_capture_camera_mode, Cam_convert_to_resolution(cam_current_capture_resolution_mode, true), Cam_convert_to_resolution(cam_current_capture_resolution_mode, false), &cam_buffer_size);
-			}
-			else if (cam_change_exposure_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_exposure()...", 1234567890, false);
-				result = Cam_set_capture_exposure(cam_request_capture_exposure_mode);
-			}
-			else if (cam_change_noise_filter_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_noise_filter()...", 1234567890, false);
-				result = Cam_set_capture_noise_filter(cam_request_capture_noise_filter_mode);
-			}
-			else
-				log_num = 0;
-
-			Log_log_add(log_num, result.string, result.code, false);
-
-			if (result.code != 0)
-			{
-				cam_request_capture_resolution_mode = cam_current_capture_resolution_mode;
-				Err_set_error_message(result.string, result.error_description, cam_capture_thread_string, result.code);
-				Err_set_error_show_flag(true);
-			}
-			else
-			{
-				if (cam_change_resolution_request)
-					cam_current_capture_resolution_mode = cam_request_capture_resolution_mode;
-				else if (cam_change_fps_request)
-					cam_current_capture_fps_mode = cam_request_capture_fps_mode;
-				else if (cam_change_contrast_request)
-					cam_current_capture_contrast_mode = cam_request_capture_contrast_mode;
-				else if (cam_change_white_balance_request)
-					cam_current_capture_white_balance_mode = cam_request_capture_white_balance_mode;
-				else if (cam_change_lens_correction_request)
-					cam_current_capture_lens_correction_mode = cam_request_capture_lens_correction_mode;
-				else if (cam_change_camera_request)
-					cam_current_capture_camera_mode = cam_request_capture_camera_mode;
-				else if (cam_change_exposure_request)
-					cam_current_capture_exposure_mode = cam_request_capture_exposure_mode;
-				else if (cam_change_noise_filter_request)
-					cam_current_capture_noise_filter_mode = cam_request_capture_noise_filter_mode;
-			}
-
-			if (cam_change_resolution_request)
-				cam_change_resolution_request = false;
-			else if (cam_change_fps_request)
-				cam_change_fps_request = false;
-			else if (cam_change_contrast_request)
-				cam_change_contrast_request = false;
-			else if (cam_change_white_balance_request)
-				cam_change_white_balance_request = false;
-			else if (cam_change_lens_correction_request)
-				cam_change_lens_correction_request = false;
-			else if (cam_change_camera_request)
-				cam_change_camera_request = false;
-			else if (cam_change_exposure_request)
-				cam_change_exposure_request = false;
-			else if (cam_change_noise_filter_request)
-				cam_change_noise_filter_request = false;
-		}
-		/*else if (cam_change_fps_request)
-		{
-			cam_change_fps_request = false;
-			log_num = Log_log_save(cam_capture_thread_string , "Cam_set_capture_fps()...", 1234567890, false);
-			result = Cam_set_capture_fps(cam_request_capture_fps_mode);
-			Log_log_add(log_num, result.string, result.code, false);
-
-			if (result.code != 0)
-			{
-				cam_request_capture_fps_mode = cam_current_capture_fps_mode;
-				Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
-				Err_set_error_show_flag(true);
-			}
-			else
-				cam_current_capture_fps_mode = cam_request_capture_fps_mode;
-		}
-		else if (cam_change_contrast_request)
-		{
-			cam_change_contrast_request = false;
-			log_num = Log_log_save(cam_capture_thread_string , "CAMU_SetContrast()...", 1234567890, false);
-			result = Cam_set_capture_contrast(cam_request_capture_contrast_mode);
-			Log_log_add(log_num, result.string, result.code, false);
-
-			if (result.code != 0)
-			{
-				cam_request_capture_contrast_mode = cam_current_capture_contrast_mode;
-				Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
-				Err_set_error_show_flag(true);
-			}
-			else
-				cam_current_capture_contrast_mode = cam_request_capture_contrast_mode;
-		}
-		else if (cam_change_white_balance_request)
-		{
-			cam_change_white_balance_request = false;
-			log_num = Log_log_save(cam_capture_thread_string , "Cam_set_capture_white_balance()...", 1234567890, false);
-			result = Cam_set_capture_white_balance(cam_request_capture_white_balance_mode);
-			Log_log_add(log_num, result.string, result.code, false);
-
-			if (result.code != 0)
-			{
-				cam_request_capture_white_balance_mode = cam_current_capture_white_balance_mode;
-				Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
-				Err_set_error_show_flag(true);
-			}
-			else
-				cam_current_capture_white_balance_mode = cam_request_capture_white_balance_mode;
-		}
-		else if (cam_change_lens_correction_request)
-		{
-			cam_change_lens_correction_request = false;
-			log_num = Log_log_save(cam_capture_thread_string , "Cam_set_capture_lens_correction()...", 1234567890, false);
-			result = Cam_set_capture_lens_correction(cam_request_capture_lens_correction_mode);
-			Log_log_add(log_num, result.string, result.code, false);
-
-			if (result.code != 0)
-			{
-				cam_request_capture_lens_correction_mode = cam_current_capture_lens_correction_mode;
-				Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
-				Err_set_error_show_flag(true);
-			}
-			else
-				cam_current_capture_lens_correction_mode = cam_request_capture_lens_correction_mode;
-		}
-		else if (cam_change_camera_request)
-		{
-			cam_change_camera_request = false;
-			log_num = Log_log_save(cam_capture_thread_string , "Cam_set_capture_camera()...", 1234567890, false);
-			result = Cam_set_capture_camera(cam_request_capture_camera_mode, Cam_convert_to_resolution(cam_current_capture_resolution_mode, true), Cam_convert_to_resolution(cam_current_capture_resolution_mode, false), &cam_buffer_size);
-			Log_log_add(log_num, result.string, result.code, false);
-
-			if (result.code != 0)
-			{
-				cam_request_capture_camera_mode = cam_current_capture_camera_mode;
-				Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
-				Err_set_error_show_flag(true);
-			}
-			else
-				cam_current_capture_camera_mode = cam_request_capture_camera_mode;
-		}
-		else if (cam_change_exposure_request)
-		{
-			cam_change_exposure_request = false;
-			log_num = Log_log_save(cam_capture_thread_string , "Cam_set_capture_exposure()...", 1234567890, false);
-			result = Cam_set_capture_exposure(cam_request_capture_exposure_mode);
-			Log_log_add(log_num, result.string, result.code, false);
-
-			if (result.code != 0)
-			{
-				cam_request_capture_exposure_mode = cam_current_capture_exposure_mode;
-				Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
-				Err_set_error_show_flag(true);
-			}
-			else
-				cam_current_capture_exposure_mode = cam_request_capture_exposure_mode;
-		}
-		else if (cam_change_noise_filter_request)
-		{
-			cam_change_noise_filter_request = false;
-			log_num = Log_log_save(cam_capture_thread_string , "Cam_set_capture_noise_filter()...", 1234567890, false);
-			result = Cam_set_capture_noise_filter(cam_request_capture_noise_filter_mode);
-			Log_log_add(log_num, result.string, result.code, false);
-
-			if (result.code != 0)
-			{
-				cam_request_capture_noise_filter_mode = cam_current_capture_noise_filter_mode;
-				Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
-				Err_set_error_show_flag(true);
-			}
-			else
-				cam_current_capture_noise_filter_mode = cam_request_capture_noise_filter_mode;
-		}*/
-		else
-		{
-			if (cam_request_capture_camera_mode == 1)
-				out_left = true;
-			else
-				out_left = false;
-
-			result = Cam_take_picture(cam_capture_frame_buffer[3], (Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2), out_left, false);
-
-			if (result.code == 0)
-			{
-				cam_writing = 0;
-				while (cam_reading == 0)
-					usleep(5000);
-
-				memcpy(cam_capture_frame_buffer[0], cam_capture_frame_buffer[3], (Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2));
-			}
-			cam_writing = -1;
-
-			if (result.code == 0)
-			{
-				if (cam_current_img_num == 0)
-					cam_current_img_num = 1;
-				else
-					cam_current_img_num = 0;
-
-				cam_fps++;
-				cam_parse_request = true;
-			}
-			else
-			{
-				Log_log_save(cam_capture_thread_string , result.string, result.code, false);
-				usleep(50000);
-			}
-		}
-	}
-
-	result.code = CAMU_Activate(SELECT_NONE);
-
-	Log_log_save(cam_capture_thread_string, "Thread exit.", 1234567890, false);
-	threadExit(0);
-}
-
-void Cam_parse_thread(void* arg)
-{
-	Log_log_save(cam_parse_thread_string, "Thread started.", 1234567890, false);
-	int previous_num= 0;
-	int processing_num[2] = { 1, 2 };
-	int tex_size = 512;
-	C3D_Tex* c3d_cache_tex[4];
-	Tex3DS_SubTexture* c3d_cache_subtex[4];
-	Result_with_string result;
-
-	for (int i = 0; i < 4; i++)
-	{
-		c3d_cache_tex[i] = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
-		c3d_cache_subtex[i] = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
-	}
-
-	while (cam_parse_thread_run)
-	{
-		while (cam_thread_suspend)
-			usleep(250000);
-
-		if (cam_parse_request)
-		{
-			cam_parse_request = false;
-
-			if (previous_num!= cam_current_img_num)
-			{
-				previous_num= cam_current_img_num;
-
-				if (cam_current_img_num == 0)
-				{
-					cam_reading = 0;
-					while (cam_writing == 0)
-						usleep(5000);
-
-					memcpy(cam_capture_frame_buffer[1], cam_capture_frame_buffer[0], (Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2));
-				}
-				else
-				{
-					cam_reading = 0;
-					while (cam_writing == 0)
-						usleep(5000);
-
-					memcpy(cam_capture_frame_buffer[2], cam_capture_frame_buffer[0], (Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 2));
-				}
-				cam_reading = -1;
-
-				if (cam_current_display_img_num == 0)
-				{
-					processing_num[1] = 1;
-					processing_num[2] = 2;
-				}
-				else
-				{
-					processing_num[1] = 0;
-					processing_num[2] = 0;
-				}
-
-				for (int i = 0; i < 2; i++)
-				{
-					C3D_TexDelete(c3d_cache_tex[processing_num[2] + i]);
-					cam_capture_image[processing_num[2] + i].tex = c3d_cache_tex[processing_num[2] + i];
-					cam_capture_image[processing_num[2] + i].subtex = c3d_cache_subtex[processing_num[2] + i];
-				}
-
-				Draw_rgb565_to_abgr888_rgb888(cam_capture_frame_buffer[0], cam_rgba8888_frame_buffer[processing_num[1]], Cam_convert_to_resolution(cam_current_capture_resolution_mode, true), Cam_convert_to_resolution(cam_current_capture_resolution_mode, false), false);
-
-				if(cam_current_capture_resolution_mode >= 0 && cam_current_capture_resolution_mode <= 5)
-					tex_size = 512;
-				else if(cam_current_capture_resolution_mode >= 6)
-					tex_size = 256;
-
-				result = Draw_c3dtex_to_c2dimage(c3d_cache_tex[processing_num[2]], c3d_cache_subtex[processing_num[2]], cam_rgba8888_frame_buffer[processing_num[1]], (Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 4), Cam_convert_to_resolution(cam_current_capture_resolution_mode, true), Cam_convert_to_resolution(cam_current_capture_resolution_mode, false), 0, 0, tex_size, tex_size, GPU_RGBA8);
-				if(cam_current_capture_resolution_mode == 0)
-					result = Draw_c3dtex_to_c2dimage(c3d_cache_tex[processing_num[2] + 1], c3d_cache_subtex[processing_num[2] + 1], cam_rgba8888_frame_buffer[processing_num[1]], (Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) * Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) * 4), Cam_convert_to_resolution(cam_current_capture_resolution_mode, true), Cam_convert_to_resolution(cam_current_capture_resolution_mode, false), 512, 0, 128, 512, GPU_RGBA8);
-
-				if (result.code == 0)
-				{
-					if (processing_num[1] == 1)
-						cam_current_display_img_num = 1;
-					else
-						cam_current_display_img_num = 0;
-				}
-				else
-				{
-					Err_set_error_message(result.string, result.error_description, cam_parse_thread_string, result.code);
-					Err_set_error_show_flag(true);
-					usleep(1000000);
-				}
-			}
-		}
-		else
-			usleep(10000);
-	}
-
-	for (int i = 0; i < 4; i++)
-	{
-		C3D_TexDelete(c3d_cache_tex[i]);
-		linearFree(c3d_cache_tex[i]);
-		c3d_cache_tex[i] = NULL;
-		linearFree(c3d_cache_subtex[i]);
-		c3d_cache_subtex[i] = NULL;
-	}
-
-	Log_log_save(cam_parse_thread_string, "Thread exit.", 1234567890, false);
-	threadExit(0);
-}
-
-void Cam_exit(void)
-{
-	Log_log_save(cam_exit_string , "Exiting...", 1234567890, s_debug_slow);
-	u64 time_out = 10000000000;
-	int log_num;
-	bool failed = false;
-	Result_with_string result;
-
-	Draw_progress("[Cam] Exiting...");
-	cam_already_init = false;
-	cam_thread_suspend = false;
-	cam_capture_thread_run = false;
-	cam_encode_thread_run = false;
-	cam_parse_thread_run = false;
-
-	for (int i = 0; i < 5; i++)
-	{
-		log_num = Log_log_save(cam_exit_string, "Exiting thread(" + std::to_string(i) + "/4)...", 1234567890, s_debug_slow);
-
-		if (i >= 0 && i <= 2)
-			result.code = threadJoin(cam_encode_thread[i], time_out);
-		else if (i == 3)
-			result.code = threadJoin(cam_parse_thread, time_out);
-		else if (i == 4)
-			result.code = threadJoin(cam_capture_thread, time_out);
-
-		if (result.code == 0)
-			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
-		else
-		{
-			failed = true;
-			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
-		}
-	}
-
-	for (int i = 0; i < 3; i++)
-		threadFree(cam_encode_thread[i]);
-
-	threadFree(cam_parse_thread);
-	threadFree(cam_capture_thread);
-
-	camExit();
-
-	for (int i = 0; i < 2; i++)
-	{
-		free(cam_rgba8888_frame_buffer[i]);
-		cam_rgba8888_frame_buffer[i] = NULL;
-	}
-	for (int i = 0; i < 4; i++)
-	{
-		free(cam_capture_frame_buffer[i]);
-		cam_capture_frame_buffer[i] = NULL;
-	}
-
-	if (failed)
-		Log_log_save(cam_exit_string , "[Warn] Some function returned error.", 1234567890, s_debug_slow);
-
-}
-
-Result_with_string Cam_cam_init(void)
+Result_with_string Cam_cam_init(int camera_moide, int resolution_mode, int noise_filter_mode, int exposure_mode,
+	int white_balance_mode, int fps_mode, int contrast_mode, int lens_correction_mode, u32* buffer_size)
 {
 	Result_with_string result;
 	bool failed = false;
 
-	result = Cam_set_capture_size(Cam_convert_to_resolution(cam_request_capture_resolution_mode, true), Cam_convert_to_resolution(cam_request_capture_resolution_mode, false), &cam_buffer_size);
+	result.code = CAMU_SetOutputFormat(SELECT_ALL, OUTPUT_RGB_565, CONTEXT_BOTH);
 	if (result.code != 0)
 		failed = true;
 
 	if (!failed)
 	{
-		result.code = CAMU_SetOutputFormat(SELECT_ALL, OUTPUT_RGB_565, CONTEXT_BOTH);
+		result = Cam_set_capture_noise_filter(noise_filter_mode);
 		if (result.code != 0)
 			failed = true;
 	}
 
 	if (!failed)
 	{
-		result = Cam_set_capture_noise_filter(cam_request_capture_noise_filter_mode);
+		result = Cam_set_capture_exposure(exposure_mode);
 		if (result.code != 0)
 			failed = true;
 	}
 
 	if (!failed)
 	{
-		result = Cam_set_capture_exposure(cam_request_capture_exposure_mode);
-		if (result.code != 0)
-			failed = true;
-	}
-
-	if (!failed)
-	{
-		result = Cam_set_capture_white_balance(cam_request_capture_white_balance_mode);
+		result = Cam_set_capture_white_balance(white_balance_mode);
 		if (result.code != 0)
 			failed = true;
 	}
@@ -1324,388 +1645,31 @@ Result_with_string Cam_cam_init(void)
 
 	if (!failed)
 	{
-		result = Cam_set_capture_fps(cam_request_capture_fps_mode);
+		result = Cam_set_capture_fps(fps_mode);
 		if (result.code != 0)
 			failed = true;
 	}
 
 	if (!failed)
 	{
-		result = Cam_set_capture_contrast(cam_request_capture_contrast_mode);
+		result = Cam_set_capture_contrast(contrast_mode);
 		if (result.code != 0)
 			failed = true;
 	}
 
 	if(!failed)
 	{
-		result = Cam_set_capture_lens_correction(cam_request_capture_lens_correction_mode);
+		result = Cam_set_capture_lens_correction(lens_correction_mode);
+		if (result.code != 0)
+			failed = true;
+	}
+
+	if (!failed)
+	{
+		result = Cam_set_capture_camera(camera_moide, Cam_convert_to_resolution(resolution_mode, true), Cam_convert_to_resolution(resolution_mode, false), buffer_size);
 		if (result.code != 0)
 			failed = true;
 	}
 
 	return result;
-}
-
-void Cam_init(void)
-{
-	Log_log_save(cam_init_string , "Initializing...", 1234567890, s_debug_slow);
-	bool failed = false;
-	int log_num;
-	Result_with_string result;
-
-	Draw_progress("0/2 [Cam] Initializing service...");
-	log_num = Log_log_save(cam_init_string , "camInit...", 1234567890, s_debug_slow);
-	result.code = camInit();
-	if (result.code == 0)
-		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
-	else
-	{
-		failed = true;
-		Err_set_error_message("camInit failed. ", "", cam_init_string , result.code);
-		Err_set_error_show_flag(true);
-		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
-	}
-
-	Draw_progress("1/2 [Cam] Initializing camera...");
-	if (!failed)
-	{
-		log_num = Log_log_save(cam_init_string , "Initializing camera...", 1234567890, s_debug_slow);
-		result = Cam_cam_init();
-		Log_log_add(log_num, result.string, result.code, s_debug_slow);
-		if (result.code != 0)
-		{
-			Err_set_error_message(result.string, result.error_description, cam_init_string , result.code);
-			Err_set_error_show_flag(true);
-		}
-
-		log_num = Log_log_save(cam_init_string , "APT_SetAppCpuTimeLimit_80...", 1234567890, s_debug_slow);
-		result.code = APT_SetAppCpuTimeLimit(80);
-		if (result.code == 0)
-			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
-		else
-			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
-	}
-
-	if (!failed)
-	{
-		for (int i = 0; i < 2; i++)
-		{
-			cam_rgba8888_frame_buffer[i] = (u8*)malloc(640 * 480 * 4);
-			if (cam_rgba8888_frame_buffer[i] == NULL)
-			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_init_string, OUT_OF_MEMORY);
-				Err_set_error_show_flag(true);
-				Log_log_save(cam_init_string, "[Error] Out of memory. ", OUT_OF_MEMORY, s_debug_slow);
-				failed = true;
-				break;
-			}
-		}
-	}
-	if (!failed)
-	{
-		for (int i = 0; i < 4; i++)
-		{
-			cam_capture_frame_buffer[i] = (u8*)malloc(640 * 480 * 2);
-			if (cam_capture_frame_buffer[i] == NULL)
-			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_init_string, OUT_OF_MEMORY);
-				Err_set_error_show_flag(true);
-				Log_log_save(cam_init_string, "[Error] Out of memory. ", OUT_OF_MEMORY, s_debug_slow);
-				failed = true;
-				break;
-			}
-		}
-	}
-
-	Draw_progress("2/2 [Cam] Starting threads...");
-	if (!failed)
-	{
-		cam_capture_thread_run = true;
-		cam_encode_thread_run = true;
-		cam_parse_thread_run = true;
-		cam_capture_thread = threadCreate(Cam_capture_thread, (void*)(""), STACKSIZE, 0x23, -1, false);
-		cam_encode_thread[0] = threadCreate(Cam_encode_thread, (void*)("0"), STACKSIZE, 0x23, 0, false);
-		//cam_encode_thread[1] = threadCreate(Cam_encode_thread, (void*)("1"), STACKSIZE, 0x23, 1, false);
-		//cam_encode_thread[2] = threadCreate(Cam_encode_thread, (void*)("2"), STACKSIZE, 0x23, 2, false);
-		cam_parse_thread = threadCreate(Cam_parse_thread, (void*)(""), STACKSIZE, 0x24, -1, false);
-	}
-
-	cam_current_display_img_num = -1;
-	cam_current_capture_camera_mode = 0;
-
-	Cam_resume();
-	cam_already_init = true;
-	Log_log_save(cam_init_string , "Initialized", 1234567890, s_debug_slow);
-}
-
-void Cam_main(void)
-{
-	int image_num = 0;
-	int log_y = Log_query_y();
-	double log_x = Log_query_x();
-	float text_red;
-	float text_green;
-	float text_blue;
-	float text_alpha;
-	double red[15], green[15], blue[15], alpha[15];
-	double draw_x = 0.0;
-	double draw_y = 0.0;
-	double bar_x[4];
-
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-	{
-		text_red = 1.0f;
-		text_green = 1.0f;
-		text_blue = 1.0f;
-		text_alpha = 0.75f;
-		white_or_black_tint = white_tint;
-	}
-	else
-	{
-		text_red = 0.0f;
-		text_green = 0.0f;
-		text_blue = 0.0f;
-		text_alpha = 1.0f;
-		white_or_black_tint = black_tint;
-	}
-	Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 15);
-
-	Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-		Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
-	else
-		Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
-
-	if (cam_current_display_img_num != -1)
-	{
-		if (cam_current_display_img_num == 1)
-			image_num = 2;
-		else
-			image_num = 0;
-
-		if (Cam_convert_to_resolution(cam_current_capture_resolution_mode, true) == 400 && Cam_convert_to_resolution(cam_current_capture_resolution_mode, false) == 240)
-			Draw_texture(cam_capture_image, dammy_tint, image_num, 0.0, 0.0, 400.0, 240.0);
-		else if (cam_current_capture_resolution_mode == 0)
-		{
-			Draw_texture(cam_capture_image, dammy_tint, image_num, 40.0, 0.0, 256.0, 240.0);
-			Draw_texture(cam_capture_image, dammy_tint, image_num + 1, 296.0, 0.0, 64.0, 240.0);
-		}
-		else
-			Draw_texture(cam_capture_image, dammy_tint, image_num, 40.0, 0.0, 320.0, 240.0);
-	}
-
-	Draw_top_ui();
-	if (Sem_query_settings(SEM_DEBUG_MODE))
-		Draw_debug_info();
-	if (Log_query_log_show_flag())
-	{
-		for (int i = 0; i < 23; i++)
-			Draw(Log_query_log(log_y + i), 0, log_x, 10.0f + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
-	}
-
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-		Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
-	else
-		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
-
-	Draw(cam_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
-	Draw(std::to_string(Cam_convert_to_resolution(cam_current_capture_resolution_mode, true)) + cam_msg[0] + std::to_string(Cam_convert_to_resolution(cam_current_capture_resolution_mode, false)) + cam_msg[1] + cam_framelate_list[cam_current_capture_fps_mode] + cam_msg[2], 0, 20.0, 20.0, 0.6, 0.6, text_red, text_green, text_blue, text_alpha);
-	Draw(cam_msg[3] + cam_contrast_list[cam_current_capture_contrast_mode] + cam_msg[4] + cam_white_balance_list[cam_current_capture_white_balance_mode], 0, 20.0, 35.0, 0.55, 0.55, text_red, text_green, text_blue, text_alpha);
-	Draw(cam_msg[5] + cam_lens_correction_list[cam_current_capture_lens_correction_mode] + cam_msg[6] + cam_exposure_list[cam_current_capture_exposure_mode], 0, 20.0, 50.0, 0.55, 0.55, text_red, text_green, text_blue, text_alpha);
-	Draw(cam_msg[30] + cam_format_name_list[cam_encode_format_mode] + cam_msg[31], 0, 20.0, 65.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-
-	Draw_texture(Square_image, weak_yellow_tint, 0, 40.0, 110.0, 60.0, 10.0);
-	Draw_texture(Square_image, weak_blue_tint, 0, 100.0, 110.0, 60.0, 10.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 160.0, 110.0, 60.0, 10.0);
-	Draw_texture(Square_image, weak_red_tint, 0, 220.0, 110.0, 60.0, 10.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 40.0, 120.0, 240.0, 80.0);
-
-	for (int i = 0; i < 3; i++)
-	{
-		Draw_texture(Square_image, weak_aqua_tint, 0, 40.0 + (i * 85.0), 85.0, 70.0, 20.0);
-		Draw(cam_msg[27 + i], 0, 40.0 + (i * 85.0), 85.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	}
-
-	if (cam_selected_menu_mode == CAM_MENU_RESOLUTION)
-	{
-		Draw_texture(Square_image, yellow_tint, 0, 40.0, 110.0, 60.0, 10.0);
-		draw_x = 40.0;
-		draw_y = 120.0;
-		for (int i = 0; i < 9; i++)
-		{
-			if (i == cam_current_capture_resolution_mode)
-			{
-				red[i] = 1.0;
-				green[i] = 0.0;
-				blue[i] = 0.0;
-				alpha[i] = 1.0;
-			}
-
-			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 60.0, 20.0);
-			Draw(cam_resolution_list[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
-			if (draw_y + 30.0 > 180.0)
-			{
-				draw_x += 90.0;
-				draw_y = 120.0;
-			}
-			else
-				draw_y += 30.0;
-		}
-	}
-	else if (cam_selected_menu_mode == CAM_MENU_FPS)
-	{
-		Draw_texture(Square_image, weak_blue_tint, 0, 100.0, 110.0, 60.0, 10.0);
-		draw_x = 40.0;
-		draw_y = 120.0;
-		for (int i = 0; i < 15; i++)
-		{
-			if (i == cam_current_capture_fps_mode)
-			{
-				red[i] = 1.0;
-				green[i] = 0.0;
-				blue[i] = 0.0;
-				alpha[i] = 1.0;
-			}
-
-			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 30.0, 20.0);
-			Draw(cam_framelate_list[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
-			if (draw_y + 30.0 > 180.0)
-			{
-				draw_x += 50.0;
-				draw_y = 120.0;
-			}
-			else
-				draw_y += 30.0;
-		}
-	}
-	else if (cam_selected_menu_mode == CAM_MENU_ADVANCED_0)
-	{
-		Draw_texture(Square_image, weak_aqua_tint, 0, 160.0, 110.0, 60.0, 10.0);
-		draw_x = 40.0;
-		draw_y = 120.0;
-		bar_x[0] = 40.0 + 9.5 * cam_request_capture_contrast_mode;
-		bar_x[1] = 40.0 + 19.0 * cam_request_capture_white_balance_mode;
-		bar_x[2] = 180.0 + 47.5 * cam_request_capture_lens_correction_mode;
-		bar_x[3] = 180.0 + 19.0 * cam_request_capture_exposure_mode;
-		for (int i = 0; i < 4; i++)
-		{
-			Draw(cam_msg[7 + i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw_texture(Square_image, weak_red_tint, 0, draw_x, (draw_y + 17.5), 100.0, 5.0);
-			Draw_texture(Square_image, white_or_black_tint, 0, bar_x[i], (draw_y + 10.0), 5.0, 20.0);
-
-			draw_y += 30.0;
-			if (150.0 < draw_y)
-			{
-				draw_x = 180.0;
-				draw_y = 120.0;
-			}
-		}
-	}
-	else if (cam_selected_menu_mode == CAM_MENU_ADVANCED_1)
-	{
-		Draw_texture(Square_image, red_tint, 0, 220.0, 110.0, 60.0, 10.0);
-
-		Draw(cam_msg[11], 0, 42.5, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 40.0, 130.0, 40.0, 20.0);
-		Draw_texture(Square_image, weak_aqua_tint, 0, 100.0, 130.0, 40.0, 20.0);
-		if (cam_encode_format_mode == 0)
-		{
-			Draw(cam_msg[12], 0, 42.5, 130.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-			Draw(cam_msg[13], 0, 102.5, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		}
-		else if(cam_encode_format_mode == 1)
-		{
-			Draw(cam_msg[12], 0, 42.5, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw(cam_msg[13], 0, 102.5, 130.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
-			Draw(cam_msg[14] + std::to_string(cam_selected_jpg_quality), 0, 42.5, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw_texture(Square_image, weak_red_tint, 0, 41.0, 167.5, 100.0, 5.0);
-			Draw_texture(Square_image, white_or_black_tint, 0, (40.0 + 1.0 * cam_selected_jpg_quality), 160.0, 5.0, 20.0);
-		}
-
-		Draw(cam_msg[15], 0, 182.5, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		draw_x = 180.0;
-		draw_y = 130.0;
-		if (cam_request_capture_noise_filter_mode == 1)//Noise filter
-		{
-			red[0] = 1.0;
-			green[0] = 0.0;
-			blue[0] = 0.0;
-			alpha[0] = 1.0;
-		}
-		else
-		{
-			red[1] = 1.0;
-			green[1] = 0.0;
-			blue[1] = 0.0;
-			alpha[1] = 1.0;
-		}
-
-		for (int i = 0; i < 2; i++)
-		{
-			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 40.0, 20.0);
-			Draw(cam_msg[16 + i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
-			draw_x += 60.0;
-		}
-
-		Draw(cam_msg[18], 0, 182.5, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);//Shutter sound
-		Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 2);
-		draw_x = 180.0;
-		draw_y = 160.0;
-		if (cam_shutter_sound_mode == 1)
-		{
-			red[0] = 1.0;
-			green[0] = 0.0;
-			blue[0] = 0.0;
-			alpha[0] = 1.0;
-		}
-		else
-		{
-			red[1] = 1.0;
-			green[1] = 0.0;
-			blue[1] = 0.0;
-			alpha[1] = 1.0;
-		}
-
-		for (int i = 0; i < 2; i++)
-		{
-			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 40.0, 20.0);
-			Draw(cam_msg[16 + i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, red[i], green[i], blue[i], alpha[i]);
-			draw_x += 60.0;
-		}
-
-		//Draw(cam_msg[19] + std::to_string(cam_selected_num_of_encode_threads), 0, 20.0, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	}
-	for (int i = 0; i < 4; i++)
-		Draw(cam_msg[i + 23], 0, 40.0 + (i * 60.0), 110.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-
-	if (cam_encode_request[0] || cam_encode_request[1] || cam_encode_request[2])
-	{
-		Draw_texture(Square_image, aqua_tint, 0, 40.0, 80.0, 240.0, 110.0);
-
-		if(s_setting[0] == "en")
-			Draw(cam_msg[20] + cam_format_name_list[cam_encode_format_mode] + cam_msg[21], 0, 52.5, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		else if (s_setting[0] == "jp")
-			Draw(cam_format_name_list[cam_encode_format_mode] + cam_msg[20] + cam_msg[21], 0, 52.5, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-
-
-//		for (int i = 0; i < 3; i++)
-		for (int i = 0; i < 1; i++)
-		{
-			Draw(cam_msg[22] + std::to_string(i), 0, 52.5, 90.0 + (i * 30.0), 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			Draw_texture(Square_image, white_tint, 0, 50.0, 100.0 + (i * 30.0), 220.0, 20.0);
-			if(cam_encode_thread_num_of_jobs[i] == 0)
-				Draw_texture(Square_image, red_tint, 0, 50.0, 100.0 + (i * 30.0), 0.0, 20.0);
-			else
-				Draw_texture(Square_image, red_tint, 0, 50.0, 100.0 + (i * 30.0), 220.0 * ((double)cam_encode_thread_progress[i] / (double)cam_encode_thread_num_of_jobs[i]), 20.0);
-		}
-	}
-
-	if (Err_query_error_show_flag())
-		Draw_error();
-
-	Draw_bot_ui();
-	if (Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw_touch_pos();
-
-	Draw_apply_draw();
 }

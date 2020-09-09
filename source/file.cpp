@@ -5,7 +5,6 @@
 #include "error.hpp"
 #include "unicodetochar/unicodetochar.h"
 #include "types.hpp"
-#include "share_function.hpp"
 #include "file.hpp"
 #include "log.hpp"
 
@@ -18,12 +17,10 @@ Result_with_string File_save_to_file(std::string file_name, u8* write_data, int 
 	TickCounter write_time;
 	Result_with_string save_file_result;
 
-
 	save_file_result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
 	if(save_file_result.code != 0)
 	{
 		save_file_result.string = "[Error] FSUSER_OpenArchive failed. ";
-		save_file_result.error_description = "N/A ";
 		failed = true;
 	}
 
@@ -33,7 +30,6 @@ Result_with_string File_save_to_file(std::string file_name, u8* write_data, int 
 		if (save_file_result.code != 0 && save_file_result.code != (s32)0xC82044BE)//#0xC82044BE directory already exist
 		{
 			save_file_result.string = "[Error] FSUSER_CreateDirectory failed. ";
-			save_file_result.error_description = "N/A ";
 			failed = true;
 		}
 	}
@@ -52,7 +48,6 @@ Result_with_string File_save_to_file(std::string file_name, u8* write_data, int 
 			if (save_file_result.code != 0)
 			{
 				save_file_result.string = "[Error] FSUSER_CreateFile failed. ";
-				save_file_result.error_description = "N/A ";
 				failed = true;
 			}
 		}
@@ -64,7 +59,6 @@ Result_with_string File_save_to_file(std::string file_name, u8* write_data, int 
 		if (save_file_result.code != 0)
 		{
 			save_file_result.string = "[Error] FSUSER_OpenFile failed. ";
-			save_file_result.error_description = "N/A ";
 			failed = true;
 		}
 	}
@@ -77,7 +71,6 @@ Result_with_string File_save_to_file(std::string file_name, u8* write_data, int 
 			if (save_file_result.code != 0)
 			{
 				save_file_result.string = "[Error] FSFILE_GetSize failed. ";
-				save_file_result.error_description = "N/A ";
 				failed = true;
 			}
 		}
@@ -93,13 +86,15 @@ Result_with_string File_save_to_file(std::string file_name, u8* write_data, int 
 		else
 		{
 			save_file_result.string = "[Error] FSFILE_Write failed. ";
-			save_file_result.error_description = "N/A ";
 			failed = true;
 		}
 	}
 
 	FSFILE_Close(fs_handle);
 	FSUSER_CloseArchive(fs_archive);
+	if(failed)
+		save_file_result.error_description = "sdmc:" + file_path;
+
 	return save_file_result;
 }
 
@@ -120,7 +115,6 @@ Result_with_string File_load_from_rom(std::string file_name, u8* read_data, int 
 	if (f == NULL)
 	{
 		result.string = "[Error] fopen failed. ";
-		result.error_description = "N/A ";
 		failed = true;
 	}
 
@@ -133,8 +127,8 @@ Result_with_string File_load_from_rom(std::string file_name, u8* read_data, int 
 		if((int)file_size > max_size)
 		{
 			result.code = BUFFER_SIZE_IS_TOO_SMALL;
-			result.string = "[Error] Buffer size is too small. " + std::to_string(file_size);
-			result.error_description = "In the case that the buffer size is too small, this'll occur.\nPlease increase buffer size from settings.";
+			result.string = Err_query_template_summary(BUFFER_SIZE_IS_TOO_SMALL) + std::to_string(file_size);
+			result.error_description = Err_query_template_detail(BUFFER_SIZE_IS_TOO_SMALL);
 			failed = true;
 		}
 	}
@@ -146,11 +140,13 @@ Result_with_string File_load_from_rom(std::string file_name, u8* read_data, int 
 		if (read_size_ != file_size)
 		{
 			result.string = "[Error] fread failed. ";
-			result.error_description = "N/A ";
 			failed = true;
 		}
 	}
 	fclose(f);
+
+	if(failed)
+		result.error_description = "romfs:" + file_path;
 
 	return result;
 }
@@ -167,7 +163,6 @@ Result_with_string File_load_from_file_with_range(std::string file_name, u8* rea
 	if (result.code != 0)
 	{
 		result.string = "[Error] FSUSER_OpenArchive failed. ";
-		result.error_description = "N/A ";
 		failed = true;
 	}
 
@@ -177,7 +172,6 @@ Result_with_string File_load_from_file_with_range(std::string file_name, u8* rea
 		if (result.code != 0)
 		{
 			result.string = "[Error] FSUSER_OpenFile failed. ";
-			result.error_description = "N/A ";
 			failed = true;
 		}
 	}
@@ -193,13 +187,15 @@ Result_with_string File_load_from_file_with_range(std::string file_name, u8* rea
 		if (result.code != 0)
 		{
 			result.string = "[Error] FSFILE_Read failed. ";
-			result.error_description = "N/A ";
 			failed = true;
 		}
 	}
 
 	FSFILE_Close(fs_handle);
 	FSUSER_CloseArchive(fs_archive);
+	if(failed)
+		result.error_description = "sdmc:" + file_path;
+
 	return result;
 }
 
@@ -213,7 +209,6 @@ Result_with_string File_delete_file(std::string file_name, std::string dir_path,
 	if (result.code != 0)
 	{
 		result.string = "[Error] FSUSER_OpenArchive failed. ";
-		result.error_description = "N/A ";
 		failed = true;
 	}
 
@@ -223,12 +218,14 @@ Result_with_string File_delete_file(std::string file_name, std::string dir_path,
 		if (result.code != 0)
 		{
 			result.string = "[Error] FSUSER_DeleteFile failed. ";
-			result.error_description = "N/A ";
 			failed = true;
 		}
 	}
 
 	FSUSER_CloseArchive(fs_archive);
+	if(failed)
+		result.error_description = "sdmc:" + file_path;
+
 	return result;
 }
 
@@ -242,7 +239,6 @@ Result_with_string File_check_file_size(std::string file_name, std::string dir_p
 	if (result.code != 0)
 	{
 		result.string = "[Error] FSUSER_OpenArchive failed. ";
-		result.error_description = "N/A ";
 		failed = true;
 	}
 
@@ -252,7 +248,6 @@ Result_with_string File_check_file_size(std::string file_name, std::string dir_p
 		if (result.code != 0)
 		{
 			result.string = "[Error] FSUSER_OpenFile failed. ";
-			result.error_description = "N/A ";
 			failed = true;
 		}
 	}
@@ -263,13 +258,15 @@ Result_with_string File_check_file_size(std::string file_name, std::string dir_p
 		if (result.code != 0)
 		{
 			result.string = "[Error] FSFILE_GetSize failed. ";
-			result.error_description = "N/A ";
 			failed = true;
 		}
 	}
 
 	FSFILE_Close(fs_handle);
 	FSUSER_CloseArchive(fs_archive);
+	if(failed)
+		result.error_description = "sdmc:" + file_path;
+
 	return result;
 }
 
@@ -283,7 +280,6 @@ Result_with_string File_check_file_exist(std::string file_name, std::string dir_
 	if (result.code != 0)
 	{
 		result.string = "[Error] FSUSER_OpenArchive failed. ";
-		result.error_description = "N/A ";
 		failed = true;
 	}
 
@@ -293,13 +289,15 @@ Result_with_string File_check_file_exist(std::string file_name, std::string dir_
 		if (result.code != 0)
 		{
 			result.string = "[Error] FSUSER_OpenFile failed. ";
-			result.error_description = "N/A ";
 			failed = true;
 		}
 	}
 
 	FSFILE_Close(fs_handle);
 	FSUSER_CloseArchive(fs_archive);
+	if(failed)
+		result.error_description = "sdmc:" + file_path;
+
 	return result;
 }
 
@@ -320,7 +318,6 @@ Result_with_string File_read_dir(int* num_of_detected, std::string file_dir_name
 	if (result.code != 0)
 	{
 		result.string = "[Error] FSUSER_OpenArchive failed. ";
-		result.error_description = "N/A ";
 		failed = true;
 	}
 
@@ -340,13 +337,7 @@ Result_with_string File_read_dir(int* num_of_detected, std::string file_dir_name
 		{
 			if (count >= name_num_of_array || count >= type_num_of_array)
 			{
-				if (count >= name_num_of_array && count >= type_num_of_array)
-					result.string = "[Error] 'name_num_of_array' and 'type_num_of_array' were too small. ";
-				else if(count >= name_num_of_array)
-					result.string = "[Error] 'name_num_of_array' was too small. ";
-				else if(count >= type_num_of_array)
-					result.string = "[Error] 'type_num_of_array' was too small. ";
-
+				result.string = "[Error] array size is too small. ";
 				break;
 			}
 			result.code = FSDIR_Read(fs_handle, &read_entry, read_entry_count, (FS_DirectoryEntry*)&fs_entry);

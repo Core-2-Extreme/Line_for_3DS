@@ -6,6 +6,8 @@
 #include "log.hpp"
 #include "types.hpp"
 #include "file.hpp"
+#include <unistd.h>
+
 
 //#0600~#06FF
 double exfont_arabic_font_interval[255] = {
@@ -907,7 +909,6 @@ void Exfont_draw_external_fonts(std::string string, float texture_x, float textu
 
 	Exfont_text_parse(string, part_string, loop);
 	Exfont_text_parse(Exfont_text_sort(part_string, loop), part_string, loop);
-
 	for (int i = 0; i < loop; i++)
 	{
 		unknown_char = true;

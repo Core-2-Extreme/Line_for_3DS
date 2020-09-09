@@ -4,13 +4,17 @@
 
 #include "draw.hpp"
 
+bool log_previous_show_logs = false;
 bool log_show_logs = false;
-int log_current_log_num = 0; 
+int log_current_log_num = 0;
+int log_previous_y = -1;
 int log_y = 0;
+double log_previous_x = 0.0;
 double log_x = 0.0;
 double log_up_time_ms = 0.0;
 double log_spend_time[512];
 std::string log_logs[512];
+std::string log_previous_logs[512];
 TickCounter log_up_time_timer;
 
 void Log_start_up_time_timer(void)
@@ -39,6 +43,33 @@ std::string Log_query_log(int log_num)
 		return log_logs[log_num];
 	else
 		return "";
+}
+
+bool Log_query_need_reflesh(void)
+{
+	bool need = false;
+
+	for(int i = 0; i < 512; i++)
+	{
+		if(log_previous_logs[i] != log_logs[i])
+		{
+			need = true;
+			break;
+		}
+	}
+
+	if(need || log_previous_x != log_x || log_previous_y != log_y || log_previous_show_logs != log_show_logs)
+	{
+		for(int i = 0; i < 512; i++)
+			log_previous_logs[i] = log_logs[i];
+
+		log_previous_x = log_x;
+		log_previous_y = log_y;
+		log_previous_show_logs = log_show_logs;
+		return true;
+	}
+	else
+		return false;
 }
 
 void Log_set_x(double value)
@@ -85,7 +116,7 @@ int Log_log_save(std::string type, std::string text, Result result, bool draw)
 		log_y = log_current_log_num - 23;
 
 	if (draw)
-		Draw_log();
+		Draw_log(true);
 
 	return (return_log_num - 1);
 }
@@ -106,7 +137,7 @@ void Log_log_add(int add_log_num, std::string add_text, Result result, bool draw
 		sprintf(app_log_add_cache, "%s (%.2fms)", add_text.c_str(), time_cache);
 
 	if (draw)
-		Draw_log();
+		Draw_log(true);
 
 	log_logs[add_log_num] += app_log_add_cache;
 }

@@ -2,26 +2,28 @@
 #include <string>
 #include <unistd.h>
 
-#include "hid.hpp"
-#include "draw.hpp"
-#include "share_function.hpp"
-#include "speedtest.hpp"
-#include "image_viewer.hpp"
-#include "line.hpp"
-#include "setting_menu.hpp"
-#include "google_translation.hpp"
-#include "error.hpp"
-#include "menu.hpp"
-#include "httpc.hpp"
 #include "change_setting.hpp"
+#include "draw.hpp"
+#include "error.hpp"
+#include "hid.hpp"
+#include "httpc.hpp"
 #include "log.hpp"
 #include "types.hpp"
-#include "external_font.hpp"
-#include "file.hpp"
+
+#include "menu.hpp"
+
 #include "camera.hpp"
+#include "google_translation.hpp"
+#include "image_viewer.hpp"
+#include "line.hpp"
 #include "mic.hpp"
 #include "music_player.hpp"
+#include "setting_menu.hpp"
+#include "speedtest.hpp"
 
+/*For draw*/
+bool menu_need_reflesh = true;
+/*---------------------------------------------*/
 
 bool menu_check_connectivity_thread_run = false;
 bool menu_update_thread_run = false;
@@ -42,20 +44,36 @@ bool menu_destroy_cam_request = false;
 bool menu_destroy_mic_request = false;
 bool menu_destroy_mup_request = false;
 bool menu_connect_test_succes = false;
+bool menu_mcu_success = false;
 bool menu_main_run = true;
 bool menu_must_exit = false;
 bool menu_check_exit_request = false;
+u8* menu_wifi_state;
+u8* menu_wifi_state_internet_sample;
+u8 menu_wifi_signal = -1;
+u8 menu_battery_charge = -1;
 int menu_cam_fps = 0;
 int menu_hours = -1;
 int menu_minutes = -1;
 int menu_seconds = -1;
 int menu_days = -1;
 int menu_months = -1;
+int menu_years = -1;
 int menu_fps = 0;
 int menu_free_ram = 0;
 int menu_free_linear_ram = 0;
 int menu_afk_time;
-std::string menu_app_ver = "v1.5.2";
+int menu_battery_level_raw = 0;
+char menu_status[128];
+char menu_status_short[64];
+std::string menu_clipboard = "";
+std::string menu_battery_level = "?";
+std::string menu_update_thread_string = "Menu/Update thread";
+std::string menu_send_app_info_thread_string = "Menu/Send app info thread";
+std::string menu_check_connection_thread_string = "Menu/Check connection thread";
+std::string menu_init_string = "Menu/Init";
+std::string menu_exit_string = "Menu/Exit";
+std::string menu_app_ver = "v1.6.0";
 
 Thread menu_update_thread, menu_send_app_info_thread, menu_check_connectivity_thread;
 
@@ -69,6 +87,26 @@ int Menu_query_afk_time(void)
 	return menu_afk_time;
 }
 
+bool Menu_query_battery_charge(void)
+{
+	return (menu_battery_charge == 1);
+}
+
+std::string Menu_query_battery_level(void)
+{
+	return menu_battery_level;
+}
+
+int Menu_query_battery_level_raw(void)
+{
+	return menu_battery_level_raw;
+}
+
+std::string Menu_query_clipboard(void)
+{
+	return menu_clipboard;
+}
+
 int Menu_query_free_ram(void)
 {
 	return menu_free_ram;
@@ -79,15 +117,32 @@ int Menu_query_free_linear_ram(void)
 	return menu_free_linear_ram;
 }
 
-
 bool Menu_query_must_exit_flag(void)
 {
 	return menu_must_exit;
 }
 
-std::string Menu_query_time(void)
+std::string Menu_query_status(bool only_system_state)
 {
-	std::string return_time = std::to_string(menu_months) + "_" + std::to_string(menu_days) + "_" + std::to_string(menu_hours) + "_" + std::to_string(menu_minutes) + "_" + std::to_string(menu_seconds);
+	if(only_system_state)
+		return menu_status_short;
+	else
+		return menu_status;
+}
+
+std::string Menu_query_time(int mode)
+{
+	char time[128];
+	std::string return_time;
+
+	if(mode == 0)
+		sprintf(time, "%04d_%02d_%02d_%02d_%02d_%02d", menu_years, menu_months, menu_days, menu_hours, menu_minutes, menu_seconds);
+	else if(mode == 1)
+		sprintf(time, "%04d_%02d_%02d", menu_years, menu_months, menu_days);
+	else if(mode == 2)
+		sprintf(time, "%02d_%02d_%02d", menu_hours, menu_minutes, menu_seconds);
+
+	return_time = time;
 	return return_time;
 }
 
@@ -96,9 +151,19 @@ std::string Menu_query_ver(void)
 	return menu_app_ver;
 }
 
+int Menu_query_wifi_state(void)
+{
+	return (int)menu_wifi_signal;
+}
+
 void Menu_reset_afk_time(void)
 {
 		menu_afk_time = 0;
+}
+
+void Menu_set_clipboard(std::string data)
+{
+	menu_clipboard = data;
 }
 
 void Menu_set_operation_flag(int operation_num, bool flag)
@@ -142,6 +207,7 @@ void Menu_set_operation_flag(int operation_num, bool flag)
 void Menu_resume(void)
 {
 	menu_main_run = true;
+	menu_need_reflesh = true;
 }
 
 void Menu_suspend(void)
@@ -149,16 +215,15 @@ void Menu_suspend(void)
 	menu_main_run = false;
 }
 
-
 void Menu_init(void)
 {
-	Log_log_save("Menu/Init", "Initializing...", 1234567890, s_debug_slow);
+	Log_log_save(menu_init_string, "Initializing...", 1234567890, DEBUG);
 
 	Draw_progress("0/0 [Menu] Starting threads...");
 	menu_update_thread_run = true;
 	menu_check_connectivity_thread_run = true;
-	menu_update_thread = threadCreate(Menu_update_thread, (void*)(""), STACKSIZE, 0x18, -1, false);
-	menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, 0x30, -1, false);
+	menu_update_thread = threadCreate(Menu_update_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, -1, false);
+	menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
 
 	if (Sem_query_settings(SEM_ALLOW_SEND_APP_INFO))
 	{
@@ -166,21 +231,24 @@ void Menu_init(void)
 		{
 			if (Sem_query_settings_i(SEM_NUM_OF_APP_START) == i * 10)
 			{
-				menu_send_app_info_thread = threadCreate(Menu_send_app_info_thread, (void*)(""), STACKSIZE, 0x24, -1, true);
+				menu_send_app_info_thread = threadCreate(Menu_send_app_info_thread, (void*)(""), STACKSIZE, PRIORITY_LOW, -1, true);
 				break;
 			}
 		}
 	}
 
-	Exfont_init();
+	menu_wifi_state = (u8*)malloc(0x1);
+	menu_wifi_state_internet_sample = (u8*)malloc(0x1);
+	memset(menu_wifi_state, 0xff, 0x1);
+	memset(menu_wifi_state_internet_sample, 0x2, 0x1);
 
 	Menu_resume();
-	Log_log_save("Menu/Init", "Initialized", 1234567890, s_debug_slow);
+	Log_log_save(menu_init_string, "Initialized", 1234567890, DEBUG);
 }
 
 void Menu_exit(void)
 {
-	Log_log_save("Menu/Exit", "Exiting...", 1234567890, s_debug_slow);
+	Log_log_save(menu_exit_string, "Exiting...", 1234567890, DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
@@ -210,7 +278,7 @@ void Menu_exit(void)
 
 	for (int i = 0; i < 2; i++)
 	{
-		log_num = Log_log_save("Menu/Exit", "Exiting thread(" + std::to_string(i) + "/1)...", 1234567890, s_debug_slow);
+		log_num = Log_log_save(menu_exit_string, "threadJoin()" + std::to_string(i) + "/1...", 1234567890, DEBUG);
 
 		if(i == 0)
 			result.code = threadJoin(menu_update_thread, time_out);
@@ -218,11 +286,11 @@ void Menu_exit(void)
 			result.code = threadJoin(menu_check_connectivity_thread, time_out);
 
 		if (result.code == 0)
-			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
 		else
 		{
 			failed = true;
-			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
 		}
 	}
 
@@ -230,17 +298,15 @@ void Menu_exit(void)
 	threadFree(menu_check_connectivity_thread);
 
 	if (failed)
-		Log_log_save("Menu/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
+		Log_log_save(menu_exit_string, "[Warn] Some function returned error.", 1234567890, DEBUG);
 
-	Log_log_save("Menu/Exit", "Exited.", 1234567890, s_debug_slow);
+	Log_log_save(menu_exit_string, "Exited.", 1234567890, DEBUG);
 }
 
 void Menu_main(void)
 {
 	Hid_set_disable_flag(false);
 	bool draw_close[7];
-	int log_y = Log_query_y();
-	double log_x = Log_query_x();
 	double draw_x;
 	double draw_y;
 	float text_red;
@@ -251,99 +317,98 @@ void Menu_main(void)
 	Menu_get_system_info();
 
 	if (Cam_query_running_flag())
-		sprintf(s_status, "%dfps %.1fms %02d/%02d %02d:%02d:%02d cam %dfps ", menu_fps, Draw_query_frametime(), menu_months, menu_days, menu_hours, menu_minutes, menu_seconds, menu_cam_fps);
+		sprintf(menu_status_short, "%04d/%02d/%02d %02d:%02d:%02d cam %dfps ", menu_years, menu_months, menu_days, menu_hours, menu_minutes, menu_seconds, menu_cam_fps);
 	else
-		sprintf(s_status, "%dfps %.1fms %02d/%02d %02d:%02d:%02d ", menu_fps,  Draw_query_frametime(), menu_months, menu_days, menu_hours, menu_minutes, menu_seconds);
+		sprintf(menu_status_short, "%04d/%02d/%02d %02d:%02d:%02d ", menu_years, menu_months, menu_days, menu_hours, menu_minutes, menu_seconds);
+
+	sprintf(menu_status, "%dfps %.1fms %s", menu_fps,  Draw_query_frametime(), menu_status_short);
 
 	if (menu_main_run)
 	{
-		if (Sem_query_settings(SEM_NIGHT_MODE))
+		if(Draw_query_need_reflesh() || !Sem_query_settings(SEM_ECO_MODE))
+			menu_need_reflesh = true;
+
+		if(menu_need_reflesh)
 		{
-			text_red = 1.0f;
-			text_green = 1.0f;
-			text_blue = 1.0f;
-			text_alpha = 0.75f;
-		}
-		else
-		{
-			text_red = 0.0f;
-			text_green = 0.0f;
-			text_blue = 0.0f;
-			text_alpha = 1.0f;
-		}
-
-		Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
-		if (Sem_query_settings(SEM_NIGHT_MODE))
-			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
-		else
-			Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
-
-		Draw_top_ui();
-		if (Sem_query_settings(SEM_DEBUG_MODE))
-			Draw_debug_info();
-		if (Log_query_log_show_flag())
-		{
-			for (int i = 0; i < 23; i++)
-				Draw(Log_query_log(log_y + i), 0, log_x, 10.0f + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
-		}
-
-		if (Sem_query_settings(SEM_NIGHT_MODE))
-			Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
-		else
-			Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
-
-		draw_x = 0.0;
-		draw_y = 0.0;
-		for (int i = 0; i < 7; i++)
-		{
-			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 60.0, 60.0);
-			Draw(app_name[i], 0, draw_x, draw_y + 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-
-			draw_x += 80.0;
-			if (i == 3)
+			if (Sem_query_settings(SEM_NIGHT_MODE))
 			{
-				draw_x = 0.0;
-				draw_y += 80.0;
+				text_red = 1.0;
+				text_green = 1.0;
+				text_blue = 1.0;
+				text_alpha = 0.75;
 			}
-		}
-
-		Draw_texture(Square_image, weak_aqua_tint, 0, 260.0, 180.0, 60.0, 60.0);
-		Draw(app_name[7], 0, 270.0, 205.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-
-		draw_close[0] = Line_query_init_flag();
-		draw_close[1] = Gtr_query_init_flag();
-		draw_close[2] = Spt_query_init_flag();
-		draw_close[3] = Imv_query_init_flag();
-		draw_close[4] = Cam_query_init_flag();
-		draw_close[5] = Mic_query_init_flag();
-		draw_close[6] = Mup_query_init_flag();
-
-		draw_x = 45.0;
-		draw_y = 0.0;
-		for (int i = 0; i < 7; i++)
-		{
-			if (draw_close[i])
+			else
 			{
-				Draw_texture(Square_image, weak_red_tint, 0, draw_x, draw_y, 15.0, 15.0);
-				Draw("X", 0, draw_x + 2.5, draw_y, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
+				text_red = 0.0;
+				text_green = 0.0;
+				text_blue = 0.0;
+				text_alpha = 1.0;
 			}
 
-			draw_x += 80.0;
-			if (i == 3)
+			Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+			if (Sem_query_settings(SEM_NIGHT_MODE))
+				Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
+			else
+				Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
+
+			Draw_top_ui();
+
+			if (Sem_query_settings(SEM_NIGHT_MODE))
+				Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
+			else
+				Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
+
+			draw_x = 0.0;
+			draw_y = 0.0;
+			for (int i = 0; i < 7; i++)
 			{
-				draw_x = 45.0;
-				draw_y += 80.0;
+				Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 60.0, 60.0);
+				Draw(app_name[i], 0, draw_x, draw_y + 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+
+				draw_x += 80.0;
+				if (i == 3)
+				{
+					draw_x = 0.0;
+					draw_y += 80.0;
+				}
 			}
-		}
 
-		if (Err_query_error_show_flag())
-			Draw_error();
+			Draw_texture(Square_image, weak_aqua_tint, 0, 260.0, 180.0, 60.0, 60.0);
+			Draw(app_name[7], 0, 270.0, 205.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 
-		Draw_bot_ui();
-		if (Hid_query_key_held_state(KEY_H_TOUCH))
+			draw_close[0] = Line_query_init_flag();
+			draw_close[1] = Gtr_query_init_flag();
+			draw_close[2] = Spt_query_init_flag();
+			draw_close[3] = Imv_query_init_flag();
+			draw_close[4] = Cam_query_init_flag();
+			draw_close[5] = Mic_query_init_flag();
+			draw_close[6] = Mup_query_init_flag();
+
+			draw_x = 45.0;
+			draw_y = 0.0;
+			for (int i = 0; i < 7; i++)
+			{
+				if (draw_close[i])
+				{
+					Draw_texture(Square_image, weak_red_tint, 0, draw_x, draw_y, 15.0, 15.0);
+					Draw("X", 0, draw_x + 2.5, draw_y, 0.5, 0.5, 1.0, 0.0, 0.0, 0.5);
+				}
+
+				draw_x += 80.0;
+				if (i == 3)
+				{
+					draw_x = 45.0;
+					draw_y += 80.0;
+				}
+			}
+			Draw_bot_ui();
 			Draw_touch_pos();
 
-		Draw_apply_draw();
+			Draw_apply_draw();
+			menu_need_reflesh = false;
+		}
+		else
+			gspWaitForVBlank();
 
 		if (menu_check_exit_request)
 		{
@@ -522,16 +587,16 @@ bool Menu_check_exit(void)
 		if (Sem_query_settings(SEM_NIGHT_MODE))
 		{
 			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
-			Draw("Do you want to exit this software?", 0, 90.0, 105.0f, 0.5, 0.5, 1.0, 1.0, 1.0, 0.75);
+			Draw("Do you want to exit this software?", 0, 90.0, 105.0, 0.5, 0.5, 1.0, 1.0, 1.0, 0.75);
 		}
 		else
 		{
 			Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
-			Draw("Do you want to exit this software?", 0, 90.0, 105.0f, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+			Draw("Do you want to exit this software?", 0, 90.0, 105.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
 		}
 
-		Draw("A to close", 0, 130.0, 140.0f, 0.5, 0.5, 0.0, 1.0, 0.0, 1.0);
-		Draw("B to back", 0, 210.0, 140.0f, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+		Draw("A to close", 0, 130.0, 140.0, 0.5, 0.5, 0.0, 1.0, 0.0, 1.0);
+		Draw("B to back", 0, 210.0, 140.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 
 		Draw_apply_draw();
 		if (Hid_query_key_press_state(KEY_P_A))
@@ -543,52 +608,54 @@ bool Menu_check_exit(void)
 
 void Menu_get_system_info(void)
 {
-	PTMU_GetBatteryChargeState(&s_battery_charge);//battery charge
-	if (s_mcu_success)
+	u8 battery_level = -1;
+	Result_with_string result;
+
+	PTMU_GetBatteryChargeState(&menu_battery_charge);//battery charge
+	result.code = MCUHWC_GetBatteryLevel(&battery_level);//battery level(%)
+	if(result.code == 0)
 	{
-		MCUHWC_GetBatteryLevel(&s_battery_level);//battery level(%)
-		s_battery_level_string = std::to_string(s_battery_level);
+		menu_battery_level_raw = battery_level;
+		menu_battery_level = std::to_string(battery_level);
 	}
 	else
 	{
-		PTMU_GetBatteryLevel(&s_battery_level);
+		PTMU_GetBatteryLevel(&battery_level);
+		if ((int)battery_level == 0)
+			menu_battery_level_raw = 0;
+		else if ((int)battery_level == 1)
+			menu_battery_level_raw = 5;
+		else if ((int)battery_level == 2)
+			menu_battery_level_raw = 10;
+		else if ((int)battery_level == 3)
+			menu_battery_level_raw = 30;
+		else if ((int)battery_level == 4)
+			menu_battery_level_raw = 60;
+		else if ((int)battery_level == 5)
+			menu_battery_level_raw = 100;
 
-		if ((int)s_battery_level == 0)
-			s_battery_level = 0;
-		else if ((int)s_battery_level == 1)
-			s_battery_level = 5;
-		else if ((int)s_battery_level == 2)
-			s_battery_level = 10;
-		else if ((int)s_battery_level == 3)
-			s_battery_level = 30;
-		else if ((int)s_battery_level == 4)
-			s_battery_level = 60;
-		else if ((int)s_battery_level == 5)
-			s_battery_level = 100;
-
-		s_battery_level_string = "?";
+		menu_battery_level = "?";
 	}
 
-	s_wifi_signal = osGetWifiStrength();
-
+	menu_wifi_signal = osGetWifiStrength();
 	//Get wifi state from shared memory #0x1FF81067
-	memcpy((void*)wifi_state, (void*)0x1FF81067, 0x1);
-	if (memcmp(wifi_state, wifi_state_internet_sample, 0x1) == 0)
+	memcpy((void*)menu_wifi_state, (void*)0x1FF81067, 0x1);
+	if (memcmp(menu_wifi_state, menu_wifi_state_internet_sample, 0x1) == 0)
 	{
 		if (!menu_connect_test_succes)
-			s_wifi_signal = s_wifi_signal + 4;
+			menu_wifi_signal = menu_wifi_signal + 4;
 	}
 	else
 	{
-		s_wifi_signal = 8;
+		menu_wifi_signal = 8;
 		menu_connect_test_succes = false;
 	}
 
 	//Get time
 	time_t unixTime = time(NULL);
 	struct tm* timeStruct = gmtime((const time_t*)&unixTime);
-	menu_months = timeStruct->tm_mon;
-	menu_months = menu_months + 1;
+	menu_years = timeStruct->tm_year + 1900;
+	menu_months = timeStruct->tm_mon + 1;
 	menu_days = timeStruct->tm_mday;
 	menu_hours = timeStruct->tm_hour;
 	menu_minutes = timeStruct->tm_min;
@@ -625,7 +692,7 @@ int Menu_check_free_ram(void)
 
 void Menu_send_app_info_thread(void* arg)
 {
-	Log_log_save("Menu/Send app info thread", "Thread started.", 1234567890, false);
+	Log_log_save(menu_send_app_info_thread_string, "Thread started.", 1234567890, false);
 	OS_VersionBin os_ver;
 	bool is_new3ds = false;
 	u8* dl_data;
@@ -646,19 +713,19 @@ void Menu_send_app_info_thread(void* arg)
 	else
 		new3ds = "no";
 
-	std::string send_data = "{ \"app_ver\": \"" + menu_app_ver + "\",\"system_ver\" : \"" + system_ver + "\",\"start_num_of_app\" : \"" + std::to_string(Sem_query_settings_i(SEM_NUM_OF_APP_START)) + "\",\"language\" : \"" + s_setting[1] + "\",\"new3ds\" : \"" + new3ds + "\",\"time_to_enter_sleep\" : \"" + std::to_string(Sem_query_settings_i(SEM_TIME_TO_TURN_OFF_LCD)) + "\",\"scroll_speed\" : \"" + std::to_string(Sem_query_settings_d(SEM_SCROLL_SPEED)) + "\" }";
+	std::string send_data = "{ \"app_ver\": \"" + menu_app_ver + "\",\"system_ver\" : \"" + system_ver + "\",\"start_num_of_app\" : \"" + std::to_string(Sem_query_settings_i(SEM_NUM_OF_APP_START)) + "\",\"language\" : \"" + Sem_query_lang() + "\",\"new3ds\" : \"" + new3ds + "\",\"time_to_enter_sleep\" : \"" + std::to_string(Sem_query_settings_i(SEM_TIME_TO_TURN_OFF_LCD)) + "\",\"scroll_speed\" : \"" + std::to_string(Sem_query_settings_d(SEM_SCROLL_SPEED)) + "\" }";
 
-	Httpc_post_and_dl_data("https://script.google.com/macros/s/AKfycbyn_blFyKWXCgJr6NIF8x6ETs7CHRN5FXKYEAAIrzV6jPYcCkI/exec", (char*)send_data.c_str(), send_data.length(), dl_data, 0x1000, &downloaded_size, &status_code, true);
+	Httpc_post_and_dl_data("https://script.google.com/macros/s/AKfycbyn_blFyKWXCgJr6NIF8x6ETs7CHRN5FXKYEAAIrzV6jPYcCkI/exec", (char*)send_data.c_str(), send_data.length(), dl_data, 0x1000, &downloaded_size, &status_code, true, MENU_HTTP_PORT0);
 	free(dl_data);
 	dl_data = NULL;
 
-	Log_log_save("Menu/Send app info thread", "Thread exit.", 1234567890, false);
+	Log_log_save(menu_send_app_info_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
 }
 
 void Menu_check_connectivity_thread(void* arg)
 {
-	Log_log_save("Menu/Check connectivity thread", "Thread started.", 1234567890, false);
+	Log_log_save(menu_check_connection_thread_string, "Thread started.", 1234567890, false);
 	u8* http_buffer;
 	u32 response_code = 0;
 	u32 dl_size = 0;
@@ -672,23 +739,25 @@ void Menu_check_connectivity_thread(void* arg)
 		if (count >= 100 && !(Hid_query_disable_flag()))
 		{
 			count = 0;
-			Httpc_dl_data(url, http_buffer, 0x1000, &dl_size, &response_code, true, &last_url, true, 100);
+			Httpc_dl_data(url, http_buffer, 0x1000, &dl_size, &response_code, true, &last_url, true, 100, MENU_HTTP_POST_PORT0);
 
 			if (response_code == 204)
 				menu_connect_test_succes = true;
 			else
 				menu_connect_test_succes = false;
 		}
-		usleep(100000);
+		else
+			usleep(ACTIW_THREAD_SLEEP_TIME);
+
 		count++;
 	}
-	Log_log_save("Menu/Check connectivity thread", "Thread exit.", 1234567890, false);
+	Log_log_save(menu_check_connection_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
 }
 
 void Menu_update_thread(void* arg)
 {
-	Log_log_save("Menu/Update thread", "Thread started.", 1234567890, false);
+	Log_log_save(menu_update_thread_string, "Thread started.", 1234567890, false);
 	int update_thread_count = 0;
 	Result_with_string result;
 
@@ -711,22 +780,17 @@ void Menu_update_thread(void* arg)
 
 		if (menu_change_brightness_request)
 		{
-			if (s_disabled_enter_afk_mode)
-				Change_brightness(true, true, Sem_query_settings_i(SEM_LCD_BRIGHTNESS));
+			if (menu_afk_time > (Sem_query_settings_i(SEM_TIME_TO_TURN_OFF_LCD) + 100) * 2)
+				Change_screen_state(true, true, false);
+			else if (menu_afk_time >= Sem_query_settings_i(SEM_TIME_TO_TURN_OFF_LCD) * 2)
+			{
+				Change_screen_state(true, true, true);
+				Change_brightness(true, true, Sem_query_settings_i(SEM_LCD_BRIGHTNESS_BEFORE_TURN_OFF));
+			}
 			else
 			{
-				if (menu_afk_time > (Sem_query_settings_i(SEM_TIME_TO_TURN_OFF_LCD) + 100) * 2)
-					Change_screen_state(true, true, false);
-				else if (menu_afk_time >= Sem_query_settings_i(SEM_TIME_TO_TURN_OFF_LCD) * 2)
-				{
-					Change_screen_state(true, true, true);
-					Change_brightness(true, true, Sem_query_settings_i(SEM_LCD_BRIGHTNESS_BEFORE_TURN_OFF));
-				}
-				else
-				{
-					Change_screen_state(true, true, true);
-					Change_brightness(true, true, Sem_query_settings_i(SEM_LCD_BRIGHTNESS));
-				}
+				Change_screen_state(true, true, true);
+				Change_brightness(true, true, Sem_query_settings_i(SEM_LCD_BRIGHTNESS));
 			}
 			menu_change_brightness_request = false;
 		}
@@ -742,6 +806,6 @@ void Menu_update_thread(void* arg)
 		}
 		menu_afk_time++;
 	}
-	Log_log_save("Menu/Update thread", "Thread exit.", 1234567890, false);
+	Log_log_save(menu_update_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
 }

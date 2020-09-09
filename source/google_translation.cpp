@@ -3,7 +3,6 @@
 #include <unistd.h>
 
 #include "hid.hpp"
-#include "share_function.hpp"
 #include "draw.hpp"
 #include "httpc.hpp"
 #include "google_translation.hpp"
@@ -13,6 +12,22 @@
 #include "log.hpp"
 #include "types.hpp"
 #include "swkbd.hpp"
+
+/*For draw*/
+bool gtr_need_reflesh = false;
+bool gtr_pre_select_sorce_lang_request = false;
+bool gtr_pre_select_target_lang_request = false;
+int gtr_pre_current_history_num = 9;
+int gtr_pre_selected_history_num = 0;
+double gtr_pre_selected_sorce_lang_num = 0;
+double gtr_pre_selected_target_lang_num = 0;
+double gtr_pre_sorce_lang_offset = 0;
+double gtr_pre_target_lang_offset = 0;
+double gtr_pre_text_pos_x = 0.0;
+std::string gtr_pre_sorce_lang = "en";
+std::string gtr_pre_target_lang = "ja";
+std::string gtr_pre_input_text = "n/a";
+/*---------------------------------------------*/
 
 bool gtr_already_init = false;
 bool gtr_main_run = false;
@@ -36,7 +51,10 @@ std::string gtr_history[10] = { "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a",
 std::string gtr_lang_short_list[GTR_NUM_OF_LANG_SHORT_LIST_MSG];
 std::string gtr_lang_list[GTR_NUM_OF_LANG_SHORT_LIST_MSG];
 std::string gtr_msg[GTR_NUM_OF_MSG];
-std::string gtr_ver = "v1.1.1";
+std::string gtr_tr_thread_string = "Gtr/Tr thread";
+std::string gtr_init_string = "Gtr/Init";
+std::string gtr_exit_string = "Gtr/Exit";
+std::string gtr_ver = "v1.1.2";
 
 Thread gtr_tr_thread;
 
@@ -174,6 +192,7 @@ void Gtr_resume(void)
 	Menu_suspend();
 	gtr_thread_suspend = false;
 	gtr_main_run = true;
+	gtr_need_reflesh = true;
 }
 
 std::string Gtr_get_lang_name(std::string short_name)
@@ -190,11 +209,12 @@ std::string Gtr_get_lang_name(std::string short_name)
 
 void Gtr_tr_thread(void* arg)
 {
-	Log_log_save("Gtr/Tr thread", "Thread started.", 1234567890, false);
+	Log_log_save(gtr_tr_thread_string, "Thread started.", 1234567890, false);
 
 	u8* httpc_buffer;
 	u32 dl_size;
 	u32 status_code;
+	int log_num = 0;
 	std::string send_data;
 	std::string url = "https://script.google.com/macros/s/AKfycbwbL6swXIeycS-WpVBrfKLh40bXg2CAv1PdAzuIhalqq2SGrJM/exec";
 	Result_with_string result;
@@ -203,20 +223,20 @@ void Gtr_tr_thread(void* arg)
 
 	while (gtr_tr_thread_run)
 	{
-		if (gtr_thread_suspend)
-			usleep(500000);
-		else if (gtr_tr_request)
+		if (gtr_tr_request)
 		{
 			if (gtr_current_history_num + 1 > 9)
 				gtr_current_history_num = 0;
 			else
 				gtr_current_history_num++;
-			gtr_history[gtr_current_history_num] = gtr_msg[3];
 
+			gtr_history[gtr_current_history_num] = gtr_msg[3];
 			send_data = "{ \"text\": \"" + gtr_input_text + "\",\"sorce\" : \"" + gtr_sorce_lang + "\",\"target\" : \"" + gtr_target_lang + "\" }";
 
 			memset(httpc_buffer, 0x0, 0x10000);
-			result = Httpc_post_and_dl_data(url, (char*)send_data.c_str(), send_data.length(), httpc_buffer, 0x10000, &dl_size, &status_code, true);
+			log_num = Log_log_save(gtr_tr_thread_string, "Httpc_post_and_dl_data()...", 1234567890, false);
+			result = Httpc_post_and_dl_data(url, (char*)send_data.c_str(), send_data.length(), httpc_buffer, 0x10000, &dl_size, &status_code, true, GTR_HTTP_POST_PORT0);
+			Log_log_add(log_num, result.string, result.code, false);
 
 			if (result.code == 0)
 				gtr_history[gtr_current_history_num] = (char*)httpc_buffer;
@@ -229,31 +249,35 @@ void Gtr_tr_thread(void* arg)
 
 			gtr_tr_request = false;
 		}
-		usleep(100000);
+		else
+			usleep(ACTIW_THREAD_SLEEP_TIME);
+
+		while (gtr_thread_suspend)
+			usleep(INACTIW_THREAD_SLEEP_TIME);
 	}
-	Log_log_save("Gtr/Tr thread", "Thread exit.", 1234567890, false);
+	Log_log_save(gtr_tr_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
 }
 
 void Gtr_init(void)
 {
-	Log_log_save("Gtr/init", "Initializing...", 1234567890, s_debug_slow);
+	Log_log_save(gtr_init_string, "Initializing...", 1234567890, DEBUG);
 
 	gtr_current_history_num = 9;
 	gtr_text_pos_x = 0.0;
 
 	Draw_progress("0/0 [Gtr] Starting threads...");
 	gtr_tr_thread_run = true;
-	gtr_tr_thread = threadCreate(Gtr_tr_thread, (void*)(""), STACKSIZE, 0x26, -1, false);
+	gtr_tr_thread = threadCreate(Gtr_tr_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
 
 	Gtr_resume();
 	gtr_already_init = true;
-	Log_log_save("Gtr/init", "Initialized", 1234567890, s_debug_slow);
+	Log_log_save(gtr_init_string, "Initialized", 1234567890, DEBUG);
 }
 
 void Gtr_exit(void)
 {
-	Log_log_save("Gtr/Exit", "Exiting...", 1234567890, s_debug_slow);
+	Log_log_save(gtr_exit_string, "Exiting...", 1234567890, DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
@@ -264,14 +288,14 @@ void Gtr_exit(void)
 	gtr_tr_thread_run = false;
 	gtr_thread_suspend = false;
 
-	log_num = Log_log_save("Gtr/Exit", "Exiting thread...", 1234567890, s_debug_slow);
+	log_num = Log_log_save(gtr_exit_string, "Exiting thread...", 1234567890, DEBUG);
 	result.code = threadJoin(gtr_tr_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
 	}
 
 	threadFree(gtr_tr_thread);
@@ -286,16 +310,14 @@ void Gtr_exit(void)
 	}
 
 	if (failed)
-		Log_log_save("Gtr/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
+		Log_log_save(gtr_exit_string, "[Warn] Some function returned error.", 1234567890, DEBUG);
 
-	Log_log_save("Gtr/Exit", "Exited.", 1234567890, s_debug_slow);
+	Log_log_save(gtr_exit_string, "Exited.", 1234567890, DEBUG);
 }
 
 void Gtr_main(void)
 {
-	int log_y = Log_query_y();
 	int font_num = 0;
-	double log_x = Log_query_x();
 	float red;
 	float green;
 	float blue;
@@ -309,107 +331,124 @@ void Gtr_main(void)
 	else if (Sem_query_font_flag(SEM_USE_EXTERNAL_FONT))
 		font_num = 5;
 
-	Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
-	if (Sem_query_settings(SEM_NIGHT_MODE))
+	if(gtr_pre_sorce_lang != gtr_sorce_lang || gtr_pre_target_lang != gtr_target_lang || gtr_pre_current_history_num != gtr_current_history_num
+	|| gtr_pre_text_pos_x != gtr_text_pos_x || gtr_pre_input_text != gtr_input_text || gtr_pre_selected_history_num != gtr_selected_history_num
+	|| gtr_pre_select_target_lang_request != gtr_select_target_lang_request || gtr_pre_select_sorce_lang_request != gtr_select_sorce_lang_request
+	|| gtr_pre_selected_sorce_lang_num != gtr_selected_sorce_lang_num || gtr_pre_selected_target_lang_num != gtr_selected_target_lang_num
+	|| gtr_pre_sorce_lang_offset != gtr_sorce_lang_offset || gtr_pre_target_lang_offset != gtr_target_lang_offset)
 	{
-		red = 1.0;
-		green = 1.0;
-		blue = 1.0;
-		alpha = 0.75;
-		Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
-	}
-	else
-	{
-		red = 0.0;
-		green = 0.0;
-		blue = 0.0;
-		alpha = 1.0;
-		Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
-	}
-
-	Draw_top_ui();
-	Draw("Sorce : " + Gtr_get_lang_name(gtr_sorce_lang), font_num, 0.0, 20.0, 0.6, 0.6, red, green, blue, alpha);
-	Draw(gtr_input_text, font_num, gtr_text_pos_x, 50.0, 0.6, 0.6, 0.25, 0.0, 0.5, 1.0);
-	Draw("Target : " + Gtr_get_lang_name(gtr_target_lang), font_num, 0.0, 100.0, 0.6, 0.6, red, green, blue, alpha);
-	Draw(gtr_history[gtr_current_history_num], font_num, gtr_text_pos_x, 130.0, 0.6, 0.6, 0.25, 0.0, 0.5, 1.0);
-
-	if (Sem_query_settings(SEM_DEBUG_MODE))
-		Draw_debug_info();
-	if (Log_query_log_show_flag())
-	{
-		for (int i = 0; i < 23; i++)
-			Draw(Log_query_log(log_y + i), 0, log_x, 10.0f + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
+		gtr_pre_sorce_lang = gtr_sorce_lang;
+		gtr_pre_target_lang = gtr_target_lang;
+		gtr_pre_current_history_num = gtr_current_history_num;
+		gtr_pre_text_pos_x = gtr_text_pos_x;
+		gtr_pre_input_text = gtr_input_text;
+		gtr_pre_selected_history_num = gtr_selected_history_num;
+		gtr_pre_select_target_lang_request = gtr_select_target_lang_request;
+		gtr_pre_select_sorce_lang_request = gtr_select_sorce_lang_request;
+		gtr_pre_selected_sorce_lang_num = gtr_selected_sorce_lang_num;
+		gtr_pre_selected_target_lang_num = gtr_selected_target_lang_num;
+		gtr_pre_sorce_lang_offset = gtr_sorce_lang_offset;
+		gtr_pre_target_lang_offset = gtr_target_lang_offset;
+		gtr_need_reflesh = true;
 	}
 
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-		Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
-	else
-		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
+	if(Draw_query_need_reflesh() || !Sem_query_settings(SEM_ECO_MODE))
+		gtr_need_reflesh = true;
 
-	Draw(gtr_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
-	for (int i = 0; i < 10; i++)
+	if(gtr_need_reflesh)
 	{
-		if(i == gtr_selected_history_num)
-			Draw(gtr_history[i], font_num, gtr_text_pos_x, 10.0 + (i * 17.5), 0.6, 0.6, 0.25, 0.0, 0.5, 1.0);
+		Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+		if (Sem_query_settings(SEM_NIGHT_MODE))
+		{
+			red = 1.0;
+			green = 1.0;
+			blue = 1.0;
+			alpha = 0.75;
+			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
+		}
 		else
-			Draw(gtr_history[i], font_num, gtr_text_pos_x, 10.0 + (i * 17.5), 0.6, 0.6, 0.75, 0.5, 0.0, 1.0);
-	}
+		{
+			red = 0.0;
+			green = 0.0;
+			blue = 0.0;
+			alpha = 1.0;
+			Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
+		}
 
-	Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 190.0, 75.0, 15.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 210.0, 75.0, 15.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 100.0, 190.0, 75.0, 15.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 100.0, 210.0, 75.0, 15.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 190.0, 190.0, 120.0, 15.0);
-	Draw_texture(Square_image, weak_aqua_tint, 0, 190.0, 210.0, 120.0, 15.0);
-	Draw(gtr_msg[4], 0, 12.5, 190.0, 0.4, 0.4, red, green, blue, alpha);
-	Draw(gtr_msg[5], 0, 12.5, 210.0, 0.4, 0.4, red, green, blue, alpha);
-	Draw(gtr_msg[6], 0, 102.5, 190.0, 0.4, 0.4, red, green, blue, alpha);
-	Draw(gtr_msg[7], 0, 102.5, 210.0, 0.4, 0.4, red, green, blue, alpha);
-	Draw(gtr_msg[8], 0, 192.5, 190.0, 0.375, 0.375, red, green, blue, alpha);
-	Draw(gtr_msg[9], 0, 192.5, 210.0, 0.375, 0.375, red, green, blue, alpha);
+		Draw("Sorce : " + Gtr_get_lang_name(gtr_sorce_lang), font_num, 0.0, 20.0, 0.6, 0.6, red, green, blue, alpha);
+		Draw(gtr_input_text, font_num, gtr_text_pos_x, 50.0, 0.6, 0.6, 0.25, 0.0, 0.5, 1.0);
+		Draw("Target : " + Gtr_get_lang_name(gtr_target_lang), font_num, 0.0, 100.0, 0.6, 0.6, red, green, blue, alpha);
+		Draw(gtr_history[gtr_current_history_num], font_num, gtr_text_pos_x, 130.0, 0.6, 0.6, 0.25, 0.0, 0.5, 1.0);
+		Draw_top_ui();
 
-	if (gtr_select_sorce_lang_request)
-	{
-		Draw_texture(Square_image, aqua_tint, 0, 25.0, 10.0, 270.0, 205.0);
-		Draw(gtr_msg[0], 0, 27.5, 10.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
-		Draw(gtr_msg[2], 0, 27.5, 200.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+		if (Sem_query_settings(SEM_NIGHT_MODE))
+			Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
+		else
+			Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
+		Draw(gtr_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
 		for (int i = 0; i < 10; i++)
 		{
-			if(i == (int)gtr_selected_sorce_lang_num)
-				Draw(gtr_lang_list[(int)gtr_sorce_lang_offset + i], font_num, 27.5, 20.0 + (i * 18.0), 0.6, 0.6, 1.0, 0.0, 0.0, 1.0);
+			if(i == gtr_selected_history_num)
+				Draw(gtr_history[i], font_num, gtr_text_pos_x, 10.0 + (i * 17.5), 0.6, 0.6, 0.25, 0.0, 0.5, 1.0);
 			else
-				Draw(gtr_lang_list[(int)gtr_sorce_lang_offset + i], font_num, 27.5, 20.0 + (i * 18.0), 0.6, 0.6, 0.0, 0.0, 0.0, 1.0);
+				Draw(gtr_history[i], font_num, gtr_text_pos_x, 10.0 + (i * 17.5), 0.6, 0.6, 0.75, 0.5, 0.0, 1.0);
 		}
-	}
-	else if (gtr_select_target_lang_request)
-	{
-		Draw_texture(Square_image, aqua_tint, 0, 25.0, 10.0, 270.0, 205.0);
-		Draw(gtr_msg[1], 0, 27.5, 10.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
-		Draw(gtr_msg[2], 0, 27.5, 200.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
 
-		for (int i = 0; i < 10; i++)
+		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 190.0, 75.0, 15.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 210.0, 75.0, 15.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 100.0, 190.0, 75.0, 15.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 100.0, 210.0, 75.0, 15.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 190.0, 190.0, 120.0, 15.0);
+		Draw_texture(Square_image, weak_aqua_tint, 0, 190.0, 210.0, 120.0, 15.0);
+		Draw(gtr_msg[4], 0, 12.5, 190.0, 0.4, 0.4, red, green, blue, alpha);
+		Draw(gtr_msg[5], 0, 12.5, 210.0, 0.4, 0.4, red, green, blue, alpha);
+		Draw(gtr_msg[6], 0, 102.5, 190.0, 0.4, 0.4, red, green, blue, alpha);
+		Draw(gtr_msg[7], 0, 102.5, 210.0, 0.4, 0.4, red, green, blue, alpha);
+		Draw(gtr_msg[8], 0, 192.5, 190.0, 0.375, 0.375, red, green, blue, alpha);
+		Draw(gtr_msg[9], 0, 192.5, 210.0, 0.375, 0.375, red, green, blue, alpha);
+
+		if (gtr_select_sorce_lang_request)
 		{
-			if (i == (int)gtr_selected_target_lang_num)
-				Draw(gtr_lang_list[(int)gtr_target_lang_offset + i], font_num, 27.5, 20.0 + (i * 18.0), 0.6, 0.6, 1.0, 0.0, 0.0, 1.0);
-			else
-				Draw(gtr_lang_list[(int)gtr_target_lang_offset + i], font_num, 27.5, 20.0 + (i * 18.0), 0.6, 0.6, 0.0, 0.0, 0.0, 1.0);
+			Draw_texture(Square_image, aqua_tint, 0, 25.0, 10.0, 270.0, 205.0);
+			Draw(gtr_msg[0], 0, 27.5, 10.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+			Draw(gtr_msg[2], 0, 27.5, 200.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+
+			for (int i = 0; i < 10; i++)
+			{
+				if(i == (int)gtr_selected_sorce_lang_num)
+					Draw(gtr_lang_list[(int)gtr_sorce_lang_offset + i], font_num, 27.5, 20.0 + (i * 18.0), 0.6, 0.6, 1.0, 0.0, 0.0, 1.0);
+				else
+					Draw(gtr_lang_list[(int)gtr_sorce_lang_offset + i], font_num, 27.5, 20.0 + (i * 18.0), 0.6, 0.6, 0.0, 0.0, 0.0, 1.0);
+			}
 		}
-	}
+		else if (gtr_select_target_lang_request)
+		{
+			Draw_texture(Square_image, aqua_tint, 0, 25.0, 10.0, 270.0, 205.0);
+			Draw(gtr_msg[1], 0, 27.5, 10.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+			Draw(gtr_msg[2], 0, 27.5, 200.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
 
-	if (Err_query_error_show_flag())
-		Draw_error();
-
-	Draw_bot_ui();
-	if (Hid_query_key_held_state(KEY_H_TOUCH))
+			for (int i = 0; i < 10; i++)
+			{
+				if (i == (int)gtr_selected_target_lang_num)
+					Draw(gtr_lang_list[(int)gtr_target_lang_offset + i], font_num, 27.5, 20.0 + (i * 18.0), 0.6, 0.6, 1.0, 0.0, 0.0, 1.0);
+				else
+					Draw(gtr_lang_list[(int)gtr_target_lang_offset + i], font_num, 27.5, 20.0 + (i * 18.0), 0.6, 0.6, 0.0, 0.0, 0.0, 1.0);
+			}
+		}
+		Draw_bot_ui();
 		Draw_touch_pos();
 
-	Draw_apply_draw();
+		Draw_apply_draw();
+		gtr_need_reflesh = false;
+	}
+	else
+		gspWaitForVBlank();
 
 	Hid_set_disable_flag(true);
 	if (gtr_type_text_request)
 	{
-		Swkbd_set_parameter(SWKBD_TYPE_NORMAL, SWKBD_NOTEMPTY_NOTBLANK, SWKBD_PREDICTIVE_INPUT, -1, 2, 8192, "メッセージを入力 / Type message here.", s_clipboards[0]);
+		Swkbd_set_parameter(SWKBD_TYPE_NORMAL, SWKBD_NOTEMPTY_NOTBLANK, SWKBD_PREDICTIVE_INPUT, -1, 2, 8192, "メッセージを入力 / Type message here.", Menu_query_clipboard());
 		if (Swkbd_launch(8192, &swkbd_data, SWKBD_BUTTON_RIGHT))
 		{
 			gtr_input_text = swkbd_data;

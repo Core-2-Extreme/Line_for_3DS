@@ -5,21 +5,40 @@
 #include "types.hpp"
 #include "menu.hpp"
 
-int dl_progress = 0;
-int post_and_dl_progress = 0;
+int dl_progress[8] = { 0, 0, 0, 0, 0, 0, 0, 0, };
+int post_and_dl_progress[4] = { 0, 0, 0, 0, };
 std::string httpc_user_agent = "Line for 3DS " + Menu_query_ver();
 
-int Httpc_query_dl_progress(void)
+int Httpc_query_dl_progress(int port)
 {
-	return dl_progress;
+	if(port >= 0 && port <= 7)
+		return dl_progress[port];
+	else
+		return 0;
 }
 
-int Httpc_query_post_and_dl_progress(void)
+int Httpc_query_post_and_dl_progress(int port)
 {
-	return post_and_dl_progress;
+	if(port >= 0 && port <= 3)
+		return post_and_dl_progress[port];
+	else
+		return 0;
 }
 
-Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_size, u32* downloaded_data_size, u32* status_code, bool follow_redirect, std::string* last_url, bool do_not_dl, int max_redirect)
+void Httpc_reset_dl_progress(int port)
+{
+	if(port >= 0 && port <= 7)
+		dl_progress[port] = 0;
+}
+
+void Httpc_reset_post_and_dl_progress(int port)
+{
+	if(port >= 0 && port <= 3)
+		post_and_dl_progress[port] = 0;
+}
+
+
+Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_size, u32* downloaded_data_size, u32* status_code, bool follow_redirect, std::string* last_url, bool do_not_dl, int max_redirect, int port)
 {
 	int redirected = 0;
 	bool redirect = false;
@@ -34,15 +53,22 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 	moved_url = (char*)malloc(0x1000);
 	if (moved_url == NULL)
 	{
-		result.error_description = "Couldn't allocate memory.";
+		result.error_description = Err_query_template_detail(OUT_OF_MEMORY);
 		result.code = OUT_OF_MEMORY;
-		result.string = "[Error] Out of memory. ";
+		result.string = Err_query_template_summary(OUT_OF_MEMORY);
+		return result;
+	}
+	if(port <= -1 || port >= 8)
+	{
+		result.error_description = Err_query_template_detail(INVALID_PORT_NUM);
+		result.code = INVALID_PORT_NUM;
+		result.string = Err_query_template_summary(INVALID_PORT_NUM);
 		return result;
 	}
 
 	while (true)
 	{
-		dl_progress = 0;
+		dl_progress[port] = 0;
 		redirect = false;
 
 		if (!function_fail)
@@ -55,7 +81,7 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 				function_fail = true;
 			}
 		}
-		dl_progress++;
+		dl_progress[port]++;
 
 		if (!function_fail)
 		{
@@ -67,7 +93,7 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 				function_fail = true;
 			}
 		}
-		dl_progress++;
+		dl_progress[port]++;
 
 		if (!function_fail)
 		{
@@ -79,7 +105,7 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 				function_fail = true;
 			}
 		}
-		dl_progress++;
+		dl_progress[port]++;
 
 		if (!function_fail)
 		{
@@ -93,12 +119,12 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 				function_fail = true;
 			}
 		}
-		dl_progress++;
+		dl_progress[port]++;
 
 		if (!function_fail)
 			httpcGetResponseStatusCode(&dl_httpc, status_code);
 
-		dl_progress++;
+		dl_progress[port]++;
 
 		if (!function_fail && follow_redirect && max_redirect > redirected)
 		{
@@ -121,7 +147,7 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 			}
 			result.code = 0;
 		}
-		dl_progress++;
+		dl_progress[port]++;
 
 		if (!function_fail && !redirect && !do_not_dl)
 		{
@@ -146,10 +172,10 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 				}
 			}
 		}
-		dl_progress++;
+		dl_progress[port]++;
 
 		httpcCloseContext(&dl_httpc);
-		dl_progress++;
+		dl_progress[port]++;
 
 		if (function_fail || !redirect)
 			break;
@@ -160,7 +186,7 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 	return result;
 }
 
-Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffer, int post_buffer_size, u8* dl_data_buffer, int dl_buffer_size, u32* downloaded_data_size, u32* status_code, bool follow_redirect)
+Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffer, int post_buffer_size, u8* dl_data_buffer, int dl_buffer_size, u32* downloaded_data_size, u32* status_code, bool follow_redirect, int port)
 {
 	bool redirect = false;
 	bool function_fail = false;
@@ -173,15 +199,22 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 	moved_url = (char*)malloc(0x1000);
 	if (moved_url == NULL)
 	{
-		result.error_description = "Couldn't allocate memory.";
+		result.error_description = Err_query_template_detail(OUT_OF_MEMORY);
 		result.code = OUT_OF_MEMORY;
-		result.string = "[Error] Out of memory. ";
+		result.string = Err_query_template_summary(OUT_OF_MEMORY);
+		return result;
+	}
+	if(port <= -1 || port >= 4)
+	{
+		result.error_description = Err_query_template_detail(INVALID_PORT_NUM);
+		result.code = INVALID_PORT_NUM;
+		result.string = Err_query_template_summary(INVALID_PORT_NUM);
 		return result;
 	}
 
 	while (true)
 	{
-		post_and_dl_progress = 0;
+		post_and_dl_progress[port] = 0;
 		redirect = false;
 
 		if (!function_fail)
@@ -198,7 +231,7 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 				function_fail = true;
 			}
 		}
-		post_and_dl_progress++;
+		post_and_dl_progress[port]++;
 
 		if (!function_fail)
 		{
@@ -210,7 +243,7 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 				function_fail = true;
 			}
 		}
-		post_and_dl_progress++;
+		post_and_dl_progress[port]++;
 
 		if (!function_fail)
 		{
@@ -222,7 +255,7 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 				function_fail = true;
 			}
 		}
-		post_and_dl_progress++;
+		post_and_dl_progress[port]++;
 
 		if (!function_fail)
 		{
@@ -241,12 +274,12 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 				function_fail = true;
 			}
 		}
-		post_and_dl_progress++;
+		post_and_dl_progress[port]++;
 
 		if (!function_fail)
 			result.code = httpcGetResponseStatusCode(&post_and_dl_httpc, status_code);
 
-		post_and_dl_progress++;
+		post_and_dl_progress[port]++;
 
 		if (!function_fail && follow_redirect)
 		{
@@ -257,7 +290,7 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 				redirect = true;
 			}
 		}
-		post_and_dl_progress++;
+		post_and_dl_progress[port]++;
 
 		if (!function_fail && !redirect)
 		{
@@ -282,10 +315,10 @@ Result_with_string Httpc_post_and_dl_data(std::string url, char* post_data_buffe
 				}
 			}
 		}
-		post_and_dl_progress++;
+		post_and_dl_progress[port]++;
 
 		httpcCloseContext(&post_and_dl_httpc);
-		post_and_dl_progress++;
+		post_and_dl_progress[port]++;
 
 		if (function_fail || !redirect)
 			break;

@@ -4,23 +4,22 @@
 #include <string>
 #include "citro2d.h"
 
-#include "hid.hpp"
 #include "draw.hpp"
-#include "file.hpp"
-#include "change_setting.hpp"
-#include "share_function.hpp"
-#include "speedtest.hpp"
-#include "image_viewer.hpp"
-#include "line.hpp"
-#include "setting_menu.hpp"
-#include "google_translation.hpp"
 #include "error.hpp"
-#include "menu.hpp"
 #include "explorer.hpp"
 #include "external_font.hpp"
+#include "file.hpp"
+#include "hid.hpp"
 #include "log.hpp"
+
+#include "menu.hpp"
+#include "line.hpp"
+#include "google_translation.hpp"
+#include "speedtest.hpp"
+#include "image_viewer.hpp"
 #include "camera.hpp"
 #include "music_player.hpp"
+#include "setting_menu.hpp"
 
 std::string main_init_string = "Main/Init";
 std::string main_exit_string = "Main/Exit";
@@ -32,11 +31,9 @@ void Init(void)
 	u8* init_buffer;
 	u32 read_size;
 	int log_num;
-	int setting_num[3] = { SEM_LCD_BRIGHTNESS, SEM_TIME_TO_TURN_OFF_LCD, SEM_LCD_BRIGHTNESS_BEFORE_TURN_OFF, };
-	int buffer_max_size[10] = { 0xA00000, 0xA00000, 0x700000, 0x500000, 0x500000, 0x4C0000, 0x1400000, 0xA00000, 0x200000,};
 	int num_of_msg_list[4] = { GTR_NUM_OF_LANG_LIST_MSG, GTR_NUM_OF_LANG_SHORT_LIST_MSG, CAM_NUM_OF_OPTION_MSG, EXFONT_NUM_OF_FONT_NAME, };
 	std::string setting_data[128];
-	std::string texture_name_list[4] = { "wifi_signal", "battery_level", "battery_charge", "square", };
+	std::string texture_name_list[5] = { "wifi_signal", "battery_level", "battery_charge", "square", "ui", };
 	std::string file_name_list[4] = { "gtr_lang_list", "gtr_short_lang_list", "cam_options", "font_name", };
 	Result_with_string result;
 
@@ -64,7 +61,7 @@ void Init(void)
 
 	for (int i = 0; i < 9; i++)
 	{
-		log_num = Log_log_save(main_init_string, main_svc_name_list[i] + "Init...", 1234567890, s_debug_slow);
+		log_num = Log_log_save(main_init_string, main_svc_name_list[i] + "Init()...", 1234567890, DEBUG);
 
 		if(i == 0)
 			result.code = fsInit();
@@ -86,36 +83,28 @@ void Init(void)
 			result.code = amInit();
 
 		if (result.code == 0)
-		{
-			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
-			if(i == 3)
-				s_mcu_success = true;
-		}
+			Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
 		else
-			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
 	}
 
-	log_num = Log_log_save(main_init_string, "APT_SetAppCpuTimeLimit_30...", 1234567890, s_debug_slow);
+	log_num = Log_log_save(main_init_string, "APT_SetAppCpuTimeLimit()...", 1234567890, DEBUG);
 	result.code = APT_SetAppCpuTimeLimit(30);
 	if (result.code == 0)
-		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
 	else
-		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
 
 	aptSetSleepAllowed(true);
 
 	Draw_progress("1/3 [Main] Loading settings...");
 
-	log_num = Log_log_save(main_init_string , "Sem_load_setting(app)...", 1234567890, s_debug_slow);
-	result = Sem_load_setting("Setting.txt", "/Line/", 22, s_setting);
-	Log_log_add(log_num, result.string, result.code, s_debug_slow);
-
 	for (int i = 0; i < 4; i++)
 	{
-		log_num = Log_log_save(main_init_string, "File_load_from_rom(" + file_name_list[i] + ".txt)...", 1234567890, s_debug_slow);
+		log_num = Log_log_save(main_init_string, "File_load_from_rom()...", 1234567890, DEBUG);
 		result = File_load_from_rom(file_name_list[i] + ".txt", init_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
 		Log_log_add(log_num, result.string, result.code, false);
-		log_num = Log_log_save(main_init_string, "Sem_load_setting()...", 1234567890, s_debug_slow);
+		log_num = Log_log_save(main_init_string, "Sem_load_setting()...", 1234567890, DEBUG);
 		result = Sem_parse_file((char*)init_buffer, num_of_msg_list[i], setting_data);
 		Log_log_add(log_num, result.string, result.code, false);
 		if (result.code == 0)
@@ -134,109 +123,20 @@ void Init(void)
 		}
 	}
 
-	if(s_setting[0] != "jp" && s_setting[0] != "en")
-		s_setting[0] = "en";
-
-	for (int i = 1; i < 6; i++)
-	{
-		if(i >= 1 && i <= 3)
-		{
-			if (!(s_setting[i] == "") && std::all_of(s_setting[i].cbegin(), s_setting[i].cend(), isdigit))
-					Sem_set_settings_i(setting_num[i - 1], stoi(s_setting[i]));
-		}
-		else if(i == 4)
-		{
-			if(s_setting[i] == "true")
-				Sem_set_settings_i(SEM_SYSTEM_SETTING_MENU_SHOW, true);
-		}
-		else if(i == 5)
-		{
-			if (!(s_setting[i] == "") && stod(s_setting[i]) >= 0.01 && stod(s_setting[i]) <= 1.1)
-				Sem_set_settings_d(SEM_SCROLL_SPEED, stod(s_setting[i]));
-		}
-	}
-
-	if (s_setting[6] == "allow")
-		Sem_set_settings(SEM_ALLOW_SEND_APP_INFO, true);
-	else
-		Sem_set_settings(SEM_ALLOW_SEND_APP_INFO, false);
-
-	if (std::all_of(s_setting[7].cbegin(), s_setting[7].cend(), isdigit) && !(s_setting[7] == ""))
-		Sem_set_settings_i(SEM_NUM_OF_APP_START, stoi(s_setting[7]));
-
-	if (s_setting[8] == "true")
-		Sem_set_settings(SEM_NIGHT_MODE, true);
-	else
-		Sem_set_settings(SEM_NIGHT_MODE, false);
-
-	if (s_setting[9] == "false")
-		Sem_set_settings(SEM_VSYNC_MODE, false);
-	else
-		Sem_set_settings(SEM_VSYNC_MODE, true);
-
-	if (s_setting[10] == "true")
-		Line_set_setting(LINE_HIDE_ID, true);
-	else
-		Line_set_setting(LINE_HIDE_ID, false);
-
-	if(!(s_setting[11] == "") && stod(s_setting[11]) >= 0.25 && stod(s_setting[11]) <= 3.0)
-		Line_set_x_y_size_interval(LINE_TEXT_SIZE, stod(s_setting[11]));
-	else
-		Line_set_x_y_size_interval(LINE_TEXT_SIZE, 0.66);
-
-	if (!(s_setting[12] == "") && stod(s_setting[12]) >= 10.0 && stod(s_setting[12]) <= 250.0)
-		Line_set_x_y_size_interval(LINE_TEXT_INTERVAL, stod(s_setting[12]));
-	else
-		Line_set_x_y_size_interval(LINE_TEXT_INTERVAL, 35.0);
-
-	Line_set_buffer_size(LINE_HTTPC_BUFFER, 0x100000);
-	Line_set_buffer_size(LINE_FS_BUFFER, 0x100000);
-	Spt_set_buffer_size(SPT_HTTPC_BUFFER, 0x700000);
-	Imv_set_buffer_size(IMV_HTTPC_BUFFER, 0x200000);
-	Imv_set_buffer_size(IMV_FS_BUFFER, 0x200000);
-	Line_set_buffer_size(LINE_SEND_FS_CACHE_BUFFER, 0x200000);
-	Line_set_buffer_size(LINE_SEND_FS_BUFFER, 0x500000);
-	Mup_set_buffer_size(MUP_FS_OUT_BUFFER, 0x300000);
-	Mup_set_buffer_size(MUP_FS_IN_BUFFER, 0x100000);
-
-	for (int i = 13; i < 22; i++)
-	{
-		if (std::all_of(s_setting[i].cbegin(), s_setting[i].cend(), isdigit) && !(s_setting[i] == "") && stoi(s_setting[i]) >= 0x40000 && stoi(s_setting[i]) <= buffer_max_size[i - 13])
-		{
-			if(i == 13)
-				Line_set_buffer_size(LINE_HTTPC_BUFFER, stoi(s_setting[i]));
-			else if (i == 14)
-				Line_set_buffer_size(LINE_FS_BUFFER, stoi(s_setting[i]));
-			else if (i == 15)
-				Spt_set_buffer_size(SPT_HTTPC_BUFFER, stoi(s_setting[i]));
-			else if (i == 16)
-				Imv_set_buffer_size(IMV_HTTPC_BUFFER, stoi(s_setting[i]));
-			else if (i == 17)
-				Imv_set_buffer_size(IMV_FS_BUFFER, stoi(s_setting[i]));
-			else if (i == 18)
-				Line_set_buffer_size(LINE_SEND_FS_CACHE_BUFFER, stoi(s_setting[i]));
-			else if (i == 19)
-				Line_set_buffer_size(LINE_SEND_FS_BUFFER, stoi(s_setting[i]));
-			else if (i == 20)
-				Mup_set_buffer_size(MUP_FS_OUT_BUFFER, stoi(s_setting[i]));
-			else if (i == 21)
-				Mup_set_buffer_size(MUP_FS_IN_BUFFER, stoi(s_setting[i]));
-		}
-	}
-
 	Draw_progress("2/3 [Main] Starting threads...");
 	Hid_init();
 	Sem_init();
 	Expl_init();
+	Exfont_init();
 	Sem_set_operation_flag(SEM_RELOAD_MSG_REQUEST, true);
 	Sem_set_operation_flag(SEM_CHANGE_WIFI_STATE_REQUEST, true);
 	Sem_suspend();
 
 	Draw_progress("3/3 [Main] Loading textures...");
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 5; i++)
 	{
-		log_num = Log_log_save(main_init_string, "Loading texture (" + texture_name_list[i] + ".t3x)...", 1234567890, s_debug_slow);
+		log_num = Log_log_save(main_init_string, "Draw_load_texture()...", 1234567890, DEBUG);
 
 		if(i == 0)
 			result = Draw_load_texture("romfs:/gfx/" + texture_name_list[i] + ".t3x", i, Wifi_icon_image, 0, 9);
@@ -246,16 +146,13 @@ void Init(void)
 			result = Draw_load_texture("romfs:/gfx/" + texture_name_list[i] + ".t3x", i, Battery_charge_icon_image, 0, 1);
 		else if (i == 3)
 			result = Draw_load_texture("romfs:/gfx/" + texture_name_list[i] + ".t3x", i, Square_image, 0, 1);
+		else if (i == 4)
+			result = Draw_load_texture("romfs:/gfx/" + texture_name_list[i] + ".t3x", i, ui_image, 0, 4);
 
-		Log_log_add(log_num, result.string, result.code, s_debug_slow);
+		Log_log_add(log_num, result.string, result.code, DEBUG);
 	}
 
-	wifi_state = (u8*)malloc(0x1);
-	memset(wifi_state, 0xff, 0x1);
-	wifi_state_internet_sample = (u8*)malloc(0x1);
-	memset(wifi_state_internet_sample, 0x2, 0x1);
-	svcSetThreadPriority(CUR_THREAD_HANDLE, 0x22);
-
+	svcSetThreadPriority(CUR_THREAD_HANDLE, PRIORITY_HIGHT);
 	free(init_buffer);
 	Log_log_save(main_init_string , "Initialized.", 1234567890, false);
 }
@@ -284,65 +181,9 @@ int main()
 	Hid_exit();
 	Expl_exit();
 
-	int log_num;
-	std::string settings_data;
-	Handle fs_handle = 0;
-	FS_Archive fs_archive = 0;
-	Result_with_string result;
-
-	log_num = Log_log_save(main_exit_string, "File_save_to_file(Setting.txt)...", 1234567890, s_debug_slow);
-	s_setting[1] = std::to_string(Sem_query_settings_i(SEM_LCD_BRIGHTNESS));
-	s_setting[2] = std::to_string(Sem_query_settings_i(SEM_TIME_TO_TURN_OFF_LCD));
-	s_setting[3] = std::to_string(Sem_query_settings_i(SEM_LCD_BRIGHTNESS_BEFORE_TURN_OFF));
-	if (Sem_query_settings(SEM_SYSTEM_SETTING_MENU_SHOW))
-		s_setting[4] = "true";
-	else
-		s_setting[4] = "false";
-
-	s_setting[5] = std::to_string(Sem_query_settings_d(SEM_SCROLL_SPEED));
-	if (Sem_query_settings(SEM_ALLOW_SEND_APP_INFO))
-		s_setting[6] = "allow";
-	else
-		s_setting[6] = "deny";
-
-	s_setting[7] = std::to_string(Sem_query_settings_i(SEM_NUM_OF_APP_START) + 1);
-
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-		s_setting[8] = "true";
-	else
-		s_setting[8] = "false";
-
-	if (Sem_query_settings(SEM_VSYNC_MODE))
-		s_setting[9] = "true";
-	else
-		s_setting[9] = "false";
-
-	if (Line_query_setting(LINE_HIDE_ID))
-		s_setting[10] = "true";
-	else
-		s_setting[10] = "false";
-
-	s_setting[11] = std::to_string(Line_query_x_y_size_interval(LINE_TEXT_SIZE));
-	s_setting[12] = std::to_string(Line_query_x_y_size_interval(LINE_TEXT_INTERVAL));
-	s_setting[13] = std::to_string(Line_query_buffer_size(LINE_HTTPC_BUFFER));
-	s_setting[14] = std::to_string(Line_query_buffer_size(LINE_FS_BUFFER));
-	s_setting[15] = std::to_string(Spt_query_buffer_size(SPT_HTTPC_BUFFER));
-	s_setting[16] = std::to_string(Imv_query_buffer_size(IMV_HTTPC_BUFFER));
-	s_setting[17] = std::to_string(Imv_query_buffer_size(IMV_FS_BUFFER));
-	s_setting[18] = std::to_string(Line_query_buffer_size(LINE_SEND_FS_CACHE_BUFFER));
-	s_setting[19] = std::to_string(Line_query_buffer_size(LINE_SEND_FS_BUFFER));
-	s_setting[20] = std::to_string(Mup_query_buffer_size(MUP_FS_OUT_BUFFER));
-	s_setting[21] = std::to_string(Mup_query_buffer_size(MUP_FS_IN_BUFFER));
-
-	for (int i = 0; i < 22; i++)
-		settings_data += "<" + std::to_string(i) + ">" + s_setting[i] + "</" + std::to_string(i) + ">";
-
-	result = File_save_to_file("Setting.txt", (u8*)settings_data.c_str(), settings_data.length(), "/Line/", true, fs_handle, fs_archive);
-	Log_log_add(log_num, result.string, result.code, s_debug_slow);
-
 	for (int i = 0; i < 9; i++)
 	{
-		Log_log_save(main_exit_string, main_svc_name_list[i] + "Exit...", 1234567890, s_debug_slow);
+		Log_log_save(main_exit_string, main_svc_name_list[i] + "Exit()...", 1234567890, DEBUG);
 
 		if (i == 0)
 			fsExit();

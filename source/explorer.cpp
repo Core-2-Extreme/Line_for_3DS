@@ -1,11 +1,21 @@
 ﻿#include <3ds.h>
 #include <string>
 #include <unistd.h>
+#include <algorithm>
 
-#include "share_function.hpp"
+#include "setting_menu.hpp"
 #include "file.hpp"
 #include "explorer.hpp"
 #include "log.hpp"
+
+/*For draw*/
+int expl_pre_num_of_file = 0;
+int expl_pre_size[256];
+double expl_pre_view_offset_y = 0.0;
+double expl_pre_selected_file_num = 0.0;
+std::string expl_pre_current_patch = "/";
+std::string expl_pre_files[256];
+/*---------------------------------------------*/
 
 bool expl_read_dir_thread_run = false;
 bool expl_read_dir_request = false;
@@ -16,6 +26,7 @@ double expl_selected_file_num = 0.0;
 std::string expl_current_patch = "/";
 std::string expl_files[256];
 std::string expl_type[256];
+std::string expl_read_dir_thread_string = "Expl/Read dir thread thread";
 Thread expl_read_dir_thread;
 
 std::string Expl_query_current_patch(void)
@@ -29,6 +40,37 @@ std::string Expl_query_file_name(int file_num)
 		return expl_files[file_num];
 	else
 		return "";
+}
+
+bool Expl_query_need_reflesh(void)
+{
+  bool need = false;
+
+  for(int i = 0; i < 256; i++)
+  {
+    if(expl_pre_size[i] != expl_size[i] || expl_pre_files[i] != expl_files[i])
+    {
+      need = true;
+      break;
+    }
+  }
+
+  if(need || expl_pre_num_of_file != expl_num_of_file || expl_pre_view_offset_y != expl_view_offset_y
+    || expl_pre_selected_file_num != expl_selected_file_num || expl_pre_current_patch != expl_current_patch)
+  {
+    for(int i = 0; i < 256; i++)
+    {
+      expl_pre_files[i] = expl_files[i];
+      expl_pre_size[i] = expl_size[i];
+    }
+    expl_pre_num_of_file = expl_num_of_file;
+    expl_pre_view_offset_y = expl_view_offset_y;
+    expl_pre_selected_file_num = expl_selected_file_num;
+    expl_pre_current_patch = expl_current_patch;
+    return true;
+  }
+  else
+    return false;
 }
 
 int Expl_query_num_of_file(void)
@@ -98,7 +140,7 @@ void Expl_set_view_offset_y(double value)
 void Expl_init(void)
 {
 	expl_read_dir_thread_run = true;
-	expl_read_dir_thread = threadCreate(Expl_read_dir_thread, (void*)(""), STACKSIZE, 0x24, -1, false);
+	expl_read_dir_thread = threadCreate(Expl_read_dir_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, -1, false);
 }
 
 void Expl_exit(void)
@@ -110,14 +152,15 @@ void Expl_exit(void)
 
 void Expl_read_dir_thread(void* arg)
 {
-	Log_log_save("Expl/Read dir thread", "Thread started.", 1234567890, false);
+	Log_log_save(expl_read_dir_thread_string, "Thread started.", 1234567890, false);
 	int read_dir_lou_num_return;
-	int num_of_hidden;
-	int num_of_dir;
-	int num_of_file;
-	int num_of_read_only;
-	int num_of_unknown;
-	int num_offset;
+	int num_of_hidden = 0;
+	int num_of_dir = 0;
+	int num_of_file = 0;
+	int num_of_read_only = 0;
+	int num_of_unknown = 0;
+	int num_offset = 0;
+  int index = 0;
   u64 file_size;
 	std::string name_of_hidden[256];
 	std::string name_of_dir[256];
@@ -147,7 +190,7 @@ void Expl_read_dir_thread(void* arg)
         expl_size[i] = 0;
 			}
 
-			read_dir_lou_num_return = Log_log_save("Expl/Read dir thread", "File_read_dir(" + expl_current_patch + ")...", 1234567890, false);
+			read_dir_lou_num_return = Log_log_save(expl_read_dir_thread_string, "File_read_dir()...", 1234567890, false);
 			read_dir_result = File_read_dir(&expl_num_of_file, expl_files, 256, expl_type, 256, expl_current_patch);
 			Log_log_add(read_dir_lou_num_return, read_dir_result.string, read_dir_result.code, false);
 
@@ -197,70 +240,77 @@ void Expl_read_dir_thread(void* arg)
 					}
 				}
 
+        std::sort(begin(name_of_hidden), begin(name_of_hidden) + num_of_hidden);
+        std::sort(begin(name_of_dir), begin(name_of_dir) + num_of_dir);
+        std::sort(begin(name_of_file), begin(name_of_file) + num_of_file);
+        std::sort(begin(name_of_read_only), begin(name_of_read_only) + num_of_read_only);
+        std::sort(begin(name_of_unknown), begin(name_of_unknown) + num_of_unknown);
+
 				for (int i = 0; i < 256; i++)
 				{
 					expl_files[i] = "";
 					expl_type[i] = "";
 				}
+        index = 0;
 
 				if (!(expl_current_patch == "/"))
 				{
 					num_offset = 1;
 					expl_num_of_file += 1;
-					if (s_setting[0] == "en")
-						expl_files[0] = "Move to parent directory";
-					else if (s_setting[0] == "jp")
+          if (Sem_query_lang() == "jp")
 						expl_files[0] = "親ディレクトリへ移動";
-				}
+  				else
+						expl_files[0] = "Move to parent directory";
+					}
 				else
 					num_offset = 0;
 
 				for (int i = 0; i < num_of_hidden; i++)
 				{
-					expl_type[i + num_offset] = "hidden";
-					expl_files[i + num_offset] = name_of_hidden[i];
-          read_dir_result = File_check_file_size(expl_files[i + num_offset], expl_current_patch, &file_size, fs_handle, fs_archive);
-          if(read_dir_result.code == 0)
-            expl_size[i + num_offset] = (int)file_size;
+          index = i + num_offset;
+					expl_type[index] = "hidden";
+					expl_files[index] = name_of_hidden[i];
 				}
 				for (int i = 0; i < num_of_dir; i++)
 				{
-					expl_type[i + num_of_hidden + num_offset] = "dir";
-					expl_files[i + num_of_hidden + num_offset] = name_of_dir[i];
-          read_dir_result = File_check_file_size(expl_files[i + num_of_hidden + num_offset], expl_current_patch, &file_size, fs_handle, fs_archive);
-          if(read_dir_result.code == 0)
-            expl_size[i + num_of_hidden + num_offset] = (int)file_size;
+          index = i + num_of_hidden + num_offset;
+					expl_type[index] = "dir";
+					expl_files[index] = name_of_dir[i];
 				}
 				for (int i = 0; i < num_of_file; i++)
 				{
-					expl_type[i + num_of_hidden + num_of_dir + num_offset] = "file";
-					expl_files[i + num_of_hidden + num_of_dir + num_offset] = name_of_file[i];
-          read_dir_result = File_check_file_size(expl_files[i + num_of_hidden + num_of_dir + num_offset], expl_current_patch, &file_size, fs_handle, fs_archive);
-          if(read_dir_result.code == 0)
-            expl_size[i + num_of_hidden + num_of_dir + num_offset] = (int)file_size;
+          index = i + num_of_hidden + num_of_dir + num_offset;
+					expl_type[index] = "file";
+					expl_files[index] = name_of_file[i];
 				}
 				for (int i = 0; i < num_of_read_only; i++)
 				{
-					expl_type[i + num_of_hidden + num_of_dir + num_of_file + num_offset] = "read only";
-					expl_files[i + num_of_hidden + num_of_dir + num_of_file + num_offset] = name_of_read_only[i];
-          read_dir_result = File_check_file_size(expl_files[i + num_of_hidden + num_of_dir + num_of_file + num_offset], expl_current_patch, &file_size, fs_handle, fs_archive);
-          if(read_dir_result.code == 0)
-            expl_size[i + num_of_hidden + num_of_dir + num_of_file + num_offset] = (int)file_size;
+          index = i + num_of_hidden + num_of_dir + num_of_file + num_offset;
+					expl_type[index] = "read only";
+					expl_files[index] = name_of_read_only[i];
 				}
 				for (int i = 0; i < num_of_unknown; i++)
 				{
-					expl_type[i + num_of_hidden + num_of_dir + num_of_file + num_of_read_only + num_offset] = "unknown";
-					expl_files[i + num_of_hidden + num_of_dir + num_of_file + num_of_read_only + num_offset] = name_of_unknown[i];
-          read_dir_result = File_check_file_size(expl_files[i + num_of_hidden + num_of_dir + num_of_file + num_of_read_only + num_offset], expl_current_patch, &file_size, fs_handle, fs_archive);
-          if(read_dir_result.code == 0)
-            expl_size[i + num_of_hidden + num_of_dir + num_of_file + num_of_read_only + num_offset] = (int)file_size;
+          index = i + num_of_hidden + num_of_dir + num_of_file + num_of_read_only + num_offset;
+					expl_type[index] = "unknown";
+					expl_files[index] = name_of_unknown[i];
 				}
 			}
-
 			expl_read_dir_request = false;
+
+      for(int i = 0; i <= index; i++)
+      {
+        if(expl_read_dir_request)
+          break;
+
+        read_dir_result = File_check_file_size(expl_files[i], expl_current_patch, &file_size, fs_handle, fs_archive);
+        if(read_dir_result.code == 0)
+          expl_size[i] = (int)file_size;
+      }
 		}
-		usleep(50000);
+    else
+			usleep(ACTIW_THREAD_SLEEP_TIME);
 	}
-	Log_log_save("Expl/Read dir thread", "Thread exit.", 1234567890, false);
+	Log_log_save(expl_read_dir_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
 }

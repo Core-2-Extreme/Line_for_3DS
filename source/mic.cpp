@@ -11,9 +11,13 @@
 #include "error.hpp"
 #include "menu.hpp"
 #include "types.hpp"
-#include "share_function.hpp"
 #include "setting_menu.hpp"
 #include "mic.hpp"
+
+/*For draw*/
+bool mic_need_reflesh = false;
+bool mic_pre_start_record_request = false;
+/*---------------------------------------------*/
 
 bool mic_main_run = false;
 bool mic_record_thread_run = false;
@@ -24,7 +28,10 @@ bool mic_stop_record_request = false;
 u8* mic_buffer;
 u32 mic_buffer_size = 0x300000;
 std::string mic_msg[MIC_NUM_OF_MSG];
-std::string mic_ver = "v1.0.1";
+std::string mic_ver = "v1.0.2";
+std::string mic_record_thread_string = "Mic/Record thread";
+std::string mic_init_string = "Mic/Init";
+std::string mic_exit_string = "Mic/Exit";
 Thread mic_record_thread;
 
 bool Mic_query_init_flag(void)
@@ -65,6 +72,7 @@ void Mic_resume(void)
 {
 	mic_thread_suspend = false;
 	mic_main_run = true;
+	mic_need_reflesh = true;
 	Menu_suspend();
 }
 
@@ -77,7 +85,7 @@ void Mic_suspend(void)
 
 void Mic_record_thread(void* arg)
 {
-	Log_log_save("Mic/Record thread", "Thread started.", 1234567890, false);
+	Log_log_save(mic_record_thread_string, "Thread started.", 1234567890, false);
 	int log_num;
 	int* chunk_size = new int (0);
 	char riff[5] = "RIFF";
@@ -103,9 +111,9 @@ void Mic_record_thread(void* arg)
 			fs_buffer = (u8*)malloc(mic_buffer_size);
 			if (fs_buffer == NULL)
 			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", "Mic/Record thread", OUT_OF_MEMORY);
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", mic_record_thread_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
-				Log_log_save("Mic/Record thread", "[Error] Out of memory.", OUT_OF_MEMORY, false);
+				Log_log_save(mic_record_thread_string, "[Error] Out of memory.", OUT_OF_MEMORY, false);
 			}
 			else
 			{
@@ -113,7 +121,7 @@ void Mic_record_thread(void* arg)
 				memset(fs_buffer, 0x0, mic_buffer_size);
 				buffer_offset = 0;
 				data_size = micGetSampleDataSize();
-				log_num = Log_log_save("Mic/Record thread", "MICU_StartSampling()...", 1234567890, false);
+				log_num = Log_log_save(mic_record_thread_string, "MICU_StartSampling()...", 1234567890, false);
 				result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_16360, 0, data_size, true);
 				Log_log_add(log_num, "", result.code, false);
 
@@ -132,7 +140,7 @@ void Mic_record_thread(void* arg)
 
 					if (mic_stop_record_request)
 					{
-						log_num = Log_log_save("Mic/Record thread", "MICU_StopSampling()...", 1234567890, false);
+						log_num = Log_log_save(mic_record_thread_string, "MICU_StopSampling()...", 1234567890, false);
 						result.code = MICU_StopSampling();
 						Log_log_add(log_num, "", result.code, false);
 
@@ -154,12 +162,12 @@ void Mic_record_thread(void* arg)
 						*chunk_size = (int)buffer_offset;
 						memcpy((void*)(header + 40), (void*)chunk_size, 0x4);
 
-						file_name = Menu_query_time() + ".wav";
-						log_num = Log_log_save("Mic/Record thread", "File_save_to_file()...", 1234567890, false);
+						file_name = Menu_query_time(2) + ".wav";
+						log_num = Log_log_save(mic_record_thread_string, "File_save_to_file()...", 1234567890, false);
 						result = File_save_to_file(file_name, (u8*)header, 44, "/Line/sound/", true, fs_handle, fs_archive);
 						Log_log_add(log_num, "", result.code, false);
 
-						log_num = Log_log_save("Mic/Record thread", "File_save_to_file()...", 1234567890, false);
+						log_num = Log_log_save(mic_record_thread_string, "File_save_to_file()...", 1234567890, false);
 						result = File_save_to_file(file_name, (u8*)fs_buffer, buffer_offset, "/Line/sound/", false, fs_handle, fs_archive);
 						Log_log_add(log_num, "", result.code, false);
 
@@ -175,17 +183,19 @@ void Mic_record_thread(void* arg)
 			mic_start_record_request = false;
 			mic_stop_record_request = false;
 		}
+		else
+			usleep(ACTIW_THREAD_SLEEP_TIME);
 
-		if (mic_thread_suspend)
-			usleep(200000);
+		while (mic_thread_suspend)
+			usleep(INACTIW_THREAD_SLEEP_TIME);
 	}
-	Log_log_save("Mic/Record thread", "Thread exit.", 1234567890, false);
+	Log_log_save(mic_record_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
 }
 
 void Mic_exit(void)
 {
-	Log_log_save("Mic/Exit", "Exiting...", 1234567890, s_debug_slow);
+	Log_log_save(mic_exit_string, "Exiting...", 1234567890, DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
@@ -196,14 +206,14 @@ void Mic_exit(void)
 	mic_record_thread_run = false;
 
 	Draw_progress("[Mic] Exiting...");
-	log_num = Log_log_save("Mic/Exit", "Exiting thread(0/0)...", 1234567890, s_debug_slow);
+	log_num = Log_log_save(mic_exit_string, "threadJoin()0/0...", 1234567890, DEBUG);
 	result.code = threadJoin(mic_record_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
+		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
 	}
 
 	threadFree(mic_record_thread);
@@ -213,12 +223,12 @@ void Mic_exit(void)
 	free(mic_buffer);
 
 	if (failed)
-		Log_log_save("Mic/Exit", "[Warn] Some function returned error.", 1234567890, s_debug_slow);
+		Log_log_save(mic_exit_string, "[Warn] Some function returned error.", 1234567890, DEBUG);
 }
 
 void Mic_init(void)
 {
-	Log_log_save("Mic/Init", "Initializing...", 1234567890, s_debug_slow);
+	Log_log_save(mic_init_string, "Initializing...", 1234567890, DEBUG);
 	bool failed = false;
 	int log_num;
 	Result_with_string result;
@@ -226,39 +236,26 @@ void Mic_init(void)
 	mic_buffer = (u8*)memalign(0x1000, mic_buffer_size);
 	if (mic_buffer == NULL)
 	{
-		Err_set_error_message("Out of memory.", "Couldn't allocate memory.", "Mic/Init", OUT_OF_MEMORY);
+		Err_set_error_message("Out of memory.", "Couldn't allocate memory.", mic_init_string, OUT_OF_MEMORY);
 		Err_set_error_show_flag(true);
-		Log_log_save("Mic/Init", "[Error] Out of memory. ", OUT_OF_MEMORY, false);
+		Log_log_save(mic_init_string, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
 		failed = true;
 	}
 
 	Draw_progress("0/1 [Mic] Initializing mic...");
 	if (!failed)
 	{
-		log_num = Log_log_save("Mic/Init", "Initializing mic...", 1234567890, s_debug_slow);
+		log_num = Log_log_save(mic_init_string, "micInit()...", 1234567890, DEBUG);
 		result.code = micInit(mic_buffer, mic_buffer_size);
-		Log_log_add(log_num, result.string, result.code, s_debug_slow);
+		Log_log_add(log_num, result.string, result.code, DEBUG);
 		if (result.code == 0)
-			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
 		else
 		{
 			failed = true;
-			Err_set_error_message("micInit failed.", "", "Mic/Init", result.code);
+			Err_set_error_message("micInit() failed.", "", mic_init_string, result.code);
 			Err_set_error_show_flag(true);
-			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
-		}
-
-		log_num = Log_log_save("Mic/Init", "MICU_SetPower()...", 1234567890, s_debug_slow);
-		result.code = MICU_SetPower(true);
-		Log_log_add(log_num, result.string, result.code, s_debug_slow);
-		if (result.code == 0)
-			Log_log_add(log_num, Err_query_general_success_string(), result.code, s_debug_slow);
-		else
-		{
-			failed = true;
-			Err_set_error_message("MICU_SetPower().", "", "Mic/Init", result.code);
-			Err_set_error_show_flag(true);
-			Log_log_add(log_num, Err_query_general_error_string(), result.code, s_debug_slow);
+			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
 		}
 	}
 
@@ -266,18 +263,16 @@ void Mic_init(void)
 	if (!failed)
 	{
 		mic_record_thread_run = true;
-		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, 0x27, -1, false);
+		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
 	}
 
 	Mic_resume();
 	mic_already_init = true;
-	Log_log_save("Mic/Init", "Initialized", 1234567890, s_debug_slow);
+	Log_log_save(mic_init_string, "Initialized", 1234567890, DEBUG);
 }
 
 void Mic_main(void)
 {
-	int log_y = Log_query_y();
-	double log_x = Log_query_x();
 	float text_red;
 	float text_green;
 	float text_blue;
@@ -287,62 +282,65 @@ void Mic_main(void)
 
 	if (Sem_query_settings(SEM_NIGHT_MODE))
 	{
-		text_red = 1.0f;
-		text_green = 1.0f;
-		text_blue = 1.0f;
-		text_alpha = 0.75f;
+		text_red = 1.0;
+		text_green = 1.0;
+		text_blue = 1.0;
+		text_alpha = 0.75;
 		white_or_black_tint = white_tint;
 	}
 	else
 	{
-		text_red = 0.0f;
-		text_green = 0.0f;
-		text_blue = 0.0f;
-		text_alpha = 1.0f;
+		text_red = 0.0;
+		text_green = 0.0;
+		text_blue = 0.0;
+		text_alpha = 1.0;
 		white_or_black_tint = black_tint;
 	}
 
-	Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-		Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
-	else
-		Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
-
-	Draw_top_ui();
-	if (Sem_query_settings(SEM_DEBUG_MODE))
-		Draw_debug_info();
-	if (Log_query_log_show_flag())
+	if(mic_pre_start_record_request != mic_start_record_request)
 	{
-		for (int i = 0; i < 23; i++)
-			Draw(Log_query_log(log_y + i), 0, log_x, 10.0f + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
+		mic_pre_start_record_request = mic_start_record_request;
+		mic_need_reflesh = true;
 	}
 
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-		Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
-	else
-		Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
+	if(Draw_query_need_reflesh() || !Sem_query_settings(SEM_ECO_MODE))
+		mic_need_reflesh = true;
 
-	Draw(mic_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
-	Draw(mic_msg[3], 0, 45.0, 50.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-	if(mic_start_record_request)
-		Draw(mic_msg[2], 0, 95.0, 65.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-
-	draw_x = 95.0;
-	draw_y = 80.0;
-	for (int i = 0; i < 2; i++)
+	if(mic_need_reflesh)
 	{
-		Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 60.0, 60.0);
-		Draw(mic_msg[i], 0, (draw_x + 10.0), draw_y + 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+		Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+		if (Sem_query_settings(SEM_NIGHT_MODE))
+			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
+		else
+			Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
 
-		draw_x += 70.0;
-	}
+		Draw_top_ui();
 
-	if (Err_query_error_show_flag())
-		Draw_error();
+		if (Sem_query_settings(SEM_NIGHT_MODE))
+			Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
+		else
+			Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
-	Draw_bot_ui();
-	if (Hid_query_key_held_state(KEY_H_TOUCH))
+		Draw(mic_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
+		Draw(mic_msg[3], 0, 45.0, 50.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+		if(mic_start_record_request)
+			Draw(mic_msg[2], 0, 95.0, 65.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+
+		draw_x = 95.0;
+		draw_y = 80.0;
+		for (int i = 0; i < 2; i++)
+		{
+			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 60.0, 60.0);
+			Draw(mic_msg[i], 0, (draw_x + 10.0), draw_y + 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+
+			draw_x += 70.0;
+		}
+		Draw_bot_ui();
 		Draw_touch_pos();
 
-	Draw_apply_draw();
+		Draw_apply_draw();
+		mic_need_reflesh = false;
+	}
+	else
+		gspWaitForVBlank();
 }

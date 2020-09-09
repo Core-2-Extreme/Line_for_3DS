@@ -4,7 +4,6 @@
 #define BitVal(data,y) ( (data>>y) & 1)      //Return Data.Y value
 #define SetBit(data,y)    data |= (1 << y)    //Set Data.Y   to 1
 #define ClearBit(data,y)  data &= ~(1 << y)   //Clear Data.Y to 0
-#include "share_function.hpp"
 #include "hid.hpp"
 #include "draw.hpp"
 #include "error.hpp"
@@ -16,8 +15,18 @@
 #include "menu.hpp"
 
 bool draw_do_not_draw = false;
+bool draw_pre_battery_charge = false;
+bool draw_pre_log_show = false;
+int draw_pre_battery_level_raw = -1;
+int draw_pre_touch_state = false;
+int draw_pre_wifi_state = -1;
 int draw_fps = 0;
+int draw_pre_touch_pos_x = -1;
+int draw_pre_touch_pos_y = -1;
 double draw_frametime = 0.0;
+std::string draw_pre_battery_level = "";
+std::string draw_pre_status = "";
+std::string draw_pre_debug_info = "";
 std::string screen_clear_text = "\u25a0";//��
 C2D_Font system_fonts[4];
 C3D_RenderTarget* Screen_top;
@@ -27,6 +36,7 @@ C2D_Image Wifi_icon_image[9];
 C2D_Image Battery_level_icon_image[21];
 C2D_Image Battery_charge_icon_image[1];
 C2D_Image Square_image[1];
+C2D_Image ui_image[4];
 C2D_ImageTint texture_tint, dammy_tint, black_or_white_tint, white_or_black_tint, white_tint, weak_white_tint, red_tint, weak_red_tint, aqua_tint, weak_aqua_tint, yellow_tint, weak_yellow_tint, blue_tint, weak_blue_tint, black_tint, weak_black_tint;
 TickCounter draw_frame_time_timer;
 
@@ -129,21 +139,8 @@ Result_with_string Draw_c3dtex_to_c2dimage(C3D_Tex* c3d_tex, Tex3DS_SubTexture* 
 
 	if (parse_start_width > (int)width || parse_start_height > (int)height)
 	{
-		if (parse_start_width > (int)width&& parse_start_height > (int)height)
-		{
-			result.code = WRONG_PARSING_POS;
-			result.string = "[Error] Parse's " + std::to_string(parse_start_width) + " is bigger than image's width " + std::to_string(width) + ", Parse's " + std::to_string(parse_start_height) + " is bigger than image's height " + std::to_string(height) + " ";
-		}
-		else if (parse_start_width > (int)width)
-		{
-			result.code = WRONG_PARSING_POS;
-			result.string = "[Error] Parse's " + std::to_string(parse_start_width) + " is bigger than image's width " + std::to_string(width) + " ";
-		}
-		else if (parse_start_height > (int)height)
-		{
-			result.code = WRONG_PARSING_POS;
-			result.string = "[Error] Parse's " + std::to_string(parse_start_height) + " is bigger than image's height " + std::to_string(height) + " ";
-		}
+		result.code = WRONG_PARSING_POS;
+		result.string = Err_query_template_detail(WRONG_PARSING_POS);
 		return result;
 	}
 
@@ -273,33 +270,84 @@ Result_with_string Draw_load_texture(std::string file_name, int sheet_map_num, C
 	if (!function_fail)
 	{
 		for (int i = 0; i <= (num_of_array - 1); i++)
-		{
 			return_image[start_num + i] = C2D_SpriteSheetGetImage(sheet_texture[sheet_map_num], i);
-		}
 	}
 	return load_texture_result;
 }
 
+bool Draw_query_need_reflesh(void)
+{
+	bool need = false;
+	if(Sem_query_settings(SEM_DEBUG_MODE) && (draw_pre_debug_info != ((std::to_string(Hid_query_key_press_state(KEY_P_A)) + std::to_string(Hid_query_key_held_state(KEY_H_A)) + std::to_string(Hid_query_key_press_state(KEY_P_B)) + std::to_string(Hid_query_key_held_state(KEY_H_B))
+	+ std::to_string(Hid_query_key_press_state(KEY_P_X)) + std::to_string(Hid_query_key_held_state(KEY_H_X)) + std::to_string(Hid_query_key_press_state(KEY_P_Y)) + std::to_string(Hid_query_key_held_state(KEY_H_Y))
+	+ std::to_string(Hid_query_key_press_state(KEY_P_L)) + std::to_string(Hid_query_key_held_state(KEY_H_L)) + std::to_string(Hid_query_key_press_state(KEY_P_R)) + std::to_string(Hid_query_key_held_state(KEY_H_R))
+	+ std::to_string(Hid_query_key_held_state(KEY_H_C_DOWN)) + std::to_string(Hid_query_key_press_state(KEY_P_C_DOWN)) + std::to_string(Hid_query_key_held_state(KEY_H_C_RIGHT)) + std::to_string(Hid_query_key_press_state(KEY_P_C_RIGHT))
+	+ std::to_string(Hid_query_key_held_state(KEY_H_C_UP)) + std::to_string(Hid_query_key_press_state(KEY_P_C_UP)) + std::to_string(Hid_query_key_held_state(KEY_H_C_LEFT)) + std::to_string(Hid_query_key_press_state(KEY_P_C_LEFT))
+	+ std::to_string(Hid_query_key_held_state(KEY_H_D_DOWN)) + std::to_string(Hid_query_key_press_state(KEY_P_D_DOWN)) + std::to_string(Hid_query_key_held_state(KEY_H_D_RIGHT)) + std::to_string(Hid_query_key_press_state(KEY_P_D_RIGHT))
+	+ std::to_string(Hid_query_key_held_state(KEY_H_D_UP)) + std::to_string(Hid_query_key_press_state(KEY_P_D_UP)) + std::to_string(Hid_query_key_held_state(KEY_H_D_LEFT)) + std::to_string(Hid_query_key_press_state(KEY_P_D_LEFT))
+	+ std::to_string(Hid_query_touch_pos(true)) + std::to_string(Hid_query_touch_pos(false)) + std::to_string(Menu_query_free_ram()) + std::to_string(Menu_query_free_linear_ram())))))
+		need = true;
+
+	if(draw_pre_log_show != Log_query_log_show_flag() || (Log_query_log_show_flag() && Log_query_need_reflesh()) || (Err_query_error_show_flag() && Err_query_need_reflesh()))
+		need = true;
+
+	if(need || draw_pre_touch_pos_x != Hid_query_touch_pos(true) || draw_pre_touch_pos_y != Hid_query_touch_pos(false) || draw_pre_touch_state != Hid_query_key_held_state(KEY_H_TOUCH)
+		|| draw_pre_battery_charge != Menu_query_battery_charge() || draw_pre_wifi_state != Menu_query_wifi_state() || draw_pre_battery_level_raw != Menu_query_battery_level_raw()
+		|| draw_pre_battery_level != Menu_query_battery_level() || draw_pre_status != Menu_query_status(true))
+	{
+		draw_pre_log_show = Log_query_log_show_flag();
+		draw_pre_touch_pos_x = Hid_query_touch_pos(true);
+		draw_pre_touch_pos_y = Hid_query_touch_pos(false);
+		draw_pre_touch_state = Hid_query_key_held_state(KEY_H_TOUCH);
+		draw_pre_battery_charge = Menu_query_battery_charge();
+		draw_pre_wifi_state = Menu_query_wifi_state();
+		draw_pre_battery_level_raw = Menu_query_battery_level_raw();
+		draw_pre_battery_level = Menu_query_battery_level();
+		draw_pre_status = Menu_query_status(true);
+		draw_pre_debug_info = (std::to_string(Hid_query_key_press_state(KEY_P_A)) + std::to_string(Hid_query_key_held_state(KEY_H_A)) + std::to_string(Hid_query_key_press_state(KEY_P_B)) + std::to_string(Hid_query_key_held_state(KEY_H_B))
+		+ std::to_string(Hid_query_key_press_state(KEY_P_X)) + std::to_string(Hid_query_key_held_state(KEY_H_X)) + std::to_string(Hid_query_key_press_state(KEY_P_Y)) + std::to_string(Hid_query_key_held_state(KEY_H_Y))
+		+ std::to_string(Hid_query_key_press_state(KEY_P_L)) + std::to_string(Hid_query_key_held_state(KEY_H_L)) + std::to_string(Hid_query_key_press_state(KEY_P_R)) + std::to_string(Hid_query_key_held_state(KEY_H_R))
+		+ std::to_string(Hid_query_key_held_state(KEY_H_C_DOWN)) + std::to_string(Hid_query_key_press_state(KEY_P_C_DOWN)) + std::to_string(Hid_query_key_held_state(KEY_H_C_RIGHT)) + std::to_string(Hid_query_key_press_state(KEY_P_C_RIGHT))
+		+ std::to_string(Hid_query_key_held_state(KEY_H_C_UP)) + std::to_string(Hid_query_key_press_state(KEY_P_C_UP)) + std::to_string(Hid_query_key_held_state(KEY_H_C_LEFT)) + std::to_string(Hid_query_key_press_state(KEY_P_C_LEFT))
+		+ std::to_string(Hid_query_key_held_state(KEY_H_D_DOWN)) + std::to_string(Hid_query_key_press_state(KEY_P_D_DOWN)) + std::to_string(Hid_query_key_held_state(KEY_H_D_RIGHT)) + std::to_string(Hid_query_key_press_state(KEY_P_D_RIGHT))
+		+ std::to_string(Hid_query_key_held_state(KEY_H_D_UP)) + std::to_string(Hid_query_key_press_state(KEY_P_D_UP)) + std::to_string(Hid_query_key_held_state(KEY_H_D_LEFT)) + std::to_string(Hid_query_key_press_state(KEY_P_D_LEFT))
+		+ std::to_string(Hid_query_touch_pos(true)) + std::to_string(Hid_query_touch_pos(false)) + std::to_string(Menu_query_free_ram()) + std::to_string(Menu_query_free_linear_ram()));
+		return true;
+	}
+	else
+		return false;
+}
+
 void Draw_touch_pos(void)
 {
+	if(Hid_query_key_held_state(KEY_H_TOUCH))
 		Draw("●", 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20, 0.20, 1.0, 0.0, 0.0, 1.0);
 }
 
 void Draw_top_ui(void)
 {
 	Draw_texture(Square_image, black_tint, 0, 0.0, 0.0, 400.0, 15.0);
-	Draw_texture(Wifi_icon_image, dammy_tint, s_wifi_signal, 360.0, 0.0, 15.0, 15.0);
-	Draw_texture(Battery_level_icon_image, dammy_tint, s_battery_level / 5, 330.0, 0.0, 30.0, 15.0);
-	if (s_battery_charge)
-		Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 310.0, 0.0, 20.0, 15.0);
-	Draw(s_status, 0, 0.0f, 0.0f, 0.45f, 0.45f, 0.0f, 1.0f, 0.0f, 1.0f);
-	Draw(s_battery_level_string, 0, 337.5, 1.25, 0.4, 0.4, 0.0, 0.0, 0.0, 0.5);
+	Draw_texture(Wifi_icon_image, dammy_tint, Menu_query_wifi_state(), 360.0, 0.0, 15.0, 15.0);
+	Draw_texture(Battery_level_icon_image, dammy_tint, Menu_query_battery_level_raw() / 5, 315.0, 0.0, 30.0, 15.0);
+	Draw_texture(ui_image, dammy_tint, (2 + Sem_query_settings(SEM_ECO_MODE)), 345.0, 0.0, 15.0, 15.0);
+	if (Menu_query_battery_charge())
+		Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 295.0, 0.0, 20.0, 15.0);
+	Draw(Menu_query_status(false), 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
+	Draw(Menu_query_battery_level(), 0, 322.5, 1.25, 0.4, 0.4, 0.0, 0.0, 0.0, 0.5);
+
+	if (Sem_query_settings(SEM_DEBUG_MODE))
+		Draw_debug_info();
+
+	if (Log_query_log_show_flag())
+		Draw_log(false);
 }
 
 void Draw_bot_ui(void)
 {
 	Draw_texture(Square_image, black_tint, 0, 0.0, 225.0, 320.0, 15.0);
 	Draw("▽", 0, 155.0, 220.0, 0.75, 0.75, 0.75, 0.75, 0.75, 1.0);
+	if (Err_query_error_show_flag())
+		Draw_error();
 }
 
 void Draw_texture(C2D_Image image[], C2D_ImageTint tint, int num, float x, float y, float x_size, float y_size)
@@ -334,7 +382,7 @@ void Draw_expl(std::string msg)
 {
 	double red = 0.0;
 
-	Draw_texture(Square_image, aqua_tint, 10, 10.0, 20.0, 300.0, 190.0);
+	Draw_texture(Square_image, aqua_tint, 0, 10.0, 20.0, 300.0, 190.0);
 	Draw(msg, 0, 12.5, 185.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
 	Draw(Expl_query_current_patch(), 0, 12.5, 195.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
 	for (int i = 0; i < 16; i++)
@@ -383,18 +431,22 @@ void Draw_progress(std::string message)
   }
 }
 
-void Draw_log(void)
+void Draw_log(bool force_draw)
 {
-	Draw_set_draw_mode(1);
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-		Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
-	else
-		Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
+	if(force_draw)
+	{
+		Draw_set_draw_mode(1);
+		if (Sem_query_settings(SEM_NIGHT_MODE))
+			Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
+		else
+			Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
+	}
 
 	for (int i = 0; i < 23; i++)
-		Draw(Log_query_log(Log_query_y() + i), 0, Log_query_x(), 10.0f + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
+		Draw(Log_query_log(Log_query_y() + i), 0, Log_query_x(), 10.0 + (i * 10), 0.4, 0.4, 0.0, 0.5, 1.0, 1.0);
 
-	Draw_apply_draw();
+	if(force_draw)
+		Draw_apply_draw();
 }
 
 void Draw_debug_info(void)
@@ -405,33 +457,40 @@ void Draw_debug_info(void)
 	float text_alpha;
 	if (Sem_query_settings(SEM_NIGHT_MODE))
 	{
-		text_red = 1.0f;
-		text_green = 1.0f;
-		text_blue = 1.0f;
-		text_alpha = 0.75f;
+		text_red = 1.0;
+		text_green = 1.0;
+		text_blue = 1.0;
+		text_alpha = 0.75;
 	}
 	else
 	{
-		text_red = 0.0f;
-		text_green = 0.0f;
-		text_blue = 0.0f;
-		text_alpha = 1.0f;
+		text_red = 0.0;
+		text_green = 0.0;
+		text_blue = 0.0;
+		text_alpha = 1.0;
 	}
 
-	Draw_texture(Square_image, weak_blue_tint, 0, 0.0, 30.0, 140.0, 130.0);
-	Draw("A press : " + std::to_string(Hid_query_key_press_state(KEY_P_A)) + " held : " + std::to_string(Hid_query_key_held_state(KEY_H_A)), 0, 0.0, 30.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("B press : " + std::to_string(Hid_query_key_press_state(KEY_P_B)) + " held : " + std::to_string(Hid_query_key_held_state(KEY_H_B)), 0, 0.0, 40.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("X press : " + std::to_string(Hid_query_key_press_state(KEY_P_X)) + " held : " + std::to_string(Hid_query_key_held_state(KEY_H_X)), 0, 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("Y press : " + std::to_string(Hid_query_key_press_state(KEY_P_Y)) + " held : " + std::to_string(Hid_query_key_held_state(KEY_H_Y)), 0, 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("C DOWN held : " + std::to_string(Hid_query_key_held_state(KEY_H_C_DOWN)), 0, 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("C RIGHT held : " + std::to_string(Hid_query_key_held_state(KEY_H_C_RIGHT)), 0, 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("C UP held : " + std::to_string(Hid_query_key_held_state(KEY_H_C_UP)), 0, 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("C LEFT held : " + std::to_string(Hid_query_key_held_state(KEY_H_C_LEFT)), 0, 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("x pos : " + std::to_string(Hid_query_touch_pos(true)) + " y pos : " + std::to_string(Hid_query_touch_pos(false)), 0, 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("CPU : " + std::to_string(C3D_GetProcessingTime()) + "ms", 0, 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("GPU : " + std::to_string(C3D_GetDrawingTime()) + "ms", 0, 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("Free RAM " + std::to_string((double)Menu_query_free_ram() / 10.0).substr(0, 5) + " MB", 0, 0.0f, 140.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("Free linear RAM " + std::to_string((double)Menu_query_free_linear_ram() / 1024.0 / 1024.0).substr(0, 5) +" MB", 0, 0.0f, 150.0f, 0.4f, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw_texture(Square_image, weak_blue_tint, 0, 0.0, 20.0, 70.0, 140.0);
+	Draw_texture(Square_image, weak_blue_tint, 0, 0.0, 160.0, 110.0, 50.0);
+	Draw("A　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_A)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_A)), 0, 0.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("B　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_B)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_B)), 0, 0.0, 30.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("X　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_X)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_X)), 0, 0.0, 40.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("Y　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_Y)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_Y)), 0, 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("L　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_L)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_L)), 0, 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("R　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_R)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_R)), 0, 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C↓ p: " + std::to_string(Hid_query_key_press_state(KEY_P_C_DOWN)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_C_DOWN)), 0, 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C→ p: " + std::to_string(Hid_query_key_press_state(KEY_P_C_RIGHT)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_C_RIGHT)), 0, 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C↑ p: " + std::to_string(Hid_query_key_press_state(KEY_P_C_UP)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_C_UP)), 0, 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C← p: " + std::to_string(Hid_query_key_press_state(KEY_P_C_LEFT)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_C_LEFT)), 0, 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("D↓ p: " + std::to_string(Hid_query_key_press_state(KEY_P_D_DOWN)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_D_DOWN)), 0, 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("D→ p: " + std::to_string(Hid_query_key_press_state(KEY_P_D_RIGHT)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_D_RIGHT)), 0, 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("D↑ p: " + std::to_string(Hid_query_key_press_state(KEY_P_D_UP)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_D_UP)), 0, 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("D← p: " + std::to_string(Hid_query_key_press_state(KEY_P_D_LEFT)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_D_LEFT)), 0, 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("touch x: " + std::to_string(Hid_query_touch_pos(true)) + ", y: " + std::to_string(Hid_query_touch_pos(false)), 0, 0.0, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("CPU: " + std::to_string(C3D_GetProcessingTime()).substr(0, 5) + "ms", 0, 0.0, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("GPU: " + std::to_string(C3D_GetDrawingTime()).substr(0, 5) + "ms", 0, 0.0, 180.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("RAM: " + std::to_string((double)Menu_query_free_ram() / 10.0).substr(0, 5) + " MB", 0, 0.0, 190.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("linear RAM: " + std::to_string((double)Menu_query_free_linear_ram() / 1024.0 / 1024.0).substr(0, 5) +" MB", 0, 0.0, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 }
 
 void Draw_init(void)
@@ -527,7 +586,6 @@ void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_v
 			else
 				C2D_TargetClear(Screen_top, C2D_Color32f(red, green, blue, 0));
 		}
-
 	}
 	else if(screen == 1)
 	{
