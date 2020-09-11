@@ -18,12 +18,6 @@
 #include "types.hpp"
 #include "swkbd.hpp"
 
-/*For debug*/
-bool line_debug_request = false;
-int line_debug_found = 0;
-std::string line_debug_text = "";
-/*---------------------------------------------*/
-
 /*For draw*/
 bool line_need_reflesh = false;
 bool line_pre_delete_id_check_request = false;
@@ -76,6 +70,7 @@ bool line_icon_dl_request = false;
 bool line_parse_log_request = false;
 bool line_load_log_request = false;
 bool line_dl_log_request = false;
+bool line_search_request = false;
 bool line_send_check[3] = { false, false, false };
 bool line_send_request[3] = { false, false, false };
 bool line_select_sticker_request = false;
@@ -97,6 +92,7 @@ bool line_dl_log_failed[128];
 bool line_icon_available[128];
 int line_unread_msg_num[128];
 int line_msg_offset[128];
+int line_found = 0;
 int line_num_of_logs = 150;
 int line_selected_menu_mode = 0;
 int line_selected_room_num = 0;
@@ -144,6 +140,7 @@ double line_text_size = 0.66;
 double line_text_interval = 35.0;
 double line_max_y = 10.0;
 double line_selected_msg_num = 0.0;
+std::string line_search_text = "";
 std::string line_script_auth = "";
 std::string line_short_url = "";
 std::string line_ids[128];
@@ -376,9 +373,9 @@ void Line_main(void)
 					if((line_selected_menu_mode == LINE_MENU_SEARCH && i >= line_short_msg_pos_start[line_search_result_pos[line_selected_search_highlight_num]] && i <= line_short_msg_pos_end[line_search_result_pos[line_selected_search_highlight_num]])
 						|| (line_selected_menu_mode == LINE_MENU_COPY && i >= line_short_msg_pos_start[line_selected_highlight_num] && i <= line_short_msg_pos_end[line_selected_highlight_num]))//Use purple, If msg is highlighted
 					{
-						red[0] = 0.5;
+						red[0] = 0.75;
 						green[0] = 0.0;
-						blue[0] = 0.5;
+						blue[0] = 0.75;
 					}
 
 					Draw(line_short_msg_log[i], font_num, line_text_x, line_text_y + line_text_interval * i, line_text_size, line_text_size, red[0], green[0], blue[0], alpha[0]);
@@ -513,9 +510,9 @@ void Line_main(void)
 					if((line_selected_menu_mode == LINE_MENU_SEARCH && i >= line_short_msg_pos_start[line_search_result_pos[line_selected_search_highlight_num]] && i <= line_short_msg_pos_end[line_search_result_pos[line_selected_search_highlight_num]])
 						|| (line_selected_menu_mode == LINE_MENU_COPY && i >= line_short_msg_pos_start[line_selected_highlight_num] && i <= line_short_msg_pos_end[line_selected_highlight_num]))//Use purple, If msg is highlighted
 					{
-						red[0] = 0.5;
+						red[0] = 0.75;
 						green[0] = 0.0;
-						blue[0] = 0.5;
+						blue[0] = 0.75;
 					}
 
 					Draw(line_short_msg_log[i], font_num, line_text_x - 40, (line_text_y + line_text_interval * i) - 240, line_text_size, line_text_size, red[0], green[0], blue[0], alpha[0]);
@@ -638,7 +635,7 @@ void Line_main(void)
 				msg_num[1] = 12;
 				msg_num[2] = 13;
 				Draw_texture(Square_image, aqua_tint, 0, 210.0, 170.0, 50.0, 10.0);
-				Draw(std::to_string(line_selected_search_highlight_num) + "/" + std::to_string(line_debug_found), 0, 20.0, 190.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw(std::to_string(line_selected_search_highlight_num) + "/" + std::to_string(line_found), 0, 20.0, 190.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 				for(int i = 0; i < 3; i++)
 				{
 					Draw_texture(Square_image, weak_aqua_tint, 0, 90.0 + (i * 70.0), 185.0, 60.0, 30.0);
@@ -760,7 +757,7 @@ void Line_main(void)
 
 	Hid_set_disable_flag(true);
 	if (line_type_msg_request || line_type_id_request || line_type_short_url_request || line_type_main_url_request
-		|| line_check_main_url_request || line_type_app_ps_request || line_type_script_ps_request || line_debug_request)
+		|| line_check_main_url_request || line_type_app_ps_request || line_type_script_ps_request || line_search_request)
 	{
 		init_text = Menu_query_clipboard();
 		max_length = 512;
@@ -840,11 +837,11 @@ void Line_main(void)
 			type = SWKBD_TYPE_QWERTY;
 			valid_input = SWKBD_ANYTHING;
 		}
-		else if(line_debug_request)
+		else if(line_search_request)
 		{
 			num_of_words = 0;
 			hint_text = "検索 単語/文 を入力 / Type search word/message(s) here.";
-			init_text = line_debug_text;
+			init_text = line_search_text;
 			feature[0] = SWKBD_PREDICTIVE_INPUT;
 		}
 
@@ -892,27 +889,27 @@ void Line_main(void)
 				}
 				main_result = File_save_to_file(file_name, (u8*)swkbd_data.c_str(), swkbd_data.length(), "/Line/", true, main_fs_handle, main_fs_archive);
 			}
-			else if(line_debug_request)
+			else if(line_search_request)
 			{
-				line_debug_text = swkbd_data;
+				line_search_text = swkbd_data;
 				line_selected_search_highlight_num = 0;
-				line_debug_found = 0;
+				line_found = 0;
 				for(int i = 0; i < 4000; i++)
 					line_search_result_pos[i] = 0;
 
 				for(int i = 0; i < 4000; i++)
 				{
-					if(line_msg_log[i].find(line_debug_text) != std::string::npos)
+					if(line_msg_log[i].find(line_search_text) != std::string::npos)
 					{
-						line_search_result_pos[line_debug_found] = i;
-						line_debug_found++;
+						line_search_result_pos[line_found] = i;
+						line_found++;
 					}
 				}
-				if(line_debug_found > 0)
+				if(line_found > 0)
 				{
-					line_debug_found--;
-					line_selected_search_highlight_num = line_debug_found;
-					line_text_y = line_msg_pos[line_search_result_pos[line_debug_found]];
+					line_found--;
+					line_selected_search_highlight_num = line_found;
+					line_text_y = line_msg_pos[line_search_result_pos[line_found]];
 				}
 			}
 
@@ -939,8 +936,8 @@ void Line_main(void)
 			line_type_app_ps_request = false;
 		else if(line_type_script_ps_request)
 			line_type_script_ps_request = false;
-		else if(line_debug_request)
-			line_debug_request = false;
+		else if(line_search_request)
+			line_search_request = false;
 	}
 }
 
@@ -1024,7 +1021,6 @@ void Line_init(void)
 		APT_HardwareResetAsync();
 	}
 
-
 	Draw_progress("1/3 [Line] Loading settings...");
 	memset(fs_buffer, 0x0, 0x2000);
 	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, DEBUG);
@@ -1089,7 +1085,7 @@ void Line_init(void)
 	line_worker_thread = threadCreate(Line_worker_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
 	line_dl_log_thread = threadCreate(Line_log_download_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
 	line_load_log_thread = threadCreate(Line_log_load_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
-	line_parse_log_thread = threadCreate(Line_log_parse_thread, (void*)(""), STACKSIZE, PRIORITY_LOW, -1, false);
+	line_parse_log_thread = threadCreate(Line_log_parse_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
 	line_send_msg_thread = threadCreate(Line_send_message_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, -1, false);
 
 	line_icon_dl_request = true;
@@ -1098,9 +1094,9 @@ void Line_init(void)
 	log_num = Log_log_save(line_init_string, "Draw_load_texture()...", 1234567890, DEBUG);
 	result = Draw_load_texture("romfs:/gfx/stickers.t3x", 51, line_stickers_images, 0, 121);
 	Log_log_add(log_num, result.string, result.code, DEBUG);
-
 	line_select_chat_room_request = true;
-	line_text_y = 0.0;
+	Line_reset_id();
+	Line_reset_msg();
 
 	Line_resume();
 	line_already_init = true;
@@ -1248,7 +1244,7 @@ int Line_query_max_msg(void)
 
 int Line_query_max_search_result(void)
 {
-	return line_debug_found;
+	return line_found;
 }
 
 std::string Line_query_msg_log(int log_num)
@@ -1321,8 +1317,8 @@ bool Line_query_operation_flag(int operation_num)
 		return line_dl_log_no_parse_request;
 	else if(operation_num == LINE_DL_ALL_LOG_NO_PARSE_REQUEST)
 		return line_dl_all_log_no_parse_request;
-	else if(operation_num == LINE_DEBUG_REQUEST)
-		return line_debug_request;
+	else if(operation_num == LINE_SEARCH_REQUEST)
+		return line_search_request;
 	else
 		return false;
 }
@@ -1408,10 +1404,16 @@ void Line_reset_msg(void)
 {
 	line_num_of_msg = 0;
 	line_num_of_lines = 0;
+	line_found = 0;
+	line_text_y = 0.0;
 	for (int i = 0; i < 4000; i++)
 	{
 		line_msg_log[i] = "";
 		line_msg_log[i].reserve(1);
+		line_msg_pos[i] = -1;
+		line_search_result_pos[i] = 0;
+		line_short_msg_pos_start[i] = 0;
+		line_short_msg_pos_end[i] = 0;
 	}
 	for (int i = 0; i < 60000; i++)
 	{
@@ -1507,8 +1509,8 @@ void Line_set_operation_flag(int operation_num, bool flag)
 		line_dl_log_no_parse_request = flag;
 	else if(operation_num == LINE_DL_ALL_LOG_NO_PARSE_REQUEST)
 		line_dl_all_log_no_parse_request = flag;
-	else if(operation_num == LINE_DEBUG_REQUEST)
-		line_debug_request = flag;
+	else if(operation_num == LINE_SEARCH_REQUEST)
+		line_search_request = flag;
 }
 
 void Line_set_selected_num(int item_num, int value)
@@ -1672,11 +1674,10 @@ void Line_log_download_thread(void* arg)
 			failed = false;
 			dl_size = 0;
 			status_code = 0;
-			line_dl_log_failed[line_selected_room_num] = false;
-
 			if(line_dl_all_log_no_parse_request)
 				line_selected_room_num = index;
 
+			line_dl_log_failed[line_selected_room_num] = false;
 			room_num = line_selected_room_num;
 			httpc_buffer = (u8*)malloc(line_log_httpc_buffer_size);
 
@@ -1747,7 +1748,11 @@ void Line_log_download_thread(void* arg)
 					}
 					else
 					{
-						Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), (char*)httpc_buffer, line_log_dl_thread_string, GAS_RETURNED_NOT_SUCCESS);
+						out_data[0] = (char*)httpc_buffer;
+						if(out_data[0].length() >= 300)
+							out_data[0] = out_data[0].substr(0, 300);
+
+						Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), out_data[0], line_log_dl_thread_string, GAS_RETURNED_NOT_SUCCESS);
 						Err_set_error_show_flag(true);
 						failed = true;
 						line_auto_update = false;
@@ -2002,7 +2007,10 @@ void Line_send_message_thread(void* arg)
 										}
 										else
 										{
-											Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), (char*)httpc_buffer, line_send_msg_thread_string, GAS_RETURNED_NOT_SUCCESS);
+											if(response_string.length() >= 300)
+												response_string = response_string.substr(0, 300);
+
+											Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), response_string, line_send_msg_thread_string, GAS_RETURNED_NOT_SUCCESS);
 											Err_set_error_show_flag(true);
 											Log_log_add(log_num[1], Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), GAS_RETURNED_NOT_SUCCESS, false);
 											failed = true;
@@ -2053,7 +2061,10 @@ void Line_send_message_thread(void* arg)
 					}
 					else
 					{
-						Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), (char*)httpc_buffer, line_send_msg_thread_string, GAS_RETURNED_NOT_SUCCESS);
+						if(response_string.length() >= 300)
+							response_string = response_string.substr(0, 300);
+
+						Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), response_string, line_send_msg_thread_string, GAS_RETURNED_NOT_SUCCESS);
 						Err_set_error_show_flag(true);
 						Log_log_add(log_num[0], Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), GAS_RETURNED_NOT_SUCCESS, false);
 					}

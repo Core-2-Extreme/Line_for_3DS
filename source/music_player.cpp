@@ -581,6 +581,7 @@ void Mup_play_thread(void* arg)
 							if(mp3_result != 0)
 							{
 								Log_log_add(log_num, Err_query_template_summary(MINIMP3_RETURNED_NOT_SUCCESS), mp3_result, false);
+								Err_set_error_show_flag(true);
 								Err_set_error_message(Err_query_template_summary(MINIMP3_RETURNED_NOT_SUCCESS), "minimp3 error code : " + std::to_string(mp3_result), mup_play_thread_string, MINIMP3_RETURNED_NOT_SUCCESS);
 							}
 

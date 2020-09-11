@@ -13,10 +13,13 @@
 #include "types.hpp"
 #include "setting_menu.hpp"
 #include "mic.hpp"
+#include "music_player.hpp"
 
 /*For draw*/
 bool mic_need_reflesh = false;
 bool mic_pre_start_record_request = false;
+double mic_pre_record_time = 0.0;
+double mic_pre_max_time = 0.0;
 /*---------------------------------------------*/
 
 bool mic_main_run = false;
@@ -27,6 +30,8 @@ bool mic_start_record_request = false;
 bool mic_stop_record_request = false;
 u8* mic_buffer;
 u32 mic_buffer_size = 0x300000;
+double mic_record_time = 0.0;
+double mic_max_time = 0.0;
 std::string mic_msg[MIC_NUM_OF_MSG];
 std::string mic_ver = "v1.0.2";
 std::string mic_record_thread_string = "Mic/Record thread";
@@ -92,15 +97,18 @@ void Mic_record_thread(void* arg)
 	char wave[5] = "WAVE";
 	char fmt[5] = "fmt ";
 	char data[5] = "data";
-	std::string file_name;
+	std::string file_name = "";
+	std::string dir_path = "";
 	u8* header;
 	u8* fs_buffer;
-	u32 buffer_pos;
-	u32 buffer_offset;
-	u32 data_size;
+	u32 buffer_pos = 0;
+	u32 buffer_offset = 0;
+	u32 data_size = 0;
 	FS_Archive fs_archive = 0;
 	Handle fs_handle = 0;
 	Result_with_string result;
+	File_save_to_file(".", NULL, 0, "/Line/sound/", true, fs_handle, fs_archive);
+	mic_max_time = mic_buffer_size;
 
 	while (mic_record_thread_run)
 	{
@@ -117,21 +125,25 @@ void Mic_record_thread(void* arg)
 			}
 			else
 			{
+				dir_path = "/Line/sound/" + Menu_query_time(1) + "/";
+				file_name = Menu_query_time(2) + ".wav";
 				memset(header, 0x0, 44);
 				memset(fs_buffer, 0x0, mic_buffer_size);
 				buffer_offset = 0;
+				buffer_pos = 0;
 				data_size = micGetSampleDataSize();
 				log_num = Log_log_save(mic_record_thread_string, "MICU_StartSampling()...", 1234567890, false);
-				result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_16360, 0, data_size, true);
+				result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_16360, 0, data_size, false);
 				Log_log_add(log_num, "", result.code, false);
 
 				while (true)
 				{
-					usleep(10000);
+					usleep(100000);
 
-					buffer_pos = micGetLastSampleOffset();
-					if (buffer_offset + (buffer_pos - buffer_offset) < mic_buffer_size)
+					if (buffer_pos != micGetLastSampleOffset())
 					{
+						buffer_pos = micGetLastSampleOffset();
+						mic_record_time = buffer_pos;
 						memcpy((void*)(fs_buffer + buffer_offset), (void*)(mic_buffer + buffer_offset), (buffer_pos - buffer_offset));
 						buffer_offset += (buffer_pos - buffer_offset);
 					}
@@ -143,7 +155,6 @@ void Mic_record_thread(void* arg)
 						log_num = Log_log_save(mic_record_thread_string, "MICU_StopSampling()...", 1234567890, false);
 						result.code = MICU_StopSampling();
 						Log_log_add(log_num, "", result.code, false);
-
 						*chunk_size = (int)buffer_offset + 36;
 						memcpy((void*)header, (void*)riff, 0x4);
 						memcpy((void*)(header + 4), (void*)(chunk_size), 0x4);
@@ -162,13 +173,12 @@ void Mic_record_thread(void* arg)
 						*chunk_size = (int)buffer_offset;
 						memcpy((void*)(header + 40), (void*)chunk_size, 0x4);
 
-						file_name = Menu_query_time(2) + ".wav";
 						log_num = Log_log_save(mic_record_thread_string, "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file(file_name, (u8*)header, 44, "/Line/sound/", true, fs_handle, fs_archive);
+						result = File_save_to_file(file_name, (u8*)header, 44, dir_path, true, fs_handle, fs_archive);
 						Log_log_add(log_num, "", result.code, false);
 
 						log_num = Log_log_save(mic_record_thread_string, "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file(file_name, (u8*)fs_buffer, buffer_offset, "/Line/sound/", false, fs_handle, fs_archive);
+						result = File_save_to_file(file_name, (u8*)fs_buffer, buffer_offset, dir_path, false, fs_handle, fs_archive);
 						Log_log_add(log_num, "", result.code, false);
 
 						break;
@@ -204,6 +214,8 @@ void Mic_exit(void)
 	mic_already_init = false;
 	mic_thread_suspend = false;
 	mic_record_thread_run = false;
+	mic_stop_record_request = true;
+	mic_start_record_request = false;
 
 	Draw_progress("[Mic] Exiting...");
 	log_num = Log_log_save(mic_exit_string, "threadJoin()0/0...", 1234567890, DEBUG);
@@ -232,7 +244,6 @@ void Mic_init(void)
 	bool failed = false;
 	int log_num;
 	Result_with_string result;
-
 	mic_buffer = (u8*)memalign(0x1000, mic_buffer_size);
 	if (mic_buffer == NULL)
 	{
@@ -263,7 +274,7 @@ void Mic_init(void)
 	if (!failed)
 	{
 		mic_record_thread_run = true;
-		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
+		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, -1, false);
 	}
 
 	Mic_resume();
@@ -297,9 +308,11 @@ void Mic_main(void)
 		white_or_black_tint = black_tint;
 	}
 
-	if(mic_pre_start_record_request != mic_start_record_request)
+	if(mic_pre_start_record_request != mic_start_record_request || mic_pre_record_time != mic_record_time || mic_pre_max_time != mic_max_time)
 	{
 		mic_pre_start_record_request = mic_start_record_request;
+		mic_pre_record_time = mic_record_time;
+		mic_pre_max_time = mic_max_time;
 		mic_need_reflesh = true;
 	}
 
@@ -322,19 +335,23 @@ void Mic_main(void)
 			Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
 		Draw(mic_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
-		Draw(mic_msg[3], 0, 45.0, 50.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+		Draw(mic_msg[3] + Menu_query_time(1) + "/", 0, 75.0, 35.0, 0.4, 0.4, 1.0, 0.0, 0.0, 1.0);
 		if(mic_start_record_request)
-			Draw(mic_msg[2], 0, 95.0, 65.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(mic_msg[2], 0, 15.0, 75.0, 0.6, 0.6, 1.0, 0.0, 0.0, 1.0);
 
-		draw_x = 95.0;
-		draw_y = 80.0;
+		draw_x = 105.0;
+		draw_y = 60.0;
 		for (int i = 0; i < 2; i++)
 		{
-			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 60.0, 60.0);
-			Draw(mic_msg[i], 0, (draw_x + 10.0), draw_y + 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-
-			draw_x += 70.0;
+			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 50.0, 50.0);
+			Draw(mic_msg[i], 0, (draw_x + 2.5), draw_y + 20.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			draw_x += 60.0;
 		}
+		Draw(Sem_convert_seconds_to_time(Mup_calc_wav_length(mic_record_time, 16360 * 16)) + " / " + Sem_convert_seconds_to_time(Mup_calc_wav_length(mic_max_time, 16360 * 16)), 0, 12.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw_texture(Square_image, aqua_tint, 0, 10.0, 120.0, 300.0, 5.0);
+		if(mic_max_time != 0.0)
+			Draw_texture(Square_image, red_tint, 0, 10.0, 120.0, 300.0 * (mic_record_time / mic_max_time), 5.0);
+
 		Draw_bot_ui();
 		Draw_touch_pos();
 

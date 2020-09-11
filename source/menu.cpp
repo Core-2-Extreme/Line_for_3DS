@@ -739,7 +739,7 @@ void Menu_check_connectivity_thread(void* arg)
 		if (count >= 100 && !(Hid_query_disable_flag()))
 		{
 			count = 0;
-			Httpc_dl_data(url, http_buffer, 0x1000, &dl_size, &response_code, true, &last_url, true, 100, MENU_HTTP_POST_PORT0);
+			Httpc_dl_data(url, http_buffer, 0x1000, &dl_size, &response_code, true, &last_url, true, 3, MENU_HTTP_POST_PORT0);
 
 			if (response_code == 204)
 				menu_connect_test_succes = true;

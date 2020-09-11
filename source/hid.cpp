@@ -1058,6 +1058,7 @@ void Hid_scan_hid_thread(void* arg)
 						Line_set_x_y_size_interval(LINE_TEXT_Y, saved_y[0]);
 						Line_set_operation_flag(LINE_DELETE_ID_REQUEST, true);
 						Line_set_operation_flag(LINE_DELETE_ID_CHECK_REQUEST, false);
+						Line_reset_msg();
 					}
 				}
 				else if (hid_key_B_press || (hid_key_touch_press && hid_touch_pos_x >= 120 && hid_touch_pos_x <= 189 && hid_touch_pos_y >= 200 && hid_touch_pos_y <= 214))
@@ -1151,9 +1152,9 @@ void Hid_scan_hid_thread(void* arg)
 						scroll_mode = true;
 					else if(!Line_query_operation_flag(LINE_DL_LOG_NO_PARSE_REQUEST) && !Line_query_operation_flag(LINE_DL_ALL_LOG_NO_PARSE_REQUEST))
 					{
-						if (hid_key_ZL_press)
-							Line_set_operation_flag(LINE_DL_ALL_LOG_NO_PARSE_REQUEST, true);
-						else if (hid_key_Y_press || (hid_key_touch_press && hid_touch_pos_x >= 20 && hid_touch_pos_x <= 149 && hid_touch_pos_y >= 190 && hid_touch_pos_y <= 202))
+						//if (hid_key_ZL_press)
+						//	Line_set_operation_flag(LINE_DL_ALL_LOG_NO_PARSE_REQUEST, true);
+						if (hid_key_Y_press || (hid_key_touch_press && hid_touch_pos_x >= 20 && hid_touch_pos_x <= 149 && hid_touch_pos_y >= 190 && hid_touch_pos_y <= 202))
 							Line_set_operation_flag(LINE_TYPE_ID_REQUEST, true);
 						else if (((hid_key_L_press && hid_key_R_held) || (hid_key_L_held && hid_key_R_press)) || (hid_key_touch_press && hid_touch_pos_x >= 20 && hid_touch_pos_x <= 149 && hid_touch_pos_y >= 170 && hid_touch_pos_y <= 182))
 							Line_set_operation_flag(LINE_TYPE_SHORT_URL_REQUEST, true);
@@ -1361,9 +1362,9 @@ void Hid_scan_hid_thread(void* arg)
 						Line_set_x_y_size_interval(LINE_TEXT_INTERVAL, (line_interval + 0.5));
 					else if ((hid_key_D_DOWN_held || (hid_key_touch_held && hid_touch_pos_x > 90 && hid_touch_pos_x < 150 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215 && button_selected[1])) && (line_interval - 0.5) > 10.0)
 						Line_set_x_y_size_interval(LINE_TEXT_INTERVAL, (line_interval - 0.5));
-					else if ((hid_key_L_held || (hid_key_touch_held && hid_touch_pos_x > 170 && hid_touch_pos_x < 230 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215 && button_selected[2])) && (line_size + 0.003) < 3.0)
+					else if ((hid_key_L_held || (hid_key_touch_held && hid_touch_pos_x > 170 && hid_touch_pos_x < 230 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215 && button_selected[2])) && (line_size - 0.003) > 0.25)
 						Line_set_x_y_size_interval(LINE_TEXT_SIZE, (line_size - 0.003));
-					else if ((hid_key_R_held || (hid_key_touch_held && hid_touch_pos_x > 240 && hid_touch_pos_x < 300 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215 && button_selected[3])) && (line_size - 0.003) > 0.25)
+					else if ((hid_key_R_held || (hid_key_touch_held && hid_touch_pos_x > 240 && hid_touch_pos_x < 300 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215 && button_selected[3])) && (line_size + 0.003) < 3.0)
 						Line_set_x_y_size_interval(LINE_TEXT_SIZE, (line_size + 0.003));
 					else if (hid_key_touch_press && hid_touch_pos_x > 20 && hid_touch_pos_x < 80 && hid_touch_pos_y > 185 && hid_touch_pos_y < 215)
 						button_selected[0] = true;
@@ -1377,7 +1378,7 @@ void Hid_scan_hid_thread(void* arg)
 				else if (Line_query_selected_num(LINE_SELECTED_MENU_MODE_NUM) == LINE_MENU_SEARCH)
 				{
 					if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 90 && hid_touch_pos_x <= 149 && hid_touch_pos_y >= 185 && hid_touch_pos_y <= 214))
-						Line_set_operation_flag(LINE_DEBUG_REQUEST, true);
+						Line_set_operation_flag(LINE_SEARCH_REQUEST, true);
 					else if (hid_key_touch_press && hid_touch_pos_x >= 160 && hid_touch_pos_x <= 219 && hid_touch_pos_y >= 185 && hid_touch_pos_y <= 214)
 						button_selected[0] = true;
 					else if (hid_key_touch_press && hid_touch_pos_x >= 230 && hid_touch_pos_x <= 289 && hid_touch_pos_y >= 185 && hid_touch_pos_y <= 214)
@@ -1842,9 +1843,9 @@ void Hid_scan_hid_thread(void* arg)
 			if (hid_key_START_press || (hid_key_touch_press && hid_touch_pos_x >= 110 && hid_touch_pos_x <= 230 && hid_touch_pos_y >= 220 && hid_touch_pos_y <= 240))
 				Mic_suspend();
 
-			if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 95 && hid_touch_pos_x <= 154 && hid_touch_pos_y >= 80 && hid_touch_pos_y <= 139))
+			if (hid_key_A_press || (hid_key_touch_press && hid_touch_pos_x >= 105 && hid_touch_pos_x <= 154 && hid_touch_pos_y >= 60 && hid_touch_pos_y <= 109))
 				Mic_set_operation_flag(MIC_START_RECORDING_REQUEST, true);
-			else if (hid_key_B_press || (hid_key_touch_press && hid_touch_pos_x >= 165 && hid_touch_pos_x <= 224 && hid_touch_pos_y >= 80 && hid_touch_pos_y <= 139))
+			else if (hid_key_B_press || (hid_key_touch_press && hid_touch_pos_x >= 165 && hid_touch_pos_x <= 214 && hid_touch_pos_y >= 60 && hid_touch_pos_y <= 109))
 				Mic_set_operation_flag(MIC_STOP_RECORDING_REQUEST, true);
     }
 		else if (mup_run && !hid_disabled)

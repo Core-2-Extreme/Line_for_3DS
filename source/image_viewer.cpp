@@ -313,6 +313,7 @@ void Imv_main(void)
 		imv_pre_image_width = imv_image_width;
 		imv_pre_image_height = imv_image_height;
 		imv_pre_img_dl_progress = imv_img_dl_progress;
+		imv_pre_select_file_request = imv_select_file_request;
 		imv_need_reflesh = true;
 	}
 

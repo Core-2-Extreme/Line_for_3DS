@@ -498,9 +498,8 @@ void Sem_init(void)
 	int buffer_size[9];
 	int buffer_default_size[9] = { 0x100000, 0x100000, 0x200000, 0x500000, 0x200000, 0x200000, 0x200000, 0x300000, 0x100000, };
 	int buffer_max_size[9] = { 0xA00000, 0xA00000, 0x4C0000, 0x1400000, 0x700000, 0x500000, 0x500000, 0xA00000, 0x200000, };
-	std::string data[20];
+	std::string data[19];
 	Result_with_string result;
-
 
 	sem_lang = "en";
 	sem_lcd_brightness = 100;
@@ -516,7 +515,7 @@ void Sem_init(void)
 
 	Draw_progress("0/1 [Sem] Loading settings...");
 	log_num = Log_log_save(sem_init_string , "Sem_load_setting()...", 1234567890, DEBUG);
-	result = Sem_load_setting("Sem_setting.txt", "/Line/", 20, data);
+	result = Sem_load_setting("Sem_setting.txt", "/Line/", 19, data);
 	Log_log_add(log_num, result.string, result.code, DEBUG);
 	if(result.code == 0)
 	{
@@ -524,13 +523,12 @@ void Sem_init(void)
 		sem_lcd_brightness = atoi(data[1].c_str());
 		sem_time_to_turn_off_lcd = atoi(data[2].c_str());
 		sem_lcd_brightness_before_turn_off = atoi(data[3].c_str());
-		sem_system_setting_menu_show = (data[4] == "1");
-		sem_scroll_speed = strtod(data[5].c_str(), NULL);
-		sem_allow_send_app_info = (data[6] == "1");
-		sem_num_of_app_start = atoi(data[7].c_str());
-		sem_night_mode = (data[8] == "1");
-		sem_vsync_mode = (data[9] == "1");
-		sem_eco_mode = (data[10] == "1");
+		sem_scroll_speed = strtod(data[4].c_str(), NULL);
+		sem_allow_send_app_info = (data[5] == "1");
+		sem_num_of_app_start = atoi(data[6].c_str());
+		sem_night_mode = (data[7] == "1");
+		sem_vsync_mode = (data[8] == "1");
+		sem_eco_mode = (data[9] == "1");
 
 		if(sem_lang != "jp" && sem_lang != "en")
 			sem_lang = "en";
@@ -548,7 +546,7 @@ void Sem_init(void)
 
 	for(int i = 0; i < 9; i++)
 	{
-		buffer_size[i] = atoi(data[11 + i].c_str());
+		buffer_size[i] = atoi(data[10 + i].c_str());
 		if(buffer_size[i] < 0x40000 || buffer_size[i] > buffer_max_size[i])
 			buffer_size[i] = buffer_default_size[i];
 	}
@@ -580,13 +578,13 @@ void Sem_exit(void)
 	int log_num;
 	bool failed = false;
 	std::string data = "<0>" + sem_lang + "</0><1>" + std::to_string(sem_lcd_brightness) + "</1><2>" + std::to_string(sem_time_to_turn_off_lcd)
-	+ "</2><3>" + std::to_string(sem_lcd_brightness_before_turn_off) + "</3><4>" + std::to_string(sem_system_setting_menu_show) + "</4><5>" + std::to_string(sem_scroll_speed)
-	+ "</5><6>" + std::to_string(sem_allow_send_app_info) + "</6><7>" + std::to_string(sem_num_of_app_start) + "</7><8>" + std::to_string(sem_night_mode)
-	+ "</8><9>" + std::to_string(sem_vsync_mode) + "</9><10>" + std::to_string(sem_eco_mode) + "</10><11>" + std::to_string(Line_query_buffer_size(LINE_HTTPC_BUFFER))
-	+ "</11><12>" + std::to_string(Line_query_buffer_size(LINE_FS_BUFFER)) + "</12><13>" + std::to_string(Line_query_buffer_size(LINE_SEND_FS_CACHE_BUFFER))
-	+ "</13><14>" + std::to_string(Line_query_buffer_size(LINE_SEND_FS_BUFFER)) + "</14><15>" + std::to_string(Spt_query_buffer_size(SPT_HTTPC_BUFFER))
-	+ "</15><16>" + std::to_string(Imv_query_buffer_size(IMV_HTTPC_BUFFER)) + "</16><17>" + std::to_string(Imv_query_buffer_size(IMV_FS_BUFFER))
-	+ "</17><18>" + std::to_string(Mup_query_buffer_size(MUP_FS_OUT_BUFFER)) + "</18><19>" + std::to_string(Mup_query_buffer_size(MUP_FS_IN_BUFFER)) + "</19>";
+	+ "</2><3>" + std::to_string(sem_lcd_brightness_before_turn_off) + "</3><4>" + std::to_string(sem_scroll_speed) + "</4><5>" + std::to_string(sem_allow_send_app_info)
+	+ "</5><6>" + std::to_string(sem_num_of_app_start) + "</6><7>" + std::to_string(sem_night_mode) + "</7><8>" + std::to_string(sem_vsync_mode)
+	+ "</8><9>" + std::to_string(sem_eco_mode) + "</9><10>" + std::to_string(Line_query_buffer_size(LINE_HTTPC_BUFFER))
+	+ "</10><11>" + std::to_string(Line_query_buffer_size(LINE_FS_BUFFER)) + "</11><12>" + std::to_string(Line_query_buffer_size(LINE_SEND_FS_CACHE_BUFFER))
+	+ "</12><13>" + std::to_string(Line_query_buffer_size(LINE_SEND_FS_BUFFER)) + "</13><14>" + std::to_string(Spt_query_buffer_size(SPT_HTTPC_BUFFER))
+	+ "</14><15>" + std::to_string(Imv_query_buffer_size(IMV_HTTPC_BUFFER)) + "</15><16>" + std::to_string(Imv_query_buffer_size(IMV_FS_BUFFER))
+	+ "</16><17>" + std::to_string(Mup_query_buffer_size(MUP_FS_OUT_BUFFER)) + "</17><18>" + std::to_string(Mup_query_buffer_size(MUP_FS_IN_BUFFER)) + "</18>";
 	Handle fs_handle = 0;
 	FS_Archive fs_archive = 0;
 	Result_with_string result;
