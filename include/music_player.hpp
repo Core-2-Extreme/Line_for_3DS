@@ -40,6 +40,18 @@ void Mup_set_load_dir_name(std::string dir_name);
 
 Result_with_string Mup_play_sound(u8* sound_buffer, int buffer_size, int sample_rate, int num_of_ch);
 
+bool Mup_detect_wave(u8* buffer, int size);
+
+bool Mup_detect_mp3(u8* buffer, int size);
+
+void Mup_parse_wav(u8* header_buffer, int buffer_size, int* file_size, int* channels, int* samplerate, int* bitrate, int* raw_data_pos);
+
+void Mup_parse_mp3(u8* header_buffer, int buffer_size, int* channels, int* samplerate, int* bitrate, int* block_size, int* first_block_pos);
+
+double Mup_calc_mp3_length(long file_size, int bitrate);
+
+double Mup_calc_wav_length(long file_size, int bitrate);
+
 void Mup_timer_thread(void* arg);
 
 void Mup_play_thread(void* arg);
