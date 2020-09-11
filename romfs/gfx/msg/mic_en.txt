@@ -1,4 +1,5 @@
 ﻿<0>Record(A)</0>
 <1>Stop(B)</1>
 <2>Recording...</2>
-<3>File will be saved to sdmc:/Line/audio/</3>
+<3>File will be saved to
+sdmc:/Line/audio/</3>
