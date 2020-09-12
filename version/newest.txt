@@ -10,7 +10,7 @@
 <gas_ver>6</gas_ver>
 <patch_note>【App】 Ver 1.6.0
 【Line】 Fixed- The app will crash if use 
-'send a file' function.
+ 'send a file' function.
 【Line】 Fixed- Improved 'send a file' function 
  processing speed.
 【Line】 Added- Search function.
