@@ -114,6 +114,7 @@ void Mic_record_thread(void* arg)
 	{
 		if (mic_start_record_request)
 		{
+			aptSetSleepAllowed(false);
 			*chunk_size = 0;
 			header = (u8*)malloc(44);
 			fs_buffer = (u8*)malloc(mic_buffer_size);
@@ -192,6 +193,7 @@ void Mic_record_thread(void* arg)
 			fs_buffer = NULL;
 			mic_start_record_request = false;
 			mic_stop_record_request = false;
+			aptSetSleepAllowed(true);
 		}
 		else
 			usleep(ACTIW_THREAD_SLEEP_TIME);
@@ -321,7 +323,7 @@ void Mic_main(void)
 
 	if(mic_need_reflesh)
 	{
-		Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+		Draw_frame_ready();
 		if (Sem_query_settings(SEM_NIGHT_MODE))
 			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 		else

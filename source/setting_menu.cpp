@@ -35,7 +35,6 @@ bool sem_pre_select_ver_request = false;
 bool sem_pre_allow_send_app_info = false;
 bool sem_pre_debug_mode = false;
 bool sem_pre_night_mode = false;
-bool sem_pre_vsync_mode = true;
 bool sem_pre_eco_mode = true;
 int sem_pre_lcd_brightness = 100;
 int sem_pre_time_to_turn_off_lcd = 1500;
@@ -77,7 +76,6 @@ bool sem_dl_file_request = false;
 bool sem_allow_send_app_info = false;
 bool sem_debug_mode = false;
 bool sem_night_mode = false;
-bool sem_vsync_mode = true;
 bool sem_flash_mode = false;
 bool sem_eco_mode = true;
 bool sem_wifi_enabled = false;
@@ -306,8 +304,6 @@ bool Sem_query_settings(int item_num)
 {
 	if (item_num == SEM_NIGHT_MODE)
 		return sem_night_mode;
-	else if (item_num == SEM_VSYNC_MODE)
-		return sem_vsync_mode;
 	else if (item_num == SEM_FLASH_MODE)
 		return sem_flash_mode;
 	else if (item_num == SEM_DEBUG_MODE)
@@ -421,8 +417,6 @@ void Sem_set_settings(int item_num, bool flag)
 {
 	if (item_num == SEM_NIGHT_MODE)
 		sem_night_mode = flag;
-	else if (item_num == SEM_VSYNC_MODE)
-		sem_vsync_mode = flag;
 	else if (item_num == SEM_FLASH_MODE)
 		sem_flash_mode = flag;
 	else if (item_num == SEM_DEBUG_MODE)
@@ -498,7 +492,7 @@ void Sem_init(void)
 	int buffer_size[9];
 	int buffer_default_size[9] = { 0x100000, 0x100000, 0x200000, 0x500000, 0x200000, 0x200000, 0x200000, 0x300000, 0x100000, };
 	int buffer_max_size[9] = { 0xA00000, 0xA00000, 0x4C0000, 0x1400000, 0x700000, 0x500000, 0x500000, 0xA00000, 0x200000, };
-	std::string data[19];
+	std::string data[18];
 	Result_with_string result;
 
 	sem_lang = "en";
@@ -510,12 +504,11 @@ void Sem_init(void)
 	sem_allow_send_app_info = false;
 	sem_num_of_app_start = 0;
 	sem_night_mode = false;
-	sem_vsync_mode = true;
 	sem_eco_mode = true;
 
 	Draw_progress("0/1 [Sem] Loading settings...");
 	log_num = Log_log_save(sem_init_string , "Sem_load_setting()...", 1234567890, DEBUG);
-	result = Sem_load_setting("Sem_setting.txt", "/Line/", 19, data);
+	result = Sem_load_setting("Sem_setting.txt", "/Line/", 18, data);
 	Log_log_add(log_num, result.string, result.code, DEBUG);
 	if(result.code == 0)
 	{
@@ -527,8 +520,7 @@ void Sem_init(void)
 		sem_allow_send_app_info = (data[5] == "1");
 		sem_num_of_app_start = atoi(data[6].c_str());
 		sem_night_mode = (data[7] == "1");
-		sem_vsync_mode = (data[8] == "1");
-		sem_eco_mode = (data[9] == "1");
+		sem_eco_mode = (data[8] == "1");
 
 		if(sem_lang != "jp" && sem_lang != "en")
 			sem_lang = "en";
@@ -546,7 +538,7 @@ void Sem_init(void)
 
 	for(int i = 0; i < 9; i++)
 	{
-		buffer_size[i] = atoi(data[10 + i].c_str());
+		buffer_size[i] = atoi(data[9 + i].c_str());
 		if(buffer_size[i] < 0x40000 || buffer_size[i] > buffer_max_size[i])
 			buffer_size[i] = buffer_default_size[i];
 	}
@@ -579,12 +571,12 @@ void Sem_exit(void)
 	bool failed = false;
 	std::string data = "<0>" + sem_lang + "</0><1>" + std::to_string(sem_lcd_brightness) + "</1><2>" + std::to_string(sem_time_to_turn_off_lcd)
 	+ "</2><3>" + std::to_string(sem_lcd_brightness_before_turn_off) + "</3><4>" + std::to_string(sem_scroll_speed) + "</4><5>" + std::to_string(sem_allow_send_app_info)
-	+ "</5><6>" + std::to_string(sem_num_of_app_start) + "</6><7>" + std::to_string(sem_night_mode) + "</7><8>" + std::to_string(sem_vsync_mode)
-	+ "</8><9>" + std::to_string(sem_eco_mode) + "</9><10>" + std::to_string(Line_query_buffer_size(LINE_HTTPC_BUFFER))
-	+ "</10><11>" + std::to_string(Line_query_buffer_size(LINE_FS_BUFFER)) + "</11><12>" + std::to_string(Line_query_buffer_size(LINE_SEND_FS_CACHE_BUFFER))
-	+ "</12><13>" + std::to_string(Line_query_buffer_size(LINE_SEND_FS_BUFFER)) + "</13><14>" + std::to_string(Spt_query_buffer_size(SPT_HTTPC_BUFFER))
-	+ "</14><15>" + std::to_string(Imv_query_buffer_size(IMV_HTTPC_BUFFER)) + "</15><16>" + std::to_string(Imv_query_buffer_size(IMV_FS_BUFFER))
-	+ "</16><17>" + std::to_string(Mup_query_buffer_size(MUP_FS_OUT_BUFFER)) + "</17><18>" + std::to_string(Mup_query_buffer_size(MUP_FS_IN_BUFFER)) + "</18>";
+	+ "</5><6>" + std::to_string(sem_num_of_app_start) + "</6><7>" + std::to_string(sem_night_mode) + "</7><8>" + std::to_string(sem_eco_mode)
+	+ "</8><9>" + std::to_string(Line_query_buffer_size(LINE_HTTPC_BUFFER)) + "</9><10>" + std::to_string(Line_query_buffer_size(LINE_FS_BUFFER))
+	+ "</10><11>" + std::to_string(Line_query_buffer_size(LINE_SEND_FS_CACHE_BUFFER)) + "</11><12>" + std::to_string(Line_query_buffer_size(LINE_SEND_FS_BUFFER))
+	+ "</12><13>" + std::to_string(Spt_query_buffer_size(SPT_HTTPC_BUFFER)) + "</13><14>" + std::to_string(Imv_query_buffer_size(IMV_HTTPC_BUFFER))
+	+ "</14><15>" + std::to_string(Imv_query_buffer_size(IMV_FS_BUFFER)) + "</15><16>" + std::to_string(Mup_query_buffer_size(MUP_FS_OUT_BUFFER))
+	+ "</16><17>" + std::to_string(Mup_query_buffer_size(MUP_FS_IN_BUFFER)) + "</17>";
 	Handle fs_handle = 0;
 	FS_Archive fs_archive = 0;
 	Result_with_string result;
@@ -685,8 +677,8 @@ void Sem_main(void)
 	}
 
 	if(sem_need_reflesh || sem_pre_y_offset != sem_y_offset || sem_pre_lang != sem_lang || sem_pre_night_mode != sem_night_mode
-	|| sem_pre_vsync_mode != sem_vsync_mode || sem_pre_lcd_brightness != sem_lcd_brightness
-	|| sem_pre_time_to_turn_off_lcd != sem_time_to_turn_off_lcd || sem_pre_lcd_brightness_before_turn_off != sem_lcd_brightness_before_turn_off
+	|| sem_pre_lcd_brightness != sem_lcd_brightness || sem_pre_time_to_turn_off_lcd != sem_time_to_turn_off_lcd
+	|| sem_pre_lcd_brightness_before_turn_off != sem_lcd_brightness_before_turn_off
 	|| sem_pre_scroll_speed != sem_scroll_speed || sem_pre_use_default_font != sem_use_default_font
 	|| sem_pre_use_system_specific_font != sem_use_system_specific_font || sem_pre_use_external_font != sem_use_external_font
 	|| sem_pre_selected_lang_num != sem_selected_lang_num || sem_pre_unload_external_font_request != sem_unload_external_font_request
@@ -705,7 +697,6 @@ void Sem_main(void)
 		sem_pre_y_offset = sem_y_offset;
 		sem_pre_lang = sem_lang;
 		sem_pre_night_mode = sem_night_mode;
-		sem_pre_vsync_mode = sem_vsync_mode;
 		sem_pre_lcd_brightness = sem_lcd_brightness;
 		sem_pre_time_to_turn_off_lcd = sem_time_to_turn_off_lcd;
 		sem_pre_lcd_brightness_before_turn_off = sem_lcd_brightness_before_turn_off;
@@ -733,7 +724,7 @@ void Sem_main(void)
 
 	if(sem_need_reflesh)
 	{
-		Draw_set_draw_mode(sem_vsync_mode);
+		Draw_frame_ready();
 		if (sem_night_mode)
 			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 		else
@@ -790,7 +781,7 @@ void Sem_main(void)
 		}
 		else if (sem_selected_menu_mode == 2)
 		{
-			//Language
+			//Languages
 			draw_y = 25.0;
 			if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 			{
@@ -856,36 +847,8 @@ void Sem_main(void)
 				}
 			}
 
-			//Vsync
-			draw_y = 65.0;
-			Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 2);
-			if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
-			{
-				if (sem_vsync_mode)
-				{
-					red[0] = 1.0;
-					blue[0] = 0.0;
-					green[0] = 0.0;
-					alpha[0] = 1.0;
-				}
-				else
-				{
-					red[1] = 1.0;
-					blue[1] = 0.0;
-					green[1] = 0.0;
-					alpha[1] = 1.0;
-				}
-
-				Draw(sem_msg[14], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-				for (int i = 0; i < 2; i++)
-				{
-					Draw_texture(Square_image, weak_aqua_tint, 0, 10.0 + (i * 100.0), draw_y + sem_y_offset + 15.0, 90.0, 20.0);
-					Draw(sem_msg[11 + i], 0, 10.0 + (i * 100.0), draw_y + sem_y_offset + 12.5, 0.75, 0.75, red[i], green[i], blue[i], alpha[i]);
-				}
-			}
-
 			//Screen brightness
-			draw_y = 105.0;
+			draw_y = 65.0;
 			if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 			{
 				Draw(sem_msg[15] + std::to_string(sem_lcd_brightness), 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
@@ -894,7 +857,7 @@ void Sem_main(void)
 			}
 
 			//Time to turn off LCDs
-			draw_y = 145.0;
+			draw_y = 105.0;
 			if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 			{
 				Draw(sem_msg[16] + std::to_string(sem_time_to_turn_off_lcd / 10) + sem_msg[17], 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
@@ -903,7 +866,7 @@ void Sem_main(void)
 			}
 
 			//Screen brightness before turn off LCDs
-			draw_y = 185.0;
+			draw_y = 145.0;
 			if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 			{
 				Draw(sem_msg[18] + std::to_string(sem_lcd_brightness_before_turn_off), 0, 0.0, draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);

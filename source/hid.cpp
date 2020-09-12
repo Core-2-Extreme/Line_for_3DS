@@ -802,10 +802,6 @@ void Hid_scan_hid_thread(void* arg)
 					}
 					else if (hid_key_touch_press && hid_touch_pos_x >= 210 && hid_touch_pos_x <= 249 && hid_touch_pos_y >= 40 && hid_touch_pos_y <= 59)
 						Sem_set_settings(SEM_FLASH_MODE, !Sem_query_settings(SEM_FLASH_MODE));
-					else if (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 99 && hid_touch_pos_y >= 80 && hid_touch_pos_y <= 99)
-						Sem_set_settings(SEM_VSYNC_MODE, true);
-					else if (hid_key_touch_press && hid_touch_pos_x >= 110 && hid_touch_pos_x <= 199 && hid_touch_pos_y >= 80 && hid_touch_pos_y <= 99)
-						Sem_set_settings(SEM_VSYNC_MODE, false);
 					else if (hid_key_touch_held && bar_selected[0] && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 309)
 					{
 						Sem_set_settings_i(SEM_LCD_BRIGHTNESS, ((hid_touch_pos_x / 2) + 10));
@@ -815,11 +811,11 @@ void Hid_scan_hid_thread(void* arg)
 						Sem_set_settings_i(SEM_TIME_TO_TURN_OFF_LCD, (hid_touch_pos_x * 10));
 					else if (hid_key_touch_held && bar_selected[2] && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 309)
 						Sem_set_settings_i(SEM_LCD_BRIGHTNESS_BEFORE_TURN_OFF, ((hid_touch_pos_x / 2) + 10));
-					else if (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 309 && hid_touch_pos_y >= 120 && hid_touch_pos_y <= 139)
+					else if (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 309 && hid_touch_pos_y >= 80 && hid_touch_pos_y <= 99)
 						bar_selected[0] = true;
-					else if (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 309 && hid_touch_pos_y >= 160 && hid_touch_pos_y <= 179)
+					else if (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 309 && hid_touch_pos_y >= 120 && hid_touch_pos_y <= 139)
 						bar_selected[1] = true;
-					else if (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 309 && hid_touch_pos_y >= 200 && hid_touch_pos_y <= 219)
+					else if (hid_key_touch_press && hid_touch_pos_x >= 10 && hid_touch_pos_x <= 309 && hid_touch_pos_y >= 160 && hid_touch_pos_y <= 179)
 						bar_selected[2] = true;
 				}
 				else if (Sem_query_selected_num(SEM_SELECTED_MENU_MODE_NUM) == 4)//Scroll speed
@@ -1251,9 +1247,9 @@ void Hid_scan_hid_thread(void* arg)
 									Menu_set_clipboard(content.substr((cut_pos[0] + 4), cut_pos[1] - (cut_pos[0] + 4)));
 
 								saved_y[1] = line_y;
+								Line_reset_msg();
 								Line_set_x_y_size_interval(LINE_TEXT_Y, saved_y[0]);
 								Line_set_operation_flag(LINE_SELECT_CHAT_ROOM_REQUEST, true);
-								Line_reset_msg();
 								Line_set_operation_flag(LINE_TYPE_ID_REQUEST, true);
 							}
 						}
@@ -1281,9 +1277,9 @@ void Hid_scan_hid_thread(void* arg)
 				&& !Line_query_operation_flag(LINE_SEND_MSG_REQUEST) && !Line_query_operation_flag(LINE_SEND_STICKER_REQUEST) && !Line_query_operation_flag(LINE_SEND_CONTENT_REQUEST))
 				{
 					saved_y[1] = line_y;
+					Line_reset_msg();
 					Line_set_x_y_size_interval(LINE_TEXT_Y, saved_y[0]);
 					Line_set_operation_flag(LINE_SELECT_CHAT_ROOM_REQUEST, true);
-					Line_reset_msg();
 				}
 				else if (Line_query_selected_num(LINE_SELECTED_MENU_MODE_NUM) == LINE_MENU_SEND && Line_query_operation_flag(LINE_SEND_SUCCESS))
 				{

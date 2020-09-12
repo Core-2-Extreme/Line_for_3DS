@@ -357,7 +357,7 @@ void Gtr_main(void)
 
 	if(gtr_need_reflesh)
 	{
-		Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+		Draw_frame_ready();
 		if (Sem_query_settings(SEM_NIGHT_MODE))
 		{
 			red = 1.0;

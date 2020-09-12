@@ -209,10 +209,10 @@ void Draw(std::string text, int type, float x, float y, float text_size_x, float
 	if (type >= 0 && type <= 4)
 	{
 		C2D_Text c2d_text;
-		C2D_TextBuf c2d_buf = C2D_TextBufNew(4096);
+		C2D_TextBuf c2d_buf = C2D_TextBufNew(8192);
 
-		if (text.length() > 4096)
-			text = text.substr(0, 4096);
+		if (text.length() > 8192)
+			text = text.substr(0, 8192);
 
 		if (type == 0)
 			C2D_TextParse(&c2d_text, c2d_buf, text.c_str());
@@ -419,7 +419,7 @@ void Draw_progress(std::string message)
 
   for(int i = 0;i < 2; i++)
 	{
-		Draw_set_draw_mode(1);
+		Draw_frame_ready();
 		if (Sem_query_settings(SEM_NIGHT_MODE))
 			Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
 		else
@@ -435,7 +435,7 @@ void Draw_log(bool force_draw)
 {
 	if(force_draw)
 	{
-		Draw_set_draw_mode(1);
+		Draw_frame_ready();
 		if (Sem_query_settings(SEM_NIGHT_MODE))
 			Draw_screen_ready_to_draw(0, true, 0, 0.0, 0.0, 0.0);
 		else
@@ -562,12 +562,9 @@ void Draw_exit(void)
 		Draw_free_system_font(i);
 }
 
-void Draw_set_draw_mode(int mode)
+void Draw_frame_ready(void)
 {
-	if (mode == 0)
-		C3D_FrameBegin(C3D_FRAME_NONBLOCK);
-	else if (mode == 1)
-		C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+	C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 }
 
 void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_ver, float red, float green, float blue)

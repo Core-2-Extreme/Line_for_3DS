@@ -52,7 +52,7 @@ void Init(void)
 	C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
 
 	Draw_init();
-	Draw_set_draw_mode(1);
+	Draw_frame_ready();
 	Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
 	Draw_screen_ready_to_draw(1, true, 0, 1.0, 1.0, 1.0);
 	Draw_apply_draw();

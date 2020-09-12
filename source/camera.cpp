@@ -152,7 +152,7 @@ void Cam_main(void)
 
 	if(cam_need_reflesh)
 	{
-		Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+		Draw_frame_ready();
 		if (Sem_query_settings(SEM_NIGHT_MODE))
 			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 		else

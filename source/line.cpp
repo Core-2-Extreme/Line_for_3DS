@@ -325,7 +325,7 @@ void Line_main(void)
 
 	if(line_need_reflesh)
 	{
-		Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+		Draw_frame_ready();
 		if (Sem_query_settings(SEM_NIGHT_MODE))
 			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 		else
@@ -956,7 +956,13 @@ void Line_init(void)
 	Handle fs_handle = 0;
 	Result_with_string result;
 	fs_buffer = (u8*)malloc(0x2000);
-
+	for (int i = 0; i < 128; i++)
+	{
+		line_c3d_cache_tex[i] = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
+		line_c3d_cache_subtex[i] = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
+	}
+	Line_reset_id();
+	Line_reset_msg();
 
 	Draw_progress("0/3 [Line] Authing...");
 	memset(fs_buffer, 0x0, 0x2000);
@@ -1069,12 +1075,6 @@ void Line_init(void)
 	if(line_text_interval >= 250.0 || line_text_interval <= 10.0)
 		line_text_interval = 35.0;
 
-	for (int i = 0; i < 128; i++)
-	{
-		line_c3d_cache_tex[i] = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
-		line_c3d_cache_subtex[i] = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
-	}
-
 	Draw_progress("2/3 [Line] Starting threads...");
 	line_worker_thread_run = true;
 	line_log_dl_thread_run = true;
@@ -1095,8 +1095,6 @@ void Line_init(void)
 	result = Draw_load_texture("romfs:/gfx/stickers.t3x", 51, line_stickers_images, 0, 121);
 	Log_log_add(log_num, result.string, result.code, DEBUG);
 	line_select_chat_room_request = true;
-	Line_reset_id();
-	Line_reset_msg();
 
 	Line_resume();
 	line_already_init = true;
@@ -1180,15 +1178,6 @@ void Line_exit(void)
 
 	Line_reset_id();
 	Line_reset_msg();
-	for (int i = 0; i < 128; i++)
-	{
-		linearFree(line_c3d_cache_tex[i]->data);
-		linearFree(line_c3d_cache_tex[i]);
-		linearFree(line_c3d_cache_subtex[i]);
-		line_c3d_cache_tex[i]->data = NULL;
-		line_c3d_cache_tex[i] = NULL;
-		line_c3d_cache_subtex[i] = NULL;
-	}
 
 	Draw_free_texture(51);
 	for (int i = 0; i < 121; i++)
@@ -1381,9 +1370,9 @@ void Line_reset_id(void)
 	{
 		free(line_stb_image[i]);
 		linearFree(line_c3d_cache_tex[i]->data);
-		linearFree(line_c3d_cache_tex[i]);
 		linearFree(line_c3d_cache_subtex[i]);
 		line_c3d_cache_tex[i]->data = NULL;
+		line_c3d_cache_subtex[i] = NULL;
 		line_stb_image[i] = NULL;
 		line_c3d_cache_tex[i] = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
 		line_c3d_cache_subtex[i] = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
@@ -1410,7 +1399,7 @@ void Line_reset_msg(void)
 	{
 		line_msg_log[i] = "";
 		line_msg_log[i].reserve(1);
-		line_msg_pos[i] = -1;
+		line_msg_pos[i] = 0;
 		line_search_result_pos[i] = 0;
 		line_short_msg_pos_start[i] = 0;
 		line_short_msg_pos_end[i] = 0;

@@ -221,7 +221,7 @@ void Menu_init(void)
 
 	Draw_progress("0/0 [Menu] Starting threads...");
 	menu_update_thread_run = true;
-	menu_check_connectivity_thread_run = true;
+	//menu_check_connectivity_thread_run = true;
 	menu_update_thread = threadCreate(Menu_update_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, -1, false);
 	menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
 
@@ -345,7 +345,7 @@ void Menu_main(void)
 				text_alpha = 1.0;
 			}
 
-			Draw_set_draw_mode(Sem_query_settings(SEM_VSYNC_MODE));
+			Draw_frame_ready();
 			if (Sem_query_settings(SEM_NIGHT_MODE))
 				Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
 			else
@@ -583,7 +583,7 @@ bool Menu_check_exit(void)
 {
 	while (true)
 	{
-		Draw_set_draw_mode(1);
+		Draw_frame_ready();
 		if (Sem_query_settings(SEM_NIGHT_MODE))
 		{
 			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
