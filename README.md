@@ -35,7 +35,7 @@
 * Receive (Play) video ❌
 * Receive (Play) sound ⚠(*3) (v1.5.0)
 * Receive (View) sticker ✅(*1) (v1.3.0)
-* View old log ✅ (~v1.5.2 Max 300 logs)(v1.6.0~ Max 4000 logs)
+* View old log ✅ (～v1.5.2 Max 300 logs) (v1.6.0~ Max 4000 logs)
 * Auto update ✅ (v0.2.0)
 * Group chat ✅
 * Night mode ✅ (v0.2.0)
