@@ -11,12 +11,14 @@
 * [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 
 ## Patch note
-* 【App】 Ver 1.5.2
-* 【Line】 Fixed- Adjust some UI.
-* 【Camera】 Fixed- Some settings will be reset after restarting the camera.
-* 【Mic】 Fixed- The app will crash if couldn't allocate memory(out of memory).
-* 【Music player】 Fixed- The app sometimes crash when try playing .mp3 files.
-* 【Music player】 Added- Shuffle function.
+* 【App】 Ver 1.6.0
+* 【Line】 Fixed- The app will crash if use 'send a file' function.
+* 【Line】 Fixed- Improved 'send a file' function processing speed.
+* 【Line】 Added- Search function.
+* 【Line】 Added- Now, you can receive up to 4000 chat logs.
+* 【Music player】 Fixed- Improved mp3 play quality.
+* 【Music player】 Added- Seek function.
+* 【Explorer】 Added- Now, file will be sorted.
 
 ## Summary
 ![00000028](https://user-images.githubusercontent.com/45873899/85299815-b9bbfb80-b4e0-11ea-8ee1-7551cedd83d4.jpg)
@@ -33,7 +35,7 @@
 * Receive (Play) video ❌
 * Receive (Play) sound ⚠(*3) (v1.5.0)
 * Receive (View) sticker ✅(*1) (v1.3.0)
-* View old log ✅ (Max 300 logs)
+* View old log ✅ (~v1.5.2 Max 300 logs)(v1.6.0~ Max 4000 logs)
 * Auto update ✅ (v0.2.0)
 * Group chat ✅
 * Night mode ✅ (v0.2.0)
