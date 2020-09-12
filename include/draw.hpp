@@ -57,7 +57,7 @@ void Draw_free_texture(int sheet_map_num);
 
 void Draw_exit(void);
 
-void Draw_set_draw_mode(int mode);
+void Draw_frame_ready(void);
 
 void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_ver, float red, float green, float blue);
 
