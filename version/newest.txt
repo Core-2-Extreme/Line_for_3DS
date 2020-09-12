@@ -1,4 +1,4 @@
-<newest>16</newest>
+<newest>17</newest>
 <3dsx_available>1</3dsx_available>
 <cia_32mb_ram_available>0</cia_32mb_ram_available>
 <cia_64mb_ram_available>1</cia_64mb_ram_available>
@@ -7,14 +7,14 @@
 <cia_96mb_ram_available>0</cia_96mb_ram_available>
 <cia_124mb_ram_available>1</cia_124mb_ram_available>
 <cia_178mb_ram_available>0</cia_178mb_ram_available>
-<gas_ver>5</gas_ver>
-<patch_note>【App】 Ver 1.5.2
-【Line】 Fixed- Adjust some UI.
-【Camera】 Fixed- Some settings will be 
- reset after restarting the camera.
-【Mic】 Fixed- The app will crash if couldn't
- allocate memory(out of memory).
-【Music player】 Fixed- The app sometimes 
- crash when try playing .mp3 files.
-【Music player】 Added- Shuffle function.
+<gas_ver>6</gas_ver>
+<patch_note>【App】 Ver 1.6.0
+【Line】 Fixed- The app will crash if use 
+'send a file' function.
+【Line】 Fixed- Improved 'send a file' function 
+ processing speed.
+【Line】 Added- Search function.
+【Music player】 Fixed- Improved mp3 play quality.
+【Music player】 Added- Seek function.
+【Explorer】 Added- Now, file will be sorted.
 </patch_note>
