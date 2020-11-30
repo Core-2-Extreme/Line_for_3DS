@@ -42,14 +42,11 @@ Result_with_string File_save_to_file(std::string file_name, u8* write_data, int 
 
 	if (!failed)
 	{
-		if (delete_old_file)
+		save_file_result.code = FSUSER_CreateFile(fs_archive, fsMakePath(PATH_ASCII, file_path.c_str()), FS_ATTRIBUTE_ARCHIVE, 0);
+		if (save_file_result.code != 0 && save_file_result.code != (s32)0xC82044BE)//#0xC82044BE file already exist
 		{
-			save_file_result.code = FSUSER_CreateFile(fs_archive, fsMakePath(PATH_ASCII, file_path.c_str()), FS_ATTRIBUTE_ARCHIVE, 0);
-			if (save_file_result.code != 0)
-			{
-				save_file_result.string = "[Error] FSUSER_CreateFile failed. ";
-				failed = true;
-			}
+			save_file_result.string = "[Error] FSUSER_CreateFile failed. ";
+			failed = true;
 		}
 	}
 

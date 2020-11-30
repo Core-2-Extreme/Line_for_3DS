@@ -44,16 +44,14 @@ bool imv_img_parse_request = false;
 bool imv_select_file_request = false;
 bool imv_enable[64];
 bool imv_first = true;
-u8* imv_image_buffer;
-u32 imv_image_size = 0;
-int imv_image_height = 0;
-int imv_image_width = 0;
+u8* imv_img_buffer = NULL;
+u32 imv_img_size = 0;
+int imv_img_height = 0;
+int imv_img_width = 0;
 int imv_img_dl_progress = 0;
 int imv_img_pos_x = 0;
 int imv_img_pos_y = 0;
-int imv_clipboard_selected_num = 0;
-int imv_img_httpc_buffer_size;
-int imv_img_fs_buffer_size;
+int imv_max_buffer_size = 0x200000;
 double imv_img_zoom = 0.5;
 const char* imv_failed_reason;
 std::string imv_img_load_dir_name = "";
@@ -69,6 +67,31 @@ std::string imv_ver = "v1.0.4";
 Thread imv_parse_img_thread, imv_dl_img_thread, imv_load_img_thread;
 C2D_Image imv_c2d_image[64];
 
+
+
+
+
+
+
+
+bool imv_button_selected[2] = { false, false, };
+double imv_touch_x_move_left = 0;
+double imv_touch_y_move_left = 0;
+bool imv_scroll_mode = false;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 bool Imv_query_init_flag(void)
 {
 	return imv_already_init;
@@ -79,67 +102,14 @@ bool Imv_query_running_flag(void)
 	return imv_main_run;
 }
 
-int Imv_query_buffer_size(int buffer_num)
+int Imv_query_max_buffer_size(void)
 {
-	if (buffer_num == IMV_HTTPC_BUFFER)
-		return imv_img_httpc_buffer_size;
-	else if (buffer_num == IMV_FS_BUFFER)
-		return imv_img_fs_buffer_size;
-	else
-		return -1;
+	return imv_max_buffer_size;
 }
 
-int Imv_query_clipboard_num(void)
+void Imv_set_max_buffer_size(int size)
 {
-	return imv_clipboard_selected_num;
-}
-
-bool Imv_query_operation_flag(int operation_num)
-{
-	if (operation_num == IMV_IMG_LOAD_REQUEST)
-		return imv_img_load_request;
-	else if (operation_num == IMV_IMG_LOAD_AND_PARSE_REQUEST)
-		return imv_img_load_and_parse_request;
-	else if (operation_num == IMV_IMG_DL_REQUEST)
-		return imv_img_dl_request;
-	else if (operation_num == IMV_IMG_DL_AND_PARSE_REQUEST)
-		return imv_img_dl_and_parse_request;
-	else if (operation_num == IMV_IMG_PARSE_REQUEST)
-		return imv_img_parse_request;
-	else if (operation_num == IMV_ADJUST_URL_REQUEST)
-		return imv_adjust_url_request;
-	else if (operation_num == IMV_SELECT_FILE_REQUEST)
-		return imv_select_file_request;
-	else
-		return false;
-}
-
-double Imv_query_img_pos_x(void)
-{
-	return imv_img_pos_x;
-}
-
-double Imv_query_img_pos_y(void)
-{
-	return imv_img_pos_y;
-}
-
-double Imv_query_img_zoom(void)
-{
-	return imv_img_zoom;
-}
-
-void Imv_set_buffer_size(int buffer_num, int size)
-{
-	if (buffer_num == IMV_HTTPC_BUFFER)
-		imv_img_httpc_buffer_size = size;
-	else if (buffer_num == IMV_FS_BUFFER)
-		imv_img_fs_buffer_size = size;
-}
-
-void Imv_set_clipboard_num(int num)
-{
-	imv_clipboard_selected_num = num;
+	imv_max_buffer_size = size;
 }
 
 void Imv_set_msg(int msg_num, std::string msg)
@@ -148,52 +118,23 @@ void Imv_set_msg(int msg_num, std::string msg)
 		imv_msg[msg_num] = msg;
 }
 
-void Imv_set_operation_flag(int operation_num, bool flag)
-{
-	if (operation_num == IMV_IMG_LOAD_REQUEST)
-		imv_img_load_request = flag;
-	else if (operation_num == IMV_IMG_LOAD_AND_PARSE_REQUEST)
-		imv_img_load_and_parse_request = flag;
-	else if (operation_num == IMV_IMG_DL_REQUEST)
-		imv_img_dl_request = flag;
-	else if (operation_num == IMV_IMG_DL_AND_PARSE_REQUEST)
-		imv_img_dl_and_parse_request = flag;
-	else if (operation_num == IMV_IMG_PARSE_REQUEST)
-		imv_img_parse_request = flag;
-	else if (operation_num == IMV_ADJUST_URL_REQUEST)
-		imv_adjust_url_request = flag;
-	else if (operation_num == IMV_SELECT_FILE_REQUEST)
-		imv_select_file_request = flag;
-}
-
 void Imv_set_url(std::string url)
 {
 	imv_img_url = url;
+	imv_img_dl_and_parse_request = true;
 }
 
-void Imv_set_img_pos_x(double x)
-{
-	imv_img_pos_x = x;
-}
-
-void Imv_set_img_pos_y(double y)
-{
-	imv_img_pos_y = y;
-}
-
-void Imv_set_img_zoom(double size)
-{
-	imv_img_zoom = size;
-}
-
-void Imv_set_load_file_name(std::string file_name)
+void Imv_set_load_file(std::string file_name, std::string dir_name)
 {
 	imv_img_load_file_name = file_name;
+	imv_img_load_dir_name = dir_name;
+	imv_select_file_request = false;
+	imv_img_load_and_parse_request = true;
 }
 
-void Imv_set_load_dir_name(std::string dir_name)
+void Imv_cancel_select_file(void)
 {
-	imv_img_load_dir_name = dir_name;
+	imv_select_file_request = false;
 }
 
 void Imv_suspend(void)
@@ -213,19 +154,8 @@ void Imv_resume(void)
 
 void Imv_init(void)
 {
-	Log_log_save(imv_init_string, "Initializing...", 1234567890, DEBUG);
+	Log_log_save(imv_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
 	bool failed = false;
-
-	imv_image_buffer = (u8*)malloc(0x500000);
-	if (imv_image_buffer == NULL)
-	{
-		Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), imv_init_string, OUT_OF_MEMORY);
-		Err_set_error_show_flag(true);
-		Log_log_save(imv_init_string, Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, DEBUG);
-		failed = true;
-	}
-	else
-		memset(imv_image_buffer, 0x0, 0x500000);
 
 	if (imv_first && !failed)
 	{
@@ -240,25 +170,34 @@ void Imv_init(void)
 		imv_dl_thread_run = true;
 		imv_load_thread_run = true;
 		imv_parse_thread_run = true;
-		imv_dl_img_thread = threadCreate(Imv_img_dl_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
-		imv_load_img_thread = threadCreate(Imv_img_load_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
-		imv_parse_img_thread = threadCreate(Imv_img_parse_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
+		imv_dl_img_thread = threadCreate(Imv_img_dl_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
+		imv_load_img_thread = threadCreate(Imv_img_load_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
+		imv_parse_img_thread = threadCreate(Imv_img_parse_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
+	}
+
+	for (int i = 0; i < 64; i++)
+	{
+		imv_c2d_image[i].tex = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
+		imv_c2d_image[i].subtex = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
+		imv_enable[i] = false;
 	}
 
 	Imv_resume();
 	imv_already_init = true;
-	Log_log_save(imv_init_string, "Initialized.", 1234567890, DEBUG);
+	Log_log_save(imv_init_string, "Initialized.", 1234567890, FORCE_DEBUG);
 }
 
 void Imv_main(void)
 {
-	int img_size_x = 0;
-	int img_size_y = 0;
+	int tex_size_x = 0;
+	int tex_size_y = 0;
 	int img_pos_x_offset = 0;
 	int img_pos_y_offset = 0;
 	double text_red, text_green, text_blue, text_alpha;
 	double draw_x, draw_y;
+	double scroll_speed = 0.5;
 	std::string swkbd_data;
+	Hid_info key;
 
 	if (imv_img_dl_request || imv_img_dl_and_parse_request)
 		imv_img_dl_progress = Httpc_query_dl_progress(IMV_HTTP_PORT0);
@@ -278,18 +217,39 @@ void Imv_main(void)
 		text_alpha = 1.0;
 	}
 
-	if (imv_image_width >= 512)
-		img_size_x = 512;
+	if (imv_img_width >= 512)
+		tex_size_x = 512;
 	else
-		img_size_x = imv_image_width;
+		tex_size_x = imv_img_width;
 
-	if (imv_image_height >= 512)
-		img_size_y = 512;
+	if (imv_img_height >= 512)
+		tex_size_y = 512;
 	else
-		img_size_y = imv_image_height;
+		tex_size_y = imv_img_height;
 
-	img_size_x *= imv_img_zoom;
-	img_size_y *= imv_img_zoom;
+	tex_size_x *= imv_img_zoom;
+	tex_size_y *= imv_img_zoom;
+
+	if(tex_size_x >= 400 && tex_size_y >= 240)
+	{
+		Log_log_save("", "N", 1234567890, false);
+		for(int i = 0; i < 64; i++)
+		{
+			if(imv_enable[i])
+				C3D_TexSetFilter(imv_c2d_image[i].tex, GPU_NEAREST, GPU_NEAREST);
+		}
+	}
+	else
+	{
+		Log_log_save("", "L", 1234567890, false);
+		for(int i = 0; i < 64; i++)
+		{
+			if(imv_enable[i])
+				C3D_TexSetFilter(imv_c2d_image[i].tex, GPU_LINEAR, GPU_LINEAR);
+		}
+	}
+
+
 
 	for(int i = 0; i < 64; i++)
 	{
@@ -301,7 +261,7 @@ void Imv_main(void)
 	}
 
 	if(imv_need_reflesh || imv_pre_img_pos_x != imv_img_pos_x || imv_pre_img_pos_y != imv_img_pos_y || imv_pre_img_zoom != imv_img_zoom
-	|| imv_pre_image_width != imv_image_width || imv_pre_image_height != imv_image_height || imv_pre_img_dl_progress != imv_img_dl_progress
+	|| imv_pre_image_width != imv_img_width || imv_pre_image_height != imv_img_height || imv_pre_img_dl_progress != imv_img_dl_progress
 	|| imv_pre_select_file_request != imv_select_file_request)
 	{
 		for(int i = 0; i < 64; i++)
@@ -310,15 +270,22 @@ void Imv_main(void)
 		imv_pre_img_pos_x = imv_img_pos_x;
 		imv_pre_img_pos_y = imv_img_pos_y;
 		imv_pre_img_zoom = imv_img_zoom;
-		imv_pre_image_width = imv_image_width;
-		imv_pre_image_height = imv_image_height;
+		imv_pre_image_width = imv_img_width;
+		imv_pre_image_height = imv_img_height;
 		imv_pre_img_dl_progress = imv_img_dl_progress;
 		imv_pre_select_file_request = imv_select_file_request;
 		imv_need_reflesh = true;
 	}
 
+	scroll_speed = Sem_query_settings_d(SEM_SCROLL_SPEED);
+	Hid_query_key_state(&key);
+	scroll_speed *= key.count;
+	Log_main();
 	if(Draw_query_need_reflesh() || !Sem_query_settings(SEM_ECO_MODE) || Expl_query_need_reflesh())
 		imv_need_reflesh = true;
+
+	if(!imv_select_file_request)
+		Hid_key_flag_reset();
 
 	if(imv_need_reflesh)
 	{
@@ -331,17 +298,19 @@ void Imv_main(void)
 
 		for (int i = 0; i < 64; i++)
 		{
-			if (img_pos_x_offset > img_size_x * 7)
+			if (img_pos_x_offset > tex_size_x * 7)
 			{
 				img_pos_x_offset = 0;
-				img_pos_y_offset += img_size_y;
+				img_pos_y_offset += tex_size_y;
 			}
 			if (imv_enable[i])
-				Draw_texture(imv_c2d_image, dammy_tint, i, (imv_img_pos_x + img_pos_x_offset), (imv_img_pos_y + img_pos_y_offset), img_size_x, img_size_y);
+				Draw_texture(imv_c2d_image, dammy_tint, i, (imv_img_pos_x + img_pos_x_offset), (imv_img_pos_y + img_pos_y_offset), tex_size_x, tex_size_y);
 
-			img_pos_x_offset += img_size_x;
+			img_pos_x_offset += tex_size_x;
 		}
-		Draw_texture(Square_image, weak_aqua_tint, 0, 0.0, 15.0, 50.0 * imv_img_dl_progress, 3.0);
+		if(imv_img_dl_request || imv_img_dl_and_parse_request)
+			Draw_texture(Square_image, aqua_tint, 0, 0.0, 15.0, 50.0 * imv_img_dl_progress, 3.0);
+
 		Draw_top_ui();
 
 		if (Sem_query_settings(SEM_NIGHT_MODE))
@@ -353,36 +322,36 @@ void Imv_main(void)
 		img_pos_y_offset = 0;
 		for (int i = 0; i < 64; i++)
 		{
-			if (img_pos_x_offset > img_size_x * 7)
+			if (img_pos_x_offset > tex_size_x * 7)
 			{
 				img_pos_x_offset = 0;
-				img_pos_y_offset += img_size_y;
+				img_pos_y_offset += tex_size_y;
 			}
 			if (imv_enable[i])
-				Draw_texture(imv_c2d_image, dammy_tint, i, (imv_img_pos_x + img_pos_x_offset - 40), (imv_img_pos_y + img_pos_y_offset - 240), img_size_x, img_size_y);
+				Draw_texture(imv_c2d_image, dammy_tint, i, (imv_img_pos_x + img_pos_x_offset - 40), (imv_img_pos_y + img_pos_y_offset - 240), tex_size_x, tex_size_y);
 
-			img_pos_x_offset += img_size_x;
+			img_pos_x_offset += tex_size_x;
 		}
 
-		Draw(imv_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
-
+		Draw_texture(Square_image, weak_red_tint, 0, 5.0, 170.0, 310.0, 55.0);
+		Draw(imv_ver, 0, 10.0, 170.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
 		draw_x = 10.0;
-		draw_y = 175.0;
+		draw_y = 185.0;
 		for(int i = 0; i < 4; i++)
 		{
 			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 65.0, 13.0);
 			Draw(imv_msg[i], 0, (draw_x + 2.5), draw_y, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 
 			draw_y += 20.0;
-			if(draw_y > 195.0)
+			if(draw_y > 205.0)
 			{
 				draw_x += 80.0;
-				draw_y = 175.0;
+				draw_y = 185.0;
 			}
 		}
 
 		draw_x = 170.0;
-		draw_y = 175.0;
+		draw_y = 185.0;
 		for(int i = 0; i < 2; i++)
 		{
 			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 140.0, 13.0);
@@ -391,7 +360,7 @@ void Imv_main(void)
 		}
 
 		if (imv_select_file_request)
-			Draw_expl(imv_msg[6]);
+			Expl_draw(imv_msg[6]);
 
 		Draw_bot_ui();
 		Draw_touch_pos();
@@ -402,14 +371,88 @@ void Imv_main(void)
 	else
 		gspWaitForVBlank();
 
-	Hid_set_disable_flag(true);
-	if (imv_adjust_url_request)
+	if (Err_query_error_show_flag())
 	{
-		Swkbd_set_parameter(SWKBD_TYPE_NORMAL, SWKBD_NOTEMPTY_NOTBLANK, SWKBD_PREDICTIVE_INPUT, -1, 2, 8192, "画像URLを入力 / Type image url here.", Menu_query_clipboard());
-		if (Swkbd_launch(8192, &swkbd_data, SWKBD_BUTTON_RIGHT))
-			imv_img_url = swkbd_data;
+		if (key.p_touch && key.touch_x >= 150 && key.touch_x <= 170 && key.touch_y >= 150 && key.touch_y < 170)
+			Err_set_error_show_flag(false);
+	}
+	else if (imv_select_file_request)
+		Expl_main();
+	else
+	{
+		if (key.p_touch || key.h_touch)
+		{
+			imv_touch_x_move_left = 0;
+			imv_touch_y_move_left = 0;
 
-		imv_adjust_url_request = false;
+			if (imv_scroll_mode)
+			{
+				imv_touch_x_move_left = key.touch_x_move;
+				imv_touch_y_move_left = key.touch_y_move;
+			}
+			else if (key.p_touch && key.touch_y <= 169)
+				imv_scroll_mode = true;
+		}
+		else
+		{
+			imv_scroll_mode = false;
+			imv_touch_x_move_left -= (imv_touch_x_move_left * 0.025) * key.count;
+			imv_touch_y_move_left -= (imv_touch_y_move_left * 0.025) * key.count;
+			if (imv_touch_x_move_left < 0.5 && imv_touch_x_move_left > -0.5)
+				imv_touch_x_move_left = 0;
+			if (imv_touch_y_move_left < 0.5 && imv_touch_y_move_left > -0.5)
+				imv_touch_y_move_left = 0;
+		}
+
+		if (key.p_start || (key.p_touch && key.touch_x >= 110 && key.touch_x <= 230 && key.touch_y >= 220 && key.touch_y <= 240))
+			Imv_suspend();
+		if (key.h_c_up || key.h_c_down)
+		{
+			if(key.held_time > 240)
+				imv_img_pos_y += ((double)key.cpad_y * scroll_speed) * 0.125;
+			else
+				imv_img_pos_y += ((double)key.cpad_y * scroll_speed) * 0.0625;
+		}
+		if (key.h_c_left || key.h_c_right)
+		{
+			if(key.held_time > 240)
+				imv_img_pos_x -= ((double)key.cpad_x * scroll_speed) * 0.125;
+			else
+				imv_img_pos_x -= ((double)key.cpad_x * scroll_speed) * 0.0625;
+		}
+		else if (key.p_a || (key.p_touch && key.touch_x >= 10 && key.touch_x <= 74 && key.touch_y >= 185 && key.touch_y <= 197))
+			imv_img_parse_request = true;
+		else if (key.p_b || (key.p_touch && key.touch_x >= 10 && key.touch_x <= 74 && key.touch_y >= 205 && key.touch_y <= 217))
+			imv_img_dl_request = true;
+		else if (key.p_x || (key.p_touch && key.touch_x >= 90 && key.touch_x <= 154 && key.touch_y >= 185 && key.touch_y <= 197))
+		{
+			void (*callback)(std::string, std::string);
+			void (*cancel_callback)(void);
+			callback = Imv_set_load_file;
+			cancel_callback = Imv_cancel_select_file;
+			Expl_set_callback(callback);
+			Expl_set_cancel_callback(cancel_callback);
+			Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
+			imv_select_file_request = true;
+		}
+		else if (key.p_y || (key.p_touch && key.touch_x >= 90 && key.touch_x <= 154 && key.touch_y >= 205 && key.touch_y <= 217))
+		{
+			Hid_set_disable_flag(true);
+			Swkbd_set_parameter(SWKBD_TYPE_NORMAL, SWKBD_NOTEMPTY_NOTBLANK, SWKBD_PREDICTIVE_INPUT, -1, 2, 8192, "画像URLを入力 / Type image url here.", Menu_query_clipboard());
+			if (Swkbd_launch(8192, &swkbd_data, SWKBD_BUTTON_RIGHT))
+				imv_img_url = swkbd_data;
+		}
+		else if (key.p_l || (key.p_touch && key.touch_x >= 170 && key.touch_x <= 309 && key.touch_y >= 185 && key.touch_y <= 197))
+			imv_button_selected[0] = true;
+		else if (key.p_r || (key.p_touch && key.touch_x >= 170 && key.touch_x <= 309 && key.touch_y >= 205 && key.touch_y <= 217))
+			imv_button_selected[1] = true;
+		else if ((key.h_l || (key.h_touch && key.touch_x >= 170 && key.touch_x <= 309 && key.touch_y >= 185 && key.touch_y <= 197 && imv_button_selected[0])) && (imv_img_zoom - 0.01) > 0.04)
+			imv_img_zoom -= 0.01;
+		else if (key.h_r || (key.h_touch && key.touch_x >= 170 && key.touch_x <= 309 && key.touch_y >= 205 && key.touch_y <= 217 && imv_button_selected[1]))
+			imv_img_zoom += 0.01;
+
+		imv_img_pos_x -= (imv_touch_x_move_left * scroll_speed);
+		imv_img_pos_y -= (imv_touch_y_move_left * scroll_speed);
 	}
 }
 
@@ -420,18 +463,8 @@ void Imv_img_parse_thread(void* arg)
 	int parse_start_pos_x;
 	int parse_start_pos_y;
 	double ideal_zoom_size;
-	C3D_Tex* c3d_cache_tex[64];
-	Tex3DS_SubTexture* c3d_cache_subtex[64];
 	Result_with_string result;
-	stbi_uc* stb_image;
-
-	for (int i = 0; i < 64; i++)
-	{
-		c3d_cache_tex[i] = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
-		c3d_cache_subtex[i] = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
-		imv_enable[i] = false;
-	}
-	stb_image = NULL;
+	stbi_uc* stb_image = NULL;
 
 	while (imv_parse_thread_run)
 	{
@@ -444,14 +477,16 @@ void Imv_img_parse_thread(void* arg)
 			else
 				Log_log_add(log_num, Err_query_template_summary(-1024), result.code, false);
 
-			imv_image_height = 0;
-			imv_image_width = 0;
+			imv_img_height = 0;
+			imv_img_width = 0;
 
 			log_num = Log_log_save(imv_img_parse_thread_string, "stbi_load_from_memory()...", 1234567890, false);
 			free(stb_image);
 			stb_image = NULL;
-			stb_image = stbi_load_from_memory((stbi_uc const*)imv_image_buffer, (int)imv_image_size, &imv_image_width, &imv_image_height, NULL, STBI_rgb_alpha);
-			Log_log_add(log_num, " w : " + std::to_string(imv_image_width) + " h : " + std::to_string(imv_image_height), 1234567890, false);
+			if(imv_img_buffer != NULL)
+				stb_image = stbi_load_from_memory((stbi_uc const*)imv_img_buffer, (int)imv_img_size, &imv_img_width, &imv_img_height, NULL, STBI_rgb_alpha);
+	
+			Log_log_add(log_num, " w : " + std::to_string(imv_img_width) + " h : " + std::to_string(imv_img_height), 1234567890, false);
 
 			if (stb_image == NULL)
 			{
@@ -472,23 +507,21 @@ void Imv_img_parse_thread(void* arg)
 			{
 				for (int i = 0; i < 64; i++)
 				{
-					linearFree(c3d_cache_tex[i]->data);
-					imv_c2d_image[i].tex = c3d_cache_tex[i];
-					imv_c2d_image[i].subtex = c3d_cache_subtex[i];
 					imv_enable[i] = false;
+					linearFree(imv_c2d_image[i].tex->data);
+					imv_c2d_image[i].tex->data = NULL;
 				}
-				Draw_rgba_to_abgr(stb_image, (u32)imv_image_width, (u32)imv_image_height);
-
+				Draw_rgba_to_abgr(stb_image, (u32)imv_img_width, (u32)imv_img_height);
 				parse_start_pos_x = 0;
 				parse_start_pos_y = 0;
 
 				for (int i = 0; i < 64; i++)
 				{
-					if (!(parse_start_pos_x > imv_image_width || parse_start_pos_y > imv_image_height))
+					if (!(parse_start_pos_x > imv_img_width || parse_start_pos_y > imv_img_height))
 					{
 						imv_enable[i] = true;
-						log_num = Log_log_save(imv_img_parse_thread_string, "Draw_c3dtex_to_c2dimage()...", 1234567890, false);
-						result = Draw_c3dtex_to_c2dimage(c3d_cache_tex[i], c3d_cache_subtex[i], stb_image, (u32)(imv_image_width * imv_image_height * 4), imv_image_width, imv_image_height, parse_start_pos_x, parse_start_pos_y, 512, 512, GPU_RGBA8);
+						log_num = Log_log_save(imv_img_parse_thread_string, "Draw_create_texture()...", 1234567890, false);
+						result = Draw_create_texture(imv_c2d_image[i].tex, (Tex3DS_SubTexture*)imv_c2d_image[i].subtex, stb_image, (u32)(imv_img_width * imv_img_height * 4), imv_img_width, imv_img_height, 4, parse_start_pos_x, parse_start_pos_y, 512, 512, GPU_RGBA8);
 						Log_log_add(log_num, result.string, result.code, false);
 						if (result.code != 0)
 						{
@@ -508,30 +541,30 @@ void Imv_img_parse_thread(void* arg)
 				ideal_zoom_size = 1.0;
 				while (true)
 				{
-					if (imv_image_width > imv_image_height)
+					if (imv_img_width > imv_img_height)
 					{
-						if (((double)imv_image_width * ideal_zoom_size) > 399.0 && ((double)imv_image_width * ideal_zoom_size) < 400.1)
+						if (((double)imv_img_width * ideal_zoom_size) > 399.0 && ((double)imv_img_width * ideal_zoom_size) < 400.1)
 							break;
-						else if (((double)imv_image_width * ideal_zoom_size) > 399.0)
+						else if (((double)imv_img_width * ideal_zoom_size) > 399.0)
 							ideal_zoom_size -= 0.0001;
 						else
 							ideal_zoom_size += 0.0001;
 					}
 					else
 					{
-						if (((double)imv_image_height * ideal_zoom_size) > 224.0 && ((double)imv_image_height * ideal_zoom_size) < 225.1)
+						if (((double)imv_img_height * ideal_zoom_size) > 224.0 && ((double)imv_img_height * ideal_zoom_size) < 225.1)
 							break;
-						else if (((double)imv_image_height * ideal_zoom_size) > 224.0)
+						else if (((double)imv_img_height * ideal_zoom_size) > 224.0)
 							ideal_zoom_size -= 0.0001;
 						else
 							ideal_zoom_size += 0.0001;
 					}
 				}
-				if (imv_image_width > imv_image_height)
+				if (imv_img_width > imv_img_height)
 				{
 					while (true)
 					{
-						if ((double)imv_image_height * ideal_zoom_size < 225.1)
+						if ((double)imv_img_height * ideal_zoom_size < 225.1)
 							break;
 						else
 							ideal_zoom_size -= 0.0001;
@@ -543,7 +576,7 @@ void Imv_img_parse_thread(void* arg)
 				imv_img_pos_y = 13.5;
 			}
 			log_num = Log_log_save(imv_img_parse_thread_string, "APT_SetAppCpuTimeLimit()...", 1234567890, false);
-			result.code = APT_SetAppCpuTimeLimit(30);
+			result.code = APT_SetAppCpuTimeLimit(5);
 			if (result.code == 0)
 				Log_log_add(log_num, Err_query_template_summary(0), result.code, false);
 			else
@@ -558,14 +591,6 @@ void Imv_img_parse_thread(void* arg)
 			usleep(INACTIW_THREAD_SLEEP_TIME);
 	}
 
-	for (int i = 0; i < 64; i++)
-	{
-		linearFree(c3d_cache_tex[i]->data);
-		linearFree(c3d_cache_tex[i]);
-		linearFree(c3d_cache_subtex[i]);
-		c3d_cache_tex[i]->data = NULL;
-		imv_enable[i] = false;
-	}
 	free(stb_image);
 	stb_image = NULL;
 
@@ -576,7 +601,6 @@ void Imv_img_parse_thread(void* arg)
 void Imv_img_load_thread(void* arg)
 {
 	Log_log_save(imv_img_load_thread_string, "Thread started.", 1234567890, false);
-	u8* fs_buffer;
 	u32 read_size;
 	int log_num;
 	FS_Archive fs_archive = 0;
@@ -587,8 +611,11 @@ void Imv_img_load_thread(void* arg)
 	{
 		if (imv_img_load_request || imv_img_load_and_parse_request)
 		{
-			fs_buffer = (u8*)malloc(imv_img_fs_buffer_size);
-			if (fs_buffer == NULL)
+			free(imv_img_buffer);
+			imv_img_buffer = NULL;
+		
+			imv_img_buffer = (u8*)malloc(imv_max_buffer_size);
+			if (imv_img_buffer == NULL)
 			{
 				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), imv_img_load_thread_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
@@ -597,13 +624,12 @@ void Imv_img_load_thread(void* arg)
 			else
 			{
 				log_num = Log_log_save(imv_img_load_thread_string, "File_load_from_file()...", 1234567890, false);
-				result = File_load_from_file(imv_img_load_file_name, fs_buffer, imv_img_fs_buffer_size, &read_size, imv_img_load_dir_name, fs_handle, fs_archive);
+				result = File_load_from_file(imv_img_load_file_name, imv_img_buffer, imv_max_buffer_size, &read_size, imv_img_load_dir_name, fs_handle, fs_archive);
 				Log_log_add(log_num, result.string, result.code, false);
 
 				if (result.code == 0)
 				{
-					imv_image_size = read_size;
-					memcpy(imv_image_buffer, fs_buffer, imv_image_size);
+					imv_img_size = read_size;
 					if (imv_img_load_and_parse_request)
 						imv_img_parse_request = true;
 				}
@@ -614,8 +640,6 @@ void Imv_img_load_thread(void* arg)
 				}
 			}
 
-			free(fs_buffer);
-			fs_buffer = NULL;
 			if (imv_img_load_and_parse_request)
 				imv_img_load_and_parse_request = false;
 			else if (imv_img_load_request)
@@ -634,7 +658,6 @@ void Imv_img_load_thread(void* arg)
 void Imv_img_dl_thread(void* arg)
 {
 	Log_log_save(imv_img_dl_thread_string, "Thread started.", 1234567890, false);
-	u8* httpc_buffer;
 	u32 dl_size;
 	u32 status_code;
 	int log_num;
@@ -653,8 +676,12 @@ void Imv_img_dl_thread(void* arg)
 			status_code = 0;
 			cut_pos[0] = std::string::npos;
 			cut_pos[1] = std::string::npos;
-			httpc_buffer = (u8*)malloc(imv_img_httpc_buffer_size);
-			if (httpc_buffer == NULL)
+
+			free(imv_img_buffer);
+			imv_img_buffer = NULL;
+
+			imv_img_buffer = (u8*)malloc(imv_max_buffer_size);
+			if (imv_img_buffer == NULL)
 			{
 				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), imv_img_dl_thread_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
@@ -664,13 +691,12 @@ void Imv_img_dl_thread(void* arg)
 			{
 				file_name = imv_img_url;
 				log_num = Log_log_save(imv_img_dl_thread_string, "Httpc_dl_data()....", 1234567890, false);
-				result = Httpc_dl_data(imv_img_url, httpc_buffer, imv_img_httpc_buffer_size, &dl_size, &status_code, true, &last_url, false, 100, IMV_HTTP_PORT0);
+				result = Httpc_dl_data(imv_img_url, imv_img_buffer, imv_max_buffer_size, &dl_size, &status_code, true, &last_url, false, 100, IMV_HTTP_PORT0);
 				Log_log_add(log_num, result.string + std::to_string(dl_size / 1024) + "KB ", result.code, false);
 				imv_img_dl_progress = Httpc_query_dl_progress(IMV_HTTP_PORT0);
 				if (result.code == 0)
 				{
-					imv_image_size = dl_size;
-					memcpy(imv_image_buffer, httpc_buffer, imv_image_size);
+					imv_img_size = dl_size;
 					if (imv_img_dl_and_parse_request)
 						imv_img_parse_request = true;
 
@@ -687,7 +713,7 @@ void Imv_img_dl_thread(void* arg)
 						file_name = file_name.substr(0, 33);
 
 					log_num = Log_log_save(imv_img_dl_thread_string, "File_save_to_file()...", 1234567890, false);
-					result = File_save_to_file(file_name + ".jpg", imv_image_buffer, (int)dl_size, "/Line/images/", true, fs_handle, fs_archive);
+					result = File_save_to_file(file_name + ".jpg", imv_img_buffer, (int)dl_size, "/Line/images/", true, fs_handle, fs_archive);
 					Log_log_add(log_num, result.string, result.code, false);
 				}
 				else
@@ -697,8 +723,6 @@ void Imv_img_dl_thread(void* arg)
 				}
 			}
 
-			free(httpc_buffer);
-			httpc_buffer = NULL;
 			if (imv_img_dl_and_parse_request)
 				imv_img_dl_and_parse_request = false;
 			else if (imv_img_dl_request)
@@ -716,7 +740,7 @@ void Imv_img_dl_thread(void* arg)
 
 void Imv_exit(void)
 {
-	Log_log_save(imv_exit_string, "Exiting...", 1234567890, DEBUG);
+	Log_log_save(imv_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
@@ -731,7 +755,7 @@ void Imv_exit(void)
 
 	for(int i = 0; i < 3; i++)
 	{
-		log_num = Log_log_save(imv_exit_string, "threadJoin()...", 1234567890, DEBUG);
+		log_num = Log_log_save(imv_exit_string, "threadJoin()...", 1234567890, FORCE_DEBUG);
 
 		if(i == 0)
 			result.code = threadJoin(imv_parse_img_thread, time_out);
@@ -741,11 +765,11 @@ void Imv_exit(void)
 			result.code = threadJoin(imv_load_img_thread, time_out);
 
 		if (result.code == 0)
-			Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+			Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 		else
 		{
 			failed = true;
-			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
 		}
 	}
 
@@ -753,11 +777,22 @@ void Imv_exit(void)
 	threadFree(imv_dl_img_thread);
 	threadFree(imv_load_img_thread);
 
-	free(imv_image_buffer);
-	imv_image_buffer = NULL;
+	for (int i = 0; i < 64; i++)
+	{
+		imv_enable[i] = false;
+		linearFree(imv_c2d_image[i].tex->data);
+		linearFree(imv_c2d_image[i].tex);
+		linearFree((void*)imv_c2d_image[i].subtex);
+		imv_c2d_image[i].tex->data = NULL;
+		imv_c2d_image[i].tex = NULL;
+		imv_c2d_image[i].subtex = NULL;
+	}
+
+	free(imv_img_buffer);
+	imv_img_buffer = NULL;
 
 	if (failed)
-		Log_log_save(imv_exit_string, "[Warn] Some function returned error.", 1234567890, DEBUG);
+		Log_log_save(imv_exit_string, "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
 
-	Log_log_save(imv_exit_string, "Exited.", 1234567890, DEBUG);
+	Log_log_save(imv_exit_string, "Exited.", 1234567890, FORCE_DEBUG);
 }

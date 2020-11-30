@@ -7,6 +7,10 @@
 #include "file.hpp"
 #include "explorer.hpp"
 #include "log.hpp"
+#include "hid.hpp"
+#include "draw.hpp"
+#include "error.hpp"
+#include "types.hpp"
 
 /*For draw*/
 int expl_pre_num_of_file = 0;
@@ -17,6 +21,8 @@ std::string expl_pre_current_patch = "/";
 std::string expl_pre_files[256];
 /*---------------------------------------------*/
 
+void (*expl_callback)(std::string, std::string);
+void (*expl_cancel_callback)(void);
 bool expl_read_dir_thread_run = false;
 bool expl_read_dir_request = false;
 int expl_num_of_file = 0;
@@ -86,14 +92,6 @@ bool Expl_query_operation_flag(int operation_num)
 		return false;
 }
 
-double Expl_query_selected_num(int item_num)
-{
-	if (item_num == EXPL_SELECTED_FILE_NUM)
-		return expl_selected_file_num;
-	else
-		return -1.0;
-}
-
 int Expl_query_size(int file_num)
 {
 	if (file_num >= 0 && file_num <= 255)
@@ -110,9 +108,14 @@ std::string Expl_query_type(int file_num)
 		return "";
 }
 
-double Expl_query_view_offset_y(void)
+void Expl_set_callback(void (*callback)(std::string, std::string))
 {
-	return expl_view_offset_y;
+  expl_callback = callback;
+}
+
+void Expl_set_cancel_callback(void (*callback)(void))
+{
+  expl_cancel_callback = callback;
 }
 
 void Expl_set_current_patch(std::string patch)
@@ -126,17 +129,6 @@ void Expl_set_operation_flag(int operation_num, bool flag)
 		expl_read_dir_request = flag;
 }
 
-void Expl_set_selected_num(int item_num, double value)
-{
-	if (item_num == EXPL_SELECTED_FILE_NUM)
-		expl_selected_file_num = value;
-}
-
-void Expl_set_view_offset_y(double value)
-{
-	expl_view_offset_y = value;
-}
-
 void Expl_init(void)
 {
 	expl_read_dir_thread_run = true;
@@ -148,6 +140,140 @@ void Expl_exit(void)
 	expl_read_dir_thread_run = false;
 	threadJoin(expl_read_dir_thread, 10000000000);
 	threadFree(expl_read_dir_thread);
+}
+
+void Expl_draw(std::string msg)
+{
+  double red;
+
+  Draw_texture(Square_image, aqua_tint, 0, 10.0, 20.0, 300.0, 190.0);
+  Draw(msg, 0, 12.5, 185.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
+  Draw(expl_current_patch, 0, 12.5, 195.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+  for (int i = 0; i < 16; i++)
+  {
+    if (i == (int)expl_selected_file_num)
+      red = 1.0;
+    else
+      red = 0.0;
+
+    Draw(expl_files[i + (int)expl_view_offset_y] + "(" + std::to_string(expl_size[i + (int)expl_view_offset_y] / 1024.0 / 1024.0).substr(0, 4) + "MB) (" + expl_type[i + (int)expl_view_offset_y] + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, red, 0.0, 0.0, 1.0);
+  }
+}
+
+void Expl_main(void)
+{
+  size_t cut_pos;
+  Hid_info key;
+	Hid_query_key_state(&key);
+  Hid_key_flag_reset();
+
+  if (Err_query_error_show_flag())
+  {
+    if (key.p_touch && key.touch_x >= 150 && key.touch_x <= 170 && key.touch_y >= 150 && key.touch_y < 170)
+      Err_set_error_show_flag(false);
+  }
+  else
+  {
+    if (key.p_y)
+      expl_cancel_callback();
+    else if (!expl_read_dir_request)
+    {
+      for (int i = 0; i < 16; i++)
+      {
+        if (key.p_a || (key.p_touch && key.touch_x >= 10 && key.touch_x <= 299 && key.touch_y >= 20 + (i * 10) && key.touch_y <= 30 + (i * 10)))
+        {
+          if (key.p_a || i == (int)expl_selected_file_num)
+          {
+            if (((int)expl_view_offset_y + (int)expl_selected_file_num) == 0 && !(Expl_query_current_patch() == "/"))
+            {
+              expl_current_patch = expl_current_patch.substr(0, expl_current_patch.length() - 1);
+              cut_pos = expl_current_patch.find_last_of("/");
+              if (!(cut_pos == std::string::npos))
+                expl_current_patch = expl_current_patch.substr(0, cut_pos + 1);
+
+              expl_view_offset_y = 0.0;
+              expl_selected_file_num = 0.0;
+              expl_read_dir_request = true;
+            }
+            else if (expl_type[(int)expl_view_offset_y + (int)expl_selected_file_num] == "dir")
+            {
+              expl_current_patch = expl_current_patch + expl_files[(int)expl_selected_file_num + (int)expl_view_offset_y] + "/";
+              expl_view_offset_y = 0.0;
+              expl_selected_file_num = 0.0;
+              expl_read_dir_request = true;
+            }
+            else
+              expl_callback(Expl_query_file_name((int)expl_selected_file_num + (int)expl_view_offset_y), expl_current_patch);
+
+            break;
+          }
+          else
+          {
+            if (expl_num_of_file > (i + (int)expl_view_offset_y))
+              expl_selected_file_num = i;
+          }
+        }
+      }
+      if (key.p_b)
+      {
+        if (expl_current_patch != "/")
+        {
+          expl_current_patch = expl_current_patch.substr(0, expl_current_patch.length() - 1);
+          cut_pos = expl_current_patch.find_last_of("/");
+          if (!(cut_pos == std::string::npos))
+            expl_current_patch = expl_current_patch.substr(0, cut_pos + 1);
+
+          expl_view_offset_y = 0.0;
+          expl_selected_file_num = 0.0;
+          expl_read_dir_request = true;
+        }
+      }
+      else if (key.p_d_down || key.h_d_down || key.p_d_right || key.h_d_right)
+      {
+        if ((expl_selected_file_num + 1.0) < 16.0 && (expl_selected_file_num + 1.0) < expl_num_of_file)
+        {
+          if (key.p_d_down || key.h_d_down)
+            expl_selected_file_num += 0.125 * key.count;
+          else if (key.p_d_right || key.h_d_right)
+            expl_selected_file_num += 1.0 * key.count;
+        }
+        else if ((expl_view_offset_y + expl_selected_file_num + 1.0) < expl_num_of_file)
+        {
+          if (key.p_d_down || key.h_d_down)
+            expl_view_offset_y += 0.125 * key.count;
+          else if (key.p_d_right || key.h_d_right)
+            expl_view_offset_y += 1.0 * key.count;
+        }
+      }
+      else if (key.p_d_up || key.h_d_up || key.p_d_left || key.h_d_left)
+      {
+        if ((expl_selected_file_num - 1.0) > -1.0)
+        {
+          if (key.p_d_up || key.h_d_up)
+            expl_selected_file_num -= 0.125 * key.count;
+          else if (key.p_d_left || key.h_d_left)
+            expl_selected_file_num -= 1.0 * key.count;
+        }
+        else if ((expl_view_offset_y - 1.0) > -1.0)
+        {
+          if (key.p_d_up || key.h_d_up)
+            expl_view_offset_y -= 0.125 * key.count;
+          else if (key.p_d_left || key.h_d_left)
+            expl_view_offset_y -= 1.0 * key.count;
+        }
+      }
+      if(expl_selected_file_num <= -1)
+        expl_selected_file_num = 0;
+      else if(expl_selected_file_num >= 16)
+        expl_selected_file_num = 15;
+      else if(expl_selected_file_num >= expl_num_of_file)
+        expl_selected_file_num = expl_num_of_file - 1;
+      if(expl_view_offset_y <= -1)
+        expl_view_offset_y = 0;
+      else if(expl_view_offset_y + expl_selected_file_num >= expl_num_of_file)
+        expl_view_offset_y = expl_num_of_file - 16;
+    }
+  }
 }
 
 void Expl_read_dir_thread(void* arg)

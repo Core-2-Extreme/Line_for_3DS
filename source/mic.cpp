@@ -14,6 +14,9 @@
 #include "setting_menu.hpp"
 #include "mic.hpp"
 #include "music_player.hpp"
+/*extern "C" {
+#include <libavcodec/avcodec.h>
+}*/
 
 /*For draw*/
 bool mic_need_reflesh = false;
@@ -49,28 +52,10 @@ bool Mic_query_running_flag(void)
 	return mic_main_run;
 }
 
-bool Mic_query_operation_flag(int operation_num)
-{
-	if (operation_num == MIC_START_RECORDING_REQUEST)
-		return mic_start_record_request;
-	else if (operation_num == MIC_STOP_RECORDING_REQUEST)
-		return mic_stop_record_request;
-	else
-		return false;
-}
-
 void Mic_set_msg(int msg_num, std::string msg)
 {
 	if (msg_num >= 0 && msg_num <= MIC_NUM_OF_MSG)
 		mic_msg[msg_num] = msg;
-}
-
-void Mic_set_operation_flag(int operation_num, bool flag)
-{
-	if (operation_num == MIC_START_RECORDING_REQUEST)
-		mic_start_record_request = flag;
-	else if (operation_num == MIC_STOP_RECORDING_REQUEST)
-		mic_stop_record_request = flag;
 }
 
 void Mic_resume(void)
@@ -92,6 +77,7 @@ void Mic_record_thread(void* arg)
 {
 	Log_log_save(mic_record_thread_string, "Thread started.", 1234567890, false);
 	int log_num;
+	//int ffmpeg_result = 0;
 	int* chunk_size = new int (0);
 	char riff[5] = "RIFF";
 	char wave[5] = "WAVE";
@@ -107,6 +93,11 @@ void Mic_record_thread(void* arg)
 	FS_Archive fs_archive = 0;
 	Handle fs_handle = 0;
 	Result_with_string result;
+	/*AVPacket *packet = NULL;
+	AVFrame *raw_data = NULL;
+	AVCodecContext *context = NULL;
+	AVCodec *codec = NULL;*/
+
 	File_save_to_file(".", NULL, 0, "/Line/sound/", true, fs_handle, fs_archive);
 	mic_max_time = mic_buffer_size;
 
@@ -156,6 +147,56 @@ void Mic_record_thread(void* arg)
 						log_num = Log_log_save(mic_record_thread_string, "MICU_StopSampling()...", 1234567890, false);
 						result.code = MICU_StopSampling();
 						Log_log_add(log_num, "", result.code, false);
+
+						/*codec = avcodec_find_encoder(AV_CODEC_ID_MP2);
+						if(!codec)
+							log_num = Log_log_save(mic_record_thread_string, "avcodec_find_encoder()... [Error]", 1234567890, false);
+	
+						context = avcodec_alloc_context3(codec);
+						if(!context)
+							log_num = Log_log_save(mic_record_thread_string, "avcodec_alloc_context3()... [Error]", 1234567890, false);
+
+						context->bit_rate = 96000;//261760;
+						context->sample_fmt = AV_SAMPLE_FMT_S16;
+						context->sample_rate = 16000;
+						context->channel_layout = AV_CH_LAYOUT_MONO;
+						context->channels = av_get_channel_layout_nb_channels(context->channel_layout);
+						//context->profile = FF_PROFILE_AAC_MAIN;
+					    context->codec_type = AVMEDIA_TYPE_AUDIO;
+
+						for(int i = 0; i < 100; i++)
+						{
+							if(codec->supported_samplerates[i] != NULL)
+								Log_log_save("", std::to_string(codec->supported_samplerates[i]), 1234567890, false);
+							else
+								break;
+						}
+
+						ffmpeg_result = avcodec_open2(context, codec, NULL);
+						if(ffmpeg_result != 0)
+							log_num = Log_log_save(mic_record_thread_string, "avcodec_open2()... [Error]", ffmpeg_result, false);
+
+						packet = av_packet_alloc();
+						if(!packet)
+							log_num = Log_log_save(mic_record_thread_string, "av_packet_alloc()... [Error]", ffmpeg_result, false);
+
+					    raw_data = av_frame_alloc();
+						if(!raw_data)
+							log_num = Log_log_save(mic_record_thread_string, "av_frame_alloc()... [Error]", ffmpeg_result, false);
+						
+						raw_data->data[0] = fs_buffer;
+						raw_data->nb_samples = context->frame_size;
+						raw_data->format = context->sample_fmt;
+						raw_data->channel_layout = context->channel_layout;
+
+						ffmpeg_result = avcodec_send_frame(context, raw_data);
+						if(ffmpeg_result != 0)
+							log_num = Log_log_save(mic_record_thread_string, "avcodec_send_frame()... [Error]", ffmpeg_result, false);
+
+						ffmpeg_result = avcodec_receive_packet(context, packet);
+						if(ffmpeg_result != 0)
+							log_num = Log_log_save(mic_record_thread_string, "avcodec_receive_packet()... [Error]", ffmpeg_result, false);*/
+						
 						*chunk_size = (int)buffer_offset + 36;
 						memcpy((void*)header, (void*)riff, 0x4);
 						memcpy((void*)(header + 4), (void*)(chunk_size), 0x4);
@@ -207,7 +248,7 @@ void Mic_record_thread(void* arg)
 
 void Mic_exit(void)
 {
-	Log_log_save(mic_exit_string, "Exiting...", 1234567890, DEBUG);
+	Log_log_save(mic_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
@@ -220,14 +261,14 @@ void Mic_exit(void)
 	mic_start_record_request = false;
 
 	Draw_progress("[Mic] Exiting...");
-	log_num = Log_log_save(mic_exit_string, "threadJoin()0/0...", 1234567890, DEBUG);
+	log_num = Log_log_save(mic_exit_string, "threadJoin()0/0...", 1234567890, FORCE_DEBUG);
 	result.code = threadJoin(mic_record_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
 	}
 
 	threadFree(mic_record_thread);
@@ -237,12 +278,12 @@ void Mic_exit(void)
 	free(mic_buffer);
 
 	if (failed)
-		Log_log_save(mic_exit_string, "[Warn] Some function returned error.", 1234567890, DEBUG);
+		Log_log_save(mic_exit_string, "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
 }
 
 void Mic_init(void)
 {
-	Log_log_save(mic_init_string, "Initializing...", 1234567890, DEBUG);
+	Log_log_save(mic_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
 	bool failed = false;
 	int log_num;
 	Result_with_string result;
@@ -258,17 +299,17 @@ void Mic_init(void)
 	Draw_progress("0/1 [Mic] Initializing mic...");
 	if (!failed)
 	{
-		log_num = Log_log_save(mic_init_string, "micInit()...", 1234567890, DEBUG);
+		log_num = Log_log_save(mic_init_string, "micInit()...", 1234567890, FORCE_DEBUG);
 		result.code = micInit(mic_buffer, mic_buffer_size);
-		Log_log_add(log_num, result.string, result.code, DEBUG);
+		Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 		if (result.code == 0)
-			Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+			Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 		else
 		{
 			failed = true;
 			Err_set_error_message("micInit() failed.", "", mic_init_string, result.code);
 			Err_set_error_show_flag(true);
-			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
 		}
 	}
 
@@ -276,12 +317,12 @@ void Mic_init(void)
 	if (!failed)
 	{
 		mic_record_thread_run = true;
-		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, -1, false);
+		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, 1, false);
 	}
 
 	Mic_resume();
 	mic_already_init = true;
-	Log_log_save(mic_init_string, "Initialized", 1234567890, DEBUG);
+	Log_log_save(mic_init_string, "Initialized", 1234567890, FORCE_DEBUG);
 }
 
 void Mic_main(void)
@@ -292,6 +333,7 @@ void Mic_main(void)
 	float text_alpha;
 	double draw_x;
 	double draw_y;
+	Hid_info key;
 
 	if (Sem_query_settings(SEM_NIGHT_MODE))
 	{
@@ -318,8 +360,12 @@ void Mic_main(void)
 		mic_need_reflesh = true;
 	}
 
+	Hid_query_key_state(&key);
+	Log_main();
 	if(Draw_query_need_reflesh() || !Sem_query_settings(SEM_ECO_MODE))
 		mic_need_reflesh = true;
+
+	Hid_key_flag_reset();
 
 	if(mic_need_reflesh)
 	{
@@ -349,7 +395,7 @@ void Mic_main(void)
 			Draw(mic_msg[i], 0, (draw_x + 2.5), draw_y + 20.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			draw_x += 60.0;
 		}
-		Draw(Sem_convert_seconds_to_time(Mup_calc_wav_length(mic_record_time, 16360 * 16)) + " / " + Sem_convert_seconds_to_time(Mup_calc_wav_length(mic_max_time, 16360 * 16)), 0, 12.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(Sem_convert_seconds_to_time((double)mic_record_time / (16360 / 8.0)) + " / " + Sem_convert_seconds_to_time((double)mic_max_time / (16360 / 8.0)), 0, 12.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, aqua_tint, 0, 10.0, 120.0, 300.0, 5.0);
 		if(mic_max_time != 0.0)
 			Draw_texture(Square_image, red_tint, 0, 10.0, 120.0, 300.0 * (mic_record_time / mic_max_time), 5.0);
@@ -362,4 +408,19 @@ void Mic_main(void)
 	}
 	else
 		gspWaitForVBlank();
+
+	if (Err_query_error_show_flag())
+	{
+		if (key.p_touch && key.touch_x >= 150 && key.touch_x <= 170 && key.touch_y >= 150 && key.touch_y < 170)
+			Err_set_error_show_flag(false);
+	}
+	else
+	{
+		if (key.p_start || (key.p_touch && key.touch_x >= 110	&& key.touch_x <= 230 && key.touch_y >= 220 && key.touch_y <= 240))
+			Mic_suspend();
+		else if (key.p_a || (key.p_touch && key.touch_x >= 105 && key.touch_x <= 154 && key.touch_y >= 60 && key.touch_y <= 109))
+			mic_start_record_request = true;
+		else if (key.p_b || (key.p_touch && key.touch_x >= 165 && key.touch_x <= 214 && key.touch_y >= 60 && key.touch_y <= 109))
+			mic_stop_record_request = true;
+	}
 }

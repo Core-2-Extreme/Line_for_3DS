@@ -35,7 +35,7 @@ std::string spt_spt_thread_string = "Spt/Spt thread";
 std::string spt_timer_thread_string = "Spt/Timer thread";
 std::string spt_init_string = "Spt/Init";
 std::string spt_exit_string = "Spt/Exit";
-std::string spt_ver = "v1.0.5";
+std::string spt_ver = "v1.0.6";
 
 Thread spt_spt_thread, spt_timer_thread;
 
@@ -67,16 +67,6 @@ void Spt_set_msg(int msg_num, std::string msg)
 {
 	if (msg_num >= 0 && msg_num < SPT_NUM_OF_MSG)
 		spt_msg[msg_num] = msg;
-}
-
-void Spt_set_spt_data_size(int size)
-{
-	spt_data_size = size;
-}
-
-void Spt_start_request(void)
-{
-	spt_start_request = true;
 }
 
 void Spt_reset_data(void)
@@ -115,22 +105,22 @@ void Spt_suspend(void)
 
 void Spt_init(void)
 {
-	Log_log_save(spt_init_string, "Initializing...", 1234567890, DEBUG);
+	Log_log_save(spt_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
 
 	Draw_progress("0/0 [Spt] Starting threads...");
 	spt_thread_run = true;
-	spt_spt_thread = threadCreate(Spt_spt_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
-	spt_timer_thread = threadCreate(Spt_timer_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, -1, false);
+	spt_spt_thread = threadCreate(Spt_spt_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
+	spt_timer_thread = threadCreate(Spt_timer_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, 1, false);
 
  	Spt_reset_data();
 	Spt_resume();
 	spt_already_init = true;
-	Log_log_save(spt_init_string, "Initialized.", 1234567890, DEBUG);
+	Log_log_save(spt_init_string, "Initialized.", 1234567890, FORCE_DEBUG);
 }
 
 void Spt_exit(void)
 {
-	Log_log_save(spt_exit_string, "Exiting...", 1234567890, DEBUG);
+	Log_log_save(spt_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
@@ -142,56 +132,54 @@ void Spt_exit(void)
 	spt_thread_run = false;
 	spt_thread_suspend = false;
 
-	log_num = Log_log_save(spt_exit_string, "threadJoin()0/1...", 1234567890, DEBUG);
+	log_num = Log_log_save(spt_exit_string, "threadJoin()0/1...", 1234567890, FORCE_DEBUG);
 	result.code = threadJoin(spt_spt_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
 	}
 
-	log_num = Log_log_save(spt_exit_string, "threadJoin()1/1...", 1234567890, DEBUG);
+	log_num = Log_log_save(spt_exit_string, "threadJoin()1/1...", 1234567890, FORCE_DEBUG);
 	result.code = threadJoin(spt_timer_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
 	}
 
 	threadFree(spt_spt_thread);
 	threadFree(spt_timer_thread);
 
 	if (failed)
-		Log_log_save(spt_exit_string, "[Warn] Some function returned error.", 1234567890, DEBUG);
+		Log_log_save(spt_exit_string, "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
 
-	Log_log_save(spt_exit_string, "Exited.", 1234567890, DEBUG);
+	Log_log_save(spt_exit_string, "Exited.", 1234567890, FORCE_DEBUG);
 }
 
 void Spt_main(void)
 {
-	double size[3] = { 0.75, 0.75, 1.0, };
-	float text_red;
-	float text_green;
-	float text_blue;
-	float text_alpha;
+	double size[3] = { 0.5, 0.5, 0.75, };
+	float r[2], g[2], b[2], a[2];
+	Hid_info key;
 
 	if (Sem_query_settings(SEM_NIGHT_MODE))
 	{
-		text_red = 1.0;
-		text_green = 1.0;
-		text_blue = 1.0;
-		text_alpha = 0.75;
+		r[0] = 1.0;
+		g[0] = 1.0;
+		b[0] = 1.0;
+		a[0] = 0.75;
 	}
 	else
 	{
-		text_red = 0.0;
-		text_green = 0.0;
-		text_blue = 0.0;
-		text_alpha = 1.0;
+		r[0] = 0.0;
+		g[0] = 0.0;
+		b[0] = 0.0;
+		a[0] = 1.0;
 	}
 
 	spt_text[0] = spt_msg[0] + std::to_string(spt_total_dl_size / (1024 * 1024)) + "MB(" + std::to_string(spt_total_dl_size / 1024) + "KB)";
@@ -217,8 +205,12 @@ void Spt_main(void)
 		spt_need_reflesh = true;
 	}
 
+	Hid_query_key_state(&key);
+	Log_main();
 	if(Draw_query_need_reflesh() || !Sem_query_settings(SEM_ECO_MODE))
 		spt_need_reflesh = true;
+
+	Hid_key_flag_reset();
 
 	if(spt_need_reflesh)
 	{
@@ -243,14 +235,28 @@ void Spt_main(void)
 		for (int i = 0; i < 7; i++)
 		{
 			Draw_texture(Square_image, yellow_tint, 0, 100.0, 40.0 + (i * 20.0), 130.0, 20.0);
-
 			if (spt_data_size == i)
-				Draw(spt_msg[4 + i], 0, 125.0, 40.0 + (i * 20.0), 0.5, 0.5, 1.0, 0.0, 0.5, 1.0);
+			{
+				r[1] = 1.0;
+				g[1] = 0.0;
+				b[1] = 0.5;
+			}
 			else
-				Draw(spt_msg[4 + i], 0, 125.0, 40.0 + (i * 20.0), 0.5, 0.5, 0.0, 1.0, 1.0, 1.0);
+			{
+				r[1] = 0.0;
+				g[1] = 1.0;
+				b[1] = 1.0;
+			}
+
+			if(spt_start_request && spt_data_size != i)
+				a[1] = 0.25;
+			else
+				a[1] = 1.0;
+
+			Draw(spt_msg[4 + i], 0, 125.0, 40.0 + (i * 20.0), 0.5, 0.5, r[1], g[1], b[1], a[1]);
 		}
 		Draw_texture(Square_image, weak_red_tint, 0, 150.0, 190.0 , 40.0, 20.0);
-		Draw(spt_msg[11], 0, 150.0, 190.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(spt_msg[11], 0, 150.0, 190.0, 0.5, 0.5, r[0], g[0], b[0], a[0]);
 
 		Draw_bot_ui();
 		Draw_touch_pos();
@@ -260,6 +266,30 @@ void Spt_main(void)
 	}
 	else
 		gspWaitForVBlank();
+
+	if (Err_query_error_show_flag())
+	{
+		if (key.p_touch && key.touch_x >= 150 && key.touch_x <= 170 && key.touch_y >= 150 && key.touch_y < 170)
+			Err_set_error_show_flag(false);
+	}
+	else
+	{
+		if (key.p_start || (key.p_touch && key.touch_x >= 110 && key.touch_x <= 230 && key.touch_y >= 220 && key.touch_y <= 240))
+			Spt_suspend();
+		else if (key.p_a || (key.p_touch && key.touch_x >= 150 && key.touch_x <= 189 && key.touch_y >= 190 && key.touch_y <= 209))
+			spt_start_request = true;
+		else if (key.p_touch)
+		{
+			for (int i = 0; i < 7; i++)
+			{
+				if (!spt_start_request && key.touch_x >= 100 && key.touch_x <= 230 && key.touch_y >= 40 + (i * 20) && key.touch_y <= 59 + (i * 20))
+				{
+					spt_data_size = i;
+					break;
+				}
+			}
+		}
+	}
 }
 
 void Spt_timer_thread(void* arg)
@@ -301,10 +331,10 @@ void Spt_spt_thread(void* arg)
 {
 	Log_log_save(spt_spt_thread_string, "Thread started.", 1234567890, false);
 
-	u8* httpc_buffer;
-	u32 dl_size;
-	u32 status_code;
-	int log_num;
+	u8* httpc_buffer = NULL;
+	u32 dl_size = 0;
+	u32 status_code = 0;
+	int log_num = 0;
 	std::string last_url;
 	std::string url[8] = { "http://v2.musen-lan.com/flash/test_001.swf", "http://v2.musen-lan.com/flash/test_002.swf", "http://v2.musen-lan.com/flash/test_004.swf", "http://v2.musen-lan.com/flash/test_008.swf", "http://v2.musen-lan.com/flash/test_016.swf", "http://v2.musen-lan.com/flash/test_032.swf", "http://v2.musen-lan.com/flash/test_064.swf", "http://v2.musen-lan.com/flash/test_128.swf" };
 	Result_with_string result;

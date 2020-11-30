@@ -13,30 +13,34 @@
 #include "setting_menu.hpp"
 #include "explorer.hpp"
 #include "menu.hpp"
+#include "file.hpp"
 
 bool draw_do_not_draw = false;
 bool draw_pre_battery_charge = false;
 bool draw_pre_log_show = false;
+bool draw_pre_error_show = false;
+bool draw_pre_p_touch_state = false;
+bool draw_pre_h_touch_state = false;
+int draw_pre_touch_x = 0;
+int draw_pre_touch_y = 0;
 int draw_pre_battery_level_raw = -1;
-int draw_pre_touch_state = false;
 int draw_pre_wifi_state = -1;
+Hid_info draw_pre_key;
 int draw_fps = 0;
-int draw_pre_touch_pos_x = -1;
-int draw_pre_touch_pos_y = -1;
 double draw_frametime = 0.0;
 std::string draw_pre_battery_level = "";
 std::string draw_pre_status = "";
-std::string draw_pre_debug_info = "";
-std::string screen_clear_text = "\u25a0";//��
+std::string draw_part_text[2][1024];
 C2D_Font system_fonts[4];
-C3D_RenderTarget* Screen_top;
-C3D_RenderTarget* Screen_bot;
+C3D_RenderTarget* screen[3];
 C2D_SpriteSheet sheet_texture[128];
 C2D_Image Wifi_icon_image[9];
 C2D_Image Battery_level_icon_image[21];
 C2D_Image Battery_charge_icon_image[1];
 C2D_Image Square_image[1];
 C2D_Image ui_image[4];
+std::string draw_japanese_kanji[3000];
+std::string draw_simple_chinese[6300];
 C2D_ImageTint texture_tint, dammy_tint, black_or_white_tint, white_or_black_tint, white_tint, weak_white_tint, red_tint, weak_red_tint, aqua_tint, weak_aqua_tint, yellow_tint, weak_yellow_tint, blue_tint, weak_blue_tint, black_tint, weak_black_tint;
 TickCounter draw_frame_time_timer;
 
@@ -121,16 +125,36 @@ void Draw_rgb565_to_abgr888_rgb888(u8* rgb565_buffer, u8* rgba8888_buffer, u32 w
 	}
 }
 
-Result_with_string Draw_c3dtex_to_c2dimage(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_subtex, u8* buf, u32 size, u32 width, u32 height, int parse_start_width, int parse_start_height, int tex_size_x, int tex_size_y, GPU_TEXCOLOR format)
+int Draw_convert_to_pos(int height, int width, int img_height, int img_width, int pixel_size)
+{
+	int pos;
+	if(height <= 0)
+	 	pos = img_width;
+	else
+		pos = img_width * height;
+
+	pos -= img_width - width;
+	return pos * pixel_size;
+}
+
+Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_subtex, u8* buf, u32 size, u32 width, u32 height, int pixel_size, int parse_start_width, int parse_start_height, int tex_size_x, int tex_size_y, GPU_TEXCOLOR format)
 {
 	bool init_result = false;
 	u32 x_max;
 	u32 y_max;
+	int increase_list_x[4] = { 4, 12, 4, 44, };
+	int increase_list_y[8] = { 2, 6, 2, 22, 2, 6, 2, tex_size_x * 8 - 42, };
+	int count[2] = { 0, 0, };
+	int c3d_pos = 0;
+	int c3d_offset = 0;
 	Result_with_string result;
+	for(int i = 0; i < 4; i++)
+		increase_list_x[i] *= pixel_size;
+	for(int i = 0; i < 8; i++)
+		increase_list_y[i] *= pixel_size;
 
 	u32 subtex_width = width;
 	u32 subtex_height = height;
-	u32 pixel_size = (size / width / height);
 
 	if (subtex_width > (u32)tex_size_x)
 		subtex_width = (u32)tex_size_x;
@@ -144,21 +168,12 @@ Result_with_string Draw_c3dtex_to_c2dimage(C3D_Tex* c3d_tex, Tex3DS_SubTexture* 
 		return result;
 	}
 
-	/*if ((linearSpaceFree() / 1024.0 / 1024.0) < 1.0)
-	{
-		//init_result = Moded_C3D_TexInitWithParams(c3d_tex, NULL, (C3D_TexInitParams) { (u16)tex_size, (u16)tex_size, 0, format, GPU_TEX_2D, false });
-		result.code = OUT_OF_LINEAR_MEMORY;
-		result.string = "[Error] C3D_TexInit aborted. ";
-		return result;
-	}
-	else*/
-
 	init_result = C3D_TexInit(c3d_tex, (u16)tex_size_x, (u16)tex_size_y, format);
-
 	if (!init_result)
 	{
 		result.code = OUT_OF_LINEAR_MEMORY;
-		result.string = "[Error] C3D_TexInit failed. ";
+		result.string = Err_query_template_summary(OUT_OF_LINEAR_MEMORY);
+		result.error_description = Err_query_template_detail(OUT_OF_LINEAR_MEMORY);
 		return result;
 	}
 
@@ -169,8 +184,8 @@ Result_with_string Draw_c3dtex_to_c2dimage(C3D_Tex* c3d_tex, Tex3DS_SubTexture* 
 	c3d_subtex->right = subtex_width / (float)tex_size_x;
 	c3d_subtex->bottom = 1.0 - subtex_height / (float)tex_size_y;
 
-	memset(c3d_tex->data, 0x0, c3d_tex->size);
-	C3D_TexSetFilter(c3d_tex, GPU_NEAREST, GPU_NEAREST);
+	memset(c3d_tex->data, 0xFF, tex_size_x * tex_size_y * pixel_size);
+	C3D_TexSetFilter(c3d_tex, GPU_LINEAR, GPU_LINEAR);
 
 	y_max = height - (u32)parse_start_height;
 	x_max = width - (u32)parse_start_width;
@@ -179,22 +194,78 @@ Result_with_string Draw_c3dtex_to_c2dimage(C3D_Tex* c3d_tex, Tex3DS_SubTexture* 
 	if ((u32)tex_size_x < x_max)
 		x_max = tex_size_x;
 
-	for (u32 y = 0; y <= y_max; y++)
+
+	//memcpy((u8*)c3d_tex->data, (u8*)buf, height * width * pixel_size);
+	/*int pos = 0;
+	for(int i = 1; i <= (int)height; i++)
 	{
-		for (u32 x = 0; x <= x_max; x++)
+		for(int k = 1; k <= (int)width; k++)
+		{
+			memcpy(&((u8*)c3d_tex->data)[pos], &((u8*)buf)[pos], pixel_size);
+			pos += 4;
+			usleep(100000);
+		}
+	}*/
+	//int increase_list_x[4] = { 4, 12, 4, 44, };
+//	int increase_list_y[8] = { 2, 6, 2, 22, 2, 6, 2, tex_size_x * 8 - 42, };
+
+	for(u32 k = 0; k < y_max; k++)
+	{
+		for(u32 i = 0; i < x_max; i += 2)
+		{
+			memcpy(&((u8*)c3d_tex->data)[c3d_pos + c3d_offset], &((u8*)buf)[Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size)], pixel_size * 2);
+			c3d_pos += increase_list_x[count[0]];
+			count[0]++;
+			if(count[0] >= 4)
+				count[0] = 0;
+		}
+		count[0] = 0;
+		c3d_pos = 0;
+		c3d_offset += increase_list_y[count[1]];
+		count[1]++;
+		if(count[1] >= 8)
+			count[1] = 0;
+	}
+
+/*
+	for(u32 k = 0; k < y_max; k++)
+	{
+		for(u32 i = 0; i < x_max; i += 2)
+		{
+			memcpy(&((u8*)c3d_tex->data)[c3d_pos + c3d_offset], &((u8*)buf)[Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size)], pixel_size * 2);
+			c3d_pos += increase_list_x[count[0]];
+			count[0]++;
+			if(count[0] >= 4)
+				count[0] = 0;
+		}
+		count[0] = 0;
+		c3d_pos = 0;
+		c3d_offset += increase_list_y[count[1]];
+		count[1]++;
+		if(count[1] >= 8)
+			count[1] = 0;
+	}
+
+	*/
+
+	/*for (u32 y = 0; y < y_max; y++)
+	{
+		for (u32 x = 0; x < x_max; x++)
 		{
 			u32 dst_pos = ((((y >> 3)* ((u32)tex_size_x >> 3) + (x >> 3)) << 6) + ((x & 1) | ((y & 1) << 1) | ((x & 2) << 1) | ((y & 2) << 2) | ((x & 4) << 2) | ((y & 4) << 3)))* pixel_size;
 			if (dst_pos <= c3d_tex->size)
 			{
+				//Log_log_save("", std::to_string(dst_pos), 1234567890, false);
 				u32 src_pos = (((y + parse_start_height) * width + (x + parse_start_width))) * pixel_size;
 				memcpy(&((u8*)c3d_tex->data)[dst_pos], &((u8*)buf)[src_pos], pixel_size);
+				//sleep(25000);
 			}
 		}
-	}
+	}*/
 
-	C3D_TexFlush(c3d_tex);
 	c3d_tex->border = 0xFFFFFF;
-	C3D_TexSetWrap(c3d_tex, GPU_CLAMP_TO_BORDER, GPU_CLAMP_TO_BORDER);
+	C3D_TexSetWrap(c3d_tex, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+	C3D_TexFlush(c3d_tex);
 
 	return result;
 }
@@ -206,40 +277,176 @@ void Draw_set_do_not_draw_flag(bool flag)
 
 void Draw(std::string text, int type, float x, float y, float text_size_x, float text_size_y, float r, float g, float b, float a)
 {
-	if (type >= 0 && type <= 4)
+	bool reverse = false;
+	bool found = false;
+	bool font_loaded[2] = { Sem_query_loaded_system_font_flag(0), Sem_query_loaded_system_font_flag(1), };//JPN, CHN
+	float width = 0, height = 0, original_x, y_offset;
+	int previous_num = -3;
+	int memcmp_result = -1;
+	int count = 0;
+	int characters = 0;
+	int font_num_list[2][1024];
+	std::string sample[8] = { "\u0000", "\u000A", "\u4DFF", "\uA000", "\u312F", "\u3190", "\uABFF", "\uD7B0", };
+	C2D_Text c2d_text;
+	C2D_TextBuf c2d_buf;
+	original_x = x;
+	c2d_buf = C2D_TextBufNew(4096);
+
+	Exfont_text_parse(text, draw_part_text[0], 1024, &characters);
+	Exfont_text_parse(Exfont_text_sort(draw_part_text[0], 1024), draw_part_text[0], 1024, &characters);
+
+	for (int i = 0; i < characters; i++)
 	{
-		C2D_Text c2d_text;
-		C2D_TextBuf c2d_buf = C2D_TextBufNew(8192);
-
-		if (text.length() > 8192)
-			text = text.substr(0, 8192);
-
-		if (type == 0)
-			C2D_TextParse(&c2d_text, c2d_buf, text.c_str());
-		else if (type >= 1 && type <= 4)
-			C2D_TextFontParse(&c2d_text, system_fonts[type - 1], c2d_buf, text.c_str());
-
-		if (type == 2)
+		reverse = false;
+		if (memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[0].c_str(), 0x1) == 0)
 		{
-			text_size_x = text_size_x * 1.15;
-			text_size_y = text_size_y * 1.15;
+			font_num_list[0][i] = -2;
+			break;
 		}
-		else if (type == 4)
+		else if (memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[1].c_str(), 0x1) == 0)
 		{
-			text_size_x = text_size_x * 1.4;
-			text_size_y = text_size_y * 1.4;
+			font_num_list[0][i] = -1;
+			continue;
 		}
 
-		C2D_TextOptimize(&c2d_text);
-		C2D_DrawText(&c2d_text, C2D_WithColor, x, y, 0.0f, text_size_x, text_size_y, C2D_Color32f(r, g, b, a));
-		C2D_TextBufDelete(c2d_buf);
+		if((memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[2].c_str(), 0x3) > 0 && memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[3].c_str(), 0x3) < 0)
+	  || (memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[4].c_str(), 0x3) > 0 && memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[5].c_str(), 0x3) < 0)
+  	|| (memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[6].c_str(), 0x3) > 0 && memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[7].c_str(), 0x3) < 0))
+		{
+			if(memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[2].c_str(), 0x3) > 0 && memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[3].c_str(), 0x3) < 0)
+			{
+				found = false;
+				reverse = false;
+				memcmp_result = 1;
+
+				if(font_loaded[0])
+				{
+					for(int s = 0;;)
+					{
+						if(!reverse)
+							s += 100;
+						else
+							s--;
+
+						if((s < 0 || s > 3000) && reverse)
+							break;
+						else
+							memcmp_result = memcmp((void*)draw_part_text[0][i].c_str(), (void*)draw_japanese_kanji[s].c_str(), 3);
+
+						if(memcmp_result == 0)
+						{
+							font_num_list[0][i] = 0; //JPN
+							found = true;
+							break;
+						}
+						else if(memcmp_result < 0 || s > 3000)
+						{
+							reverse = true;
+							if(s > 3000)
+								s = 3000;
+						}
+					}
+				}
+
+				if(!found)
+				{
+					reverse = false;
+					memcmp_result = 1;
+
+					if(font_loaded[1])
+					{
+						for(int s = 0;;)
+						{
+							if(!reverse)
+								s += 100;
+							else
+								s--;
+
+							if((s < 0 || s > 6300) && reverse)
+								break;
+							else
+								memcmp_result = memcmp((void*)draw_part_text[0][i].c_str(), (void*)draw_simple_chinese[s].c_str(), 3);
+
+							if(memcmp_result == 0)
+							{
+								font_num_list[0][i] = 1; //CHN
+								found = true;
+								break;
+							}
+							else if(memcmp_result < 0 || s > 6300)
+							{
+								reverse = true;
+								if(s > 6300)
+									s = 6300;
+							}
+						}
+					}
+				}
+
+				if(!found)
+				  font_num_list[0][i] = 3; //TWN
+			}
+			else
+				font_num_list[0][i] = 2; //KOR
+		}
+		else
+			font_num_list[0][i] = 4;
 	}
-	else if (type == 5)
+
+	draw_part_text[1][0] = "";
+	previous_num = font_num_list[0][0];
+	for (int i = 0; i < characters; i++)
 	{
-		text_size_x = text_size_x * 1.65;
-		text_size_y = text_size_y * 1.65;
-		Exfont_draw_external_fonts(text, x, y, text_size_x, text_size_y, r, g, b, a);
+		if(font_num_list[0][i] == -2)
+		{
+			font_num_list[1][count + 1] = font_num_list[0][i];
+			break;
+		}
+		else if(previous_num != font_num_list[0][i] || font_num_list[0][i] == -1)
+		{
+			count++;
+			draw_part_text[1][count] = "";
+		}
+
+		draw_part_text[1][count] += draw_part_text[0][i];
+		font_num_list[1][count] = font_num_list[0][i];
+		previous_num = font_num_list[0][i];
 	}
+
+	for (int i = 0; i <= count; i++)
+	{
+		if (font_num_list[1][i] == -2)
+			break;
+		else if (font_num_list[1][i] == -1)
+		{
+			y += 20.0 * text_size_y;
+			x = original_x;
+			continue;
+		}
+
+		if(font_num_list[1][i] >= 0 && font_num_list[1][i] <= 3)
+		{
+			C2D_TextBufClear(c2d_buf);
+			if(font_num_list[1][i] == 1)
+				y_offset = 3 * text_size_y;
+			else if(font_num_list[1][i] == 3)
+				y_offset = 5 * text_size_y;
+			else
+				y_offset = 0;
+
+			C2D_TextFontParse(&c2d_text, system_fonts[font_num_list[1][i]], c2d_buf, draw_part_text[1][i].c_str());
+			C2D_TextOptimize(&c2d_text);
+			C2D_TextGetDimensions(&c2d_text, text_size_x, text_size_y, &width, &height);
+			C2D_DrawText(&c2d_text, C2D_WithColor, x, y + y_offset, 0.0, text_size_x, text_size_y, C2D_Color32f(r, g, b, a));
+			x += width;
+		}
+		else if(font_num_list[1][i] == 4)
+		{
+			Exfont_draw_external_fonts(draw_part_text[1][i], x, y, text_size_x * 1.56, text_size_y * 1.56, r, g, b, a, &width, &height);
+			x += width;
+		}
+	}
+	C2D_TextBufDelete(c2d_buf);
 }
 
 Result_with_string Draw_load_texture(std::string file_name, int sheet_map_num, C2D_Image return_image[], int start_num, int num_of_array)
@@ -277,41 +484,27 @@ Result_with_string Draw_load_texture(std::string file_name, int sheet_map_num, C
 
 bool Draw_query_need_reflesh(void)
 {
-	bool need = false;
-	if(Sem_query_settings(SEM_DEBUG_MODE) && (draw_pre_debug_info != ((std::to_string(Hid_query_key_press_state(KEY_P_A)) + std::to_string(Hid_query_key_held_state(KEY_H_A)) + std::to_string(Hid_query_key_press_state(KEY_P_B)) + std::to_string(Hid_query_key_held_state(KEY_H_B))
-	+ std::to_string(Hid_query_key_press_state(KEY_P_X)) + std::to_string(Hid_query_key_held_state(KEY_H_X)) + std::to_string(Hid_query_key_press_state(KEY_P_Y)) + std::to_string(Hid_query_key_held_state(KEY_H_Y))
-	+ std::to_string(Hid_query_key_press_state(KEY_P_L)) + std::to_string(Hid_query_key_held_state(KEY_H_L)) + std::to_string(Hid_query_key_press_state(KEY_P_R)) + std::to_string(Hid_query_key_held_state(KEY_H_R))
-	+ std::to_string(Hid_query_key_held_state(KEY_H_C_DOWN)) + std::to_string(Hid_query_key_press_state(KEY_P_C_DOWN)) + std::to_string(Hid_query_key_held_state(KEY_H_C_RIGHT)) + std::to_string(Hid_query_key_press_state(KEY_P_C_RIGHT))
-	+ std::to_string(Hid_query_key_held_state(KEY_H_C_UP)) + std::to_string(Hid_query_key_press_state(KEY_P_C_UP)) + std::to_string(Hid_query_key_held_state(KEY_H_C_LEFT)) + std::to_string(Hid_query_key_press_state(KEY_P_C_LEFT))
-	+ std::to_string(Hid_query_key_held_state(KEY_H_D_DOWN)) + std::to_string(Hid_query_key_press_state(KEY_P_D_DOWN)) + std::to_string(Hid_query_key_held_state(KEY_H_D_RIGHT)) + std::to_string(Hid_query_key_press_state(KEY_P_D_RIGHT))
-	+ std::to_string(Hid_query_key_held_state(KEY_H_D_UP)) + std::to_string(Hid_query_key_press_state(KEY_P_D_UP)) + std::to_string(Hid_query_key_held_state(KEY_H_D_LEFT)) + std::to_string(Hid_query_key_press_state(KEY_P_D_LEFT))
-	+ std::to_string(Hid_query_touch_pos(true)) + std::to_string(Hid_query_touch_pos(false)) + std::to_string(Menu_query_free_ram()) + std::to_string(Menu_query_free_linear_ram())))))
-		need = true;
+	Hid_info key;
+	Hid_query_key_state(&key);
 
-	if(draw_pre_log_show != Log_query_log_show_flag() || (Log_query_log_show_flag() && Log_query_need_reflesh()) || (Err_query_error_show_flag() && Err_query_need_reflesh()))
-		need = true;
-
-	if(need || draw_pre_touch_pos_x != Hid_query_touch_pos(true) || draw_pre_touch_pos_y != Hid_query_touch_pos(false) || draw_pre_touch_state != Hid_query_key_held_state(KEY_H_TOUCH)
-		|| draw_pre_battery_charge != Menu_query_battery_charge() || draw_pre_wifi_state != Menu_query_wifi_state() || draw_pre_battery_level_raw != Menu_query_battery_level_raw()
-		|| draw_pre_battery_level != Menu_query_battery_level() || draw_pre_status != Menu_query_status(true))
+	if(Sem_query_settings(SEM_DEBUG_MODE) || draw_pre_p_touch_state != key.p_touch || draw_pre_h_touch_state != key.h_touch
+		|| draw_pre_touch_x != key.touch_x || draw_pre_touch_y != key.touch_y	|| draw_pre_battery_charge != Menu_query_battery_charge()
+		|| draw_pre_wifi_state != Menu_query_wifi_state() || draw_pre_battery_level_raw != Menu_query_battery_level_raw()
+		|| draw_pre_battery_level != Menu_query_battery_level() || draw_pre_status != Menu_query_status(true)
+		|| draw_pre_log_show != Log_query_log_show_flag() || draw_pre_error_show != Err_query_error_show_flag()
+		|| (Log_query_log_show_flag() && Log_query_need_reflesh()) || (Err_query_error_show_flag() && Err_query_need_reflesh()))
 	{
 		draw_pre_log_show = Log_query_log_show_flag();
-		draw_pre_touch_pos_x = Hid_query_touch_pos(true);
-		draw_pre_touch_pos_y = Hid_query_touch_pos(false);
-		draw_pre_touch_state = Hid_query_key_held_state(KEY_H_TOUCH);
+		draw_pre_error_show = Err_query_error_show_flag();
 		draw_pre_battery_charge = Menu_query_battery_charge();
 		draw_pre_wifi_state = Menu_query_wifi_state();
 		draw_pre_battery_level_raw = Menu_query_battery_level_raw();
 		draw_pre_battery_level = Menu_query_battery_level();
 		draw_pre_status = Menu_query_status(true);
-		draw_pre_debug_info = (std::to_string(Hid_query_key_press_state(KEY_P_A)) + std::to_string(Hid_query_key_held_state(KEY_H_A)) + std::to_string(Hid_query_key_press_state(KEY_P_B)) + std::to_string(Hid_query_key_held_state(KEY_H_B))
-		+ std::to_string(Hid_query_key_press_state(KEY_P_X)) + std::to_string(Hid_query_key_held_state(KEY_H_X)) + std::to_string(Hid_query_key_press_state(KEY_P_Y)) + std::to_string(Hid_query_key_held_state(KEY_H_Y))
-		+ std::to_string(Hid_query_key_press_state(KEY_P_L)) + std::to_string(Hid_query_key_held_state(KEY_H_L)) + std::to_string(Hid_query_key_press_state(KEY_P_R)) + std::to_string(Hid_query_key_held_state(KEY_H_R))
-		+ std::to_string(Hid_query_key_held_state(KEY_H_C_DOWN)) + std::to_string(Hid_query_key_press_state(KEY_P_C_DOWN)) + std::to_string(Hid_query_key_held_state(KEY_H_C_RIGHT)) + std::to_string(Hid_query_key_press_state(KEY_P_C_RIGHT))
-		+ std::to_string(Hid_query_key_held_state(KEY_H_C_UP)) + std::to_string(Hid_query_key_press_state(KEY_P_C_UP)) + std::to_string(Hid_query_key_held_state(KEY_H_C_LEFT)) + std::to_string(Hid_query_key_press_state(KEY_P_C_LEFT))
-		+ std::to_string(Hid_query_key_held_state(KEY_H_D_DOWN)) + std::to_string(Hid_query_key_press_state(KEY_P_D_DOWN)) + std::to_string(Hid_query_key_held_state(KEY_H_D_RIGHT)) + std::to_string(Hid_query_key_press_state(KEY_P_D_RIGHT))
-		+ std::to_string(Hid_query_key_held_state(KEY_H_D_UP)) + std::to_string(Hid_query_key_press_state(KEY_P_D_UP)) + std::to_string(Hid_query_key_held_state(KEY_H_D_LEFT)) + std::to_string(Hid_query_key_press_state(KEY_P_D_LEFT))
-		+ std::to_string(Hid_query_touch_pos(true)) + std::to_string(Hid_query_touch_pos(false)) + std::to_string(Menu_query_free_ram()) + std::to_string(Menu_query_free_linear_ram()));
+		draw_pre_p_touch_state = key.p_touch;
+		draw_pre_h_touch_state = key.h_touch;
+		draw_pre_touch_x = key.touch_x;
+		draw_pre_touch_y = key.touch_y;
 		return true;
 	}
 	else
@@ -320,8 +513,10 @@ bool Draw_query_need_reflesh(void)
 
 void Draw_touch_pos(void)
 {
-	if(Hid_query_key_held_state(KEY_H_TOUCH))
-		Draw("●", 0, Hid_query_touch_pos(true), Hid_query_touch_pos(false), 0.20, 0.20, 1.0, 0.0, 0.0, 1.0);
+	Hid_info key;
+	Hid_query_key_state(&key);
+	if(key.p_touch || key.h_touch)
+		Draw("●", 0, key.touch_x, key.touch_y, 0.20, 0.20, 1.0, 0.0, 0.0, 1.0);
 }
 
 void Draw_top_ui(void)
@@ -333,7 +528,7 @@ void Draw_top_ui(void)
 	if (Menu_query_battery_charge())
 		Draw_texture(Battery_charge_icon_image, dammy_tint, 0, 295.0, 0.0, 20.0, 15.0);
 	Draw(Menu_query_status(false), 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
-	Draw(Menu_query_battery_level(), 0, 322.5, 1.25, 0.4, 0.4, 0.0, 0.0, 0.0, 0.5);
+	Draw(Menu_query_battery_level(), 0, 322.5, 1.25, 0.4, 0.4, 0.0, 0.0, 0.0, 0.8);
 
 	if (Sem_query_settings(SEM_DEBUG_MODE))
 		Draw_debug_info();
@@ -374,25 +569,6 @@ void Draw_texture(C2D_Image image[], C2D_ImageTint tint, int num, float x, float
 			C2D_DrawImage(image[num], &c2d_parameter, NULL);
 		else
 			C2D_DrawImage(image[num], &c2d_parameter, &tint);
-
-	}
-}
-
-void Draw_expl(std::string msg)
-{
-	double red = 0.0;
-
-	Draw_texture(Square_image, aqua_tint, 0, 10.0, 20.0, 300.0, 190.0);
-	Draw(msg, 0, 12.5, 185.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
-	Draw(Expl_query_current_patch(), 0, 12.5, 195.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
-	for (int i = 0; i < 16; i++)
-	{
-		if (i == (int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM))
-			red = 1.0;
-		else
-			red = 0.0;
-
-		Draw(Expl_query_file_name(i + (int)Expl_query_view_offset_y()) + "(" + std::to_string(Expl_query_size(i + (int)Expl_query_view_offset_y()) / 1024.0 / 1024.0).substr(0, 4) + "MB) (" + Expl_query_type(i + (int)Expl_query_view_offset_y()) + ")", 0, 12.5, 20.0 + (i * 10.0), 0.4, 0.4, red, 0.0, 0.0, 1.0);
 	}
 }
 
@@ -417,7 +593,7 @@ void Draw_progress(std::string message)
 	if (draw_do_not_draw)
 		return;
 
-  for(int i = 0;i < 2; i++)
+  for(int i = 0; i < 2; i++)
 	{
 		Draw_frame_ready();
 		if (Sem_query_settings(SEM_NIGHT_MODE))
@@ -455,6 +631,9 @@ void Draw_debug_info(void)
 	float text_green;
 	float text_blue;
 	float text_alpha;
+	Hid_info key;
+	Hid_query_key_state(&key);
+
 	if (Sem_query_settings(SEM_NIGHT_MODE))
 	{
 		text_red = 1.0;
@@ -472,21 +651,21 @@ void Draw_debug_info(void)
 
 	Draw_texture(Square_image, weak_blue_tint, 0, 0.0, 20.0, 70.0, 140.0);
 	Draw_texture(Square_image, weak_blue_tint, 0, 0.0, 160.0, 110.0, 50.0);
-	Draw("A　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_A)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_A)), 0, 0.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("B　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_B)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_B)), 0, 0.0, 30.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("X　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_X)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_X)), 0, 0.0, 40.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("Y　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_Y)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_Y)), 0, 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("L　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_L)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_L)), 0, 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("R　 p: " + std::to_string(Hid_query_key_press_state(KEY_P_R)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_R)), 0, 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("C↓ p: " + std::to_string(Hid_query_key_press_state(KEY_P_C_DOWN)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_C_DOWN)), 0, 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("C→ p: " + std::to_string(Hid_query_key_press_state(KEY_P_C_RIGHT)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_C_RIGHT)), 0, 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("C↑ p: " + std::to_string(Hid_query_key_press_state(KEY_P_C_UP)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_C_UP)), 0, 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("C← p: " + std::to_string(Hid_query_key_press_state(KEY_P_C_LEFT)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_C_LEFT)), 0, 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("D↓ p: " + std::to_string(Hid_query_key_press_state(KEY_P_D_DOWN)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_D_DOWN)), 0, 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("D→ p: " + std::to_string(Hid_query_key_press_state(KEY_P_D_RIGHT)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_D_RIGHT)), 0, 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("D↑ p: " + std::to_string(Hid_query_key_press_state(KEY_P_D_UP)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_D_UP)), 0, 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("D← p: " + std::to_string(Hid_query_key_press_state(KEY_P_D_LEFT)) + " h: " + std::to_string(Hid_query_key_held_state(KEY_H_D_LEFT)), 0, 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-	Draw("touch x: " + std::to_string(Hid_query_touch_pos(true)) + ", y: " + std::to_string(Hid_query_touch_pos(false)), 0, 0.0, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("A　 p: " + std::to_string(key.p_a) + " h: " + std::to_string(key.h_a), 0, 0.0, 20.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("B　 p: " + std::to_string(key.p_b) + " h: " + std::to_string(key.h_b), 0, 0.0, 30.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("X　 p: " + std::to_string(key.p_x) + " h: " + std::to_string(key.h_x), 0, 0.0, 40.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("Y　 p: " + std::to_string(key.p_y) + " h: " + std::to_string(key.h_y), 0, 0.0, 50.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("L　 p: " + std::to_string(key.p_l) + " h: " + std::to_string(key.h_l), 0, 0.0, 60.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("R　 p: " + std::to_string(key.p_r) + " h: " + std::to_string(key.h_r), 0, 0.0, 70.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C↓ p: " + std::to_string(key.p_c_down) + " h: " + std::to_string(key.h_c_down), 0, 0.0, 80.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C→ p: " + std::to_string(key.p_c_right) + " h: " + std::to_string(key.h_c_right), 0, 0.0, 90.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C↑ p: " + std::to_string(key.p_c_up) + " h: " + std::to_string(key.h_c_up), 0, 0.0, 100.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("C← p: " + std::to_string(key.p_c_left) + " h: " + std::to_string(key.h_c_left), 0, 0.0, 110.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("D↓ p: " + std::to_string(key.p_d_down) + " h: " + std::to_string(key.h_d_down), 0, 0.0, 120.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("D→ p: " + std::to_string(key.p_d_right) + " h: " + std::to_string(key.h_d_right), 0, 0.0, 130.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("D↑ p: " + std::to_string(key.p_d_up) + " h: " + std::to_string(key.h_d_up), 0, 0.0, 140.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("D← p: " + std::to_string(key.p_d_left) + " h: " + std::to_string(key.h_d_left), 0, 0.0, 150.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+	Draw("touch x: " + std::to_string(key.touch_x) + ", y: " + std::to_string(key.touch_y), 0, 0.0, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 	Draw("CPU: " + std::to_string(C3D_GetProcessingTime()).substr(0, 5) + "ms", 0, 0.0, 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 	Draw("GPU: " + std::to_string(C3D_GetDrawingTime()).substr(0, 5) + "ms", 0, 0.0, 180.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 	Draw("RAM: " + std::to_string((double)Menu_query_free_ram() / 10.0).substr(0, 5) + " MB", 0, 0.0, 190.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
@@ -496,10 +675,12 @@ void Draw_debug_info(void)
 void Draw_init(void)
 {
 	C2D_Prepare();
-	Screen_top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
-	Screen_bot = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
-	C2D_TargetClear(Screen_top, C2D_Color32f(0, 0, 0, 0));
-	C2D_TargetClear(Screen_bot, C2D_Color32f(0, 0, 0, 0));
+	screen[0] = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
+	screen[1] = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+	screen[2] = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
+	C2D_TargetClear(screen[0], C2D_Color32f(0, 0, 0, 0));
+	C2D_TargetClear(screen[1], C2D_Color32f(0, 0, 0, 0));
+	C2D_TargetClear(screen[2], C2D_Color32f(0, 0, 0, 0));
 	dammy_tint.corners[0].color = 56738247;
 	if (Sem_query_settings(SEM_NIGHT_MODE))
 		C2D_PlainImageTint(&texture_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.75), true);
@@ -521,8 +702,30 @@ void Draw_init(void)
 	osTickCounterStart(&draw_frame_time_timer);
 }
 
-void Draw_load_system_font(int system_font_num)
+Result_with_string Draw_load_kanji_samples(void)
 {
+	int characters = 0;
+	u8* fs_buffer = (u8*)malloc(0x8000);
+	u32 read_size = 0;
+	Result_with_string result;
+
+	memset((void*)fs_buffer, 0x0, 0x8000);
+	result = File_load_from_rom("kanji.txt", fs_buffer, 0x8000, &read_size, "romfs:/gfx/font/sample/");
+	if(result.code == 0)
+		Exfont_text_parse((char*)fs_buffer, draw_japanese_kanji, 3000, &characters);
+
+	memset((void*)fs_buffer, 0x0, 0x8000);
+	result = File_load_from_rom("hanyu_s.txt", fs_buffer, 0x8000, &read_size, "romfs:/gfx/font/sample/");
+	if(result.code == 0)
+		Exfont_text_parse((char*)fs_buffer, draw_simple_chinese, 6300, &characters);
+
+	free(fs_buffer);
+	return result;
+}
+
+Result_with_string Draw_load_system_font(int system_font_num)
+{
+	Result_with_string result;
 	if (system_font_num == 0)
 		system_fonts[0] = C2D_FontLoadSystem(CFG_REGION_JPN);
 	else if (system_font_num == 1)
@@ -531,6 +734,20 @@ void Draw_load_system_font(int system_font_num)
 		system_fonts[2] = C2D_FontLoadSystem(CFG_REGION_KOR);
 	else if (system_font_num == 3)
 		system_fonts[3] = C2D_FontLoadSystem(CFG_REGION_TWN);
+	else
+	{
+		result.code = INVALID_ARG;
+		result.string = Err_query_template_summary(INVALID_ARG);
+		result.error_description = Err_query_template_detail(INVALID_ARG);
+		return result;
+	}
+
+	if(system_fonts[system_font_num] == NULL)
+	{
+		result.code = -1;
+		result.string = "[Error] Couldn't load font file : " + std::to_string(system_font_num) + " ";
+	}
+	return result;
 }
 
 void Draw_free_system_font(int system_font_num)
@@ -567,35 +784,13 @@ void Draw_frame_ready(void)
 	C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 }
 
-void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_ver, float red, float green, float blue)
+void Draw_screen_ready_to_draw(int screen_num, bool screen_clear, int screen_clear_ver, float red, float green, float blue)
 {
-	C2D_ImageTint tint;
-	C2D_PlainImageTint(&tint, C2D_Color32f(red, green, blue, 1.0), true);
-	if (screen == 0)
+	if (screen_num >= 0 && screen_num <= 2)
 	{
-		C2D_SceneBegin(Screen_top);
+		C2D_SceneBegin(screen[screen_num]);
 		if (screen_clear)
-		{
-			if (screen_clear_ver == 1)
-				Draw(screen_clear_text, 0, -50.0, -300.0, 40.0, 35.0, red, green, blue, 1.0);
-			else if (screen_clear_ver == 2)
-				Draw_texture(Square_image, tint, 0, 0.0, 0.0, 400.0, 240.0);
-			else
-				C2D_TargetClear(Screen_top, C2D_Color32f(red, green, blue, 0));
-		}
-	}
-	else if(screen == 1)
-	{
-		C2D_SceneBegin(Screen_bot);
-		if (screen_clear)
-		{
-			if (screen_clear_ver == 1)
-				Draw(screen_clear_text, 0, -50.0, -300.0, 40.0, 30.0, red, green, blue, 1.0);
-			else if (screen_clear_ver == 2)
-				Draw_texture(Square_image, tint, 0, 0.0, 0.0, 320.0, 240.0);
-			else
-				C2D_TargetClear(Screen_bot, C2D_Color32f(red, green, blue, 0));
-		}
+			C2D_TargetClear(screen[screen_num], C2D_Color32f(red, green, blue, 0));
 	}
 }
 

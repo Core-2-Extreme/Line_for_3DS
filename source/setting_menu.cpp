@@ -16,6 +16,7 @@
 #include "log.hpp"
 #include "types.hpp"
 #include "music_player.hpp"
+#include "video_player.hpp"
 #include "camera.hpp"
 #include "google_translation.hpp"
 #include "change_setting.hpp"
@@ -26,34 +27,31 @@ bool sem_need_reflesh = false;
 bool sem_pre_use_default_font = true;
 bool sem_pre_use_system_specific_font = false;
 bool sem_pre_use_external_font = false;
-bool sem_pre_loaded_external_font[46];
+bool sem_pre_loaded_external_font[EXFONT_NUM_OF_FONT_NAME];
 bool sem_pre_load_external_font_request = false;
 bool sem_pre_unload_external_font_request = false;
-bool sem_pre_delete_line_img_cache_request = false;
 bool sem_pre_show_patch_note_request = false;
 bool sem_pre_select_ver_request = false;
 bool sem_pre_allow_send_app_info = false;
 bool sem_pre_debug_mode = false;
 bool sem_pre_night_mode = false;
 bool sem_pre_eco_mode = true;
+u32 sem_pre_dled_size = 0;
 int sem_pre_lcd_brightness = 100;
 int sem_pre_time_to_turn_off_lcd = 1500;
 int sem_pre_lcd_brightness_before_turn_off = 20;
 int sem_pre_update_progress = -1;
 int sem_pre_check_update_progress = 0;
-int sem_pre_selected_lang_num = 0;
 int sem_pre_selected_edition_num = 0;
+int sem_pre_selected_menu_mode = 0;
 double sem_pre_scroll_speed = 0.5;
 double sem_pre_y_offset = 0.0;
-double sem_pre_buffer_size[10];
+double sem_pre_buffer_size[6];
 std::string sem_pre_lang = "en";
 /*---------------------------------------------*/
 
-bool sem_use_default_font = true;
-bool sem_use_system_specific_font = false;
-bool sem_use_external_font = false;
-bool sem_loaded_external_font[46];
-bool sem_load_external_font[46];
+bool sem_loaded_external_font[EXFONT_NUM_OF_FONT_NAME];
+bool sem_load_external_font[EXFONT_NUM_OF_FONT_NAME];
 bool sem_check_update_thread_run = false;
 bool sem_worker_thread_run = false;
 bool sem_reload_msg_request = false;
@@ -62,6 +60,8 @@ bool sem_load_external_font_request = false;
 bool sem_unload_external_font_request = false;
 bool sem_change_wifi_state_request = false;
 bool sem_delete_line_img_cache_request = false;
+bool sem_delete_line_audio_cache_request = false;
+bool sem_delete_line_vid_cache_request = false;
 bool setting_main_run = false;
 bool new_version_available = false;
 bool need_gas_update = false;
@@ -80,28 +80,40 @@ bool sem_flash_mode = false;
 bool sem_eco_mode = true;
 bool sem_wifi_enabled = false;
 bool sem_system_setting_menu_show = false;
+bool sem_scroll_bar_selected = false;
+bool sem_scroll_mode = false;
+bool sem_unload_system_font_request = false;
+bool sem_bar_selected[9];
+bool sem_button_selected[EXFONT_NUM_OF_FONT_NAME];
+bool sem_loaded_system_font[4] = { false, false, false, false, };
+bool sem_load_system_font[4] = { false, false, false, false, };
+u32 sem_dled_size = 0;
 int sem_lcd_brightness = 100;
 int sem_time_to_turn_off_lcd = 1500;
 int sem_lcd_brightness_before_turn_off = 20;
 int sem_selected_menu_mode = 0;
 int sem_update_progress = -1;
 int sem_check_update_progress = 0;
-int sem_selected_lang_num = 0;
 int sem_selected_edition_num = 0;
 int sem_current_app_ver = 17;
-int sem_current_gas_ver = 6;
+int sem_current_gas_ver = 7;
 int sem_num_of_app_start = 0;
+int sem_system_region = 0;
+int sem_installed_size = 0;
+int sem_total_cia_size = 0;
 double sem_scroll_speed = 0.5;
 double sem_y_offset = 0.0;
 double sem_y_max = 0.0;
-double sem_buffer_size[10];
+double sem_buffer_size[5];
+double sem_touch_x_move_left = 0.0;
+double sem_touch_y_move_left = 0.0;
 std::string sem_lang = "en";
 std::string sem_msg[SEM_NUM_OF_MSG];
 std::string sem_newest_ver_data[11];
 std::string sem_init_string = "Sem/Init";
 std::string sem_exit_string = "Sem/Exit";
 std::string sem_worker_thread_string = "Sem/Worker thread";
-std::string sem_check_update_string = "Sem/Check update";
+std::string sem_check_update_string = "Sem/Update thread";
 
 C2D_Image sem_help_image[7];
 Thread sem_check_update_thread, sem_worker_thread;
@@ -201,6 +213,28 @@ std::string Sem_convert_seconds_to_time(double input_seconds)
 	return time;
 }
 
+std::string Sem_encode_to_escape(std::string in_data)
+{
+	int string_length = in_data.length();
+	std::string check;
+	std::string return_data = "";
+
+	for(int i = 0; i < string_length; i++)
+	{
+		check = in_data.substr(i, 1);
+		if(check == "\n")
+			return_data += "\\n";
+		else if(check == "\u0022")
+			return_data += "\\\u0022";
+		else if(check == "\u005c")
+			return_data += "\\\u005c";
+		else
+			return_data += in_data.substr(i, 1);
+	}
+
+	return return_data;
+}
+
 bool Sem_query_init_flag(void)
 {
 	return sem_already_init;
@@ -209,22 +243,6 @@ bool Sem_query_init_flag(void)
 bool Sem_query_running_flag(void)
 {
 	return sem_main_run;
-}
-
-bool Sem_query_available_edtion(int edtion_num)
-{
-	if (edtion_num >= 0 && edtion_num <= 7)
-	{
-		for (int i = 0; i < 8; i++)
-		{
-			if (i == edtion_num)
-				return sem_available_ver[i];
-		}
-	}
-	else
-		return false;
-
-	return false;
 }
 
 int Sem_query_app_ver(void)
@@ -237,18 +255,6 @@ int Sem_query_gas_ver(void)
 	return sem_current_gas_ver;
 }
 
-bool Sem_query_font_flag(int font_num)
-{
-	if (font_num == SEM_USE_DEFAULT_FONT)
-		return sem_use_default_font;
-	else if (font_num == SEM_USE_SYSTEM_SPEIFIC_FONT)
-		return sem_use_system_specific_font;
-	else if (font_num == SEM_USE_EXTERNAL_FONT)
-		return sem_use_external_font;
-	else
-		return false;
-}
-
 std::string Sem_query_lang(void)
 {
 	return sem_lang;
@@ -256,8 +262,18 @@ std::string Sem_query_lang(void)
 
 bool Sem_query_loaded_external_font_flag(int external_font_num)
 {
-	if (external_font_num >= 0 && external_font_num <= 45)
+	if (external_font_num >= 0 && external_font_num <= EXFONT_NUM_OF_FONT_NAME)
 		return sem_loaded_external_font[external_font_num];
+	else
+		return false;
+}
+
+bool Sem_query_loaded_system_font_flag(int system_font_num)
+{
+	if(system_font_num == sem_system_region)
+		return true;
+	else if (system_font_num >= 0 && system_font_num <= 3)
+		return sem_load_system_font[system_font_num];
 	else
 		return false;
 }
@@ -282,22 +298,8 @@ bool Sem_query_operation_flag(int operation_num)
 		return sem_reload_msg_request;
 	else if (operation_num == SEM_CHANGE_WIFI_STATE_REQUEST)
 		return sem_change_wifi_state_request;
-	else if (operation_num == SEM_DELETE_LINE_IMG_CACHE_REQUEST)
-		return sem_delete_line_img_cache_request;
 	else
 		return false;
-}
-
-int Sem_query_selected_num(int item_num)
-{
-	if (item_num == SEM_SELECTED_LANG_NUM)
-		return sem_selected_lang_num;
-	else if (item_num == SEM_SELECTED_EDITION_NUM)
-		return sem_selected_edition_num;
-	else if (item_num == SEM_SELECTED_MENU_MODE_NUM)
-		return sem_selected_menu_mode;
-	else
-		return -1;
 }
 
 bool Sem_query_settings(int item_num)
@@ -342,35 +344,16 @@ double Sem_query_settings_d(int item_num)
 		return -1;
 }
 
-double Sem_query_y_max(void)
-{
-	return sem_y_max;
-}
-
-double Sem_query_y_offset(void)
-{
-	return sem_y_offset;
-}
-
-void Sem_set_font_flag(int font_num, bool flag)
-{
-	if (font_num == SEM_USE_DEFAULT_FONT)
-		sem_use_default_font = flag;
-	else if (font_num == SEM_USE_SYSTEM_SPEIFIC_FONT)
-		sem_use_system_specific_font = flag;
-	else if (font_num == SEM_USE_EXTERNAL_FONT)
-		sem_use_external_font = flag;
-}
-
-void Sem_set_lang(std::string lang)
-{
-	sem_lang = lang;
-}
-
 void Sem_set_load_external_font_request(int external_font_num, bool flag)
 {
-	if (external_font_num >= 0 && external_font_num <= 45)
+	if (external_font_num >= 0 && external_font_num <= EXFONT_NUM_OF_FONT_NAME)
 		sem_load_external_font[external_font_num] = flag;
+}
+
+void Sem_set_load_system_font_request(int system_font_num, bool flag)
+{
+	if (system_font_num >= 0 && system_font_num <= 3)
+		sem_load_system_font[system_font_num] = flag;
 }
 
 void Sem_set_msg(int msg_num, std::string msg)
@@ -399,18 +382,6 @@ void Sem_set_operation_flag(int operation_num, bool flag)
 		sem_reload_msg_request = flag;
 	else if (operation_num == SEM_CHANGE_WIFI_STATE_REQUEST)
 		sem_change_wifi_state_request = flag;
-	else if (operation_num == SEM_DELETE_LINE_IMG_CACHE_REQUEST)
-		sem_delete_line_img_cache_request = flag;
-}
-
-void Sem_set_selected_num(int item_num, int num)
-{
-	if (item_num == SEM_SELECTED_LANG_NUM)
-		sem_selected_lang_num = num;
-	else if (item_num == SEM_SELECTED_EDITION_NUM)
-		sem_selected_edition_num = num;
-	else if (item_num == SEM_SELECTED_MENU_MODE_NUM)
-		sem_selected_menu_mode = num;
 }
 
 void Sem_set_settings(int item_num, bool flag)
@@ -449,16 +420,6 @@ void Sem_set_settings_d(int item_num, double value)
 		sem_scroll_speed = value;
 }
 
-void Sem_set_y_max(double y_max)
-{
-	sem_y_max = y_max;
-}
-
-void Sem_set_y_offset(double y)
-{
-	sem_y_offset = y;
-}
-
 void Sem_set_color(double in_red, double in_green, double in_blue, double in_alpha, double* out_red, double* out_green, double* out_blue, double* out_alpha, int num_of_out)
 {
 	for (int i = 0; i < num_of_out; i++)
@@ -487,11 +448,12 @@ void Sem_resume(void)
 
 void Sem_init(void)
 {
-	Log_log_save(sem_init_string, "Initializing...", 1234567890, DEBUG);
+	Log_log_save(sem_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
+	u8 region = 0;
 	int log_num = 0;
-	int buffer_size[9];
-	int buffer_default_size[9] = { 0x100000, 0x100000, 0x200000, 0x500000, 0x200000, 0x200000, 0x200000, 0x300000, 0x100000, };
-	int buffer_max_size[9] = { 0xA00000, 0xA00000, 0x4C0000, 0x1400000, 0x700000, 0x500000, 0x500000, 0xA00000, 0x200000, };
+	int buffer_size[5];
+	int buffer_default_size[5] = { 0x100000, 0x100000, 0x200000, 0x200000, 0x200000,};
+	int buffer_max_size[5] = { 0xA00000, 0x500000, 0x4C0000, 0x700000, 0x500000, };
 	std::string data[18];
 	Result_with_string result;
 
@@ -507,9 +469,9 @@ void Sem_init(void)
 	sem_eco_mode = true;
 
 	Draw_progress("0/1 [Sem] Loading settings...");
-	log_num = Log_log_save(sem_init_string , "Sem_load_setting()...", 1234567890, DEBUG);
-	result = Sem_load_setting("Sem_setting.txt", "/Line/", 18, data);
-	Log_log_add(log_num, result.string, result.code, DEBUG);
+	log_num = Log_log_save(sem_init_string , "Sem_load_setting()...", 1234567890, FORCE_DEBUG);
+	result = Sem_load_setting("Sem_setting.txt", "/Line/", 14, data);
+	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 	if(result.code == 0)
 	{
 		sem_lang = data[0];
@@ -536,7 +498,7 @@ void Sem_init(void)
 			sem_num_of_app_start = 0;
 	}
 
-	for(int i = 0; i < 9; i++)
+	for(int i = 0; i < 5; i++)
 	{
 		buffer_size[i] = atoi(data[9 + i].c_str());
 		if(buffer_size[i] < 0x40000 || buffer_size[i] > buffer_max_size[i])
@@ -544,39 +506,47 @@ void Sem_init(void)
 	}
 	Line_set_buffer_size(LINE_HTTPC_BUFFER, buffer_size[0]);
 	Line_set_buffer_size(LINE_FS_BUFFER, buffer_size[1]);
-	Line_set_buffer_size(LINE_SEND_FS_CACHE_BUFFER, buffer_size[2]);
-	Line_set_buffer_size(LINE_SEND_FS_BUFFER, buffer_size[3]);
-	Spt_set_buffer_size(SPT_HTTPC_BUFFER, buffer_size[4]);
-	Imv_set_buffer_size(IMV_HTTPC_BUFFER, buffer_size[5]);
-	Imv_set_buffer_size(IMV_FS_BUFFER, buffer_size[6]);
-	Mup_set_buffer_size(MUP_FS_OUT_BUFFER, buffer_size[7]);
-	Mup_set_buffer_size(MUP_FS_IN_BUFFER, buffer_size[8]);
+	Line_set_buffer_size(LINE_SEND_BUFFER, buffer_size[2]);
+	Spt_set_buffer_size(SPT_HTTPC_BUFFER, buffer_size[3]);
+	Imv_set_max_buffer_size(buffer_size[4]);
+	result.code = CFGU_SecureInfoGetRegion(&region);
+	if(result.code == 0)
+	{
+		if(region == CFG_REGION_CHN)
+			sem_system_region = 1;
+		else if(region == CFG_REGION_KOR)
+			sem_system_region = 2;
+		else if(region == CFG_REGION_TWN)
+			sem_system_region = 3;
+		else
+			sem_system_region = 0;
+	}
 
 	Draw_progress("1/1 [Sem] Starting threads...");
 	sem_check_update_thread_run = true;
 	sem_worker_thread_run = true;
-	sem_check_update_thread = threadCreate(Sem_check_update_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
-	sem_worker_thread = threadCreate(Sem_worker_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
+	sem_check_update_thread = threadCreate(Sem_check_update_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
+	sem_worker_thread = threadCreate(Sem_worker_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
 
 	Sem_resume();
 	sem_already_init = true;
-	Log_log_save(sem_init_string, "Initialized.", 1234567890, DEBUG);
+	Log_log_save(sem_init_string, "Initialized.", 1234567890, FORCE_DEBUG);
 }
 
 void Sem_exit(void)
 {
-	Log_log_save(sem_exit_string, "Exiting...", 1234567890, DEBUG);
+	Log_log_save(sem_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
+	sem_num_of_app_start++;
 	std::string data = "<0>" + sem_lang + "</0><1>" + std::to_string(sem_lcd_brightness) + "</1><2>" + std::to_string(sem_time_to_turn_off_lcd)
 	+ "</2><3>" + std::to_string(sem_lcd_brightness_before_turn_off) + "</3><4>" + std::to_string(sem_scroll_speed) + "</4><5>" + std::to_string(sem_allow_send_app_info)
 	+ "</5><6>" + std::to_string(sem_num_of_app_start) + "</6><7>" + std::to_string(sem_night_mode) + "</7><8>" + std::to_string(sem_eco_mode)
 	+ "</8><9>" + std::to_string(Line_query_buffer_size(LINE_HTTPC_BUFFER)) + "</9><10>" + std::to_string(Line_query_buffer_size(LINE_FS_BUFFER))
-	+ "</10><11>" + std::to_string(Line_query_buffer_size(LINE_SEND_FS_CACHE_BUFFER)) + "</11><12>" + std::to_string(Line_query_buffer_size(LINE_SEND_FS_BUFFER))
-	+ "</12><13>" + std::to_string(Spt_query_buffer_size(SPT_HTTPC_BUFFER)) + "</13><14>" + std::to_string(Imv_query_buffer_size(IMV_HTTPC_BUFFER))
-	+ "</14><15>" + std::to_string(Imv_query_buffer_size(IMV_FS_BUFFER)) + "</15><16>" + std::to_string(Mup_query_buffer_size(MUP_FS_OUT_BUFFER))
-	+ "</16><17>" + std::to_string(Mup_query_buffer_size(MUP_FS_IN_BUFFER)) + "</17>";
+	+ "</10><11>" + std::to_string(Line_query_buffer_size(LINE_SEND_BUFFER)) + "</11><12>" + std::to_string(Spt_query_buffer_size(SPT_HTTPC_BUFFER))
+	+ "</12><13>" + std::to_string(Imv_query_max_buffer_size())
+	+ "</13>";
 	Handle fs_handle = 0;
 	FS_Archive fs_archive = 0;
 	Result_with_string result;
@@ -587,49 +557,50 @@ void Sem_exit(void)
 	sem_check_update_thread_run = false;
 	sem_worker_thread_run = false;
 
-	log_num = Log_log_save(sem_exit_string, "File_save_to_file()...", 1234567890, DEBUG);
+	log_num = Log_log_save(sem_exit_string, "File_save_to_file()...", 1234567890, FORCE_DEBUG);
 	result = File_save_to_file("Sem_setting.txt", (u8*)data.c_str(), data.length(), "/Line/", true, fs_handle, fs_archive);
-	Log_log_add(log_num, result.string, result.code, DEBUG);
+	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 
-	log_num = Log_log_save(sem_exit_string, "threadJoin()0/1...", 1234567890, DEBUG);
+	log_num = Log_log_save(sem_exit_string, "threadJoin()0/1...", 1234567890, FORCE_DEBUG);
 	result.code = threadJoin(sem_check_update_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
 	}
 
-	log_num = Log_log_save(sem_exit_string, "threadJoin()1/1...", 1234567890, DEBUG);
+	log_num = Log_log_save(sem_exit_string, "threadJoin()1/1...", 1234567890, FORCE_DEBUG);
 	result.code = threadJoin(sem_worker_thread, time_out);
 	if (result.code == 0)
-		Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
 	{
 		failed = true;
-		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
 	}
 
 	threadFree(sem_check_update_thread);
 	threadFree(sem_worker_thread);
 
 	if (failed)
-		Log_log_save(sem_exit_string, "[Warn] Some function returned error.", 1234567890, DEBUG);
+		Log_log_save(sem_exit_string, "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
 
-	Log_log_save(sem_exit_string, "Exited.", 1234567890, DEBUG);
+	Log_log_save(sem_exit_string, "Exited.", 1234567890, FORCE_DEBUG);
 }
 
 void Sem_main(void)
 {
 	int msg_num = 0;
-	double buffer_max_size[10] = { 0xA00000, 0x500000, 0x4C0000, 0x1400000, 0x700000, 0x500000, 0x500000, 0xA00000, 0x200000, };
+	double buffer_max_size[6] = { 0xA00000, 0x500000, 0x4C0000, 0x700000, 0x500000, 0x500000, };
 	double draw_x;
 	double draw_y;
 	double size_x_offset;
 	double text_red, text_green, text_blue, text_alpha;
-	double red[46], green[46], blue[46], alpha[46];
+	double red[EXFONT_NUM_OF_FONT_NAME], green[EXFONT_NUM_OF_FONT_NAME], blue[EXFONT_NUM_OF_FONT_NAME], alpha[EXFONT_NUM_OF_FONT_NAME];
 	C2D_ImageTint draw_tint[2];
+	Hid_info key;
 
 	if (sem_night_mode)
 	{
@@ -647,18 +618,14 @@ void Sem_main(void)
 		text_alpha = 1.0;
 		white_or_black_tint = black_tint;
 	}
-	Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 46);
+	Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, EXFONT_NUM_OF_FONT_NAME);
 	sem_buffer_size[0] = Line_query_buffer_size(LINE_HTTPC_BUFFER);
 	sem_buffer_size[1] = Line_query_buffer_size(LINE_FS_BUFFER);
-	sem_buffer_size[2] = Line_query_buffer_size(LINE_SEND_FS_CACHE_BUFFER);
-	sem_buffer_size[3] = Line_query_buffer_size(LINE_SEND_FS_BUFFER);
-	sem_buffer_size[4] = Spt_query_buffer_size(SPT_HTTPC_BUFFER);
-	sem_buffer_size[5] = Imv_query_buffer_size(IMV_HTTPC_BUFFER);
-	sem_buffer_size[6] = Imv_query_buffer_size(IMV_FS_BUFFER);
-	sem_buffer_size[7] = Mup_query_buffer_size(MUP_FS_OUT_BUFFER);
-	sem_buffer_size[8] = Mup_query_buffer_size(MUP_FS_IN_BUFFER);
+	sem_buffer_size[2] = Line_query_buffer_size(LINE_SEND_BUFFER);
+	sem_buffer_size[3] = Spt_query_buffer_size(SPT_HTTPC_BUFFER);
+	sem_buffer_size[4] = Imv_query_max_buffer_size();
 
-	for (int i = 0; i < 46; i++)
+	for (int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
 	{
 		if (sem_pre_loaded_external_font[i] != sem_loaded_external_font[i])
 		{
@@ -667,7 +634,7 @@ void Sem_main(void)
 		}
 	}
 
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < 6; i++)
 	{
 		if (sem_pre_buffer_size[i] != sem_buffer_size[i])
 		{
@@ -679,19 +646,17 @@ void Sem_main(void)
 	if(sem_need_reflesh || sem_pre_y_offset != sem_y_offset || sem_pre_lang != sem_lang || sem_pre_night_mode != sem_night_mode
 	|| sem_pre_lcd_brightness != sem_lcd_brightness || sem_pre_time_to_turn_off_lcd != sem_time_to_turn_off_lcd
 	|| sem_pre_lcd_brightness_before_turn_off != sem_lcd_brightness_before_turn_off
-	|| sem_pre_scroll_speed != sem_scroll_speed || sem_pre_use_default_font != sem_use_default_font
-	|| sem_pre_use_system_specific_font != sem_use_system_specific_font || sem_pre_use_external_font != sem_use_external_font
-	|| sem_pre_selected_lang_num != sem_selected_lang_num || sem_pre_unload_external_font_request != sem_unload_external_font_request
+	|| sem_pre_scroll_speed != sem_scroll_speed	|| sem_pre_unload_external_font_request != sem_unload_external_font_request
 	|| sem_pre_load_external_font_request != sem_load_external_font_request || sem_pre_allow_send_app_info != sem_allow_send_app_info
-	|| sem_pre_debug_mode != sem_debug_mode || sem_pre_delete_line_img_cache_request != sem_delete_line_img_cache_request
-	|| sem_pre_eco_mode != sem_eco_mode || sem_pre_select_ver_request != sem_select_ver_request || sem_pre_show_patch_note_request != sem_show_patch_note_request
-	|| sem_pre_check_update_progress != sem_check_update_progress || sem_pre_update_progress != sem_update_progress
-	|| sem_pre_selected_edition_num != sem_selected_edition_num)
+	|| sem_pre_debug_mode != sem_debug_mode || sem_pre_eco_mode != sem_eco_mode || sem_pre_select_ver_request != sem_select_ver_request
+	|| sem_pre_show_patch_note_request != sem_show_patch_note_request	|| sem_pre_check_update_progress != sem_check_update_progress
+	|| sem_pre_update_progress != sem_update_progress || sem_pre_selected_edition_num != sem_selected_edition_num
+	|| sem_pre_selected_menu_mode != sem_selected_menu_mode || sem_pre_dled_size != sem_dled_size)
 	{
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < 5; i++)
 			sem_pre_buffer_size[i] = sem_buffer_size[i];
 
-		for (int i = 0; i < 46; i++)
+		for (int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
 			sem_pre_loaded_external_font[i] = sem_loaded_external_font[i];
 
 		sem_pre_y_offset = sem_y_offset;
@@ -701,26 +666,27 @@ void Sem_main(void)
 		sem_pre_time_to_turn_off_lcd = sem_time_to_turn_off_lcd;
 		sem_pre_lcd_brightness_before_turn_off = sem_lcd_brightness_before_turn_off;
 		sem_pre_scroll_speed = sem_scroll_speed;
-		sem_pre_use_default_font = sem_use_default_font;
-		sem_pre_use_system_specific_font = sem_use_system_specific_font;
-		sem_pre_use_external_font = sem_use_external_font;
-		sem_pre_selected_lang_num = sem_selected_lang_num;
 		sem_pre_unload_external_font_request = sem_unload_external_font_request;
 		sem_pre_load_external_font_request = sem_load_external_font_request;
 		sem_pre_allow_send_app_info = sem_allow_send_app_info;
 		sem_pre_debug_mode = sem_debug_mode;
-		sem_pre_delete_line_img_cache_request = sem_delete_line_img_cache_request;
 		sem_pre_eco_mode = sem_eco_mode;
 		sem_pre_select_ver_request = sem_select_ver_request;
 		sem_pre_show_patch_note_request = sem_show_patch_note_request;
 		sem_pre_check_update_progress = sem_check_update_progress;
 		sem_pre_update_progress = sem_update_progress;
 		sem_pre_selected_edition_num = sem_selected_edition_num;
+		sem_pre_selected_menu_mode = sem_selected_menu_mode;
+		sem_pre_dled_size = sem_dled_size;
 		sem_need_reflesh = true;
 	}
 
+	Hid_query_key_state(&key);
+	Log_main();
 	if(Draw_query_need_reflesh() || !sem_eco_mode)
 		sem_need_reflesh = true;
+
+	Hid_key_flag_reset();
 
 	if(sem_need_reflesh)
 	{
@@ -743,11 +709,11 @@ void Sem_main(void)
 			if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 			{
 				Draw_texture(Square_image, weak_red_tint, 0, 0.0, draw_y + sem_y_offset, 40.0, 25.0);
-				Draw(sem_msg[42], 0, 0.0, draw_y + sem_y_offset + 5.0, 0.6, 0.6, text_red, text_green, text_blue, text_alpha);
+				Draw(sem_msg[38], 0, 0.0, draw_y + sem_y_offset + 5.0, 0.6, 0.6, text_red, text_green, text_blue, text_alpha);
 			}
 		}
 
-		if ((sem_selected_menu_mode == 5 && sem_use_external_font) || sem_selected_menu_mode == 6)
+		if (sem_selected_menu_mode == 5 || sem_selected_menu_mode == 6)
 		{
 			Draw_texture(Square_image, white_or_black_tint, 0, 312.5, 0.0, 7.5, 15.0);
 			Draw_texture(Square_image, white_or_black_tint, 0, 312.5, 215.0, 7.5, 10.0);
@@ -762,7 +728,7 @@ void Sem_main(void)
 			{
 				msg_num = i;
 				if(i == 7)
-					msg_num = 73;
+					msg_num = 69;
 
 				Draw_texture(Square_image, weak_aqua_tint, 0, 0.0, draw_y + sem_y_offset, 240.0, 20.0);
 				Draw(sem_msg[msg_num], 0, 0.0, draw_y + sem_y_offset - 2.5, 0.75, 0.75, text_red, text_green, text_blue, text_alpha);
@@ -888,7 +854,7 @@ void Sem_main(void)
 		else if (sem_selected_menu_mode == 5)
 		{
 			//Font
-			draw_y = 25.0;
+			/*draw_y = 25.0;
 			if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 			{
 				if (sem_use_default_font)
@@ -952,9 +918,33 @@ void Sem_main(void)
 				}
 			}
 			else if (sem_use_external_font)//Font, External
+			{*/
+
+			draw_x = 10.0;
+			draw_y = 15.0;
+
+			for (int i = 0; i < 4; i++)
 			{
+				if (sem_loaded_system_font[i] || i == sem_system_region)
+				{
+					red[i] = 1.0;
+					green[i] = 0.0;
+					blue[i] = 0.0;
+					if (sem_load_system_font_request)
+						alpha[i] = 0.3;
+					else
+						alpha[i] = 1.0;
+				}
+				else if (sem_load_system_font_request)
+					alpha[i] = 0.3;
+
+				Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset + 15.0, 200.0, 20.0);
+				Draw(sem_msg[23 + i], 0, draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, red[i], green[i], blue[i], alpha[i]);
+				draw_y += 20.0;
+			}
+
 				draw_x = 10.0;
-				draw_y = 65.0;
+				draw_y = 115.0;
 				Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 1);
 				if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 				{
@@ -973,9 +963,9 @@ void Sem_main(void)
 				}
 
 				draw_x = 10.0;
-				draw_y = 100.0;
-				Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 46);
-				for (int i = 0; i < 46; i++)
+				draw_y = 150.0;
+				Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, EXFONT_NUM_OF_FONT_NAME);
+				for (int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
 				{
 					if (sem_loaded_external_font[i])
 					{
@@ -998,34 +988,24 @@ void Sem_main(void)
 					}
 					draw_y += 20.0;
 				}
-			}
+//			}
 		}
 		else if (sem_selected_menu_mode == 6)
 		{
 			//Buffer size
 			if (Line_query_init_flag())
 			{
-				for (int i = 0; i < 4; i++)
+				for (int i = 0; i < 3; i++)
 					alpha[i] = 0.25;
 			}
 			if (Spt_query_init_flag())
-			{
-				alpha[4] = 0.25;
-			}
+				alpha[3] = 0.25;
 			if (Imv_query_init_flag())
-			{
-				for (int i = 5; i < 7; i++)
-					alpha[i] = 0.25;
-			}
-			if (Mup_query_init_flag())
-			{
-				for (int i = 7; i < 9; i++)
-					alpha[i] = 0.25;
-			}
+				alpha[4] = 0.25;
 
 			draw_x = 10.0;
 			draw_y = 25.0;
-			for (int i = 0; i < 9; i++)
+			for (int i = 0; i < 5; i++)
 			{
 				if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 				{
@@ -1058,11 +1038,11 @@ void Sem_main(void)
 					alpha[1] = 1.0;
 				}
 
-				Draw(sem_msg[38], 0, (draw_x - 10.0), draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw(sem_msg[34], 0, (draw_x - 10.0), draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 				for (int i = 0; i < 2; i++)
 				{
 					Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
-					Draw(sem_msg[39 + i], 0, draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, red[i], green[i], blue[i], alpha[i]);
+					Draw(sem_msg[35 + i], 0, draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, red[i], green[i], blue[i], alpha[i]);
 
 					draw_x += 100.0;
 				}
@@ -1089,7 +1069,7 @@ void Sem_main(void)
 					alpha[1] = 1.0;
 				}
 
-				Draw(sem_msg[41], 0, (draw_x - 10.0), draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw(sem_msg[37], 0, (draw_x - 10.0), draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 				for (int i = 0; i < 2; i++)
 				{
 					Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
@@ -1105,13 +1085,41 @@ void Sem_main(void)
 			Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 1);
 			if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
 			{
-				Draw(sem_msg[71], 0, (draw_x - 10.0), draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw(sem_msg[67], 0, (draw_x - 10.0), draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 				Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset + 15.0, 190.0, 20.0);
 
 				if (sem_delete_line_img_cache_request)
 					alpha[0] = 0.25;
 
-				Draw(sem_msg[72], 0, draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, red[0], green[0], blue[0], alpha[0]);
+				Draw(sem_msg[68], 0, draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, red[0], green[0], blue[0], alpha[0]);
+			}
+
+			draw_x = 10.0;
+			draw_y = 145.0;
+			Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 1);
+			if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
+			{
+				Draw(sem_msg[71], 0, (draw_x - 10.0), draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset + 15.0, 190.0, 20.0);
+
+				if (sem_delete_line_audio_cache_request)
+					alpha[0] = 0.25;
+
+				Draw(sem_msg[68], 0, draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, red[0], green[0], blue[0], alpha[0]);
+			}
+
+			draw_x = 10.0;
+			draw_y = 185.0;
+			Sem_set_color(text_red, text_green, text_blue, text_alpha, red, green, blue, alpha, 1);
+			if (draw_y + sem_y_offset >= -30 && draw_y + sem_y_offset <= 240)
+			{
+				Draw(sem_msg[72], 0, (draw_x - 10.0), draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset + 15.0, 190.0, 20.0);
+
+				if (sem_delete_line_vid_cache_request)
+					alpha[0] = 0.25;
+
+				Draw(sem_msg[68], 0, draw_x, draw_y + sem_y_offset + 12.5, 0.75, 0.75, red[0], green[0], blue[0], alpha[0]);
 			}
 		}
 		else if (sem_selected_menu_mode == 8)
@@ -1136,7 +1144,7 @@ void Sem_main(void)
 					alpha[1] = 1.0;
 				}
 
-				Draw(sem_msg[74], 0, (draw_x - 10.0), draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw(sem_msg[70], 0, (draw_x - 10.0), draw_y + sem_y_offset, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 				for (int i = 0; i < 2; i++)
 				{
 					Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y + sem_y_offset + 15.0, 90.0, 20.0);
@@ -1149,26 +1157,26 @@ void Sem_main(void)
 
 		if (sem_show_patch_note_request)
 		{
-			Draw_texture(Square_image, blue_tint, 0, 15.0, 15.0, 290.0, 200.0);
+			Draw_texture(Square_image, aqua_tint, 0, 15.0, 15.0, 290.0, 200.0);
 			Draw_texture(Square_image, weak_aqua_tint, 0, 15.0, 200.0, 145.0, 15.0);
 			Draw_texture(Square_image, weak_white_tint, 0, 160.0, 200.0, 145.0, 15.0);
 
 			if(sem_check_update_progress == 0)
-				Draw(sem_msg[43], 0, 17.5, 15.0, 0.5, 0.5, 1.0, 1.0, 1.0, 0.75);
+				Draw(sem_msg[39], 0, 17.5, 15.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
 			else if(sem_check_update_progress == 2)
-				Draw(sem_msg[44], 0, 17.5, 15.0, 0.5, 0.5, 1.0, 1.0, 1.0, 0.75);
+				Draw(sem_msg[40], 0, 17.5, 15.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
 			else if (sem_check_update_progress == 1)
 			{
-				Draw(sem_msg[45 + new_version_available], 0, 17.5, 15.0, 0.5, 0.5, 1.0, 1.0, 1.0, 0.75);
-				Draw(sem_msg[47 + need_gas_update], 0, 17.5, 30.0, 0.5, 0.5, 1.0, 1.0, 1.0, 0.75);
-				Draw(sem_newest_ver_data[10], 0, 17.5, 45.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+				Draw(sem_msg[41 + new_version_available], 0, 17.5, 15.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+				Draw(sem_msg[43 + need_gas_update], 0, 17.5, 30.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+				Draw(sem_newest_ver_data[10], 0, 17.5, 45.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
 			}
-			Draw(sem_msg[50], 0, 17.5, 200.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
-			Draw(sem_msg[49], 0, 162.5, 200.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+			Draw(sem_msg[46], 0, 17.5, 200.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
+			Draw(sem_msg[45], 0, 162.5, 200.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
 		}
 		if (sem_select_ver_request)
 		{
-			Draw_texture(Square_image, blue_tint, 0, 15.0, 15.0, 290.0, 200.0);
+			Draw_texture(Square_image, aqua_tint, 0, 15.0, 15.0, 290.0, 200.0);
 			Draw_texture(Square_image, weak_white_tint, 0, 15.0, 200.0, 145.0, 15.0);
 			Draw_texture(Square_image, weak_aqua_tint, 0, 160.0, 200.0, 145.0, 15.0);
 
@@ -1176,36 +1184,45 @@ void Sem_main(void)
 			for (int i = 0; i < 8; i++)
 			{
 				if(sem_available_ver[i] && sem_selected_edition_num == i)
-					Draw(sem_msg[51 + i], 0, 17.5, draw_y, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+					Draw(sem_msg[47 + i], 0, 17.5, draw_y, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
 				else if (sem_available_ver[i])
-					Draw(sem_msg[51 + i], 0, 17.5, draw_y, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+					Draw(sem_msg[47 + i], 0, 17.5, draw_y, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
 				else
-					Draw(sem_msg[51 + i] + sem_msg[59], 0, 17.5, draw_y, 0.45, 0.45, 1.0, 1.0, 1.0, 0.25);
+					Draw(sem_msg[47 + i] + sem_msg[55], 0, 17.5, draw_y, 0.45, 0.45, 1.0, 1.0, 1.0, 0.25);
 
 				draw_y += 10.0;
 			}
 
 			for(int i = 0; i < 4; i++)
-				Draw(sem_msg[60 + i], 0, 17.5, 100.0 + (i * 10.0), 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
+				Draw(sem_msg[56 + i], 0, 17.5, 100.0 + (i * 10.0), 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
 
 			if (sem_selected_edition_num == 0)
 			{
-				Draw(sem_msg[64], 0, 17.5, 140.0, 0.5, 0.5, 1.0, 1.0, 1.0, 0.75);
-				Draw("sdmc:/Line/ver_" + sem_newest_ver_data[0] + "/Line_for_3DS.3dsx", 0, 17.5, 150.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+				Draw(sem_msg[60], 0, 17.5, 140.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
+				Draw("sdmc:/3ds/Line_ver_" + sem_newest_ver_data[0] + "/Line_for_3DS.3dsx", 0, 17.5, 150.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
 			}
 
+			if(sem_update_progress == 0)
+				Draw(std::to_string(sem_dled_size / 1024.0 / 1024.0).substr(0, 4) + "MB(" + std::to_string(sem_dled_size / 1024) + "KB)", 0, 17.5, 180.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
+			else if(sem_update_progress == 1)
+				Draw(std::to_string(sem_installed_size / 1024.0 / 1024.0).substr(0, 4) + "MB/" + std::to_string(sem_total_cia_size / 1024.0 / 1024.0).substr(0, 4) + "MB", 0, 17.5, 180.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
+
 			if (sem_update_progress >= 0 && sem_update_progress <= 3)
-				Draw(sem_msg[65 + sem_update_progress], 0, 17.5, 160.0, 0.75, 0.75, 1.0, 1.0, 1.0, 0.75);
+				Draw(sem_msg[61 + sem_update_progress], 0, 17.5, 160.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
 
 			if (sem_update_progress == 2)
-				Draw(sem_msg[69], 0, 17.5, 180.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+			{
+				Draw(sem_msg[65], 0, 17.5, 180.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+				Draw_texture(Square_image, yellow_tint, 0, 250.0, 180.0, 55.0, 20.0);
+				Draw(sem_msg[73], 0, 250.0, 180.0, 0.375, 0.375, 0.0, 0.0, 0.0, 1.0);
+			}
 
 			if (sem_available_ver[sem_selected_edition_num])
-				Draw(sem_msg[70], 0, 162.5, 200.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
+				Draw(sem_msg[66], 0, 162.5, 200.0, 0.4, 0.4, 0.0, 0.0, 0.0, 1.0);
 			else
-				Draw(sem_msg[70], 0, 162.5, 200.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.25);
+				Draw(sem_msg[66], 0, 162.5, 200.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.25);
 
-			Draw(sem_msg[49], 0, 17.5, 200.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+			Draw(sem_msg[45], 0, 17.5, 200.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
 		}
 		Draw_bot_ui();
 		Draw_touch_pos();
@@ -1215,6 +1232,322 @@ void Sem_main(void)
 	}
 	else
 		gspWaitForVBlank();
+
+	if (Err_query_error_show_flag())
+	{
+		if (key.p_touch && key.touch_x >= 150 && key.touch_x <= 170 && key.touch_y >= 150 && key.touch_y < 170)
+			Err_set_error_show_flag(false);
+	}
+	else
+	{
+		if (key.p_touch || key.h_touch)
+		{
+			sem_touch_x_move_left = 0;
+			sem_touch_y_move_left = 0;
+
+			if(sem_scroll_mode)
+			{
+				sem_touch_x_move_left = key.touch_x_move;
+				sem_touch_y_move_left = key.touch_y_move;
+			}
+			/*else if(key.p_touch && key.touch_y <= 174)
+				sem_scroll_mode = true;*/
+		}
+		else
+		{
+			sem_scroll_mode = false;
+			sem_scroll_bar_selected = false;
+			sem_touch_x_move_left -= (sem_touch_x_move_left * 0.025);
+			sem_touch_y_move_left -= (sem_touch_y_move_left * 0.025);
+			for(int i = 0; i < 9; i++)
+				sem_bar_selected[i] = false;
+			for(int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
+				sem_button_selected[i] = false;
+			if (sem_touch_x_move_left < 0.5 && sem_touch_x_move_left > -0.5)
+				sem_touch_x_move_left = 0;
+			if (sem_touch_y_move_left < 0.5 && sem_touch_y_move_left > -0.5)
+				sem_touch_y_move_left = 0;
+		}
+
+		if (key.p_start || (key.p_touch && key.touch_x >= 110 && key.touch_x <= 230 && key.touch_y >= 220 && key.touch_y <= 240))
+			Sem_suspend();
+		else if (sem_show_patch_note_request)
+		{
+			if (key.p_b || (key.p_touch && key.touch_x >= 160 && key.touch_x <= 304 && key.touch_y >= 200 && key.touch_y < 215))
+				sem_show_patch_note_request = false;
+			if (key.p_a || (key.p_touch && key.touch_x >= 15 && key.touch_x <= 159 && key.touch_y >= 200 && key.touch_y < 215))
+			{
+				sem_show_patch_note_request = false;
+				sem_select_ver_request = true;
+			}
+		}
+		else if (sem_select_ver_request && !sem_dl_file_request)
+		{
+			if (key.p_b || (key.p_touch && key.touch_x >= 15 && key.touch_x <= 159 && key.touch_y >= 200 && key.touch_y < 215))
+			{
+				sem_show_patch_note_request = true;
+				sem_select_ver_request = false;
+			}
+			else if ((key.p_x || (key.p_touch && key.touch_x >= 160 && key.touch_x <= 304 && key.touch_y >= 200 && key.touch_y < 215)) && sem_available_ver[sem_selected_edition_num])
+				sem_dl_file_request = true;
+			else if(key.p_touch && key.touch_x >= 250 && key.touch_x <= 304 && key.touch_y >= 180 && key.touch_y <= 199 && sem_update_progress == 2)
+				Menu_set_must_exit_flag(true);
+
+			for (int i = 0; i < 8; i++)
+			{
+				if (key.p_touch && key.touch_x >= 17 && key.touch_x <= 250 && key.touch_y >= 15 + (i * 10) && key.touch_y <= 24 + (i * 10))
+				{
+					sem_selected_edition_num = i;
+					break;
+				}
+			}
+		}
+		else if(!sem_dl_file_request)
+		{
+			if (key.p_touch && key.touch_x >= 0 && key.touch_x <= 40 && key.touch_y >= 0 + sem_y_offset && key.touch_y <= 24 + sem_y_offset
+			&& sem_selected_menu_mode >= 1 && sem_selected_menu_mode <= 8)
+			{
+				sem_y_offset = 0.0;
+				sem_y_max = 0.0;
+				sem_selected_menu_mode = 0;
+			}
+			else
+			{
+				if(sem_selected_menu_mode == 5 || sem_selected_menu_mode == 6)//Scroll bar
+				{
+					if (key.h_c_down || key.h_c_up)
+						sem_y_offset += (double)key.cpad_y * sem_scroll_speed * 0.0625;
+
+					if (key.h_touch && sem_scroll_bar_selected)
+						sem_y_offset *= (key.touch_y - 15.0) / 195.0;
+
+					if (key.p_touch && key.touch_x >= 305 && key.touch_x <= 320 && key.touch_y >= 15)
+						sem_scroll_bar_selected = true;
+
+					sem_y_offset -= sem_touch_y_move_left * sem_scroll_speed;
+				}
+
+				if (sem_selected_menu_mode == 0)
+				{
+					for (int i = 0; i < 8; i++)
+					{
+						if (key.p_touch && key.touch_x >= 0 && key.touch_x <= 240 && key.touch_y >= 0 + (i * 25) && key.touch_y <= 19 + (i * 25))
+						{
+							sem_y_offset = 0.0;
+							sem_selected_menu_mode = i + 1;
+							if(i + 1 == 6)
+								sem_y_max = -200.0;
+							else if (i + 1 == 5)
+								sem_y_max = -950.0;
+
+							break;
+						}
+					}
+				}
+				else if (sem_selected_menu_mode == 1)//Check for updates
+				{
+					if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 239 && key.touch_y >= 25 && key.touch_y <= 44)
+					{
+						sem_check_update_request = true;
+						sem_show_patch_note_request = true;
+					}
+				}
+				else if (sem_selected_menu_mode == 2 && !sem_reload_msg_request)//Language
+				{
+					if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 249 && key.touch_y >= 25 && key.touch_y <= 44)
+					{
+						sem_lang = "en";
+						sem_reload_msg_request = true;
+					}
+					else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 249 && key.touch_y >= 50 && key.touch_y <= 69)
+					{
+						sem_lang = "jp";
+						sem_reload_msg_request = true;
+					}
+				}
+				else if (sem_selected_menu_mode == 3)//LCD
+				{
+					if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 99 && key.touch_y >= 40 && key.touch_y <= 59)
+					{
+						C2D_PlainImageTint(&texture_tint, C2D_Color32f(1.0, 1.0, 1.0, 0.75), true);
+						sem_night_mode = true;
+					}
+					else if (key.p_touch && key.touch_x >= 110 && key.touch_x <= 199 && key.touch_y >= 40 && key.touch_y <= 59)
+					{
+						C2D_PlainImageTint(&texture_tint, C2D_Color32f(0.0, 0.0, 0.0, 1.0), true);
+						sem_night_mode = false;
+					}
+					else if (key.p_touch && key.touch_x >= 210 && key.touch_x <= 249 && key.touch_y >= 40 && key.touch_y <= 59)
+						sem_flash_mode = !sem_flash_mode;
+					else if (key.h_touch && sem_bar_selected[0] && key.touch_x >= 10 && key.touch_x <= 309)
+					{
+						sem_lcd_brightness = (key.touch_x / 2) + 10;
+						Menu_set_operation_flag(MENU_CHANGE_BRIGHTNESS_REQUEST, true);
+					}
+					else if (key.h_touch && sem_bar_selected[1] && key.touch_x >= 10 && key.touch_x <= 309)
+						sem_time_to_turn_off_lcd = key.touch_x * 10;
+					else if (key.h_touch && sem_bar_selected[2] && key.touch_x >= 10 && key.touch_x <= 309)
+						sem_lcd_brightness_before_turn_off = (key.touch_x / 2) + 10;
+					else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 309 && key.touch_y >= 80 && key.touch_y <= 99)
+						sem_bar_selected[0] = true;
+					else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 309 && key.touch_y >= 120 && key.touch_y <= 139)
+						sem_bar_selected[1] = true;
+					else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 309 && key.touch_y >= 160 && key.touch_y <= 179)
+						sem_bar_selected[2] = true;
+				}
+				else if (sem_selected_menu_mode == 4)//Scroll speed
+				{
+					if (key.h_touch && sem_bar_selected[3] && key.touch_x >= 10 && key.touch_x <= 309)
+						sem_scroll_speed = (double)key.touch_x / 300;
+					else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 309 && key.touch_y >= 35 && key.touch_y <= 54)
+						sem_bar_selected[3] = true;
+				}
+				else if (sem_selected_menu_mode == 5)//Font
+				{
+					sem_scroll_mode = true;
+					for (int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
+					{
+						if(sem_button_selected[i])
+							sem_scroll_mode = false;
+					}
+
+
+					if (key.p_touch && key.touch_y <= 219 && key.touch_x >= 10 && key.touch_x <= 209 && key.touch_y >= 30 + sem_y_offset && key.touch_y <= 109 + sem_y_offset && !sem_load_system_font_request)
+					{
+						sem_scroll_mode = false;
+						for (int i = 0; i < 4; i++)
+						{
+							if (key.touch_y >= 30 + sem_y_offset + (i * 20) && key.touch_y <= 49 + sem_y_offset + (i * 20))
+							{
+								sem_button_selected[i] = true;
+								if (sem_loaded_system_font[i])
+								{
+									sem_load_system_font[i] = false;
+									sem_unload_system_font_request = true;
+								}
+								else
+								{
+									sem_load_system_font[i] = true;
+									sem_load_system_font_request = true;
+								}
+								break;
+							}
+						}
+					}
+					else if (key.p_touch && key.touch_y <= 219 && key.touch_x >= 10 && key.touch_x <= 209 && key.touch_y >= 150 + sem_y_offset && key.touch_y <= 1149 + sem_y_offset && !Sem_query_operation_flag(SEM_LOAD_EXTERNAL_FONT_REQUEST) && !Sem_query_operation_flag(SEM_UNLOAD_EXTERNAL_FONT_REQUEST))
+					{
+						sem_scroll_mode = false;
+						for (int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
+						{
+							if (key.touch_y >= 150 + sem_y_offset + (i * 20) && key.touch_y <= 169 + sem_y_offset + (i * 20))
+							{
+								sem_button_selected[i] = true;
+								if (sem_loaded_external_font[i])
+								{
+									sem_load_external_font[i] = false;
+									sem_unload_external_font_request = true;
+								}
+								else
+								{
+									sem_load_external_font[i] = true;
+									sem_load_external_font_request = true;
+								}
+								break;
+							}
+						}
+					}
+					else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 109 && key.touch_y >= 130 + sem_y_offset && key.touch_y <= 149 + sem_y_offset && !Sem_query_operation_flag(SEM_LOAD_EXTERNAL_FONT_REQUEST) && !Sem_query_operation_flag(SEM_UNLOAD_EXTERNAL_FONT_REQUEST))
+					{
+						sem_scroll_mode = false;
+						for (int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
+							sem_load_external_font[i] = true;
+						
+						sem_button_selected[0] = true;
+						sem_load_external_font_request = true;
+					}
+					else if (key.p_touch && key.touch_x >= 110 && key.touch_x <= 209 && key.touch_y >= 130 + sem_y_offset && key.touch_y <= 149 + sem_y_offset && !Sem_query_operation_flag(SEM_LOAD_EXTERNAL_FONT_REQUEST) && !Sem_query_operation_flag(SEM_UNLOAD_EXTERNAL_FONT_REQUEST))
+					{
+						sem_scroll_mode = false;
+						for (int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
+							sem_load_external_font[i] = false;
+
+						sem_button_selected[0] = true;
+						sem_unload_external_font_request = true;
+					}
+				}
+				else if (sem_selected_menu_mode == 6)//Memory
+				{
+					sem_scroll_mode = true;
+					for (int i = 0; i < 5; i++)
+					{
+						if(sem_bar_selected[i])
+							sem_scroll_mode = false;
+						else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 309 && key.touch_y >= 40 + (i * 40) + sem_y_offset && key.touch_y <= 59 + (i * 40) + sem_y_offset)
+						{
+							sem_bar_selected[i] = true;
+							sem_scroll_mode = false;
+							break;
+						}
+					}
+
+					for (int i = 0; i < 40; i++)
+					{
+						if (!Line_query_init_flag() && key.h_touch && sem_bar_selected[0] && key.touch_x >= 10 + (i * 7.5) && key.touch_x <= 17 + (i * 7.5))
+							Line_set_buffer_size(LINE_HTTPC_BUFFER, (i + 1) * 0x40000);
+					}
+					for (int i = 0; i < 20; i++)
+					{
+						if (!Line_query_init_flag() && key.h_touch && sem_bar_selected[1] && key.touch_x >= 10 + (i * 15) && key.touch_x <= 24 + (i * 15))
+							Line_set_buffer_size(LINE_FS_BUFFER, (i + 1) * 0x40000);
+					}
+					for (int i = 0; i < 19; i++)
+					{
+						if (!Line_query_init_flag() && key.h_touch && sem_bar_selected[2] && key.touch_x >= 10 + (i * 15.7) && key.touch_x <= 25 + (i * 15.7))
+							Line_set_buffer_size(LINE_SEND_BUFFER, (i + 1) * 0x40000);
+					}
+					for (int i = 0; i < 28; i++)
+					{
+						if (!Spt_query_init_flag() && key.h_touch && sem_bar_selected[3] && key.touch_x >= 10 + (i * 10.7) && key.touch_x <= 20 + (i * 10.7))
+							Spt_set_buffer_size(SPT_HTTPC_BUFFER, (i + 1) * 0x40000);
+					}
+					for (int i = 0; i < 20; i++)
+					{
+						if (!Imv_query_init_flag() && key.h_touch && sem_bar_selected[4] && key.touch_x >= 10 + (i * 15) && key.touch_x <= 24 + (i * 15))
+							Imv_set_max_buffer_size((i + 1) * 0x40000);
+					}
+				}
+				else if (sem_selected_menu_mode == 7)//Advanced settings
+				{
+					if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 99 && key.touch_y >= 40 && key.touch_y <= 59)
+						sem_allow_send_app_info = true;
+					else if (key.p_touch && key.touch_x >= 100 && key.touch_x <= 199 && key.touch_y >= 40 && key.touch_y <= 59)
+						sem_allow_send_app_info = false;
+					else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 99 && key.touch_y >= 80 && key.touch_y <= 99)
+						sem_debug_mode = true;
+					else if (key.p_touch && key.touch_x >= 100 && key.touch_x <= 199 && key.touch_y >= 80 && key.touch_y <= 99)
+						sem_debug_mode = false;
+					else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 199 && key.touch_y >= 120 && key.touch_y <= 139)
+						sem_delete_line_img_cache_request = true;
+					else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 199 && key.touch_y >= 160 && key.touch_y <= 179)
+						sem_delete_line_audio_cache_request = true;
+					else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 199 && key.touch_y >= 200 && key.touch_y <= 219)
+						sem_delete_line_vid_cache_request = true;
+				}
+				else if (sem_selected_menu_mode == 8)//Battery
+				{
+					if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 99 && key.touch_y >= 40 && key.touch_y <= 59)
+						sem_eco_mode = true;
+					else if (key.p_touch && key.touch_x >= 100 && key.touch_x <= 199 && key.touch_y >= 40 && key.touch_y <= 59)
+						sem_eco_mode = false;
+				}
+			}
+
+			if (sem_y_offset >= 0)
+				sem_y_offset = 0.0;
+			else if (sem_y_offset <= sem_y_max)
+				sem_y_offset = sem_y_max;
+		}
+	}
 }
 
 void Sem_worker_thread(void* arg)
@@ -1222,13 +1555,14 @@ void Sem_worker_thread(void* arg)
 	Log_log_save(sem_worker_thread_string , "Thread started.", 1234567890, false);
 	int log_num;
 	int num_of_files;
-	int num_of_msg[8] = { LINE_NUM_OF_MSG, SEM_NUM_OF_MSG, IMV_NUM_OF_MSG, SPT_NUM_OF_MSG, GTR_NUM_OF_MSG, CAM_NUM_OF_MSG, MUP_NUM_OF_MSG, MIC_NUM_OF_MSG, };
+	int num_of_msg[9] = { LINE_NUM_OF_MSG, SEM_NUM_OF_MSG, IMV_NUM_OF_MSG, SPT_NUM_OF_MSG, GTR_NUM_OF_MSG, CAM_NUM_OF_MSG, MUP_NUM_OF_MSG, MIC_NUM_OF_MSG, VID_NUM_OF_MSG, };
 	u8* fs_buffer;
 	u32 read_size;
 	std::string setting_data[128];
 	std::string file_name[256];
 	std::string file_type[256];
-	std::string load_file_name[8] = {"line_", "sem_", "imv_", "spt_", "gtr_", "cam_", "mup_", "mic_" };
+	std::string load_file_name[9] = {"line_", "sem_", "imv_", "spt_", "gtr_", "cam_", "mup_", "mic_", "vid_" };
+	std::string dir = "/Line/images/";
 	FS_Archive fs_archive = 0;
 	Result_with_string result;
 
@@ -1236,48 +1570,9 @@ void Sem_worker_thread(void* arg)
 
 	while (sem_worker_thread_run)
 	{
-		if (sem_load_system_font_request)
+		if (sem_reload_msg_request)
 		{
-			for (int i = 0; i < 4; i++)
-				Draw_free_system_font(i);
-
-			Draw_load_system_font(sem_selected_lang_num);
-			sem_load_system_font_request = false;
-		}
-		else if (sem_unload_external_font_request)
-		{
-			for (int i = 0; i < 46; i++)
-			{
-				if (!sem_load_external_font[i] && sem_loaded_external_font[i])
-				{
-					Exfont_unload_exfont(i);
-					sem_loaded_external_font[i] = false;
-				}
-			}
-			sem_unload_external_font_request = false;
-		}
-		else if (sem_load_external_font_request)
-		{
-			for (int i = 0; i < 46; i++)
-			{
-				if (sem_load_external_font[i] && !sem_loaded_external_font[i])
-				{
-					log_num = Log_log_save(sem_worker_thread_string, "Exfont_load_exfont()...", 1234567890, false);
-					result = Exfont_load_exfont(i);
-					Log_log_add(log_num, result.string, result.code, false);
-
-					if(result.code == 0)
-						sem_loaded_external_font[i] = true;
-					else
-						sem_loaded_external_font[i] = false;
-				}
-			}
-
-			sem_load_external_font_request = false;
-		}
-		else if (sem_reload_msg_request)
-		{
-			for (int i = 0; i < 8; i++)
+			for (int i = 0; i < 9; i++)
 			{
 				log_num = Log_log_save(sem_worker_thread_string, "File_load_from_rom()...", 1234567890, false);
 				result = File_load_from_rom(load_file_name[i] + sem_lang + ".txt", fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
@@ -1305,6 +1600,8 @@ void Sem_worker_thread(void* arg)
 							Mup_set_msg(k, setting_data[k]);
 						else if (i == 7)
 							Mic_set_msg(k, setting_data[k]);
+						else if (i == 8)
+							Vid_set_msg(k, setting_data[k]);
 					}
 				}
 			}
@@ -1326,11 +1623,78 @@ void Sem_worker_thread(void* arg)
 					sem_wifi_enabled = true;
 			}
 
-
 			sem_change_wifi_state_request= false;
 		}
-		else if (sem_delete_line_img_cache_request)
+		else if (sem_load_external_font_request)
 		{
+			for (int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
+			{
+				if (sem_load_external_font[i] && !sem_loaded_external_font[i])
+				{
+					log_num = Log_log_save(sem_worker_thread_string, "Exfont_load_exfont()...", 1234567890, false);
+					result = Exfont_load_exfont(i);
+					Log_log_add(log_num, result.string, result.code, false);
+
+					if(result.code == 0)
+						sem_loaded_external_font[i] = true;
+					else
+						sem_loaded_external_font[i] = false;
+				}
+			}
+
+			sem_load_external_font_request = false;
+		}
+		else if (sem_unload_external_font_request)
+		{
+			//cannnot unload basic latin font
+			for (int i = 1; i < EXFONT_NUM_OF_FONT_NAME; i++)
+			{
+				if (!sem_load_external_font[i] && sem_loaded_external_font[i])
+				{
+					Exfont_unload_exfont(i);
+					sem_loaded_external_font[i] = false;
+				}
+			}
+			sem_unload_external_font_request = false;
+		}
+		else if (sem_load_system_font_request)
+		{
+			for(int i = 0; i < 4; i++)
+			{
+				if(!sem_loaded_system_font[i] && sem_load_system_font[i] && i != sem_system_region)
+				{
+					log_num = Log_log_save(sem_worker_thread_string, "Draw_load_system_font()...", 1234567890, false);
+					result = Draw_load_system_font(i);
+					Log_log_add(log_num, result.string, result.code, false);
+					if(result.code == 0)
+						sem_loaded_system_font[i] = true;
+					else
+						sem_loaded_system_font[i] = false;
+				}
+			}
+			sem_load_system_font_request = false;
+		}
+		else if (sem_unload_system_font_request)
+		{
+			for(int i = 0; i < 4; i++)
+			{
+				if(sem_loaded_system_font[i] && !sem_load_system_font[i] && i != sem_system_region)
+				{
+					Draw_free_system_font(i);
+					sem_loaded_system_font[i] = false;
+				}
+			}
+			sem_unload_system_font_request = false;
+		}
+		else if (sem_delete_line_img_cache_request || sem_delete_line_audio_cache_request || sem_delete_line_vid_cache_request)
+		{
+			if(sem_delete_line_img_cache_request)
+				dir = "/Line/images/";
+			else if(sem_delete_line_audio_cache_request)
+				dir = "/Line/audio/";
+			else if(sem_delete_line_vid_cache_request)
+				dir = "/Line/videos/";
+
 			num_of_files = 0;
 			for (int i = 0; i < 256; i++)
 			{
@@ -1339,7 +1703,7 @@ void Sem_worker_thread(void* arg)
 			}
 
 			log_num = Log_log_save(sem_worker_thread_string, "File_read_dir()...", 1234567890, false);
-			result = File_read_dir(&num_of_files, file_name, 256, file_type, 256, "/Line/images/");
+			result = File_read_dir(&num_of_files, file_name, 256, file_type, 256, dir);
 			Log_log_add(log_num, result.string, result.code, false);
 
 			if (result.code == 0)
@@ -1349,7 +1713,7 @@ void Sem_worker_thread(void* arg)
 					if (file_type[i] == "file")
 					{
 						log_num = Log_log_save(sem_worker_thread_string, "File_file_delete()...", 1234567890, false);
-						result = File_delete_file(file_name[i], "/Line/images/", fs_archive);
+						result = File_delete_file(file_name[i], dir, fs_archive);
 						Log_log_add(log_num, result.string, result.code, false);
 					}
 				}
@@ -1360,7 +1724,12 @@ void Sem_worker_thread(void* arg)
 				Err_set_error_show_flag(true);
 			}
 
-			sem_delete_line_img_cache_request = false;
+			if(sem_delete_line_img_cache_request)
+				sem_delete_line_img_cache_request = false;
+			else if(sem_delete_line_audio_cache_request)
+				sem_delete_line_audio_cache_request = false;
+			else if(sem_delete_line_vid_cache_request)
+				sem_delete_line_vid_cache_request = false;
 		}
 		else
 			usleep(ACTIW_THREAD_SLEEP_TIME);
@@ -1374,17 +1743,20 @@ void Sem_check_update_thread(void* arg)
 {
 	Log_log_save(sem_check_update_string, "Thread started.", 1234567890, false);
 
-	u8* httpc_buffer;
-	u32 downloaded_size;
-	u32 status_code;
-	u32 write_size;
-	int check_update_log_num_return;
-	int newest_ver;
-	size_t parse_start_pos;
-	size_t parse_end_pos;
-	std::string url;
-	std::string last_url;
-	std::string parse_cache;
+	u8* buffer = NULL;
+	u32 status_code = 0;
+	u32 write_size = 0;
+	u32 read_size = 0;
+	u64 offset = 0;
+	int log_num = 0;
+	int newest_ver = 0;
+	size_t parse_start_pos = std::string::npos;
+	size_t parse_end_pos = std::string::npos;
+	std::string dir_path = "";
+	std::string file_name = "";
+	std::string url = "";
+	std::string last_url = "";
+	std::string parse_cache = "";
 	std::string parse_start[11] = {"<newest>", "<3dsx_available>", "<cia_32mb_ram_available>",
 	"<cia_64mb_ram_available>", "<cia_72mb_ram_available>", "<cia_80mb_ram_available>",
 	"<cia_96mb_ram_available>", "<cia_124mb_ram_available>", "<cia_178mb_ram_available>",
@@ -1395,10 +1767,10 @@ void Sem_check_update_thread(void* arg)
 	"</gas_ver>", "</patch_note>", };
 	std::string editions[8] = { ".3dsx", "_32mb.cia", "_64mb.cia", "_72mb.cia",
 	"_80mb.cia", "_96mb.cia", "_124mb.cia", "_178mb.cia", };
-	FS_Archive check_update_fs_archive = 0;
-	Handle check_update_fs_handle = 0;
-	Handle check_update_am_handle = 0;
-	Result_with_string check_update_result;
+	FS_Archive fs_archive = 0;
+	Handle fs_handle = 0;
+	Handle am_handle = 0;
+	Result_with_string result;
 
 	while (sem_check_update_thread_run)
 	{
@@ -1421,8 +1793,12 @@ void Sem_check_update_thread(void* arg)
 			}
 
 			newest_ver = -1;
-			httpc_buffer = (u8*)malloc(0x300000);
-			if (httpc_buffer == NULL)
+			sem_dled_size = 0;
+			offset = 0;
+			sem_installed_size = 0;
+			sem_total_cia_size = 0;
+			buffer = (u8*)malloc(0x20000);
+			if (buffer == NULL)
 			{
 				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), sem_check_update_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
@@ -1430,15 +1806,29 @@ void Sem_check_update_thread(void* arg)
 			}
 			else
 			{
-				check_update_log_num_return = Log_log_save(sem_check_update_string, "Httpc_dl_data()...", 1234567890, false);
-				check_update_result = Httpc_dl_data(url, httpc_buffer, 0x300000, &downloaded_size, &status_code, true, &last_url, false, 100, SEM_HTTP_PORT0);
-				Log_log_add(check_update_log_num_return, check_update_result.string + std::to_string(downloaded_size / 1024) + "KB (" + std::to_string(downloaded_size) + "B)", check_update_result.code, false);
-
-				if (check_update_result.code != 0)
+				log_num = Log_log_save(sem_check_update_string, "Httpc_dl_data()...", 1234567890, false);
+				if(sem_dl_file_request)
 				{
-					Err_set_error_message(check_update_result.string, check_update_result.error_description, sem_check_update_string, check_update_result.code);
-					Err_set_error_show_flag(true);
+					if(sem_selected_edition_num == 0)
+						dir_path = "/3ds/Line_ver_" + sem_newest_ver_data[0] + "/";
+					else
+						dir_path = "/Line/ver_" + sem_newest_ver_data[0] + "/";
 
+					file_name = "Line_for_3DS" + editions[sem_selected_edition_num];
+					File_delete_file(file_name, dir_path, fs_archive);//delete old file if exist
+				}
+
+				if(sem_dl_file_request)
+					result = Httpc_dl_data(url, buffer, 0x20000, &sem_dled_size, &status_code, true, &last_url, false, 100, SEM_HTTP_PORT0, dir_path, file_name);
+				else
+					result = Httpc_dl_data(url, buffer, 0x20000, &sem_dled_size, &status_code, true, &last_url, false, 100, SEM_HTTP_PORT0);
+
+				Log_log_add(log_num, result.string + std::to_string(sem_dled_size / 1024) + "KB (" + std::to_string(sem_dled_size) + "B)", result.code, false);
+
+				if (result.code != 0)
+				{
+					Err_set_error_message(result.string, result.error_description, sem_check_update_string, result.code);
+					Err_set_error_show_flag(true);
 					if (sem_check_update_request)
 						sem_check_update_progress = 2;
 					else if (sem_dl_file_request)
@@ -1448,7 +1838,7 @@ void Sem_check_update_thread(void* arg)
 				{
 					if (sem_check_update_request)
 					{
-						parse_cache = (char*)httpc_buffer;
+						parse_cache = (char*)buffer;
 
 						for (int i = 0; i < 11; i++)
 						{
@@ -1491,27 +1881,38 @@ void Sem_check_update_thread(void* arg)
 					{
 						sem_update_progress = 1;
 						if (sem_selected_edition_num == 0)
-						{
-							check_update_log_num_return = Log_log_save(sem_check_update_string, "File_save_to_file()...", 1234567890, false);
-							check_update_result = File_save_to_file("Line_for_3DS.3dsx", (u8*)httpc_buffer, downloaded_size, "/Line/ver_" + sem_newest_ver_data[0] + "/", true, check_update_fs_handle, check_update_fs_archive);
-							Log_log_add(check_update_log_num_return, check_update_result.string, check_update_result.code, false);
-							if (check_update_result.code == 0)
-								sem_update_progress = 2;
-							else
-								sem_update_progress = 3;
-						}
+							sem_update_progress = 2;
 
 						if (sem_selected_edition_num > 0 && sem_selected_edition_num < 8)
 						{
-							check_update_result.code = AM_StartCiaInstall(MEDIATYPE_SD, &check_update_am_handle);
-							check_update_log_num_return = Log_log_save(sem_check_update_string, "AM_StartCiaInstall()...", check_update_result.code, false);
+							sem_total_cia_size = sem_dled_size;
+							log_num = Log_log_save(sem_check_update_string, "AM_StartCiaInstall()...", 1234567890, false);
+							result.code = AM_StartCiaInstall(MEDIATYPE_SD, &am_handle);
+							Log_log_add(log_num, "", result.code, false);
 
-							check_update_result.code = FSFILE_Write(check_update_am_handle, &write_size, 0, (u8*)httpc_buffer, downloaded_size, FS_WRITE_FLUSH);
-							check_update_log_num_return = Log_log_save(sem_check_update_string, "FSFILE_Write()...", check_update_result.code, false);
+							while (true)
+							{
+								log_num = Log_log_save(sem_check_update_string, "File_load_from_file_with_range()...", 1234567890, false);
+								result = File_load_from_file_with_range(file_name, (u8*)buffer, 0x20000, offset, &read_size, dir_path, fs_handle, fs_archive);
+								Log_log_add(log_num, result.string, result.code, false);
+								if(result.code != 0 || read_size <= 0)
+									break;
 
-							check_update_result.code = AM_FinishCiaInstall(check_update_am_handle);
-							check_update_log_num_return = Log_log_save(sem_check_update_string, "AM_FinishCiaInstall()...", check_update_result.code, false);
-							if (check_update_result.code == 0)
+								log_num = Log_log_save(sem_check_update_string, "FSFILE_Write()...", 1234567890, false);
+								result.code = FSFILE_Write(am_handle, &write_size, offset, (u8*)buffer, read_size, FS_WRITE_FLUSH);
+								Log_log_add(log_num, "", result.code, false);
+								if(result.code != 0)
+									break;
+
+								offset += write_size;
+								sem_installed_size += write_size;
+								sem_need_reflesh = true;
+							}
+
+							log_num = Log_log_save(sem_check_update_string, "AM_FinishCiaInstall()...", 1234567890, false);
+							result.code = AM_FinishCiaInstall(am_handle);
+							Log_log_add(log_num, "", result.code, false);
+							if (result.code == 0)
 								sem_update_progress = 2;
 							else
 								sem_update_progress = 3;
@@ -1520,8 +1921,8 @@ void Sem_check_update_thread(void* arg)
 				}
 			}
 
-			free(httpc_buffer);
-
+			free(buffer);
+			buffer = NULL;
 			if(sem_check_update_request)
 				sem_check_update_request = false;
 			else if(sem_dl_file_request)

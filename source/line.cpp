@@ -1,4 +1,4 @@
-﻿#include <3ds.h>
+#include <3ds.h>
 #include <algorithm>
 #include <string>
 #include <unistd.h>
@@ -17,6 +17,14 @@
 #include "log.hpp"
 #include "types.hpp"
 #include "swkbd.hpp"
+#include "image_viewer.hpp"
+#include "video_player.hpp"
+#include "music_player.hpp"
+
+extern "C" {
+#include "libavcodec/avcodec.h"
+#include "libavformat/avformat.h"
+}
 
 /*For draw*/
 bool line_need_reflesh = false;
@@ -88,10 +96,15 @@ bool line_dl_log_no_parse_request = false;
 bool line_dl_all_log_no_parse_request = false;
 bool line_sending_msg = false;
 bool line_send_success = false;
+bool line_bar_selected = false;
+bool line_scroll_mode = false;
+bool line_scroll_bar_selected = false;
 bool line_dl_log_failed[128];
 bool line_icon_available[128];
+bool line_button_selected[4];
 int line_unread_msg_num[128];
 int line_msg_offset[128];
+int line_cool_time = 0;
 int line_found = 0;
 int line_num_of_logs = 150;
 int line_selected_menu_mode = 0;
@@ -104,12 +117,12 @@ int line_total_data_size = 0;
 int line_sent_data_size = 0;
 int line_log_httpc_buffer_size = 0x200000;
 int line_log_fs_buffer_size = 0x200000;
-int line_send_fs_buffer_size = 0x1000000;
-int line_send_fs_cache_buffer_size = 0x300000;
+int line_send_buffer_size = 0x300000;
 int line_step_max = 1;
 int line_current_step = 0;
 int line_num_of_ids = 0;
 int line_log_dl_progress = 0;
+int line_log_dled_size = 0;
 int line_post_and_dl_progress = 0;
 int line_num_of_msg = 0;
 int line_num_of_lines = 0;
@@ -134,12 +147,15 @@ int line_sticker_num_list[121] = { 0,
 52114140, 52114141, 52114142, 52114143, 52114144, 52114145, 52114146, 52114147, 52114148, 52114149,
 };
 double line_msg_pos[4000];
+double line_saved_y[2];
 double line_text_x = 0.0;
 double line_text_y = 0.0;
 double line_text_size = 0.66;
 double line_text_interval = 35.0;
 double line_max_y = 10.0;
 double line_selected_msg_num = 0.0;
+double line_touch_x_move_left = 0.0;
+double line_touch_y_move_left = 0.0;
 std::string line_search_text = "";
 std::string line_script_auth = "";
 std::string line_short_url = "";
@@ -164,16 +180,17 @@ std::string line_log_load_thread_string = "Line/Log load thread";
 std::string line_parse_thread_string = "Line/Log parse thread";
 std::string line_init_string = "Line/Init";
 std::string line_exit_string = "Line/Exit";
-std::string line_ver = "v1.6.0";
-C3D_Tex* line_c3d_cache_tex[128];
-Tex3DS_SubTexture* line_c3d_cache_subtex[128];
+std::string line_ver = "v1.7.0";
 C2D_Image line_stickers_images[121], line_icon[128];
 stbi_uc* line_stb_image[128];
 Thread line_dl_log_thread, line_load_log_thread, line_send_msg_thread, line_parse_log_thread, line_worker_thread;
 
 void Line_main(void)
 {
-	int font_num = 0;
+	bool video = false;
+	bool audio = false;
+	bool image = false;
+	bool hit = false;
 	int msg_num_list[10];
 	int num_of_words = 0;
 	int max_length = 512;
@@ -186,11 +203,12 @@ void Line_main(void)
 	float texture_size;
 	float scroll_bar_y_size = 5.0;
 	float scroll_bar_y_pos = (195.0 / (-line_max_y / -line_text_y));
-	double draw_x;
-	double draw_y;
+	double pos_x;
+	double pos_y;
+	double scroll_speed = 0.5;
 	int msg_num[6];
 	int log_num;
-	size_t type_pos[3];
+	size_t cut_pos[5];
 	size_t sticker_num_start_pos;
 	size_t sticker_num_end_pos;
 	std::string status;
@@ -201,26 +219,28 @@ void Line_main(void)
 	std::string init_text;
 	std::string hint_text;
 	std::string file_name;
-	FS_Archive main_fs_archive = 0;
-	Handle main_fs_handle = 0;
+	std::string cache_string;
+	std::string dir = "";
+	FS_Archive fs_archive = 0;
+	Handle fs_handle = 0;
 	SwkbdType type;
 	SwkbdValidInput valid_input;
 	C2D_ImageTint weak_aqua_or_aqua_tint, dammy_or_aqua_tint;
-	Result_with_string main_result;
+	Result_with_string result;
+	Hid_info key;
 
 	texture_size = line_text_size;
 
-	if (Sem_query_font_flag(SEM_USE_DEFAULT_FONT))
-		font_num = 0;
-	else if (Sem_query_font_flag(SEM_USE_SYSTEM_SPEIFIC_FONT))
-		font_num = Sem_query_selected_num(SEM_SELECTED_LANG_NUM) + 1;
-	else if (Sem_query_font_flag(SEM_USE_EXTERNAL_FONT))
-		font_num = 5;
-
 	if (line_auto_update || line_dl_log_request)
+	{
 		line_log_dl_progress = Httpc_query_dl_progress(LINE_HTTP_PORT0);
+		line_log_dled_size = Httpc_query_dled_size(LINE_HTTP_PORT0);
+	}
 	if (line_solve_short_url_request)
+	{
 		line_log_dl_progress = Httpc_query_dl_progress(LINE_HTTP_PORT1);
+		line_log_dled_size = Httpc_query_dled_size(LINE_HTTP_PORT1);
+	}
 
 	if(line_sending_msg)
 		line_post_and_dl_progress = Httpc_query_post_and_dl_progress(LINE_HTTP_POST_PORT0);
@@ -320,8 +340,15 @@ void Line_main(void)
 		line_need_reflesh = true;
 	}
 
+	scroll_speed = Sem_query_settings_d(SEM_SCROLL_SPEED);
+	Hid_query_key_state(&key);
+	scroll_speed *= key.count;
+	Log_main();
 	if(Draw_query_need_reflesh() || !Sem_query_settings(SEM_ECO_MODE) || Expl_query_need_reflesh())
 		line_need_reflesh = true;
+
+	if(!line_select_file_request)
+		Hid_key_flag_reset();
 
 	if(line_need_reflesh)
 	{
@@ -333,7 +360,8 @@ void Line_main(void)
 
 		if (!line_select_chat_room_request)
 		{
-			Draw_texture(Square_image, weak_aqua_tint, 0, 0.0, 15.0, 50.0 * line_log_dl_progress, 3.0);
+			if(line_auto_update || line_dl_log_request)
+				Draw_texture(Square_image, aqua_tint, 0, 0.0, 15.0, 50.0 * line_log_dl_progress, 3.0);
 
 			for (int i = 1; i <= 59999; i++)
 			{
@@ -349,26 +377,24 @@ void Line_main(void)
 					if ((line_text_y + line_text_interval * (i + 100)) <= -20)
 						i += 100;
 				}
-				else if (line_text_y + line_text_interval * i <= 10)
+				else if (line_text_y + line_text_interval * i <= 5)
 				{
 				}
 				else
 				{
-					type_pos[0] = line_content[i].find("<type>sticker</type>");
-					type_pos[1] = line_content[i].find("<type>image</type>");
-					type_pos[2] = line_content[i].find("<type>id</type>");
-
-					if (!(type_pos[0] == std::string::npos))
+					if (line_content[i].find("<type>sticker</type>") != std::string::npos)
 					{
 						sticker_num_start_pos = line_content[i].find("<num>");
 						sticker_num_end_pos = line_content[i].find("</num>");;
 						Draw_texture(line_stickers_images, dammy_tint, std::stoi(line_content[i].substr((sticker_num_start_pos + 5), sticker_num_end_pos - (sticker_num_start_pos + 5))), line_text_x, (line_text_y + line_text_interval * i), (texture_size * 120.0), (texture_size * 120.0));
 					}
-					else if (!(type_pos[1] == std::string::npos) || !(type_pos[2] == std::string::npos))
+					else if (line_content[i].find("<type>image</type>") != std::string::npos || line_content[i].find("<type>video</type>") != std::string::npos
+						|| line_content[i].find("<type>audio</type>") != std::string::npos || line_content[i].find("<type>id</type>") != std::string::npos)
+					{
 						Draw_texture(Square_image, weak_red_tint, 0, line_text_x, (line_text_y + line_text_interval * i), 500.0, 20.0);
-
-					if (!(type_pos[2] == std::string::npos) && (line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
-						alpha[0] = 0.25;
+						if (line_content[i].find("<type>id</type>") != std::string::npos && (line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
+							alpha[0] = 0.25;
+					}
 
 					if((line_selected_menu_mode == LINE_MENU_SEARCH && i >= line_short_msg_pos_start[line_search_result_pos[line_selected_search_highlight_num]] && i <= line_short_msg_pos_end[line_search_result_pos[line_selected_search_highlight_num]])
 						|| (line_selected_menu_mode == LINE_MENU_COPY && i >= line_short_msg_pos_start[line_selected_highlight_num] && i <= line_short_msg_pos_end[line_selected_highlight_num]))//Use purple, If msg is highlighted
@@ -378,7 +404,7 @@ void Line_main(void)
 						blue[0] = 0.75;
 					}
 
-					Draw(line_short_msg_log[i], font_num, line_text_x, line_text_y + line_text_interval * i, line_text_size, line_text_size, red[0], green[0], blue[0], alpha[0]);
+					Draw(line_short_msg_log[i], 0, line_text_x, line_text_y + line_text_interval * i, line_text_size, line_text_size, red[0], green[0], blue[0], alpha[0]);
 				}
 			}
 		}
@@ -431,7 +457,7 @@ void Line_main(void)
 						Draw_texture(line_icon, dammy_tint, i, 0.0, 0.0 + line_text_y + (i * 35.0), 30.0, 30.0);
 
 					Draw_texture(ui_image, dammy_or_aqua_tint, line_dl_log_failed[i], 230.0, 0.0 + line_text_y + (i * 35.0), 30.0, 30.0);
-					Draw(line_names[i], font_num, 35.0, 0.0 + line_text_y + (i * 35.0), 0.5, 0.5, text_red, text_green, text_blue, alpha[0]);
+					Draw(line_names[i], 0, 35.0, 0.0 + line_text_y + (i * 35.0), 0.5, 0.5, text_red, text_green, text_blue, alpha[0]);
 					Draw(hidden_id, 0, 35.0, 20.0 + line_text_y + (i * 35.0), 0.325, 0.325, text_red, text_green, text_blue, alpha[0]);
 					if(line_unread_msg_num[i] > 0)
 						Draw(std::to_string(line_unread_msg_num[i]), 0, 200.0, 0.0 + line_text_y + (i * 35.0), 0.5, 0.5, 1.0, 0.0, 0.0, alpha[0]);
@@ -443,7 +469,7 @@ void Line_main(void)
 
 		  if (line_solve_short_url_request || line_dl_log_no_parse_request || line_dl_all_log_no_parse_request)
 			{
-				Draw_texture(Square_image, weak_red_tint, 0, 20.0, 185.0, 30.0 * line_log_dl_progress, 20.0);
+				Draw_texture(Square_image, aqua_tint, 0, 20.0, 185.0, 30.0 * line_log_dl_progress, 20.0);
 				Draw(line_msg[42], 0, 40.0, 170.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			}
 			else
@@ -455,18 +481,18 @@ void Line_main(void)
 				msg_num_list[4] = 22;
 				msg_num_list[5] = 23;
 
-				draw_x = 20.0;
-				draw_y = 170.0;
+				pos_x = 20.0;
+				pos_y = 170.0;
 				for (int i = 0; i < 6; i++)
 				{
-					Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 130.0, 13.0);
-					Draw(line_msg[msg_num_list[i]], 0, draw_x, draw_y, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
+					Draw_texture(Square_image, weak_aqua_tint, 0, pos_x, pos_y, 130.0, 13.0);
+					Draw(line_msg[msg_num_list[i]], 0, pos_x, pos_y, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
 
-					draw_y += 20.0;
+					pos_y += 20.0;
 					if (i == 2)
 					{
-						draw_x += 150.0;
-						draw_y = 170.0;
+						pos_x += 150.0;
+						pos_y = 170.0;
 					}
 				}
 			}
@@ -479,33 +505,31 @@ void Line_main(void)
 				green[0] = text_green;
 				blue[0] = text_blue;
 				alpha[0] = text_alpha;
-				if (i > line_num_of_lines || (line_text_y + line_text_interval * i) - 240 >= 120)
+				if (i > line_num_of_lines || (line_text_y + line_text_interval * i) - 240 >= 130)
 					break;
 				else if (line_text_y + line_text_interval * i <= -1000)
 				{
 					if ((line_text_y + line_text_interval * (i + 100)) <= 10)
 						i += 100;
 				}
-				else if ((line_text_y + line_text_interval * i) - 240 <= -60)
+				else if ((line_text_y + line_text_interval * i) - 240 <= -10)
 				{
 				}
 				else
 				{
-					type_pos[0] = line_content[i].find("<type>sticker</type>");
-					type_pos[1] = line_content[i].find("<type>image</type>");
-					type_pos[2] = line_content[i].find("<type>id</type>");
-
-					if (!(type_pos[0] == std::string::npos))
+					if (line_content[i].find("<type>sticker</type>") != std::string::npos)
 					{
 						sticker_num_start_pos = line_content[i].find("<num>");
 						sticker_num_end_pos = line_content[i].find("</num>");;
 						Draw_texture(line_stickers_images, dammy_tint, std::stoi(line_content[i].substr((sticker_num_start_pos + 5), sticker_num_end_pos - (sticker_num_start_pos + 5))), line_text_x - 40.0, (line_text_y + line_text_interval * i) - 240.0, (texture_size * 120.0), (texture_size * 120.0));
 					}
-					else if (!(type_pos[1] == std::string::npos) || !(type_pos[2] == std::string::npos))
+					else if (line_content[i].find("<type>image</type>") != std::string::npos || line_content[i].find("<type>video</type>") != std::string::npos
+						|| line_content[i].find("<type>audio</type>") != std::string::npos || line_content[i].find("<type>id</type>") != std::string::npos)
+					{
 						Draw_texture(Square_image, weak_red_tint, 0, line_text_x - 40.0, (line_text_y + line_text_interval * i) - 240.0, 500.0, 20.0);
-
-					if (!(type_pos[2] == std::string::npos) && (line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
-						alpha[0] = 0.25;
+						if (line_content[i].find("<type>id</type>") != std::string::npos && (line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
+							alpha[0] = 0.25;
+					}
 
 					if((line_selected_menu_mode == LINE_MENU_SEARCH && i >= line_short_msg_pos_start[line_search_result_pos[line_selected_search_highlight_num]] && i <= line_short_msg_pos_end[line_search_result_pos[line_selected_search_highlight_num]])
 						|| (line_selected_menu_mode == LINE_MENU_COPY && i >= line_short_msg_pos_start[line_selected_highlight_num] && i <= line_short_msg_pos_end[line_selected_highlight_num]))//Use purple, If msg is highlighted
@@ -515,9 +539,10 @@ void Line_main(void)
 						blue[0] = 0.75;
 					}
 
-					Draw(line_short_msg_log[i], font_num, line_text_x - 40, (line_text_y + line_text_interval * i) - 240, line_text_size, line_text_size, red[0], green[0], blue[0], alpha[0]);
+					Draw(line_short_msg_log[i], 0, line_text_x - 40, (line_text_y + line_text_interval * i) - 240, line_text_size, line_text_size, red[0], green[0], blue[0], alpha[0]);
 				}
 			}
+			Draw_texture(Square_image, black_or_white_tint, 0, 0.0, 135.0, 320.0, 60.0);
 
 			if (line_hide_id && line_ids[line_selected_room_num].length() >= 5)
 			{
@@ -533,7 +558,7 @@ void Line_main(void)
 
 			Draw_texture(line_icon, dammy_tint, line_selected_room_num, 10.0, 135.0, 32.0, 32.0);
 			Draw(status, 0, 45.0, 135.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-			Draw(line_names[line_selected_room_num], font_num, 45.0, 155.0, 0.475, 0.475, text_red, text_green, text_blue, text_alpha);
+			Draw(line_names[line_selected_room_num], 0, 45.0, 155.0, 0.475, 0.475, text_red, text_green, text_blue, text_alpha);
 			Draw_texture(Square_image, yellow_tint, 0, 260.0, 135.0, 40.0, 23.0);
 			red[0] = text_red;
 			green[0] = text_green;
@@ -544,7 +569,7 @@ void Line_main(void)
 				alpha[0] = 0.25;
 
 			Draw(line_msg[43], 0, 260.0, 140.0, 0.45, 0.45, red[0], green[0], blue[0], alpha[0]);
-			Draw(line_ver, 0, 260.0, 155.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0f);
+			Draw(line_ver, 0, 260.0, 155.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
 			Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 170.0, 300.0, 60.0);
 			for(int i = 0; i < 3; i++)
 			{
@@ -589,7 +614,7 @@ void Line_main(void)
 			}
 			else if (line_selected_menu_mode == LINE_MENU_RECEIVE)
 			{
-				if(line_dl_log_request || line_auto_update)
+				if(line_dl_log_request || line_auto_update || line_sending_msg)
 					alpha[0] = 0.25;
 				else
 					alpha[0] = text_alpha;
@@ -619,11 +644,11 @@ void Line_main(void)
 			{
 				Draw_texture(Square_image, aqua_tint, 0, 160.0, 170.0, 50.0, 10.0);
 
-				draw_x = 0.0;
+				pos_x = 0.0;
 				for (int i = 0; i < 4; i++)
 				{
 					if (i == 2)
-						draw_x += 10.0;
+						pos_x += 10.0;
 
 					Draw_texture(Square_image, weak_aqua_tint, 0, 20.0 + (i * 70.0), 185.0, 60.0, 30.0);
 					Draw(line_msg[14 + i], 0, 22.5 + (i * 70.0), 185.0, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
@@ -656,9 +681,7 @@ void Line_main(void)
 			msg_num[4] = 51;
 			msg_num[5] = 5;
 			for (int i = 0; i < 6; i++)
-			{
 				Draw(line_msg[msg_num[i]], 0, 12.5 + (i * 50.0), 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			}
 
 			if (line_send_check[0] || line_send_check[1] || line_send_check[2] || line_delete_id_check_request)
 			{
@@ -681,11 +704,11 @@ void Line_main(void)
 					Draw(line_msg[32], 0, 212.5, 200.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
 
 				Draw_texture(line_icon, dammy_tint, line_selected_room_num, 10.0, 110.0, 30.0, 30.0);
-				Draw(line_names[line_selected_room_num], font_num, 45.0, 110.0, 0.475, 0.475, 1.0, 0.0, 0.0, 1.0);
+				Draw(line_names[line_selected_room_num], 0, 45.0, 110.0, 0.475, 0.475, 1.0, 0.0, 0.0, 1.0);
 				if (line_send_check[0])
 				{
 					Draw(line_msg[25], 0, 45.0, 120.0, 0.55, 0.55, 1.0, 1.0, 1.0, 0.75);
-					Draw(line_input_text, font_num, 45.0, 135.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+					Draw(line_input_text, 0, 45.0, 135.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
 				}
 				else if (line_send_check[1])
 				{
@@ -695,9 +718,9 @@ void Line_main(void)
 				else if (line_send_check[2])
 				{
 					Draw(line_msg[29], 0, 45.0, 120.0, 0.55, 0.55, 1.0, 1.0, 1.0, 0.75);
-					Draw(line_msg[30] + Expl_query_current_patch(), 0, 45.0, 140.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
-					Draw(line_msg[48] + std::to_string(Expl_query_size((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()) / 1024.0 / 1024.0).substr(0, 5) + line_msg[49], 0, 45.0, 150.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
-					Draw(line_msg[31] + Expl_query_file_name((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()), 0, 45.0, 160.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+					Draw(line_msg[30] + line_send_file_dir, 0, 45.0, 140.0, 0.4, 0.4, 1.0, 1.0, 1.0, 0.75);
+					//Draw(line_msg[48] + std::to_string(Expl_query_size((int)Expl_query_selected_num(EXPL_SELECTED_FILE_NUM) + (int)Expl_query_view_offset_y()) / 1024.0 / 1024.0).substr(0, 5) + line_msg[49], 0, 45.0, 150.0, 0.45, 0.45, 1.0, 1.0, 1.0, 0.75);
+					Draw(line_msg[31] + line_send_file_name, 0, 45.0, 160.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
 				}
 				else if (line_delete_id_check_request)
 				{
@@ -718,22 +741,22 @@ void Line_main(void)
 				}
 				Draw_texture(Square_image, blue_tint, 0, 10.0 + (line_selected_sticker_tab_num * 30.0), 140.0, 30.0, 10.0);
 
-				draw_x = 20.0;
-				draw_y = 150.0;
+				pos_x = 20.0;
+				pos_y = 150.0;
 				for (int i = 1 + (line_selected_sticker_tab_num * 12); i < 13 + (line_selected_sticker_tab_num * 12); i++)
 				{
-					Draw_texture(Square_image, weak_blue_tint, 0, draw_x, draw_y, 30.0, 30.0);
-					Draw_texture(line_stickers_images, dammy_tint, i, draw_x, draw_y, 30.0, 30.0);
-					draw_x += 50.0;
-					if (draw_x > 271.0)
+					Draw_texture(Square_image, weak_blue_tint, 0, pos_x, pos_y, 30.0, 30.0);
+					Draw_texture(line_stickers_images, dammy_tint, i, pos_x, pos_y, 30.0, 30.0);
+					pos_x += 50.0;
+					if (pos_x > 271.0)
 					{
-						draw_x = 20.0;
-						draw_y += 40.0;
+						pos_x = 20.0;
+						pos_y += 40.0;
 					}
 				}
 			}
 			else if (line_select_file_request)
-				Draw_expl(line_msg[33]);
+				Expl_draw(line_msg[33]);
 		}
 
 		Draw_texture(Square_image, white_or_black_tint, 0, 312.5, 0.0, 7.5, 15.0);
@@ -754,6 +777,550 @@ void Line_main(void)
 	}
 	else
 		gspWaitForVBlank();
+
+	if (Err_query_error_show_flag())
+	{
+		if (key.p_touch && key.touch_x >= 150 && key.touch_x <= 170 && key.touch_y >= 150 && key.touch_y < 170)
+			Err_set_error_show_flag(false);
+	}
+	else if (line_select_file_request)
+		Expl_main();
+	else
+	{
+		if (key.p_touch || key.h_touch)
+		{
+			line_touch_x_move_left = 0;
+			line_touch_y_move_left = 0;
+		}
+		else
+		{
+			line_bar_selected = false;
+			line_scroll_mode = false;
+			line_scroll_bar_selected = false;
+			line_touch_x_move_left -= (line_touch_x_move_left * 0.025) * key.count;
+			line_touch_y_move_left -= (line_touch_y_move_left * 0.025) * key.count;
+			if (line_touch_x_move_left < 0.5 && line_touch_x_move_left > -0.5)
+				line_touch_x_move_left = 0;
+			if (line_touch_y_move_left < 0.5 && line_touch_y_move_left > -0.5)
+				line_touch_y_move_left = 0;
+		}
+
+		if (key.p_start || (key.p_touch && key.touch_x >= 110 && key.touch_x <= 230 && key.touch_y >= 220 && key.touch_y <= 240))
+			Line_suspend();
+		else if (line_select_chat_room_request)
+		{
+			if (!line_solve_short_url_request)
+			{
+				if (key.p_touch && key.touch_x >= 305 && key.touch_x <= 320 && key.touch_y >= 15 && key.touch_y < 220)
+					line_scroll_bar_selected = true;
+				else if (key.p_touch && key.touch_y <= 169)
+					line_scroll_mode = true;
+
+				if(!line_dl_log_no_parse_request && !line_dl_all_log_no_parse_request)
+				{
+					for (int i = 0; i < 128; i++)
+					{
+						if(key.touch_y <= 164 && key.touch_y >= line_text_y + (i * 35) && key.touch_y <= 29 + line_text_y + (i * 35))
+						{
+							if (key.p_touch && key.touch_x >= 0 && key.touch_x <= 229)
+							{
+								line_selected_room_num = i;
+								line_select_chat_room_request = false;
+								line_saved_y[0] = line_text_y;
+								line_text_y = line_saved_y[1];
+								line_load_log_request = true;
+								line_scroll_mode = false;
+								break;
+							}
+							else if (key.p_touch && key.touch_x >= 230 && key.touch_x <= 269)
+							{
+								line_selected_room_num = i;
+								line_dl_log_no_parse_request = true;
+								line_scroll_mode = false;
+								break;
+							}
+						}
+					}
+					//if (hid_key_ZL_press)
+					//	Line_set_operation_flag(LINE_DL_ALL_LOG_NO_PARSE_REQUEST, true);
+					if (key.p_y || (key.p_touch && key.touch_x >= 20 && key.touch_x <= 149 && key.touch_y >= 190 && key.touch_y <= 202))
+						line_type_id_request = true;
+					else if (((key.p_l && key.h_r) || (key.h_l && key.p_r)) || (key.p_touch && key.touch_x >= 20 && key.touch_x <= 149 && key.touch_y >= 170 && key.touch_y <= 182))
+						line_type_short_url_request = true;
+					else if (key.p_x || (key.p_touch && key.touch_x >= 20 && key.touch_x <= 149 && key.touch_y >= 210 && key.touch_y <= 222))
+						line_type_main_url_request = true;
+					else if (key.p_touch && key.touch_x >= 170 && key.touch_x <= 299 && key.touch_y >= 170 && key.touch_y <= 182)
+						line_hide_id = !line_hide_id;
+					else if (key.p_a || (key.p_touch && key.touch_x >= 170 && key.touch_x <= 299 && key.touch_y >= 190 && key.touch_y <= 202))
+						line_type_app_ps_request = true;
+					else if (key.p_b || (key.p_touch && key.touch_x >= 170 && key.touch_x <= 299 && key.touch_y >= 210 && key.touch_y <= 222))
+						line_type_script_ps_request = true;
+				}
+			}
+		}
+		else
+		{
+				if (line_send_check[0] || line_send_check[1] || line_send_check[2] || line_delete_id_check_request)
+				{
+					if (key.p_a || (key.p_touch && key.touch_x >= 30 && key.touch_x <= 99 && key.touch_y >= 200 && key.touch_y <= 214))
+					{
+						if (line_send_check[0])
+						{
+							line_send_request[0] = true;
+							line_send_check[0] = false;
+						}
+						else if (line_send_check[1])
+						{
+							line_send_request[1] = true;
+							line_send_check[1] = false;
+						}
+						else if (line_send_check[2])
+						{
+							line_send_request[2] = true;
+							line_send_check[2] = false;
+						}
+						else if (line_delete_id_check_request && !line_dl_log_request && !line_parse_log_request && !line_auto_update && !line_load_log_request)
+						{
+							line_saved_y[1] = line_text_y;
+							line_text_y = line_saved_y[0];
+							line_delete_id_request = true;
+							line_delete_id_check_request = false;
+							Line_reset_msg();
+						}
+					}
+					else if (key.p_b || (key.p_touch && key.touch_x >= 120 && key.touch_x <= 189 && key.touch_y >= 200 && key.touch_y <= 214))
+					{
+						if (line_send_check[0])
+							line_send_check[0] = false;
+						else if (line_send_check[1])
+							line_send_check[1] = false;
+						else if (line_send_check[2])
+							line_send_check[2] = false;
+						else if(line_delete_id_check_request)
+							line_delete_id_check_request = false;
+					}
+					else if (key.p_x || (key.p_touch && key.touch_x >= 210 && key.touch_x <= 279 && key.touch_y >= 200 && key.touch_y <= 214))
+					{
+						if (line_send_check[2])
+						{
+							Imv_set_load_file(line_send_file_name, line_send_file_dir);
+							Line_suspend();
+							if(!Imv_query_init_flag())
+								Imv_init();
+							else
+								Imv_resume();
+						}
+						else if (line_send_check[0])
+						{
+							line_type_msg_request = true;
+							line_send_check[0] = false;
+						}
+					}
+				}
+				else if (line_select_sticker_request)
+				{
+					if (key.p_b || (key.p_touch && key.touch_x >= 290 && key.touch_x <= 309 && key.touch_y > 120 && key.touch_y < 139))
+					{
+						hit = true;
+						line_select_sticker_request = false;
+					}
+
+					for (int i = 0; i < 10; i++)
+					{
+						if (key.p_touch && key.touch_x >= 10 + (i * 30) && key.touch_x <= 39 + (i * 30) && key.touch_y > 140 && key.touch_y < 149)
+							line_selected_sticker_tab_num = i;
+					}
+
+					for (int i = 0; i < 7; i++)
+					{
+						if (key.p_touch && key.touch_x >= 20 + (i * 50) && key.touch_x <= 49 + (i * 50) && key.touch_y > 150 && key.touch_y < 179)
+						{
+							line_selected_sticker_num = (line_selected_sticker_tab_num * 12) + (i + 1);
+							line_send_check[1] = true;
+							line_select_sticker_request = false;
+						}
+						else if (key.p_touch && key.touch_x >= 20 + (i * 50) && key.touch_x <= 49 + (i * 50) && key.touch_y > 190 && key.touch_y < 219)
+						{
+							line_selected_sticker_num = (line_selected_sticker_tab_num * 12) + (i + 7);
+							line_send_check[1] = true;
+							line_select_sticker_request = false;
+						}
+					}
+				}
+				else
+				{
+					if (key.p_touch && key.touch_x > 10 && key.touch_x < 59 && key.touch_y > 170 && key.touch_y < 180)
+						line_selected_menu_mode = LINE_MENU_SEND;
+					else if (key.p_touch && key.touch_x > 60 && key.touch_x < 109 && key.touch_y > 170 && key.touch_y < 180)
+						line_selected_menu_mode = LINE_MENU_RECEIVE;
+					else if (key.p_touch && key.touch_x > 110 && key.touch_x < 159 && key.touch_y > 170 && key.touch_y < 180)
+						line_selected_menu_mode = LINE_MENU_COPY;
+					else if (key.p_touch && key.touch_x > 160 && key.touch_x < 209 && key.touch_y > 170 && key.touch_y < 180)
+						line_selected_menu_mode = LINE_MENU_SETTINGS;
+					else if (key.p_touch && key.touch_x > 210 && key.touch_x < 259 && key.touch_y > 170 && key.touch_y < 180)
+						line_selected_menu_mode = LINE_MENU_SEARCH;
+					else if (key.p_touch && key.touch_x > 260 && key.touch_x < 309 && key.touch_y > 170 && key.touch_y < 180)
+						line_selected_menu_mode = LINE_MENU_ADVANCED;
+					else if (key.p_touch && key.touch_x >= 260 && key.touch_x <= 300 && key.touch_y >= 135 && key.touch_y <= 157 && !line_dl_log_request
+						&& !line_parse_log_request && !line_auto_update && !line_load_log_request	&& !line_send_request[0] && !line_send_request[1] && !line_send_request[2])
+					{
+						line_saved_y[1] = line_text_y;
+						Line_reset_msg();
+						line_text_y = line_saved_y[0];
+						line_select_chat_room_request = true;
+					}
+					else if (line_selected_menu_mode == LINE_MENU_SEND && line_send_success)
+					{
+						if (key.p_a || (key.p_touch && key.touch_x >= 20 && key.touch_x <= 299 && key.touch_y >= 185 && key.touch_y <= 197))
+							line_send_success = false;
+					}
+					else if (line_selected_menu_mode == LINE_MENU_SEND && !line_sending_msg)
+					{
+						if (key.p_a || (key.p_touch && key.touch_x >= 20 && key.touch_x <= 299 && key.touch_y >= 185 && key.touch_y <= 197))
+							line_type_msg_request = true;
+						else if (key.p_y || (key.p_touch && key.touch_x >= 20 && key.touch_x <= 149 && key.touch_y >= 205 && key.touch_y <= 217))
+							line_select_sticker_request = true;
+						else if (key.p_x || (key.p_touch && key.touch_x >= 170 && key.touch_x <= 299 && key.touch_y >= 205 && key.touch_y <= 217))
+						{
+							void (*callback)(std::string, std::string);
+							void (*cancel_callback)(void);
+							callback = Line_set_send_file;
+							cancel_callback = Line_cancel_select_file;
+							Expl_set_callback(callback);
+							Expl_set_cancel_callback(cancel_callback);
+							Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
+							line_select_file_request = true;
+						}
+					}
+					else if (line_selected_menu_mode == LINE_MENU_RECEIVE)
+					{
+						if (key.p_b || (key.p_touch && key.touch_x >= 20 && key.touch_x <= 149 && key.touch_y >= 185 && key.touch_y <= 197))
+							line_dl_log_request = true;
+						else if (key.p_x || (key.p_touch && key.touch_x >= 170 && key.touch_x <= 299 && key.touch_y >= 185 && key.touch_y <= 197))
+							line_auto_update = !line_auto_update;
+						else if (key.p_touch && key.touch_x >= 100 && key.touch_x <= 299 && key.touch_y >= 205 && key.touch_y <= 217 && !line_dl_log_request && !line_auto_update && !line_sending_msg)
+							line_bar_selected = true;
+						else if (line_bar_selected && key.h_touch && !line_dl_log_request && !line_auto_update && !line_sending_msg)
+						{
+							if(key.touch_x <= 99)
+								pos_x = 100;
+							else if(key.touch_x >= 300)
+								pos_x = 299;
+							else
+								pos_x = key.touch_x;
+
+							line_num_of_logs = (pos_x - 99) * 20;
+						}
+					}
+					else if (line_selected_menu_mode == LINE_MENU_COPY)
+					{
+						if ((key.p_x || (key.p_touch && key.touch_x >= 90 && key.touch_x <= 149 && key.touch_y >= 185 && key.touch_y <= 215)))
+							Menu_set_clipboard(line_msg_log[line_selected_highlight_num]);
+						else if (key.p_touch && key.touch_x >= 160 && key.touch_x <= 219 && key.touch_y >= 185 && key.touch_y <= 214)
+							line_button_selected[0] = true;
+						else if (key.p_touch && key.touch_x >= 230 && key.touch_x <= 289 && key.touch_y >= 185 && key.touch_y <= 214)
+							line_button_selected[1] = true;
+
+						else if ((key.h_d_down || key.h_d_up) || (((line_button_selected[0] && key.touch_x >= 160 && key.touch_x <= 219)
+							|| (line_button_selected[1] && key.touch_x >= 230 && key.touch_x <= 289)) && key.touch_y >= 185 && key.touch_y <= 214))
+						{
+							if(line_cool_time > 0)
+								line_cool_time--;
+							else if((key.h_d_down || (line_button_selected[0] && key.touch_x >= 160 && key.touch_x <= 219)) && (line_num_of_msg - 1) >= (line_selected_highlight_num + 1))
+							{
+								line_selected_highlight_num++;
+								if(key.held_time > 150)
+									line_cool_time = 1;
+								else
+									line_cool_time = 20;
+							}
+							else if((key.h_d_up || (line_button_selected[1] && key.touch_x >= 230 && key.touch_x <= 289)) && line_selected_highlight_num - 1 >= 0)
+							{
+								line_selected_highlight_num--;
+								if(key.held_time > 150)
+									line_cool_time = 1;
+								else
+									line_cool_time = 20;
+							}
+
+							line_text_y = line_msg_pos[line_selected_highlight_num];
+						}
+					}
+					else if (line_selected_menu_mode == LINE_MENU_SETTINGS)
+					{
+						if ((key.h_d_up || (key.h_touch && key.touch_x > 20 && key.touch_x < 80 && key.touch_y > 185 && key.touch_y < 215 && line_button_selected[0])) && (line_text_interval + 0.5) < 250.0)
+							line_text_interval += 0.5;
+						else if ((key.h_d_down || (key.h_touch && key.touch_x > 90 && key.touch_x < 150 && key.touch_y > 185 && key.touch_y < 215 && line_button_selected[1])) && (line_text_interval - 0.5) > 10.0)
+							line_text_interval -= 0.5;
+						else if ((key.h_l || (key.h_touch && key.touch_x > 170 && key.touch_x < 230 && key.touch_y > 185 && key.touch_y < 215 && line_button_selected[2])) && (line_text_size - 0.003) > 0.25)
+							line_text_size -= 0.003;
+						else if ((key.h_r || (key.h_touch && key.touch_x > 240 && key.touch_x < 300 && key.touch_y > 185 && key.touch_y < 215 && line_button_selected[3])) && (line_text_size + 0.003) < 3.0)
+							line_text_size += 0.003;
+						else if (key.p_touch && key.touch_x > 20 && key.touch_x < 80 && key.touch_y > 185 && key.touch_y < 215)
+							line_button_selected[0] = true;
+						else if (key.p_touch && key.touch_x > 90 && key.touch_x < 150 && key.touch_y > 185 && key.touch_y < 215)
+							line_button_selected[1] = true;
+						else if (key.p_touch && key.touch_x > 170 && key.touch_x < 230 && key.touch_y > 185 && key.touch_y < 215)
+							line_button_selected[2] = true;
+						else if (key.p_touch && key.touch_x > 240 && key.touch_x < 300 && key.touch_y > 185 && key.touch_y < 215)
+							line_button_selected[3] = true;
+					}
+					else if (line_selected_menu_mode == LINE_MENU_SEARCH)
+					{
+						if (key.p_a || (key.p_touch && key.touch_x >= 90 && key.touch_x <= 149 && key.touch_y >= 185 && key.touch_y <= 214))
+							line_search_request = true;
+						else if (key.p_touch && key.touch_x >= 160 && key.touch_x <= 219 && key.touch_y >= 185 && key.touch_y <= 214)
+							line_button_selected[0] = true;
+						else if (key.p_touch && key.touch_x >= 230 && key.touch_x <= 289 && key.touch_y >= 185 && key.touch_y <= 214)
+							line_button_selected[1] = true;
+
+						else if ((key.h_d_down || key.h_d_up) || (((line_button_selected[0] && key.touch_x >= 160 && key.touch_x <= 219)
+							|| (line_button_selected[1] && key.touch_x >= 230 && key.touch_x <= 289)) && key.touch_y >= 185 && key.touch_y <= 214))
+						{
+							if(line_cool_time > 0)
+								line_cool_time--;
+							else
+							{
+								if((key.h_d_down || (line_button_selected[0] && key.touch_x >= 160 && key.touch_x <= 219)) && line_found >= line_selected_search_highlight_num + 1)
+									line_selected_search_highlight_num++;
+								else if((key.h_d_up || (line_button_selected[1] && key.touch_x >= 230 && key.touch_x <= 289)) && line_selected_search_highlight_num - 1 >= 0)
+									line_selected_search_highlight_num--;
+
+								if(key.held_time > 150)
+									line_cool_time = 1;
+								else
+									line_cool_time = 20;
+
+								line_selected_highlight_num = line_search_result_pos[line_selected_search_highlight_num];
+								line_text_y = line_msg_pos[line_selected_highlight_num];
+							}
+						}
+					}
+					else if (line_selected_menu_mode == LINE_MENU_ADVANCED)
+					{
+						if (((key.p_l && key.h_r) || (key.h_l && key.p_r)) || (key.p_touch && key.touch_x >= 20 && key.touch_x <= 299 && key.touch_y >= 185 && key.touch_y <= 214))
+							line_delete_id_check_request = true;
+					}
+				}
+
+				if (!hit && key.p_touch && key.touch_x >= 305 && key.touch_x <= 320 && key.touch_y >= 15 && key.touch_y < 220)
+					line_scroll_bar_selected = true;
+				else if (!hit && key.p_touch && key.touch_y >= 0 && key.touch_y < 140)
+				{
+					for (int i = 1; i <= 59999; i++)
+					{
+						if ((line_text_y + line_text_interval * i) - 240 >= 125)
+							break;
+						else if (line_text_y + line_text_interval * i <= -1000)
+						{
+							if ((line_text_y + line_text_interval * (i + 100)) <= 10)
+								i += 100;
+						}
+						else if ((line_text_y + line_text_interval * i) - 240 <= -60)
+						{
+						}
+						else
+						{
+							cut_pos[0] = line_content[i].find("<type>image</type>");
+							cut_pos[1] = line_content[i].find("<type>id</type>");
+							cut_pos[2] = line_content[i].find("<type>video</type>");
+							cut_pos[3] = line_content[i].find("<type>audio</type>");
+
+							//jump to imv
+							if (!(cut_pos[0] == std::string::npos) && key.touch_y >= (line_text_y + line_text_interval * i) - 240.0
+								&& key.touch_y <= (line_text_y + line_text_interval * i) - 220.0
+								&& key.touch_x >= (line_text_x - 40.0) && key.touch_x <= (line_text_x + 460.0))
+							{
+								hit = true;
+								result.code = -1;
+								cut_pos[0] = line_content[i].find("&id=");
+								cut_pos[1] = line_content[i].find("om/d/");
+								if (!(cut_pos[0] == std::string::npos && cut_pos[1] == std::string::npos))
+								{
+									cache_string = "";
+									if (!(cut_pos[0] == std::string::npos))
+										cache_string = line_content[i].substr(cut_pos[0] + 4);
+									else if (!(cut_pos[1] == std::string::npos))
+										cache_string = line_content[i].substr(cut_pos[1] + 5);
+
+									if (cache_string.length() > 33)
+										cache_string = cache_string.substr(0, 33);
+
+									cache_string += ".jpg";
+									log_num = Log_log_save(line_main_thread_string, "File_check_file_exist()...", 1234567890, false);
+									result = File_check_file_exist(cache_string, "/Line/images/", fs_handle, fs_archive);
+									Log_log_add(log_num, result.string, result.code, false);
+								}
+
+								if (result.code == 0)
+									Imv_set_load_file(cache_string, "/Line/images/");
+								else
+								{
+									cut_pos[0] = line_content[i].find("<url>");
+									cut_pos[1] = line_content[i].find("</url>");
+									if (cut_pos[0] == std::string::npos || cut_pos[1] == std::string::npos)
+										Imv_set_url("");
+									else
+										Imv_set_url(line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5)));
+								}
+								Line_suspend();
+								if(!Imv_query_init_flag())
+									Imv_init();
+								else
+									Imv_resume();
+							}
+							else if ((!(cut_pos[2] == std::string::npos) || !(cut_pos[3] == std::string::npos)) && key.touch_y >= (line_text_y + line_text_interval * i) - 240.0
+								&& key.touch_y <= (line_text_y + line_text_interval * i) - 220.0
+								&& key.touch_x >= (line_text_x - 40.0) && key.touch_x <= (line_text_x + 460.0))
+							{
+								if(!(cut_pos[2] == std::string::npos))
+									video = true;
+								else if(!(cut_pos[3] == std::string::npos))
+									audio = true;
+
+								hit = true;
+								result.code = -1;
+								cut_pos[0] = line_content[i].find("&id=");
+								if (!(cut_pos[0] == std::string::npos))
+								{
+									cache_string = "";
+									if (!(cut_pos[0] == std::string::npos))
+										cache_string = line_content[i].substr(cut_pos[0] + 4);
+
+									if (cache_string.length() > 33)
+										cache_string = cache_string.substr(0, 33);
+
+									if(video)
+									{
+										dir = "/Line/videos/";
+										cache_string += ".mp4";
+									}
+									else if(audio)
+									{
+										dir = "/Line/audio/";
+										cache_string += ".m4a";
+									}
+
+									log_num = Log_log_save(line_main_thread_string, "File_check_file_exist()...", 1234567890, false);
+									result = File_check_file_exist(cache_string, dir, fs_handle, fs_archive);
+									Log_log_add(log_num, result.string, result.code, false);
+								}
+
+								if (result.code == 0)
+								{
+									if(video)
+										Vid_set_load_file(cache_string, dir);
+									else if(audio)
+										Mup_set_load_file(cache_string, dir);
+								}
+								else
+								{
+									cut_pos[0] = line_content[i].find("<url>");
+									cut_pos[1] = line_content[i].find("</url>");
+									if (cut_pos[0] == std::string::npos || cut_pos[1] == std::string::npos)
+									{
+										if(video)
+											Vid_set_url("");
+										else if(audio)
+											Mup_set_url("");
+									}
+									else
+									{
+										if(video)
+											Vid_set_url(line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5)));
+										else if(audio)
+											Mup_set_url(line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5)));
+
+										Menu_set_clipboard(line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5)));
+									}
+								}
+								Line_suspend();
+								if(video)
+								{
+									if(!Vid_query_init_flag())
+										Vid_init();
+									else
+										Vid_resume();
+								}
+								else if(audio)
+								{
+									if(!Mup_query_init_flag())
+										Mup_init();
+									else
+										Mup_resume();
+								}
+							}
+							//add id
+							else if (!(cut_pos[1] == std::string::npos) && key.touch_y >= (line_text_y + line_text_interval * i) - 240.0
+								&& key.touch_y <= (line_text_y + line_text_interval * i) - 220.0
+								&& key.touch_x >= (line_text_x - 40.0) && key.touch_x <= (line_text_x + 460.0) && !line_dl_log_request
+								&& !line_parse_log_request && !line_auto_update && !line_load_log_request)
+							{
+								hit = true;
+								cut_pos[0] = line_content[i].find("<id>");
+								cut_pos[1] = line_content[i].find("</id>");
+								if (cut_pos[0] == std::string::npos || cut_pos[1] == std::string::npos)
+									Menu_set_clipboard("");
+								else
+									Menu_set_clipboard(line_content[i].substr((cut_pos[0] + 4), cut_pos[1] - (cut_pos[0] + 4)));
+
+								line_saved_y[1] = line_text_y;
+								Line_reset_msg();
+								line_text_y = line_saved_y[0];
+								line_select_chat_room_request = true;
+								line_type_id_request = true;
+							}
+						}
+					}
+				}
+
+				if (!hit && key.p_touch && key.touch_y < 110)
+					line_scroll_mode = true;
+				else if (!hit && key.p_touch && key.touch_y < 140 && !(line_send_check[0] || line_send_check[1] || line_send_check[2] || line_delete_id_check_request))
+					line_scroll_mode = true;
+		}
+
+		if (key.h_c_down || key.h_c_up)
+		{
+			if (key.held_time > 600)
+				line_text_y += (double)key.cpad_y * scroll_speed * 0.5;
+			else if (key.held_time > 240)
+				line_text_y += (double)key.cpad_y * scroll_speed * 0.125;
+			else
+				line_text_y += (double)key.cpad_y * scroll_speed * 0.0625;
+		}
+		if (key.h_c_left || key.h_c_right)
+		{
+			if (key.held_time > 240)
+				line_text_x -= (double)key.cpad_x * scroll_speed * 0.125;
+			else
+				line_text_x -= (double)key.cpad_x * scroll_speed * 0.0625;
+		}
+
+		if (line_scroll_bar_selected && key.h_touch)
+		{
+			line_touch_x_move_left = 0;
+			line_touch_y_move_left = 0;
+			line_text_y = line_max_y * ((key.touch_y - 15.0) / 195.0);
+		}
+		else if (line_scroll_mode && key.h_touch)
+		{
+			line_touch_x_move_left += key.touch_x_move;
+			line_touch_y_move_left += key.touch_y_move;
+		}
+
+		line_text_x -= line_touch_x_move_left * scroll_speed;
+		line_text_y -= line_touch_y_move_left * scroll_speed;
+
+		if (line_text_y > 0.0)
+			line_text_y = 0.0;
+		if (line_text_y < line_max_y)
+			line_text_y = line_max_y;
+		if (line_text_x > 40.0)
+			line_text_x = 40.0;
+		if (line_text_x < -500.0)
+			line_text_x = -500.0;
+	}
 
 	Hid_set_disable_flag(true);
 	if (line_type_msg_request || line_type_id_request || line_type_short_url_request || line_type_main_url_request
@@ -855,7 +1422,7 @@ void Line_main(void)
 			if (line_type_msg_request)
 			{
 				line_input_text = swkbd_data;
-				line_encoded_input_text = Line_encode_to_escape(swkbd_data);
+				line_encoded_input_text = Sem_encode_to_escape(swkbd_data);
 				if (line_encoded_input_text.length() > 4000)
 					line_encoded_input_text = line_encoded_input_text.substr(0, 3990);
 
@@ -864,7 +1431,7 @@ void Line_main(void)
 			else if(line_type_id_request)
 			{
 				log_num = Log_log_save(line_main_thread_string, "Line_save_new_id()...", 1234567890, false);
-				main_result = Line_save_new_id(swkbd_data, "/Line/to/");
+				result = Line_save_new_id(swkbd_data, "/Line/to/");
 			}
 			else if(line_type_short_url_request)
 			{
@@ -887,7 +1454,7 @@ void Line_main(void)
 					file_name = "script_auth";
 					line_script_auth = swkbd_data;
 				}
-				main_result = File_save_to_file(file_name, (u8*)swkbd_data.c_str(), swkbd_data.length(), "/Line/", true, main_fs_handle, main_fs_archive);
+				result = File_save_to_file(file_name, (u8*)swkbd_data.c_str(), swkbd_data.length(), "/Line/", true, fs_handle, fs_archive);
 			}
 			else if(line_search_request)
 			{
@@ -915,7 +1482,7 @@ void Line_main(void)
 
 			if(line_type_id_request || line_type_main_url_request || line_check_main_url_request
 				|| line_type_app_ps_request || line_type_script_ps_request)
-				Log_log_add(log_num, main_result.string, main_result.code, false);
+				Log_log_add(log_num, result.string, result.code, false);
 		}
 
 		if (line_type_msg_request)
@@ -943,7 +1510,7 @@ void Line_main(void)
 
 void Line_init(void)
 {
-	Log_log_save(line_init_string, "Initializing...", 1234567890, DEBUG);
+	Log_log_save(line_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
 	bool auth_success = false;
 	u8* fs_buffer;
 	u32 read_size = 0;
@@ -958,17 +1525,17 @@ void Line_init(void)
 	fs_buffer = (u8*)malloc(0x2000);
 	for (int i = 0; i < 128; i++)
 	{
-		line_c3d_cache_tex[i] = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
-		line_c3d_cache_subtex[i] = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
+		line_icon[i].tex = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
+		line_icon[i].subtex = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
 	}
 	Line_reset_id();
 	Line_reset_msg();
 
 	Draw_progress("0/3 [Line] Authing...");
 	memset(fs_buffer, 0x0, 0x2000);
-	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, DEBUG);
+	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
 	result = File_load_from_file("auth", fs_buffer, 0x2000, &read_size, "/Line/",  fs_handle, fs_archive);
-	Log_log_add(log_num, result.string, result.code, DEBUG);
+	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 
 	if (result.code == 0)
 		auth_code = (char*)fs_buffer;
@@ -986,19 +1553,19 @@ void Line_init(void)
 
 			if (input_string == swkbd_data)
 			{
-				log_num = Log_log_save(line_init_string, "File_save_to_file()...", 1234567890, DEBUG);
+				log_num = Log_log_save(line_init_string, "File_save_to_file()...", 1234567890, FORCE_DEBUG);
 				result = File_save_to_file("auth", (u8*)swkbd_data.c_str(), swkbd_data.length(), "/Line/", true, fs_handle, fs_archive);
-				Log_log_add(log_num, result.string, result.code, DEBUG);
+				Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 				auth_code = swkbd_data;
 				break;
 			}
 		}
 	}
 
-	Log_log_save(line_init_string, "Please enter password", 1234567890, DEBUG);
+	Log_log_save(line_init_string, "Please enter password", 1234567890, FORCE_DEBUG);
 	if (auth_code == "")
 	{
-		Log_log_save(line_init_string, "Password is not set", 1234567890, DEBUG);
+		Log_log_save(line_init_string, "Password is not set", 1234567890, FORCE_DEBUG);
 		auth_success = true;
 	}
 	else if (input_string == swkbd_data)
@@ -1012,35 +1579,35 @@ void Line_init(void)
 			if (auth_code == swkbd_data)
 			{
 				auth_success = true;
-				Log_log_save(line_init_string, "Password is correct", 1234567890, DEBUG);
+				Log_log_save(line_init_string, "Password is correct", 1234567890, FORCE_DEBUG);
 				break;
 			}
 			else
-				Log_log_save(line_init_string, "Password is incorrect", 1234567890, DEBUG);
+				Log_log_save(line_init_string, "Password is incorrect", 1234567890, FORCE_DEBUG);
 		}
 	}
 
 	if (!auth_success)
 	{
-		Log_log_save(line_init_string, "Auth failed, rebooting...", 1234567890, DEBUG);
+		Log_log_save(line_init_string, "Auth failed, rebooting...", 1234567890, FORCE_DEBUG);
 		Draw_progress("0/3 [Line] Auth failed.");
 		APT_HardwareResetAsync();
 	}
 
 	Draw_progress("1/3 [Line] Loading settings...");
 	memset(fs_buffer, 0x0, 0x2000);
-	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, DEBUG);
+	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
 	result = File_load_from_file("script_auth", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
-	Log_log_add(log_num, result.string, result.code, DEBUG);
+	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 	if (result.code == 0)
 		line_script_auth = (char*)fs_buffer;
 	else
 		line_script_auth = "";
 
 	memset(fs_buffer, 0x0, 0x2000);
-	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, DEBUG);
+	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
 	result = File_load_from_file("main_url.txt", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
-	Log_log_add(log_num, result.string, result.code, DEBUG);
+	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 	if (result.code == 0)
 		line_main_url = (char*)fs_buffer;
 	else
@@ -1051,9 +1618,9 @@ void Line_init(void)
 	line_num_of_logs = 150;
 	line_hide_id = false;
 	memset(fs_buffer, 0x0, 0x2000);
-	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, DEBUG);
+	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
 	result = File_load_from_file("Line_setting.txt", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
-	Log_log_add(log_num, result.string, result.code, DEBUG);
+	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 	if (result.code == 0)
 	{
 		result = Sem_parse_file((char*)fs_buffer, 4, data);
@@ -1091,9 +1658,9 @@ void Line_init(void)
 	line_icon_dl_request = true;
 
 	Draw_progress("3/3 [Line] Loading textures...");
-	log_num = Log_log_save(line_init_string, "Draw_load_texture()...", 1234567890, DEBUG);
+	log_num = Log_log_save(line_init_string, "Draw_load_texture()...", 1234567890, FORCE_DEBUG);
 	result = Draw_load_texture("romfs:/gfx/stickers.t3x", 51, line_stickers_images, 0, 121);
-	Log_log_add(log_num, result.string, result.code, DEBUG);
+	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 	line_select_chat_room_request = true;
 
 	Line_resume();
@@ -1102,29 +1669,28 @@ void Line_init(void)
 	fs_buffer = NULL;
 
 
-	/*std::string web_url = "https://192.168.1.1/";
 
-	log_num = Log_log_save(line_init_string, "APT_PrepareToJumpToHomeMenu()...", 1234567890, DEBUG);
-	result.code = APT_PrepareToJumpToHomeMenu();
-	Log_log_add(log_num, "", result.code, DEBUG);
+	//aptJumpToHomeMenu();
+//	std::string web_url = "https://192.168.1.1/";
 
-	log_num = Log_log_save(line_init_string, "APT_JumpToHomeMenu()...", 1234567890, DEBUG);
-	result.code = APT_JumpToHomeMenu(0, 0, 0);
-	Log_log_add(log_num, "", result.code, DEBUG);
-
-	log_num = Log_log_save(line_init_string, "APT_PrepareToStartSystemApplet()...", 1234567890, DEBUG);
+/*	log_num = Log_log_save("debug", "APT_PrepareToStartSystemApplet()...", 1234567890, FORCE_DEBUG);
 	result.code = APT_PrepareToStartSystemApplet(APPID_WEB);
-	Log_log_add(log_num, "", result.code, DEBUG);
-	log_num = Log_log_save(line_init_string, "	APT_StartSystemApplet()...", 1234567890, DEBUG);
-	result.code = APT_StartSystemApplet(APPID_WEB, (const void*)"https://192.168.1.1/", strlen("https://192.168.1.1/"), CUR_PROCESS_HANDLE);
-	Log_log_add(log_num, "", result.code, DEBUG);*/
+	Log_log_add(log_num, "", result.code, FORCE_DEBUG);
+	log_num = Log_log_save("debug", "	APT_StartSystemApplet()...", 1234567890, FORCE_DEBUG);
+	result.code = APT_StartSystemApplet(APPID_WEB, (const void*)web_url.c_str(), web_url.length(), 0);
+	Log_log_add(log_num, "", result.code, FORCE_DEBUG);*/
 
-	Log_log_save(line_init_string, "Initialized", 1234567890, DEBUG);
+
+/*	log_num = Log_log_save(line_init_string, "APT_PrepareToJumpToHomeMenu()...", 1234567890, FORCE_DEBUG);
+	result.code = APT_PrepareToJumpToHomeMenu();
+	Log_log_add(log_num, "", result.code, FORCE_DEBUG);*/
+
+	Log_log_save(line_init_string, "Initialized", 1234567890, FORCE_DEBUG);
 }
 
 void Line_exit(void)
 {
-	Log_log_save(line_exit_string , "Exiting...", 1234567890, DEBUG);
+	Log_log_save(line_exit_string , "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
 	bool failed = false;
@@ -1142,13 +1708,13 @@ void Line_exit(void)
 	line_log_parse_thread_run = false;
 	line_send_msg_thread_run = false;
 
-	log_num = Log_log_save(line_exit_string, "File_save_to_file()...", 1234567890, DEBUG);
+	log_num = Log_log_save(line_exit_string, "File_save_to_file()...", 1234567890, FORCE_DEBUG);
 	result = File_save_to_file("Line_setting.txt", (u8*)data.c_str(), data.length(), "/Line/", true, fs_handle, fs_archive);
-	Log_log_add(log_num, result.string, result.code, DEBUG);
+	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 
 	for(int i = 0; i < 5; i++)
 	{
-		log_num = Log_log_save(line_exit_string, "threadJoin()" + std::to_string(i) + "/4...", 1234567890, DEBUG);
+		log_num = Log_log_save(line_exit_string, "threadJoin()" + std::to_string(i) + "/4...", 1234567890, FORCE_DEBUG);
 
 		if (i == 0)
 			result.code = threadJoin(line_dl_log_thread, time_out);
@@ -1162,11 +1728,11 @@ void Line_exit(void)
 			result.code = threadJoin(line_worker_thread, time_out);
 
 		if (result.code == 0)
-			Log_log_add(log_num, Err_query_template_summary(0), result.code, DEBUG);
+			Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 		else
 		{
 			failed = true;
-			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, DEBUG);
+			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
 		}
 	}
 
@@ -1183,10 +1749,20 @@ void Line_exit(void)
 	for (int i = 0; i < 121; i++)
 		line_stickers_images[i].tex = NULL;
 
-	if(failed)
-		Log_log_save(line_exit_string , "[Warn] Some function returned error.", 1234567890, DEBUG);
+	for (int i = 0; i < 128; i++)
+	{
+		linearFree(line_icon[i].tex->data);
+		linearFree(line_icon[i].tex);
+		linearFree((void*)line_icon[i].subtex);
+		line_icon[i].tex->data = NULL;
+		line_icon[i].tex = NULL;
+		line_icon[i].subtex = NULL;
+	}
 
-	Log_log_save(line_exit_string , "Exited.", 1234567890, DEBUG);
+	if(failed)
+		Log_log_save(line_exit_string , "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
+
+	Log_log_save(line_exit_string , "Exited.", 1234567890, FORCE_DEBUG);
 }
 
 bool Line_query_init_flag(void)
@@ -1205,163 +1781,10 @@ int Line_query_buffer_size(int buffer_num)
 		return line_log_httpc_buffer_size;
 	else if (buffer_num == LINE_FS_BUFFER)
 		return line_log_fs_buffer_size;
-	else if (buffer_num == LINE_SEND_FS_BUFFER)
-		return line_send_fs_buffer_size;
-	else if (buffer_num == LINE_SEND_FS_CACHE_BUFFER)
-		return line_send_fs_cache_buffer_size;
+	else if (buffer_num == LINE_SEND_BUFFER)
+		return line_send_buffer_size;
 	else
 		return -1;
-}
-
-std::string Line_query_content_info(int log_num)
-{
-	if (log_num >= 0 && log_num <= 59999)
-		return line_content[log_num];
-	else
-		return "";
-}
-
-double Line_query_max_y(void)
-{
-	return line_max_y;
-}
-
-int Line_query_max_msg(void)
-{
-	return line_num_of_msg - 1;
-}
-
-int Line_query_max_search_result(void)
-{
-	return line_found;
-}
-
-std::string Line_query_msg_log(int log_num)
-{
-	if (log_num >= 0 && log_num <= 3999)
-		return line_msg_log[log_num];
-	else
-		return "";
-}
-
-double Line_query_msg_pos(int log_num)
-{
-	if (log_num >= 0 && log_num <= 3999)
-		return line_msg_pos[log_num];
-	else
-		return -1.0;
-}
-
-bool Line_query_operation_flag(int operation_num)
-{
-	if (operation_num == LINE_SEND_MSG_CHECK_REQUEST)
-		return line_send_check[0];
-	else if (operation_num == LINE_SEND_STICKER_CHECK_REQUEST)
-		return line_send_check[1];
-	else if (operation_num == LINE_SEND_CONTENT_CHECK_REQUEST)
-		return line_send_check[2];
-	else if (operation_num == LINE_SEND_MSG_REQUEST)
-		return line_send_request[0];
-	else if (operation_num == LINE_SEND_STICKER_REQUEST)
-		return line_send_request[1];
-	else if (operation_num == LINE_SEND_CONTENT_REQUEST)
-		return line_send_request[2];
-	else if (operation_num == LINE_DL_LOG_REQUEST)
-		return line_dl_log_request;
-	else if (operation_num == LINE_LOAD_LOG_REQUEST)
-		return line_load_log_request;
-	else if (operation_num == LINE_TYPE_MSG_REQUEST)
-		return line_type_msg_request;
-	else if (operation_num == LINE_TYPE_ID_REQUEST)
-		return line_type_id_request;
-	else if (operation_num == LINE_TYPE_MAIN_URL_REQUEST)
-		return line_type_main_url_request;
-	else if (operation_num == LINE_TYPE_APP_PS_REQUEST)
-		return line_type_app_ps_request;
-	else if (operation_num == LINE_TYPE_SCRIPT_PS_REQUEST)
-		return line_type_script_ps_request;
-	else if (operation_num == LINE_SELECT_STICKER_REQUEST)
-		return line_select_sticker_request;
-	else if (operation_num == LINE_SELECT_FILE_REQUEST)
-		return line_select_file_request;
-	else if (operation_num == LINE_SENDING_MSG)
-		return line_sending_msg;
-	else if (operation_num == LINE_SEND_SUCCESS)
-		return line_send_success;
-	else if (operation_num == LINE_SELECT_CHAT_ROOM_REQUEST)
-		return line_select_chat_room_request;
-	else if (operation_num == LINE_DELETE_ID_CHECK_REQUEST)
-		return line_delete_id_check_request;
-	else if (operation_num == LINE_DELETE_ID_REQUEST)
-		return line_delete_id_request;
-	else if (operation_num == LINE_SOLVE_SHORT_URL_REQUEST)
-		return line_solve_short_url_request;
-	else if (operation_num == LINE_CHECK_MAIN_URL_REQUEST)
-		return line_check_main_url_request;
-	else if (operation_num == LINE_TYPE_SHORT_URL_REQUEST)
-		return line_type_short_url_request;
-	else if (operation_num == LINE_PARSE_LOG_REQUEST)
-		return line_parse_log_request;
-	else if(operation_num == LINE_DL_LOG_NO_PARSE_REQUEST)
-		return line_dl_log_no_parse_request;
-	else if(operation_num == LINE_DL_ALL_LOG_NO_PARSE_REQUEST)
-		return line_dl_all_log_no_parse_request;
-	else if(operation_num == LINE_SEARCH_REQUEST)
-		return line_search_request;
-	else
-		return false;
-}
-
-int Line_query_search_num(int search_num)
-{
-	if (search_num >= 0 && search_num <= 3999)
-		return line_search_result_pos[search_num];
-	else
-		return 0;
-}
-
-int Line_query_selected_num(int item_num)
-{
-	if (item_num == LINE_SELECTED_MENU_MODE_NUM)
-		return line_selected_menu_mode;
-	else if (item_num == LINE_SELECTED_STICKER_NUM)
-		return line_selected_sticker_num;
-	else if (item_num == LINE_SELECTED_STICKER_TAB_NUM)
-		return line_selected_sticker_tab_num;
-	else if (item_num == LINE_SELECTED_ROOM_NUM)
-		return line_selected_room_num;
-	else if(item_num == LINE_SELECTED_NUM_OF_LOGS)
-		return line_num_of_logs;
-	else if(item_num == LINE_SELECTED_HIGHLIGHT_NUM)
-		return line_selected_highlight_num;
-	else if(item_num == LINE_SELECTED_SEARCH_HIGHLIGHT_NUM)
-		return line_selected_search_highlight_num;
-	else
-		return -1;
-}
-
-double Line_query_x_y_size_interval(int item_num)
-{
-	if (item_num == LINE_TEXT_X)
-		return line_text_x;
-	else if (item_num == LINE_TEXT_Y)
-		return line_text_y;
-	else if (item_num == LINE_TEXT_SIZE)
-		return line_text_size;
-	else if (item_num == LINE_TEXT_INTERVAL)
-		return line_text_interval;
-	else
-		return -1.0;
-}
-
-bool Line_query_setting(int setting_num)
-{
-	if (setting_num == LINE_HIDE_ID)
-		return line_hide_id;
-	else if (setting_num == LINE_AUTO_UPDATE)
-		return line_auto_update;
-	else
-		return false;
 }
 
 void Line_reset_id(void)
@@ -1369,13 +1792,9 @@ void Line_reset_id(void)
 	for (int i = 0; i < 128; i++)
 	{
 		free(line_stb_image[i]);
-		linearFree(line_c3d_cache_tex[i]->data);
-		linearFree(line_c3d_cache_subtex[i]);
-		line_c3d_cache_tex[i]->data = NULL;
-		line_c3d_cache_subtex[i] = NULL;
+		linearFree(line_icon[i].tex->data);
 		line_stb_image[i] = NULL;
-		line_c3d_cache_tex[i] = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
-		line_c3d_cache_subtex[i] = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
+		line_icon[i].tex->data = NULL;
 		line_ids[i] = "";
 		line_ids[i].reserve(10);
 		line_names[i] = "";
@@ -1422,10 +1841,8 @@ void Line_set_buffer_size(int buffer_num, int size)
 		line_log_httpc_buffer_size = size;
 	else if (buffer_num == LINE_FS_BUFFER)
 		line_log_fs_buffer_size = size;
-	else if (buffer_num == LINE_SEND_FS_BUFFER)
-		line_send_fs_buffer_size = size;
-	else if (buffer_num == LINE_SEND_FS_CACHE_BUFFER)
-		line_send_fs_cache_buffer_size = size;
+	else if (buffer_num == LINE_SEND_BUFFER)
+		line_send_buffer_size = size;
 }
 
 void Line_set_msg(int msg_num, std::string msg)
@@ -1434,110 +1851,17 @@ void Line_set_msg(int msg_num, std::string msg)
 		line_msg[msg_num] = msg;
 }
 
-void Line_set_send_file_name(std::string file_name)
+void Line_set_send_file(std::string file_name, std::string dir_name)
 {
 	line_send_file_name = file_name;
-}
-
-void Line_set_send_dir_name(std::string dir_name)
-{
 	line_send_file_dir = dir_name;
+	line_select_file_request = false;
+	line_send_check[2] = true;
 }
 
-void Line_set_operation_flag(int operation_num, bool flag)
+void Line_cancel_select_file(void)
 {
-	if (operation_num == LINE_SEND_MSG_CHECK_REQUEST)
-		line_send_check[0] = flag;
-	else if (operation_num == LINE_SEND_STICKER_CHECK_REQUEST)
-		line_send_check[1] = flag;
-	else if (operation_num == LINE_SEND_CONTENT_CHECK_REQUEST)
-		line_send_check[2] = flag;
-	else if (operation_num == LINE_SEND_MSG_REQUEST)
-		line_send_request[0] = flag;
-	else if (operation_num == LINE_SEND_STICKER_REQUEST)
-		line_send_request[1] = flag;
-	else if (operation_num == LINE_SEND_CONTENT_REQUEST)
-		line_send_request[2] = flag;
-	else if (operation_num == LINE_DL_LOG_REQUEST)
-		line_dl_log_request = flag;
-	else if (operation_num == LINE_LOAD_LOG_REQUEST)
-		line_load_log_request = flag;
-	else if (operation_num == LINE_TYPE_MSG_REQUEST)
-		line_type_msg_request = flag;
-	else if (operation_num == LINE_TYPE_ID_REQUEST)
-		line_type_id_request = flag;
-	else if (operation_num == LINE_TYPE_MAIN_URL_REQUEST)
-		line_type_main_url_request = flag;
-	else if (operation_num == LINE_TYPE_APP_PS_REQUEST)
-		line_type_app_ps_request = flag;
-	else if (operation_num == LINE_TYPE_SCRIPT_PS_REQUEST)
-		line_type_script_ps_request = flag;
-	else if (operation_num == LINE_SELECT_STICKER_REQUEST)
-		line_select_sticker_request = flag;
-	else if (operation_num == LINE_SELECT_FILE_REQUEST)
-		line_select_file_request = flag;
-	else if (operation_num == LINE_SENDING_MSG)
-		line_sending_msg = flag;
-	else if (operation_num == LINE_SEND_SUCCESS)
-		line_send_success = flag;
-	else if (operation_num == LINE_SELECT_CHAT_ROOM_REQUEST)
-		line_select_chat_room_request = flag;
-	else if (operation_num == LINE_DELETE_ID_CHECK_REQUEST)
-		line_delete_id_check_request = flag;
-	else if (operation_num == LINE_DELETE_ID_REQUEST)
-		line_delete_id_request = flag;
-	else if (operation_num == LINE_SOLVE_SHORT_URL_REQUEST)
-		line_solve_short_url_request = flag;
-	else if (operation_num == LINE_CHECK_MAIN_URL_REQUEST)
-		line_check_main_url_request = flag;
-	else if (operation_num == LINE_TYPE_SHORT_URL_REQUEST)
-		line_type_short_url_request = flag;
-	else if (operation_num == LINE_PARSE_LOG_REQUEST)
-		line_parse_log_request = flag;
-	else if(operation_num == LINE_DL_LOG_NO_PARSE_REQUEST)
-		line_dl_log_no_parse_request = flag;
-	else if(operation_num == LINE_DL_ALL_LOG_NO_PARSE_REQUEST)
-		line_dl_all_log_no_parse_request = flag;
-	else if(operation_num == LINE_SEARCH_REQUEST)
-		line_search_request = flag;
-}
-
-void Line_set_selected_num(int item_num, int value)
-{
-	if (item_num == LINE_SELECTED_MENU_MODE_NUM)
-		line_selected_menu_mode = value;
-	else if (item_num == LINE_SELECTED_STICKER_NUM)
-		line_selected_sticker_num = value;
-	else if (item_num == LINE_SELECTED_STICKER_TAB_NUM)
-		line_selected_sticker_tab_num = value;
-	else if (item_num == LINE_SELECTED_ROOM_NUM)
-		line_selected_room_num = value;
-	else if(item_num == LINE_SELECTED_NUM_OF_LOGS)
-		line_num_of_logs = value;
-	else if(item_num == LINE_SELECTED_HIGHLIGHT_NUM)
-		line_selected_highlight_num = value;
-	else if(item_num == LINE_SELECTED_SEARCH_HIGHLIGHT_NUM)
-		line_selected_search_highlight_num = value;
-}
-
-void Line_set_x_y_size_interval(int item_num, double value)
-{
-	if (item_num == LINE_TEXT_X)
-		line_text_x = value;
-	else if (item_num == LINE_TEXT_Y)
-		line_text_y = value;
-	else if (item_num == LINE_TEXT_SIZE)
-		line_text_size = value;
-	else if (item_num == LINE_TEXT_INTERVAL)
-		line_text_interval = value;
-}
-
-void Line_set_setting(int setting_num, bool flag)
-{
-	if (setting_num == LINE_HIDE_ID)
-		line_hide_id = flag;
-	else if (setting_num == LINE_AUTO_UPDATE)
-		line_auto_update = flag;
+	line_select_file_request = false;
 }
 
 void Line_resume(void)
@@ -1553,28 +1877,6 @@ void Line_suspend(void)
 	line_thread_suspend = true;
 	line_main_run = false;
 	Menu_resume();
-}
-
-std::string Line_encode_to_escape(std::string in_data)
-{
-	int string_length = in_data.length();
-	std::string check;
-	std::string return_data = "";
-
-	for(int i = 0; i < string_length; i++)
-	{
-		check = in_data.substr(i, 1);
-		if(check == "\n")
-			return_data += "\\n";
-		else if(check == "\u0022")
-			return_data += "\\\u0022";
-		else if(check == "\u005c")
-			return_data += "\\\u005c";
-		else
-			return_data += in_data.substr(i, 1);
-	}
-
-	return return_data;
 }
 
 void Line_worker_thread(void* arg)
@@ -1821,21 +2123,27 @@ void Line_send_message_thread(void* arg)
 {
 	Log_log_save(line_send_msg_thread_string, "Thread started.", 1234567890, false);
 	bool failed = false;
-	u8* httpc_buffer;
-	u8* content_fs_buffer[2];
-	u8* check;
+	u8* httpc_buffer = NULL;
+	u8* content_fs_buffer[2] = { NULL, NULL, };
+	u8* check = NULL;
 	u32 status_code = 0;
 	u32 dl_size = 0;
-	u32 total_read_size;
-	u32 read_size;
-	u64 file_size;
-	int log_num[2];
+	u32 read_size = 0;
+	u64 file_size = 0;
+	int log_num[2] = { 0, 0, };
 	int num_of_loop = 0;
-	std::string send_data;
-	std::string encoded_data;
-	std::string response_string;
+	int room_num = 0;
+	int data_size = 0;
+	int ffmpeg_result = 0;
+	std::string send_data = "";
+	std::string encoded_data = "";
+	std::string response_string = "";
+	std::string dled_data[6] = { "", "", "", "", "", "", };
+	std::string file_name = "";
+	std::string file_type = "";
 	FS_Archive fs_archive = 0;
 	Handle fs_handle = 0;
+	AVFormatContext* format_context = NULL;
 	Result_with_string result;
 
 	while (line_send_msg_thread_run)
@@ -1847,18 +2155,19 @@ void Line_send_message_thread(void* arg)
 			failed = false;
 			line_send_success = false;
 			line_sending_msg = true;
+			data_size = 0;
 			dl_size = 0;
 			file_size = 0;
 			read_size = 0;
-			total_read_size = 0;
 			line_step_max = 1;
 			line_current_step = 0;
 			line_total_data_size = 0;
 			line_sent_data_size = 0;
-			content_fs_buffer[0] = NULL;
+			file_type = "";
+			room_num = line_selected_room_num;
 			content_fs_buffer[1] = NULL;
 			check = NULL;
-			httpc_buffer = (u8*)malloc(0x5000);
+			httpc_buffer = (u8*)malloc(line_log_httpc_buffer_size);
 			Httpc_reset_post_and_dl_progress(LINE_HTTP_POST_PORT0);
 
 			if (httpc_buffer == NULL)
@@ -1869,13 +2178,15 @@ void Line_send_message_thread(void* arg)
 				failed = true;
 			}
 			else
-				memset(httpc_buffer, 0x0, 0x5000);
+				memset(httpc_buffer, 0x0, line_log_httpc_buffer_size);
 
 			if (line_send_request[2] && !failed)
 			{
-				content_fs_buffer[0] = (u8*)malloc(line_send_fs_buffer_size);
-				content_fs_buffer[1] = (u8*)malloc(line_send_fs_cache_buffer_size);
-				if (content_fs_buffer[0] == NULL || content_fs_buffer[1] == NULL)
+				if(line_send_buffer_size % 3 != 0)
+					line_send_buffer_size -= line_send_buffer_size % 3;
+				
+				content_fs_buffer[1] = (u8*)malloc(line_send_buffer_size);
+				if (content_fs_buffer[1] == NULL)
 				{
 					Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), line_send_msg_thread_string, OUT_OF_MEMORY);
 					Err_set_error_show_flag(true);
@@ -1883,179 +2194,185 @@ void Line_send_message_thread(void* arg)
 					failed = true;
 				}
 				else
-				{
-					memset(content_fs_buffer[0], 0x0, line_send_fs_buffer_size);
-					memset(content_fs_buffer[1], 0x0, line_send_fs_cache_buffer_size);
-				}
+					memset(content_fs_buffer[1], 0x0, line_send_buffer_size);
 			}
 
 			if (!failed)
 			{
 				if (line_send_request[0])
-					send_data = "{ \"type\": \"send_text\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"message\" : \"" + line_encoded_input_text + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
+					send_data = "{ \"type\": \"send_text\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"message\" : \"" + line_encoded_input_text + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\",\"logs\" : \"" + std::to_string(line_num_of_logs) + "\" }";
 				else if (line_send_request[1])
 				{
 					if (line_selected_sticker_num >= 1 && line_selected_sticker_num <= 40)
-						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11537\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
+						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11537\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\",\"logs\" : \"" + std::to_string(line_num_of_logs) + "\" }";
 					else if (line_selected_sticker_num >= 41 && line_selected_sticker_num <= 80)
-						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11538\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
+						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11538\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\",\"logs\" : \"" + std::to_string(line_num_of_logs) + "\" }";
 					else if (line_selected_sticker_num >= 81 && line_selected_sticker_num <= 120)
-						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11539\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
+						send_data = "{ \"type\": \"send_sticker\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"package_id\" : \"11539\" ,\"sticker_id\" : \"" + std::to_string(line_sticker_num_list[line_selected_sticker_num]) + "\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\",\"logs\" : \"" + std::to_string(line_num_of_logs) + "\" }";
 				}
 				else if (line_send_request[2])
 				{
 					log_num[1] = Log_log_save(line_send_msg_thread_string, "File_check_file_size()...", 1234567890, false);
 					result = File_check_file_size(line_send_file_name, line_send_file_dir, &file_size, fs_handle, fs_archive);
 					Log_log_add(log_num[1], result.string, result.code, false);
-					if ((int)file_size > line_send_fs_buffer_size)
+
+					format_context = avformat_alloc_context();
+					ffmpeg_result = avformat_open_input(&format_context, (line_send_file_dir + line_send_file_name).c_str(), NULL, NULL);
+
+					if(ffmpeg_result == 0)
 					{
-						Err_set_error_message(Err_query_template_summary(BUFFER_SIZE_IS_TOO_SMALL), Err_query_template_detail(BUFFER_SIZE_IS_TOO_SMALL), line_send_msg_thread_string, BUFFER_SIZE_IS_TOO_SMALL);
-						Err_set_error_show_flag(true);
-						Log_log_add(log_num[0], Err_query_template_summary(BUFFER_SIZE_IS_TOO_SMALL), BUFFER_SIZE_IS_TOO_SMALL, false);
-						failed = true;
-					}
-					else
-					{
-						num_of_loop = ((int)file_size / line_send_fs_cache_buffer_size);
-						for (int i = 0; i <= num_of_loop; i++)
+						avformat_find_stream_info(format_context, NULL);
+						for(int i = 0; i < (int)format_context->nb_streams; i++)
 						{
-							log_num[1] = Log_log_save(line_send_msg_thread_string, "File_load_from_file()...", 1234567890, false);
-							result = File_load_from_file_with_range(line_send_file_name, content_fs_buffer[1], line_send_fs_cache_buffer_size, u64(i * line_send_fs_cache_buffer_size), &read_size, line_send_file_dir, fs_handle, fs_archive);
-							Log_log_add(log_num[1], result.string, result.code, false);
-							memcpy(content_fs_buffer[0] + (i * line_send_fs_cache_buffer_size), content_fs_buffer[1], read_size);
-							total_read_size += read_size;
-							if (result.code != 0)
+							if(format_context->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
 							{
-								Err_set_error_message(result.string, result.error_description, line_send_msg_thread_string, result.code);
-								Err_set_error_show_flag(true);
-								Log_log_add(log_num[0], result.string, result.code, false);
-								failed = true;
+								file_type = "video";
 								break;
 							}
+							if(format_context->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+								file_type = "audio";
 						}
+					}
+					avformat_close_input(&format_context);
 
-						free(content_fs_buffer[1]);
-						content_fs_buffer[1] = NULL;
+					num_of_loop = ((int)file_size / line_send_buffer_size);
+					line_total_data_size = file_size * 1.34;
+					line_step_max = num_of_loop + 1;
 
-						if (!failed)
-						{
-							check = (u8*)malloc((total_read_size * 2) + 0x1000);
-							if(check == NULL)
-							{
-								Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), line_send_msg_thread_string, OUT_OF_MEMORY);
-								Err_set_error_show_flag(true);
-								Log_log_add(log_num[0], Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, false);
-								failed = true;
-							}
-							free(check);
-							check = NULL;
-
-							if (!failed)
-							{
-								encoded_data = base64_encode((unsigned char const*)content_fs_buffer[0], (int)total_read_size);
-								free(content_fs_buffer[0]);
-								content_fs_buffer[0] = NULL;
-
-								line_total_data_size = (int)encoded_data.length();
-								num_of_loop = ((int)encoded_data.length() / line_send_fs_cache_buffer_size);
-								line_step_max = num_of_loop + 1;
-								for (int i = 0; i <= num_of_loop; i++)
-								{
-									check = (u8*)malloc((encoded_data.length() * 1.25)+ line_send_fs_cache_buffer_size);
-									if(check == NULL)
-									{
-										Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), line_send_msg_thread_string, OUT_OF_MEMORY);
-										Err_set_error_show_flag(true);
-										Log_log_add(log_num[0], Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, false);
-										failed = true;
-										break;
-									}
-									free(check);
-									check = NULL;
-
-									if (num_of_loop <= i)
-										send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data.substr((i * line_send_fs_cache_buffer_size), (encoded_data.length() - (i * line_send_fs_cache_buffer_size))) + "\",\"last\" : \"true\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
-									else
-										send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data.substr((i * line_send_fs_cache_buffer_size), line_send_fs_cache_buffer_size) + "\",\"last\" : \"false\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
-
-									log_num[1] = Log_log_save(line_send_msg_thread_string, "Httpc_post_and_dl_data()" + std::to_string(i) + "/" + std::to_string(num_of_loop) + "...", 1234567890, false);
-
-									result = Httpc_post_and_dl_data(line_main_url, (char*)send_data.c_str(), send_data.length(), httpc_buffer, 0x5000, &dl_size, &status_code, true, LINE_HTTP_POST_PORT0);
-									line_current_step++;
-									if (result.code == 0)
-									{
-										response_string = (char*)httpc_buffer;
-										if (response_string == "Success")
-										{
-											if (num_of_loop <= i)
-												line_sent_data_size = line_total_data_size;
-											else
-												line_sent_data_size += line_send_fs_cache_buffer_size;
-
-											Log_log_add(log_num[1], result.string, result.code, false);
-										}
-										else
-										{
-											if(response_string.length() >= 300)
-												response_string = response_string.substr(0, 300);
-
-											Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), response_string, line_send_msg_thread_string, GAS_RETURNED_NOT_SUCCESS);
-											Err_set_error_show_flag(true);
-											Log_log_add(log_num[1], Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), GAS_RETURNED_NOT_SUCCESS, false);
-											failed = true;
-											break;
-										}
-									}
-									else
-									{
-										Err_set_error_message(result.string, result.error_description, line_send_msg_thread_string, result.code);
-										Err_set_error_show_flag(true);
-										Log_log_add(log_num[1], result.string, result.code, false);
-										failed = true;
-										break;
-									}
-								}
-							}
-
-							if(!failed)
-							{
-								line_send_success = true;
-								Log_log_add(log_num[0], result.string, result.code, false);
-							}
-							send_data = "done";
-						}
-						else
+					for (int i = 0; i <= num_of_loop; i++)
+					{
+						log_num[1] = Log_log_save(line_send_msg_thread_string, "File_load_from_file_with_range()...", 1234567890, false);
+						result = File_load_from_file_with_range(line_send_file_name, content_fs_buffer[1], line_send_buffer_size, u64(i * line_send_buffer_size), &read_size, line_send_file_dir, fs_handle, fs_archive);
+						Log_log_add(log_num[1], result.string, result.code, false);
+						if (result.code != 0)
 						{
 							Err_set_error_message(result.string, result.error_description, line_send_msg_thread_string, result.code);
 							Err_set_error_show_flag(true);
 							Log_log_add(log_num[0], result.string, result.code, false);
 							failed = true;
+							break;
+						}
+
+						encoded_data = base64_encode((unsigned char const*)content_fs_buffer[1], (int)read_size);
+						data_size = encoded_data.length();
+						send_data.reserve(encoded_data.length() + 1024);
+						if (num_of_loop <= i)
+						{
+							send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data + "\",\"last\" : \"true\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\",\"logs\" : \"" + std::to_string(line_num_of_logs) + "\",\"data_type\" : \"" + file_type + "\" }";
+							break;
+						}
+						else
+							send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data + "\",\"last\" : \"false\",\"auth\" : \"" + line_script_auth + "\",\"gas_ver\" : \"" + std::to_string(Sem_query_gas_ver()) + "\" }";
+
+						encoded_data = "";
+						encoded_data.reserve(1);
+						log_num[1] = Log_log_save(line_send_msg_thread_string, "Httpc_post_and_dl_data()" + std::to_string(i) + "/" + std::to_string(num_of_loop) + "...", 1234567890, false);
+						result = Httpc_post_and_dl_data(line_main_url, (char*)send_data.c_str(), send_data.length(), httpc_buffer, line_log_httpc_buffer_size, &dl_size, &status_code, true, LINE_HTTP_POST_PORT0);
+						line_current_step++;
+						send_data = "";
+						send_data.reserve(1);
+
+						if (result.code == 0)
+						{
+							response_string = (char*)httpc_buffer;
+							if (response_string == "Success")
+							{
+								line_sent_data_size += data_size;
+								Log_log_add(log_num[1], result.string, result.code, false);
+							}
+							else
+							{
+								if(response_string.length() >= 300)
+									response_string = response_string.substr(0, 300);
+
+								Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), response_string, line_send_msg_thread_string, GAS_RETURNED_NOT_SUCCESS);
+								Err_set_error_show_flag(true);
+								Log_log_add(log_num[1], Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), GAS_RETURNED_NOT_SUCCESS, false);
+								failed = true;
+								break;
+							}
+						}
+						else
+						{
+							Err_set_error_message(result.string, result.error_description, line_send_msg_thread_string, result.code);
+							Err_set_error_show_flag(true);
+							Log_log_add(log_num[1], result.string, result.code, false);
+							failed = true;
+							break;
 						}
 					}
+
+					free(content_fs_buffer[1]);
+					content_fs_buffer[1] = NULL;
 				}
 			}
 
-			if (!failed && send_data != "done")
+			if (!failed)
 			{
-				result = Httpc_post_and_dl_data(line_main_url, (char*)send_data.c_str(), send_data.length(), httpc_buffer, 0x5000, &dl_size, &status_code, true, LINE_HTTP_POST_PORT0);
+				result = Httpc_post_and_dl_data(line_main_url, (char*)send_data.c_str(), send_data.length(), httpc_buffer, line_log_httpc_buffer_size, &dl_size, &status_code, true, LINE_HTTP_POST_PORT0);
 				line_current_step++;
 				if (result.code == 0)
 				{
+					line_sent_data_size = line_total_data_size;
 					response_string = (char*)httpc_buffer;
-					if (response_string == "Success")
+					result = Sem_parse_file(response_string, 5, dled_data);
+					if (result.code == 0 && dled_data[4] == "Success")
 					{
 						line_send_success = true;
 						line_input_text = "";
 						Log_log_add(log_num[0], result.string, result.code, false);
+						line_log_data = dled_data[0];
+						line_names[room_num] = dled_data[1];
+						line_icon_url[room_num] = dled_data[2];
+						line_unread_msg_num[room_num] = std::stoi(dled_data[3]) - line_msg_offset[room_num];
+						dled_data[1] = "<0>" + dled_data[1] + "</0>"; //user/group name
+						dled_data[2] = "<1>" + dled_data[2] + "</1>"; //img url
+						dled_data[3] = "<2>" + std::to_string(line_msg_offset[room_num]) + "</2>"; //msg offset
+						dled_data[5] = "<3>" + std::to_string(line_unread_msg_num[room_num]) + "</3>"; //num of new msg
+
+						file_name = line_ids[room_num].substr(0, 16);
+						log_num[0] = Log_log_save(line_send_msg_thread_string, "File_save_to_file()...", 1234567890, false);
+						result = File_save_to_file(file_name, (u8*)dled_data[0].c_str(), dled_data[0].length(), "/Line/", true, fs_handle, fs_archive);
+						Log_log_add(log_num[0], result.string, result.code, false);
+
+						if (result.code != 0)
+							failed = true;
+
+						if (!failed)
+						{
+							log_num[0] = Log_log_save(line_send_msg_thread_string, "File_save_to_file()...", 1234567890, false);
+							result = File_save_to_file(line_ids[room_num], (u8*)(dled_data[1] + dled_data[2] + dled_data[3] + dled_data[5]).c_str(), (dled_data[1] + dled_data[2] + dled_data[3] + dled_data[5]).length(), "/Line/to/", true, fs_handle, fs_archive);
+							Log_log_add(log_num[0], result.string, result.code, false);
+							if (result.code != 0)
+								failed = true;
+						}
+
+						line_parse_log_request = true;
+
+						if (result.code != 0)
+						{
+							Err_set_error_message(result.string, result.error_description, line_send_msg_thread_string, result.code);
+							Err_set_error_show_flag(true);
+						}
+
+						if (!failed)
+						{
+							log_num[0] = Log_log_save(line_send_msg_thread_string, "Line_load_icon()...", 1234567890, false);
+							result = Line_load_icon(room_num);
+							Log_log_add(log_num[0], result.string, result.code, false);
+							if(result.code == 0)
+								line_icon_available[room_num] = true;
+						}
 					}
 					else
 					{
-						if(response_string.length() >= 300)
-							response_string = response_string.substr(0, 300);
+					//	if(response_string.length() >= 300)
+						//	response_string = response_string.substr(0, 300);
 
 						Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), response_string, line_send_msg_thread_string, GAS_RETURNED_NOT_SUCCESS);
 						Err_set_error_show_flag(true);
 						Log_log_add(log_num[0], Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), GAS_RETURNED_NOT_SUCCESS, false);
+						Err_save_error();
 					}
 				}
 				else
@@ -2066,6 +2383,10 @@ void Line_send_message_thread(void* arg)
 				}
 			}
 
+			dled_data[0] = "";
+			dled_data[1] = "";
+			dled_data[0].reserve(1);
+			dled_data[1].reserve(1);
 			response_string = "";
 			response_string.reserve(1);
 			send_data = "";
@@ -2073,11 +2394,9 @@ void Line_send_message_thread(void* arg)
 			encoded_data = "";
 			encoded_data.reserve(1);
 			free(httpc_buffer);
-			free(content_fs_buffer[0]);
 			free(content_fs_buffer[1]);
 			free(check);
 			httpc_buffer = NULL;
-			content_fs_buffer[0] = NULL;
 			content_fs_buffer[1] = NULL;
 			check = NULL;
 
@@ -2191,11 +2510,12 @@ Result_with_string Line_load_icon(int room_num)
 			line_stb_image[room_num] = stbi_load_from_memory((stbi_uc const*)httpc_fs_buffer, (int)pic_size, &image_width, &image_height, NULL, STBI_rgb_alpha);
 			if (line_stb_image[room_num] != NULL)
 			{
-				linearFree(line_c3d_cache_tex[room_num]->data);
-				line_icon[room_num].tex = line_c3d_cache_tex[room_num];
-				line_icon[room_num].subtex = line_c3d_cache_subtex[room_num];
+				linearFree(line_icon[room_num].tex->data);
+				line_icon[room_num].tex->data = NULL;
 				Draw_rgba_to_abgr(line_stb_image[room_num], (u32)image_width, (u32)image_height);
-				result = Draw_c3dtex_to_c2dimage(line_c3d_cache_tex[room_num], line_c3d_cache_subtex[room_num], line_stb_image[room_num], (u32)(image_width * image_height * 4), image_width, image_height, 0, 0, 32, 32, GPU_RGBA8);
+				result = Draw_create_texture(line_icon[room_num].tex, (Tex3DS_SubTexture*)line_icon[room_num].subtex, line_stb_image[room_num], (u32)(image_width * image_height * 4), image_width, image_height, 4, 0, 0, 32, 32, GPU_RGBA8);
+				if(result.code == 0)
+					C3D_TexSetFilter(line_icon[room_num].tex, GPU_NEAREST, GPU_NEAREST);
 			}
 		}
 	}
@@ -2310,6 +2630,10 @@ void Line_log_parse_thread(void* arg)
 	u32 read_size;
 	size_t image_url_end_pos;
 	size_t image_url_start_pos;
+	size_t video_url_end_pos;
+	size_t video_url_start_pos;
+	size_t audio_url_end_pos;
+	size_t audio_url_start_pos;
 	size_t sticker_end_pos;
 	size_t sticker_start_pos;
 	size_t id_end_pos;
@@ -2321,14 +2645,20 @@ void Line_log_parse_thread(void* arg)
 	bool sticker_msg = false;
 	char* parse_cache;
 	std::string content_cache = "";
-	std::string image_url_end = "</image_url>";
 	std::string image_url_start = "<image_url>";
-	std::string sticker_end = "</sticker>";
+	std::string image_url_end = "</image_url>";
+	std::string video_url_start = "<video_url>";
+	std::string video_url_end = "</video_url>";
+	std::string audio_url_start = "<audio_url>";
+	std::string audio_url_end = "</audio_url>";
 	std::string sticker_start = "<sticker>";
-	std::string id_end = "</id>";
+	std::string sticker_end = "</sticker>";
 	std::string id_start = "<id>";
+	std::string id_end = "</id>";
 	std::string message_start = "";
-	std::string image_message = "";
+	std::string image_message = "image";
+	std::string video_message = "video";
+	std::string audio_message = "audio";
 	std::string id_message = "";
 	std::string data[4];
 	Result_with_string result;
@@ -2344,6 +2674,10 @@ void Line_log_parse_thread(void* arg)
 			message_next_pos = std::string::npos;
 			image_url_start_pos = std::string::npos;
 			image_url_end_pos = std::string::npos;
+			video_url_start_pos = std::string::npos;
+			video_url_end_pos = std::string::npos;
+			audio_url_start_pos = std::string::npos;
+			audio_url_end_pos = std::string::npos;
 			sticker_end_pos = std::string::npos;
 			sticker_start_pos = std::string::npos;
 			id_end_pos = std::string::npos;
@@ -2360,6 +2694,8 @@ void Line_log_parse_thread(void* arg)
 
 			image_message = line_msg[27];
 			id_message = line_msg[28];
+			audio_message = line_msg[53];
+			video_message = line_msg[54];
 
 			fs_buffer = (u8*)malloc(0x1000);
 			parse_cache = (char*)malloc(0x10000);
@@ -2408,6 +2744,10 @@ void Line_log_parse_thread(void* arg)
 
 					image_url_start_pos = line_msg_log[i].find(image_url_start);
 					image_url_end_pos = line_msg_log[i].find(image_url_end);
+					video_url_start_pos = line_msg_log[i].find(video_url_start);
+					video_url_end_pos = line_msg_log[i].find(video_url_end);
+					audio_url_start_pos = line_msg_log[i].find(audio_url_start);
+					audio_url_end_pos = line_msg_log[i].find(audio_url_end);
 					sticker_start_pos = line_msg_log[i].find(sticker_start);
 					sticker_end_pos = line_msg_log[i].find(sticker_end);
 					id_start_pos = line_msg_log[i].find(id_start);
@@ -2420,6 +2760,26 @@ void Line_log_parse_thread(void* arg)
 						content_cache = line_msg_log[i].substr(0, image_url_start_pos);
 						content_cache += image_message;
 						content_cache += line_msg_log[i].substr(image_url_end_pos + image_url_end.length(), line_msg_log[i].length() - (image_url_end_pos + image_url_end.length()));
+						line_msg_log[i] = content_cache;
+					}
+					else if (!(video_url_start_pos == std::string::npos || video_url_end_pos == std::string::npos))
+					{
+						line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((video_url_start_pos + video_url_start.length()), (video_url_end_pos - (video_url_start_pos + video_url_start.length()))) + "</url>";
+						line_content[line_num_of_lines + 1] += "<type>video</type>";
+
+						content_cache = line_msg_log[i].substr(0, video_url_start_pos);
+						content_cache += video_message;
+						content_cache += line_msg_log[i].substr(video_url_end_pos + video_url_end.length(), line_msg_log[i].length() - (video_url_end_pos + video_url_end.length()));
+						line_msg_log[i] = content_cache;
+					}
+					else if (!(audio_url_start_pos == std::string::npos || audio_url_end_pos == std::string::npos))
+					{
+						line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((audio_url_start_pos + audio_url_start.length()), (audio_url_end_pos - (audio_url_start_pos + audio_url_start.length()))) + "</url>";
+						line_content[line_num_of_lines + 1] += "<type>audio</type>";
+
+						content_cache = line_msg_log[i].substr(0, audio_url_start_pos);
+						content_cache += audio_message;
+						content_cache += line_msg_log[i].substr(audio_url_end_pos + audio_url_end.length(), line_msg_log[i].length() - (audio_url_end_pos + audio_url_end.length()));
 						line_msg_log[i] = content_cache;
 					}
 					else if (!(sticker_start_pos == std::string::npos || sticker_end_pos == std::string::npos))

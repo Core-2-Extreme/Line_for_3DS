@@ -2,6 +2,7 @@
 #include <string>
 
 #include "error.hpp"
+#include "file.hpp"
 
 bool err_error_display;
 bool err_previous_error_display;
@@ -31,43 +32,6 @@ std::string Err_query_error_data(int error_num)
 		return err_error_code;
 	else
 		return "";
-}
-
-bool Err_query_need_reflesh(void)
-{
-	bool need = false;
-
-	if(err_previous_error_display != err_error_display)
-	{
-		err_previous_error_display = err_error_display;
-		need = true;
-	}
-
-	if(err_error_summary != err_previous_error_summary)
-	{
-		err_previous_error_summary = err_error_summary;
-		need = true;
-	}
-
-	if(err_error_description != err_previous_error_description)
-	{
-		err_previous_error_description = err_error_description;
-		need = true;
-	}
-
-	if(err_error_place != err_previous_error_place)
-	{
-		err_previous_error_place = err_error_place;
-		need = true;
-	}
-
-	if(err_error_code != err_previous_error_code)
-	{
-		err_previous_error_code = err_error_code;
-		need = true;
-	}
-
-	return need;
 }
 
 std::string Err_query_template_summary(long error_code)
@@ -124,6 +88,52 @@ std::string Err_query_template_detail(long error_code)
 		return "There is No icon info.";
 	else
 		return "";
+}
+
+
+bool Err_query_need_reflesh(void)
+{
+	bool need = false;
+
+	if(err_previous_error_display != err_error_display)
+	{
+		err_previous_error_display = err_error_display;
+		need = true;
+	}
+
+	if(err_error_summary != err_previous_error_summary)
+	{
+		err_previous_error_summary = err_error_summary;
+		need = true;
+	}
+
+	if(err_error_description != err_previous_error_description)
+	{
+		err_previous_error_description = err_error_description;
+		need = true;
+	}
+
+	if(err_error_place != err_previous_error_place)
+	{
+		err_previous_error_place = err_error_place;
+		need = true;
+	}
+
+	if(err_error_code != err_previous_error_code)
+	{
+		err_previous_error_code = err_error_code;
+		need = true;
+	}
+
+	return need;
+}
+
+void Err_save_error(void)
+{
+	FS_Archive fs_archive = 0;
+	Handle fs_handle = 0;
+	File_save_to_file("error.txt", (u8*)(err_error_summary + "\n" + err_error_description + "\n" + err_error_place + "\n" + err_error_code).c_str(), (err_error_summary + "\n" + err_error_description + "\n" + err_error_place + "\n" + err_error_code).length()
+, "/Line/error/", true, fs_handle, fs_archive);
 }
 
 void Err_set_error_code(long error_code)

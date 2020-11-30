@@ -2,6 +2,7 @@
 #include <cstring>
 #include <string>
 
+#include "hid.hpp"
 #include "draw.hpp"
 
 bool log_previous_show_logs = false;
@@ -140,4 +141,38 @@ void Log_log_add(int add_log_num, std::string add_text, Result result, bool draw
 		Draw_log(true);
 
 	log_logs[add_log_num] += app_log_add_cache;
+}
+
+void Log_main(void)
+{
+	Hid_info key;
+	Hid_query_key_state(&key);
+
+	if(log_show_logs)
+	{
+		if (key.h_c_up)
+		{
+				if (log_y - 1 > 0)
+					log_y--;
+		}
+		if (key.h_c_down)
+		{
+				if (log_y + 1 < 512)
+					log_y++;
+		}
+		if (key.h_c_left)
+		{
+				if (log_x + 5.0 < 0.0)
+					log_x += 5.0;
+				else
+					log_x = 0.0;
+		}
+		if (key.h_c_right)
+		{
+				if (log_x - 5.0 > -1000.0)
+					log_x -= 5.0;
+				else
+					log_x = -1000.0;
+		}
+	}
 }
