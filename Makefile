@@ -35,13 +35,13 @@ TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	source library/base64 library/openmp3
 DATA		:=	data
-INCLUDES	:=	include library
+INCLUDES	:=	include library library/ffmpeg/include
 GRAPHICS	:=	gfx
 #GFXBUILD	:=	$(BUILD)
 ROMFS		:=	romfs
 GFXBUILD	:=	$(ROMFS)/gfx
 #---------------------------------------------------------------------------------
-APP_VER					:= 1120
+APP_VER					:= 1136
 APP_TITLE				:= Line for 3DS
 APP_DESCRIPTION				:= Line for 3DS
 APP_AUTHOR				:= Core_2_Extreme
@@ -59,25 +59,25 @@ RSF_PATH				:= resource/app.rsf
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
-CFLAGS	:=	-Wall -Os -mword-relocations \
+CFLAGS	:= -Wall -O2 -mword-relocations \
 		-fomit-frame-pointer -ffunction-sections \
 		$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -DARM11 -D_3DS
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11 
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 
-ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+ASFLAGS	:= $(ARCH)
+LDFLAGS	=	-specs=3dsx.specs $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -lcitro2d -lcitro3d -lctru -lm
+LIBS	:= -lswresample -lavformat -lavcodec -lavutil -lcitro2d -lcitro3d -lctru -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
 LIBDIRS	:= $(CTRULIB)
-
+THIRDLIBDIRS := library/ffmpeg/lib
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
@@ -147,6 +147,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			-I$(CURDIR)/$(BUILD)
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+export LIBPATHS	+=	$(foreach dir,$(THIRDLIBDIRS),-L$(CURDIR)/$(dir))
 
 export _3DSXDEPS	:=	$(if $(NO_SMDH),,$(OUTPUT).smdh)
 
@@ -197,6 +198,8 @@ ifeq ($(suffix $(BANNER_AUDIO)),.cwav)
 else
 	BANNER_AUDIO_ARG := -a
 endif
+#
+
 #---------------------------------------------------------------------------------
 
 all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
