@@ -22,6 +22,8 @@ bool Err_query_error_show_flag(void);
 
 std::string Err_query_error_data(int error_num);
 
+void Err_save_error(void);
+
 void Err_set_error_code(long error_code);
 
 void Err_set_error_data(int error_num, std::string error_data);

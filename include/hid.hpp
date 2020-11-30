@@ -1,4 +1,5 @@
 #pragma once
+#include "types.hpp"
 
 //Press
 #define KEY_P_A 0 //A
@@ -55,12 +56,7 @@ void Hid_exit(void);
 
 bool Hid_query_disable_flag(void);
 
-bool Hid_query_key_press_state(int key_num);
-
-bool Hid_query_key_held_state(int key_num);
-
-//true = x, false = y
-int Hid_query_touch_pos(bool x);
+void Hid_query_key_state(Hid_info* out_key_state);
 
 void Hid_set_disable_flag(bool flag);
 

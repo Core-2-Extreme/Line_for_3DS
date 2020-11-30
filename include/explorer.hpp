@@ -20,7 +20,9 @@ int Expl_query_size(int file_num);
 
 std::string Expl_query_type(int file_num);
 
-double Expl_query_view_offset_y(void);
+void Expl_set_callback(void (*callback)(std::string, std::string));
+
+void Expl_set_cancel_callback(void (*callback)(void));
 
 void Expl_set_current_patch(std::string patch);
 
@@ -33,5 +35,9 @@ void Expl_set_view_offset_y(double value);
 void Expl_init(void);
 
 void Expl_exit(void);
+
+void Expl_draw(std::string msg);
+
+void Expl_main(void);
 
 void Expl_read_dir_thread(void* arg);

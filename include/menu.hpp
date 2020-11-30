@@ -1,23 +1,6 @@
 ﻿#pragma once
 
-#define MENU_JUMP_TO_LINE_REQUEST 0
-#define MENU_JUMP_TO_GTR_REQUEST 1
-#define MENU_JUMP_TO_SPT_REQUEST 2
-#define MENU_JUMP_TO_IMV_REQUEST 3
-#define MENU_JUMP_TO_CAM_REQUEST 4
-#define MENU_JUMP_TO_MIC_REQUEST 5
-#define MENU_JUMP_TO_MUP_REQUEST 6
-#define MENU_JUMP_TO_SEM_REQUEST 7
-#define MENU_DESTROY_LINE_REQUEST 8
-#define MENU_DESTROY_GTR_REQUEST 9
-#define MENU_DESTROY_SPT_REQUEST 10
-#define MENU_DESTROY_IMV_REQUEST 11
-#define MENU_DESTROY_CAM_REQUEST 12
-#define MENU_DESTROY_MIC_REQUEST 13
-#define MENU_DESTROY_MUP_REQUEST 14
-#define MENU_DESTROY_SEM_REQUEST 15
-#define MENU_CHANGE_BRIGHTNESS_REQUEST 16
-#define MENU_CHECK_EXIT_REQUEST 17
+#define MENU_CHANGE_BRIGHTNESS_REQUEST 0
 
 #define MENU_HTTP_PORT0 0
 #define MENU_HTTP_POST_PORT0 1
@@ -39,6 +22,8 @@ int Menu_query_free_ram(void);
 int Menu_query_free_linear_ram(void);
 
 bool Menu_query_must_exit_flag(void);
+
+void Menu_set_must_exit_flag(bool flag);
 
 std::string Menu_query_status(bool only_system_state);
 

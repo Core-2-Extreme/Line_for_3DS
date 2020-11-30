@@ -19,7 +19,7 @@ void Draw_rgba_to_abgr(u8* buf, u32 width, u32 height);
 
 void Draw_rgb565_to_abgr888_rgb888(u8* rgb565_buffer, u8* rgba8888_buffer, u32 width, u32 height, bool rgb_888);
 
-Result_with_string Draw_c3dtex_to_c2dimage(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_subtex, u8* buf, u32 size, u32 width, u32 height, int parse_start_width, int parse_start_height, int tex_size_x, int tex_size_y, GPU_TEXCOLOR format);
+Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_subtex, u8* buf, u32 size, u32 width, u32 height, int pixel_size, int parse_start_width, int parse_start_height, int tex_size_x, int tex_size_y, GPU_TEXCOLOR format);
 
 void Draw_set_do_not_draw_flag(bool flag);
 
@@ -37,8 +37,6 @@ void Draw_bot_ui(void);
 
 void Draw_texture(C2D_Image image[], C2D_ImageTint tint, int image_num, float x, float y, float x_size, float y_size);
 
-void Draw_expl(std::string msg);
-
 void Draw_error(void);
 
 void Draw_progress(std::string message);
@@ -49,7 +47,9 @@ void Draw_debug_info(void);
 
 void Draw_init(void);
 
-void Draw_load_system_font(int system_font_num);
+Result_with_string Draw_load_kanji_samples(void);
+
+Result_with_string Draw_load_system_font(int system_font_num);
 
 void Draw_free_system_font(int system_font_num);
 
@@ -59,7 +59,7 @@ void Draw_exit(void);
 
 void Draw_frame_ready(void);
 
-void Draw_screen_ready_to_draw(int screen, bool screen_clear, int screen_clear_ver, float red, float green, float blue);
+void Draw_screen_ready_to_draw(int screen_num, bool screen_clear, int screen_clear_ver, float red, float green, float blue);
 
 void Draw_apply_draw(void);
 

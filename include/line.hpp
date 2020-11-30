@@ -2,40 +2,11 @@
 
 #include "types.hpp"
 
-#define LINE_NUM_OF_MSG 53
+#define LINE_NUM_OF_MSG 55
 
 #define LINE_HTTPC_BUFFER 0
 #define LINE_FS_BUFFER 1
-#define LINE_SEND_FS_BUFFER 2
-#define LINE_SEND_FS_CACHE_BUFFER 3
-
-#define LINE_SEND_MSG_CHECK_REQUEST 0
-#define LINE_SEND_STICKER_CHECK_REQUEST 1
-#define LINE_SEND_CONTENT_CHECK_REQUEST 2
-#define LINE_SEND_MSG_REQUEST 3
-#define LINE_SEND_STICKER_REQUEST 4
-#define LINE_SEND_CONTENT_REQUEST 5
-#define LINE_DL_LOG_REQUEST 6
-#define LINE_LOAD_LOG_REQUEST 7
-#define LINE_TYPE_MSG_REQUEST 8
-#define LINE_TYPE_ID_REQUEST 9
-#define LINE_TYPE_MAIN_URL_REQUEST 10
-#define LINE_TYPE_APP_PS_REQUEST 11
-#define LINE_TYPE_SCRIPT_PS_REQUEST 12
-#define LINE_SELECT_STICKER_REQUEST 13
-#define LINE_SELECT_FILE_REQUEST 14
-#define LINE_SENDING_MSG 15
-#define LINE_SEND_SUCCESS 16
-#define LINE_SELECT_CHAT_ROOM_REQUEST 17
-#define LINE_DELETE_ID_CHECK_REQUEST 18
-#define LINE_DELETE_ID_REQUEST 19
-#define LINE_SOLVE_SHORT_URL_REQUEST 20
-#define LINE_CHECK_MAIN_URL_REQUEST 21
-#define LINE_TYPE_SHORT_URL_REQUEST 22
-#define LINE_PARSE_LOG_REQUEST 23
-#define LINE_DL_LOG_NO_PARSE_REQUEST 24
-#define LINE_DL_ALL_LOG_NO_PARSE_REQUEST 25
-#define LINE_SEARCH_REQUEST 26
+#define LINE_SEND_BUFFER 2
 
 #define LINE_MENU_SEND 0
 #define LINE_MENU_RECEIVE 1
@@ -43,22 +14,6 @@
 #define LINE_MENU_SEARCH 3
 #define LINE_MENU_SETTINGS 4
 #define LINE_MENU_ADVANCED 5
-
-#define LINE_HIDE_ID 0
-#define LINE_AUTO_UPDATE 1
-
-#define LINE_SELECTED_MENU_MODE_NUM 0
-#define LINE_SELECTED_STICKER_NUM 1
-#define LINE_SELECTED_STICKER_TAB_NUM 2
-#define LINE_SELECTED_ROOM_NUM 3
-#define LINE_SELECTED_NUM_OF_LOGS 4
-#define LINE_SELECTED_HIGHLIGHT_NUM 5
-#define LINE_SELECTED_SEARCH_HIGHLIGHT_NUM 6
-
-#define LINE_TEXT_X 0
-#define LINE_TEXT_Y 1
-#define LINE_TEXT_SIZE 2
-#define LINE_TEXT_INTERVAL 3
 
 #define LINE_HTTP_PORT0 2
 #define LINE_HTTP_PORT1 3
@@ -77,28 +32,6 @@ bool Line_query_running_flag(void);
 
 int Line_query_buffer_size(int buffer_num);
 
-std::string Line_query_content_info(int log_num);
-
-double Line_query_max_y(void);
-
-int Line_query_max_msg(void);
-
-int Line_query_max_search_result(void);
-
-std::string Line_query_msg_log(int log_num);
-
-double Line_query_msg_pos(int log_num);
-
-bool Line_query_operation_flag(int operation_num);
-
-int Line_query_search_num(int search_num);
-
-int Line_query_selected_num(int item_num);
-
-double Line_query_x_y_size_interval(int item_num);
-
-bool Line_query_setting(int setting_num);
-
 void Line_reset_id(void);
 
 void Line_reset_msg(void);
@@ -107,23 +40,13 @@ void Line_set_buffer_size(int buffer_num, int size);
 
 void Line_set_msg(int msg_num, std::string msg);
 
-void Line_set_send_file_name(std::string file_name);
+void Line_set_send_file(std::string file_name, std::string dir_name);
 
-void Line_set_send_dir_name(std::string dir_name);
-
-void Line_set_operation_flag(int operation_num, bool flag);
-
-void Line_set_selected_num(int item_num, int value);
-
-void Line_set_x_y_size_interval(int item_num, double value);
-
-void Line_set_setting(int setting_num, bool flag);
+void Line_cancel_select_file(void);
 
 void Line_resume(void);
 
 void Line_suspend(void);
-
-std::string Line_encode_to_escape(std::string in_data);
 
 void Line_worker_thread(void* arg);
 

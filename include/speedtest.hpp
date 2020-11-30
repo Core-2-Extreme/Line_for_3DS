@@ -16,10 +16,6 @@ void Spt_set_buffer_size(int buffer_num, int size);
 
 void Spt_set_msg(int msg_num, std::string msg);
 
-void Spt_set_spt_data_size(int size);
-
-void Spt_start_request(void);
-
 void Spt_reset_data(void);
 
 void Spt_reset_draw_data(void);

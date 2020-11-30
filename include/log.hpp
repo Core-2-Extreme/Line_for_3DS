@@ -21,3 +21,5 @@ void Log_set_log_show_flag(bool flag);
 int Log_log_save(std::string type, std::string text, Result result, bool draw);
 
 void Log_log_add(int add_log_num, std::string add_text, Result result, bool draw);
+
+void Log_main(void);

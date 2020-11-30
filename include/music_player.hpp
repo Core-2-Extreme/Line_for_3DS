@@ -2,15 +2,7 @@
 
 #define MUP_NUM_OF_MSG 19
 
-#define MUP_PLAY_MUSIC_REQUEST 0
-#define MUP_STOP_MUSIC_REQUEST 1
-#define MUP_SELECT_FILE_REQUEST 2
-#define MUP_LOOP_REQUEST 3
-#define MUP_SHUFFLE_REQUEST 4
-#define MUP_CHANGE_MUSIC_REQUEST 5
-
-#define MUP_FS_OUT_BUFFER 0
-#define MUP_FS_IN_BUFFER 1
+#define MUP_HTTP_PORT0 8
 
 bool Mup_query_init_flag(void);
 
@@ -20,37 +12,17 @@ void Mup_resume(void);
 
 void Mup_suspend(void);
 
-int Mup_query_buffer_size(int buffer_num);
-
-bool Mup_query_operation_flag(int operation_num);
-
-void Mup_set_buffer_size(int buffer_num, int size);
+void Mup_cancel_select_file(void);
 
 void Mup_set_msg(int msg_num, std::string msg);
 
-void Mup_set_offset(int offset);
-
-void Mup_set_operation_flag(int operation_num, bool flag);
-
 void Mup_set_allow_sleep(bool flag);
 
-void Mup_set_load_file_name(std::string file_name);
+void Mup_set_url(std::string url);
 
-void Mup_set_load_dir_name(std::string dir_name);
+void Mup_set_load_file(std::string file_name, std::string dir_name);
 
-Result_with_string Mup_play_sound(u8* sound_buffer, int buffer_size, int sample_rate, int num_of_ch);
-
-bool Mup_detect_wave(u8* buffer, int size);
-
-bool Mup_detect_mp3(u8* buffer, int size);
-
-void Mup_parse_wav(u8* header_buffer, int buffer_size, int* file_size, int* channels, int* samplerate, int* bitrate, int* raw_data_pos);
-
-void Mup_parse_mp3(u8* header_buffer, int buffer_size, int* channels, int* samplerate, int* bitrate, int* block_size, int* first_block_pos);
-
-double Mup_calc_mp3_length(long file_size, int bitrate);
-
-double Mup_calc_wav_length(long file_size, int bitrate);
+Result_with_string Mup_play_sound(u8* sound_buffer, int buffer_size, int sample_rate, int num_of_ch, int play_ch);
 
 void Mup_timer_thread(void* arg);
 

@@ -17,4 +17,3 @@ Result_with_string File_check_file_size(std::string file_name, std::string dir_p
 Result_with_string File_check_file_exist(std::string file_name, std::string dir_path, Handle fs_handle, FS_Archive fs_archive);
 
 Result_with_string File_read_dir(int* num_of_detected, std::string file_and_dir_name[], int name_num_of_array, std::string type[], int type_num_of_array, std::string dir_path);
-
