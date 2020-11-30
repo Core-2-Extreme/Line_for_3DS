@@ -56,3 +56,5 @@ size(R)</17>
 <50>Max messages : </50>
 <51>Search</51>
 <52>Search (A)</52>
+<53>Touch to play audio </53>
+<54>Touch to play video </54>
