@@ -17,3 +17,5 @@
 <16>Play(A)</16>
 <17>Stop(B)</17>
 <18>Shuffle</18>
+<19>Pause(A)</19>
+<20>Downloading... </20>

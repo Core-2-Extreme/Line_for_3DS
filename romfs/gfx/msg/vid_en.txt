@@ -9,3 +9,4 @@
 <8>Increase size(R)</8>
 <9>Allow</9>
 <10>Deny</10>
+<11>Pause(A)</11>
