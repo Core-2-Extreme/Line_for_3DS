@@ -1,6 +1,6 @@
 #pragma once
 
-#define MUP_NUM_OF_MSG 19
+#define MUP_NUM_OF_MSG 21
 
 #define MUP_HTTP_PORT0 8
 
