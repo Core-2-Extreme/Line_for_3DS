@@ -15,7 +15,7 @@
 #define INVALID_ARG -8
 #define BAD_ICON_INFO -9
 #define NO_ICON_INFO -10
-#define MINIMP3_RETURNED_NOT_SUCCESS -11
+#define FFMPEG_RETURNED_NOT_SUCCESS -11
 #define INVALID_PORT_NUM -12
 
 bool Err_query_error_show_flag(void);
