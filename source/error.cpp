@@ -58,8 +58,8 @@ std::string Err_query_template_summary(long error_code)
 		return "[Error] Bad icon info. ";
 	else if(error_code == NO_ICON_INFO)
 		return "[Error] No icon info. ";
-	else if(error_code == MINIMP3_RETURNED_NOT_SUCCESS)
-		return "[Error] minimp3 returned NOT success. ";
+	else if(error_code == FFMPEG_RETURNED_NOT_SUCCESS)
+		return "[Error] ffmpeg returned NOT success. ";
 	else if(error_code == INVALID_PORT_NUM)
 		return "[Error] Invalid port num was specified. ";
 	else

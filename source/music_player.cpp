@@ -53,6 +53,7 @@ bool mup_allow_sleep = false;
 bool mup_seek_request = false;
 bool mup_change_music_request = false;
 bool mup_dl_and_play_request = false;
+bool mup_pause_request = false;
 double mup_music_length = 0.0;
 float mup_bar_pos = 0.0;
 int mup_music_sample_rate = 0;
@@ -284,12 +285,14 @@ void Mup_play_thread(void* arg)
 
 	while (mup_play_thread_run)
 	{
-		mup_stop_request = false;
 		if (mup_play_request)
 		{
 			if(mup_change_music_request)
 				mup_change_music_request = false;
 
+			mup_stop_request = false;
+			mup_seek_request = false;
+			mup_pause_request = false;
 			init_swr = true;
 			mup_count_reset_request = true;
 			file_name = mup_load_file_name;
@@ -329,10 +332,14 @@ void Mup_play_thread(void* arg)
 			format_context = avformat_alloc_context();
 			ffmpeg_result = avformat_open_input(&format_context, (dir_name + file_name).c_str(), NULL, NULL);
 			if(ffmpeg_result != 0)
-				Log_log_save(mup_play_thread_string, "avformat_open_input()...[Error] ", -1, false);
+			{
+				Err_set_error_message(Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS), "avformat_open_input() failed", mup_play_thread_string, ffmpeg_result);
+				Err_set_error_show_flag(true);
+				Log_log_save(mup_play_thread_string, "avformat_open_input()...[Error] ", ffmpeg_result, false);
+			}
 			else
 			{
-				Log_log_save(mup_play_thread_string, "avformat_open_input()...[Success] ", 0, false);
+				Log_log_save(mup_play_thread_string, "avformat_open_input()...[Success] ", ffmpeg_result, false);
 				File_check_file_size(file_name, dir_name, &file_size, fs_handle, fs_archive);
 				mup_file_size = file_size;
 
@@ -342,9 +349,10 @@ void Mup_play_thread(void* arg)
 						stream_num = i;
 				}
 
-				avformat_find_stream_info(format_context, NULL);
-				if(stream_num != -1)
+				ffmpeg_result = avformat_find_stream_info(format_context, NULL);
+				if(format_context != NULL)
 				{
+					Log_log_save(mup_play_thread_string, "avformat_find_stream_info()...[Success] ", ffmpeg_result, false);
 					codec = avcodec_find_decoder(format_context->streams[stream_num]->codecpar->codec_id);
 					if(!codec)
 						Log_log_save(mup_play_thread_string, "avcodec_find_decoder() failed ", -1, false);
@@ -360,173 +368,178 @@ void Mup_play_thread(void* arg)
 					ffmpeg_result = avcodec_open2(context, codec, NULL);
 					if(ffmpeg_result != 0)
 						Log_log_save(mup_play_thread_string, "avcodec_open2() failed ", ffmpeg_result, false);
-				}
-				if(context)
-				{
-					codec_info = avcodec_descriptor_get(format_context->streams[stream_num]->codecpar->codec_id);
-					mup_file_type = codec_info->long_name;
-				}
-			}
-
-			if(format_context != NULL)
-			{
-				mup_count_request = true;
-				while(true)
-				{
-					if(mup_stop_request || mup_change_music_request || mup_seek_request)
+					if(context)
 					{
-						ndspChnWaveBufClear(8);
-						if(mup_seek_request)
+						codec_info = avcodec_descriptor_get(format_context->streams[stream_num]->codecpar->codec_id);
+						mup_file_type = codec_info->long_name;
+					}
+			
+					while(true)
+					{
+						mup_count_request = false;
+						while(mup_pause_request && !mup_stop_request && !mup_change_music_request && !mup_seek_request)
+							usleep(50000);
+
+						mup_count_request = true;
+						if(mup_stop_request || mup_change_music_request || mup_seek_request)
 						{
-							log_num = Log_log_save(mup_play_thread_string, "avformat_seek_file()... ", 1234567890, false);
-							//Use us(microsecond) to specify time
-							Log_log_save(mup_play_thread_string, std::to_string(mup_offset), 1234567890, false);
-							ffmpeg_result = avformat_seek_file(format_context, -1, mup_offset, mup_offset, mup_offset, AVSEEK_FLAG_ANY);
-							if(ffmpeg_result >= 0)
+							ndspChnWaveBufClear(8);
+							if(mup_seek_request)
 							{
-								mup_bar_pos = mup_offset / 1000;
-								current_pos[0] = mup_bar_pos;
-								current_pos[1] = mup_bar_pos;
-								memset(sound_buffer[buffer_num], 0x0, 0x20000);
-								buffer_offset = 0;
-								Log_log_add(log_num, Err_query_template_summary(0), ffmpeg_result, false);
+								log_num = Log_log_save(mup_play_thread_string, "avformat_seek_file()... ", 1234567890, false);
+								//Use us(microsecond) to specify time
+								Log_log_save(mup_play_thread_string, std::to_string(mup_offset), 1234567890, false);
+								ffmpeg_result = avformat_seek_file(format_context, -1, mup_offset, mup_offset, mup_offset, AVSEEK_FLAG_ANY);
+								if(ffmpeg_result >= 0)
+								{
+									mup_bar_pos = mup_offset / 1000;
+									current_pos[0] = mup_bar_pos;
+									current_pos[1] = mup_bar_pos;
+									memset(sound_buffer[0], 0x0, 0x20000);
+									memset(sound_buffer[1], 0x0, 0x20000);
+									buffer_offset = 0;
+									Log_log_add(log_num, Err_query_template_summary(0), ffmpeg_result, false);
+								}
+								else
+									Log_log_add(log_num, Err_query_template_summary(1024), ffmpeg_result, false);
+
+								mup_seek_request = false;
 							}
 							else
-								Log_log_add(log_num, Err_query_template_summary(1024), ffmpeg_result, false);
+								break;
+						}
 
-							mup_seek_request = false;
+						packet = av_packet_alloc();
+						if(!packet)
+						{
+							Log_log_save(mup_play_thread_string, "av_packet_alloc()...[Error] ", -1, false);
+							break;
+						}
+						ffmpeg_result = av_read_frame(format_context, packet);
+						if(packet->size == 0)
+						{
+							Log_log_save(mup_play_thread_string, "av_read_frame()...[Error] ", ffmpeg_result, false);
+							if(ffmpeg_result <= 0)
+								break;
 						}
 						else
-							break;
-					}
-
-					packet = av_packet_alloc();
-					if(!packet)
-					{
-						Log_log_save(mup_play_thread_string, "av_packet_alloc()...[Error] ", -1, false);
-						break;
-					}
-					ffmpeg_result = av_read_frame(format_context, packet);
-					if(packet->size == 0)
-					{
-						Log_log_save(mup_play_thread_string, "av_read_frame()...[Error] ", ffmpeg_result, false);
-						if(ffmpeg_result <= 0)
-							break;
-					}
-					else
-					{
-						if(packet->stream_index == stream_num)
 						{
-							raw_data = av_frame_alloc();
-							if(!raw_data)
-								Log_log_save(mup_play_thread_string, "av_frame_alloc()...[Error] ", -1, false);
-							else
+							if(packet->stream_index == stream_num)
 							{
-								ffmpeg_result = avcodec_send_packet(context, packet);
-								if(ffmpeg_result != 0)
-									Log_log_save(mup_play_thread_string, "avcodec_send_packet()...[Error] ", ffmpeg_result, false);
-
-								ffmpeg_result = avcodec_receive_frame(context, raw_data);
-								if(ffmpeg_result != 0)
-									Log_log_save(mup_play_thread_string, "avcodec_receive_frame()...[Error] ", ffmpeg_result, false);
+								raw_data = av_frame_alloc();
+								if(!raw_data)
+									Log_log_save(mup_play_thread_string, "av_frame_alloc()...[Error] ", -1, false);
 								else
 								{
-									if(init_swr)
+									ffmpeg_result = avcodec_send_packet(context, packet);
+									if(ffmpeg_result != 0)
+										Log_log_save(mup_play_thread_string, "avcodec_send_packet()...[Error] ", ffmpeg_result, false);
+
+									ffmpeg_result = avcodec_receive_frame(context, raw_data);
+									if(ffmpeg_result != 0)
+										Log_log_save(mup_play_thread_string, "avcodec_receive_frame()...[Error] ", ffmpeg_result, false);
+									else
 									{
-										swr_context = swr_alloc();
-										swr_alloc_set_opts(swr_context, av_get_default_channel_layout(raw_data->channels), AV_SAMPLE_FMT_S16, raw_data->sample_rate,
-											av_get_default_channel_layout(raw_data->channels), context->sample_fmt, raw_data->sample_rate, 0, NULL);
-										if(!swr_context)
-											Log_log_save(mup_play_thread_string, "swr_alloc_set_opts()...[Error] ", 1234567890, false);
-
-										swr_init(swr_context);
-										mup_music_sample_rate = raw_data->sample_rate;
-										mup_num_of_music_ch = raw_data->channels;
-										mup_music_bit_rate = format_context->bit_rate;
-										mup_music_length = (double)format_context->duration / AV_TIME_BASE;
-										ndspChnReset(8);
-										ndspChnWaveBufClear(8);
-										float mix[12];
-											memset(mix, 0, sizeof(mix));
-											mix[0] = 1.0;
-											mix[1] = 1.0;
-											ndspChnSetMix(8, mix);
-										memset(ndsp_buffer, 0, sizeof(ndsp_buffer));
-										ndspSetOutputMode(NDSP_OUTPUT_STEREO);
-										ndspChnSetInterp(8, NDSP_INTERP_LINEAR);
-										ndspChnSetRate(8, raw_data->sample_rate);
-										ndspChnSetFormat(8, NDSP_FORMAT_STEREO_PCM16);
-										init_swr = false;
-									}
-
-									av_samples_alloc(&cache, NULL, raw_data->channels, raw_data->nb_samples, AV_SAMPLE_FMT_S16, 0);
-									swr_convert(swr_context, &cache, raw_data->nb_samples, (const uint8_t**)raw_data->data, raw_data->nb_samples);
-									audio_size = av_samples_get_buffer_size(NULL, raw_data->channels, raw_data->nb_samples, AV_SAMPLE_FMT_S16, 1);
-									samples += raw_data->nb_samples;
-									memcpy(sound_buffer[buffer_num] + buffer_offset, cache, audio_size);
-									buffer_offset += audio_size;
-									av_freep(&cache);
-
-									if(buffer_offset + audio_size > 0x20000)
-									{
-										current_pos[buffer_num] = (double)raw_data->pkt_pos * 8 / mup_music_bit_rate * 1000;
-										ndsp_buffer[buffer_num].data_vaddr = sound_buffer[buffer_num];
-										ndsp_buffer[buffer_num].nsamples = samples;
-										ndspChnWaveBufAdd(8, &ndsp_buffer[buffer_num]);
-										DSP_FlushDataCache(sound_buffer[buffer_num], 0x20000);
-
-										while(ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_PLAYING || ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_QUEUED)
+										if(init_swr)
 										{
-											if(mup_stop_request || mup_change_music_request || mup_seek_request)
-												break;
+											swr_context = swr_alloc();
+											swr_alloc_set_opts(swr_context, av_get_default_channel_layout(raw_data->channels), AV_SAMPLE_FMT_S16, raw_data->sample_rate,
+												av_get_default_channel_layout(raw_data->channels), context->sample_fmt, raw_data->sample_rate, 0, NULL);
+											if(!swr_context)
+												Log_log_save(mup_play_thread_string, "swr_alloc_set_opts()...[Error] ", 1234567890, false);
 
-											usleep(25000);
-										}										
-										mup_bar_pos = current_pos[pre_buffer_num];
-										pre_buffer_num = buffer_num;
-										if(buffer_num == 0)
-											buffer_num = 1;
-										else
-											buffer_num = 0;
+											swr_init(swr_context);
+											mup_music_sample_rate = raw_data->sample_rate;
+											mup_num_of_music_ch = raw_data->channels;
+											mup_music_bit_rate = format_context->bit_rate;
+											mup_music_length = (double)format_context->duration / AV_TIME_BASE;
+											ndspChnReset(8);
+											ndspChnWaveBufClear(8);
+											float mix[12];
+												memset(mix, 0, sizeof(mix));
+												mix[0] = 1.0;
+												mix[1] = 1.0;
+												ndspChnSetMix(8, mix);
+											memset(ndsp_buffer, 0, sizeof(ndsp_buffer));
+											ndspSetOutputMode(NDSP_OUTPUT_STEREO);
+											ndspChnSetInterp(8, NDSP_INTERP_LINEAR);
+											ndspChnSetRate(8, raw_data->sample_rate);
+											ndspChnSetFormat(8, NDSP_FORMAT_STEREO_PCM16);
+											init_swr = false;
+										}
 
-										memset(sound_buffer[buffer_num], 0x0, 0x20000);
-										samples = 0;
-										buffer_offset = 0;
+										av_samples_alloc(&cache, NULL, raw_data->channels, raw_data->nb_samples, AV_SAMPLE_FMT_S16, 0);
+										swr_convert(swr_context, &cache, raw_data->nb_samples, (const uint8_t**)raw_data->data, raw_data->nb_samples);
+										audio_size = av_samples_get_buffer_size(NULL, raw_data->channels, raw_data->nb_samples, AV_SAMPLE_FMT_S16, 1);
+										samples += raw_data->nb_samples;
+										memcpy(sound_buffer[buffer_num] + buffer_offset, cache, audio_size);
+										buffer_offset += audio_size;
+										av_freep(&cache);
+
+										if(buffer_offset + audio_size > 0x20000)
+										{
+											current_pos[buffer_num] = (double)raw_data->pkt_pos * 8 / mup_music_bit_rate * 1000;
+											ndsp_buffer[buffer_num].data_vaddr = sound_buffer[buffer_num];
+											ndsp_buffer[buffer_num].nsamples = samples;
+											ndspChnWaveBufAdd(8, &ndsp_buffer[buffer_num]);
+											DSP_FlushDataCache(sound_buffer[buffer_num], 0x20000);
+
+											while(ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_PLAYING || ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_QUEUED
+											&& !mup_stop_request && !mup_change_music_request && !mup_seek_request)
+												usleep(25000);
+
+											mup_bar_pos = current_pos[pre_buffer_num];
+											pre_buffer_num = buffer_num;
+											if(buffer_num == 0)
+												buffer_num = 1;
+											else
+												buffer_num = 0;
+
+											memset(sound_buffer[buffer_num], 0x0, 0x20000);
+											samples = 0;
+											buffer_offset = 0;
+										}
 									}
 								}
+								av_frame_free(&raw_data);
 							}
-							av_frame_free(&raw_data);
 						}
-				    }
-					av_packet_free(&packet);
+						av_packet_free(&packet);
+					}
+
+					ffmpeg_result = avcodec_send_packet(context, NULL);
+					for(int i = 0; i < 100; i++)
+					{
+						raw_data = av_frame_alloc();
+						ffmpeg_result = avcodec_receive_frame(context, raw_data);
+						av_frame_free(&raw_data);
+						if(ffmpeg_result == AVERROR_EOF)
+							break;
+					}
+
 				}
-
-				ffmpeg_result = avcodec_send_packet(context, NULL);
-				for(int i = 0; i < 100; i++)
+				else
 				{
-					raw_data = av_frame_alloc();
-					ffmpeg_result = avcodec_receive_frame(context, raw_data);
-					av_frame_free(&raw_data);
-					if(ffmpeg_result == AVERROR_EOF)
-						break;
-				}
-
-				while(ndsp_buffer[0].status == NDSP_WBUF_PLAYING || ndsp_buffer[0].status == NDSP_WBUF_QUEUED 
-				|| ndsp_buffer[1].status == NDSP_WBUF_PLAYING || ndsp_buffer[1].status == NDSP_WBUF_QUEUED)
-				{
-					if(mup_stop_request || mup_change_music_request)
-						break;
-
-					usleep(25000);
+					Err_set_error_message(Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS), "avformat_find_stream_info() failed", mup_play_thread_string, ffmpeg_result);
+					Err_set_error_show_flag(true);
+					Log_log_save(mup_play_thread_string, "avformat_find_stream_info()...[Error] ", ffmpeg_result, false);
 				}
 			}
+			while(ndsp_buffer[0].status == NDSP_WBUF_PLAYING || ndsp_buffer[0].status == NDSP_WBUF_QUEUED 
+			|| ndsp_buffer[1].status == NDSP_WBUF_PLAYING || ndsp_buffer[1].status == NDSP_WBUF_QUEUED)
+			{
+				if(mup_stop_request || mup_change_music_request)
+					break;
+
+				usleep(25000);
+			}
+
+
 			avformat_close_input(&format_context);
 			avcodec_free_context(&context);
 			av_packet_free(&packet);
 			swr_free(&swr_context);
 			mup_count_request = false;
-			mup_seek_request = false;
-
 			if (!mup_loop_request && !mup_change_music_request)
 				mup_play_request = false;
 		}
@@ -628,6 +641,7 @@ void Mup_init(void)
 
 void Mup_main(void)
 {
+	int msg_num = 0;
 	float text_red, text_green, text_blue, text_alpha;
 	float red[2], green[2], blue[2], alpha[2];
 	Hid_info key;
@@ -702,7 +716,7 @@ void Mup_main(void)
 		if(mup_dl_and_play_request)
 		{
 			Draw_texture(Square_image, aqua_tint, 0, 0.0, 15.0, 50.0 * mup_dl_progress, 3.0);
-			Draw("Downloading...  (downloaded : " + std::to_string(mup_dled_size / 1024 / 1024) + "MB(" + std::to_string(mup_dled_size / 1024) + "KB))", 0, 0.0, 20.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(mup_msg[20] + std::to_string(mup_dled_size / 1024.0 / 1024.0).substr(0, 4) + "MB", 0, 0.0, 20.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		}
 		Draw(mup_msg[0] + std::to_string(mup_music_bit_rate / 1000) + mup_msg[1], 0, 0.0, 35.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw(mup_msg[2] + std::to_string((double)mup_music_sample_rate / 1000.0).substr(0, std::to_string((double)mup_music_sample_rate / 1000.0).length() - 4) + "Kbps", 0, 0.0, 50.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
@@ -717,10 +731,15 @@ void Mup_main(void)
 			Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
 
 		for (int i = 0; i < 2; i++)
-		{
 			Draw_texture(Square_image, weak_aqua_tint, 0, 105.0 + (i * 60.0), 60.0, 50.0, 50.0);
-			Draw(mup_msg[16 + i], 0, 107.5 + (i * 60.0), 80.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		}
+
+		if(mup_play_request && !mup_pause_request)
+			msg_num = 19;
+		else
+			msg_num = 16;
+		
+		Draw(mup_msg[msg_num], 0, 107.5, 80.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(mup_msg[17], 0, 167.5, 80.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 
 		Draw(mup_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
 		Draw(Sem_convert_seconds_to_time(mup_bar_pos / 1000) + " / " + Sem_convert_seconds_to_time(mup_music_length), 0, 12.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
@@ -811,7 +830,14 @@ void Mup_main(void)
 			mup_seek_request = true;
 		}
 		if (key.p_a || (key.p_touch && key.touch_x >= 105 && key.touch_x <= 154 && key.touch_y >= 60 && key.touch_y <= 109))
-			mup_play_request = true;
+		{
+			if(!mup_play_request)
+				mup_play_request = true;
+			else if(!mup_pause_request)
+				mup_pause_request = true;
+			else
+				mup_pause_request = false;
+		}
 		else if (key.p_b || (key.p_touch && key.touch_x >= 165 && key.touch_x <= 214 && key.touch_y >= 60 && key.touch_y <= 109))
 			mup_stop_request = true;
 		else if (key.p_touch && key.touch_x >= 10 && key.touch_x <= 49 && key.touch_y >= 150 && key.touch_y <= 169)

@@ -60,7 +60,6 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 	bool function_fail = false;
 	int redirected = 0;
 	u32 dl_size = 0;
-	u32 data_size = 0;
 	char* moved_url;
 	std::string moved_url_string;
 	std::string dl_string;

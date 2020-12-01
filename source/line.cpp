@@ -189,7 +189,6 @@ void Line_main(void)
 {
 	bool video = false;
 	bool audio = false;
-	bool image = false;
 	bool hit = false;
 	int msg_num_list[10];
 	int num_of_words = 0;
