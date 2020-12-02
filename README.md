@@ -11,14 +11,13 @@
 * [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 
 ## Patch note
-* 【App】 Ver 1.6.0
-* 【Line】 Fixed- The app will crash if use 'send a file' function.
-* 【Line】 Fixed- Improved 'send a file' function processing speed.
-* 【Line】 Added- Search function.
-* 【Line】 Added- Now, you can receive up to 4000 chat logs.
-* 【Music player】 Fixed- Improved mp3 play quality.
-* 【Music player】 Added- Seek function.
-* 【Explorer】 Added- Now, file will be sorted.
+* 【App】 Ver 1.7.0
+* 【App】 Fixed- Fonts was improved.
+* 【App】 Added- Video player.
+* 【Line】 Added- Now, you can play audio and video sent by user.
+* 【Cam】 Fixed- Framerate was improved.
+* 【Mup】 Added- Additional formats (like aac) are supported.
+* 【App】 Fixed- Some minor update to better user experience.
 
 ## Summary
 ![00000028](https://user-images.githubusercontent.com/45873899/85299815-b9bbfb80-b4e0-11ea-8ee1-7551cedd83d4.jpg)
@@ -32,8 +31,8 @@
 * Send sticker ✅(*1) (v1.3.0)
 * Receive text ✅
 * Receive (View) image ✅ (v1.2.0)
-* Receive (Play) video ❌
-* Receive (Play) sound ⚠(*3) (v1.5.0)
+* Receive (Play) video ✅ (v1.7.0)
+* Receive (Play) sound ✅ (v1.7.0)
 * Receive (View) sticker ✅(*1) (v1.3.0)
 * View old log ✅ (～v1.5.2 Max 300 logs) (v1.6.0~ Max 4000 logs)
 * Auto update ✅ (v0.2.0)
@@ -45,7 +44,6 @@
 ### *1 The stickers must be included this list.
 https://developers.line.biz/media/messaging-api/sticker_list.pdf
 ### *2 Google drive URL will be sent(not embed).
-### *3 There is music player that can play .mp3 and .wav, but line return .m4a file so you can't play line audio file in this version.
 
 ## How to setup and use
 Please view gbatemp or video
