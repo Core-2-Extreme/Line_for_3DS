@@ -229,10 +229,10 @@ void Imv_main(void)
 
 	tex_size_x *= imv_img_zoom;
 	tex_size_y *= imv_img_zoom;
-
-	if(tex_size_x >= 400 && tex_size_y >= 240)
+	
+	if((imv_img_width > 400 && imv_img_height > 240 && tex_size_x >= 400 && tex_size_y >= 240) || (imv_img_width < 400 || imv_img_height < 240))
 	{
-		Log_log_save("", "N", 1234567890, false);
+		//Log_log_save("", "N", 1234567890, false);
 		for(int i = 0; i < 64; i++)
 		{
 			if(imv_enable[i])
@@ -241,7 +241,7 @@ void Imv_main(void)
 	}
 	else
 	{
-		Log_log_save("", "L", 1234567890, false);
+		//Log_log_save("", "L", 1234567890, false);
 		for(int i = 0; i < 64; i++)
 		{
 			if(imv_enable[i])

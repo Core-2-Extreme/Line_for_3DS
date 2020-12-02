@@ -1280,7 +1280,7 @@ void Vid_main(void)
 	else
 		tex_size_y = vid_video_height * vid_zoom;
 
-	if(tex_size_x >= 400 && tex_size_y >= 240)
+	if((vid_video_width > 400 && vid_video_height > 240 && tex_size_x >= 400 && tex_size_y >= 240) || (vid_video_width < 400 || vid_video_height < 240))
 	{
 		//Log_log_save("", "N", 1234567890, false);
 		for(int i = 0; i < 16; i++)
