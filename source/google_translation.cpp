@@ -53,7 +53,7 @@ std::string gtr_msg[GTR_NUM_OF_MSG];
 std::string gtr_tr_thread_string = "Gtr/Tr thread";
 std::string gtr_init_string = "Gtr/Init";
 std::string gtr_exit_string = "Gtr/Exit";
-std::string gtr_ver = "v1.1.2";
+std::string gtr_ver = "v1.1.3";
 
 Thread gtr_tr_thread;
 
