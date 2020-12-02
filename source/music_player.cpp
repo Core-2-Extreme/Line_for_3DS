@@ -484,7 +484,7 @@ void Mup_play_thread(void* arg)
 											ndspChnWaveBufAdd(8, &ndsp_buffer[buffer_num]);
 											DSP_FlushDataCache(sound_buffer[buffer_num], 0x20000);
 
-											while(ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_PLAYING || ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_QUEUED
+											while((ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_PLAYING || ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_QUEUED)
 											&& !mup_stop_request && !mup_change_music_request && !mup_seek_request)
 												usleep(25000);
 
@@ -621,7 +621,7 @@ void Mup_init(void)
 		mup_play_thread_run = true;
 		mup_timer_thread_run = true;
 		mup_worker_thread_run = true;
-		mup_play_thread = threadCreate(Mup_play_thread, (void*)(""), STACKSIZE, PRIORITY_LOW, 0, false);
+		mup_play_thread = threadCreate(Mup_play_thread, (void*)(""), STACKSIZE, PRIORITY_IDLE, 0, false);
 		mup_timer_thread = threadCreate(Mup_timer_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, 1, false);
 		mup_worker_thread = threadCreate(Mup_worker_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
 	}
@@ -738,8 +738,8 @@ void Mup_main(void)
 		else
 			msg_num = 16;
 		
-		Draw(mup_msg[msg_num], 0, 107.5, 80.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw(mup_msg[17], 0, 167.5, 80.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(mup_msg[msg_num], 0, 107.5, 80.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+		Draw(mup_msg[17], 0, 167.5, 80.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
 
 		Draw(mup_ver, 0, 0.0, 0.0, 0.4, 0.4, 0.0, 1.0, 0.0, 1.0);
 		Draw(Sem_convert_seconds_to_time(mup_bar_pos / 1000) + " / " + Sem_convert_seconds_to_time(mup_music_length), 0, 12.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);

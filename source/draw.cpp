@@ -127,13 +127,11 @@ void Draw_rgb565_to_abgr888_rgb888(u8* rgb565_buffer, u8* rgba8888_buffer, u32 w
 
 int Draw_convert_to_pos(int height, int width, int img_height, int img_width, int pixel_size)
 {
-	int pos;
-	if(height <= 0)
-	 	pos = img_width;
-	else
-		pos = img_width * height;
+	int pos = img_width * height;
+	if(pos == 0)
+		pos = img_width;
 
-	pos -= img_width - width;
+	pos -= (img_width - width) - img_width;
 	return pos * pixel_size;
 }
 
@@ -142,16 +140,35 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 	bool init_result = false;
 	u32 x_max;
 	u32 y_max;
-	int increase_list_x[4] = { 4, 12, 4, 44, };
-	int increase_list_y[8] = { 2, 6, 2, 22, 2, 6, 2, tex_size_x * 8 - 42, };
+	int increase_list_x[1024]; //= { 4, 12, 4, 44, }
+	int increase_list_y[1024]; //= { 2, 6, 2, 22, 2, 6, 2, tex_size_x * 8 - 42, };
 	int count[2] = { 0, 0, };
 	int c3d_pos = 0;
 	int c3d_offset = 0;
 	Result_with_string result;
-	for(int i = 0; i < 4; i++)
-		increase_list_x[i] *= pixel_size;
+	for(int i = 0; i <= tex_size_x; i+=4)
+	{
+		increase_list_x[i] = 4 * pixel_size;
+		increase_list_x[i + 1] = 12 * pixel_size;
+		increase_list_x[i + 2] = 4 * pixel_size;
+		increase_list_x[i + 3] = 44 * pixel_size;
+	}
+	for(int i = 0; i <= tex_size_y; i+=8)
+	{
+		increase_list_y[i] = 2 * pixel_size;
+		increase_list_y[i + 1] = 6 * pixel_size;
+		increase_list_y[i + 2] = 2 * pixel_size;
+		increase_list_y[i + 3] = 22 * pixel_size;
+		increase_list_y[i + 4] = 2 * pixel_size;
+		increase_list_y[i + 5] = 6 * pixel_size;
+		increase_list_y[i + 6] = 2 * pixel_size;
+		increase_list_y[i + 7] = (tex_size_x * 8 - 42) * pixel_size;
+	}
+	/*
 	for(int i = 0; i < 8; i++)
 		increase_list_y[i] *= pixel_size;
+	*/
+
 
 	u32 subtex_width = width;
 	u32 subtex_height = height;
@@ -184,7 +201,12 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 	c3d_subtex->right = subtex_width / (float)tex_size_x;
 	c3d_subtex->bottom = 1.0 - subtex_height / (float)tex_size_y;
 
-	memset(c3d_tex->data, 0xFF, tex_size_x * tex_size_y * pixel_size);
+	int log_num = Log_log_save("", "", 1234567890, false);
+//	memset(c3d_tex->data, 0x0, c3d_tex->size);
+	GX_MemoryFill((u32*)c3d_tex->data, 0x0, (u32*)(c3d_tex->data + (c3d_tex->size / 2)), GX_FILL_TRIGGER |  GX_FILL_24BIT_DEPTH, (u32*)(c3d_tex->data + (c3d_tex->size / 2)), 0x0, (u32*)(c3d_tex->data + c3d_tex->size), GX_FILL_TRIGGER |  GX_FILL_24BIT_DEPTH);
+	
+	gspWaitForPSC0();
+	Log_log_add(log_num, "", 1234567890, false);
 	C3D_TexSetFilter(c3d_tex, GPU_LINEAR, GPU_LINEAR);
 
 	y_max = height - (u32)parse_start_height;
@@ -194,21 +216,6 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 	if ((u32)tex_size_x < x_max)
 		x_max = tex_size_x;
 
-
-	//memcpy((u8*)c3d_tex->data, (u8*)buf, height * width * pixel_size);
-	/*int pos = 0;
-	for(int i = 1; i <= (int)height; i++)
-	{
-		for(int k = 1; k <= (int)width; k++)
-		{
-			memcpy(&((u8*)c3d_tex->data)[pos], &((u8*)buf)[pos], pixel_size);
-			pos += 4;
-			usleep(100000);
-		}
-	}*/
-	//int increase_list_x[4] = { 4, 12, 4, 44, };
-//	int increase_list_y[8] = { 2, 6, 2, 22, 2, 6, 2, tex_size_x * 8 - 42, };
-
 	for(u32 k = 0; k < y_max; k++)
 	{
 		for(u32 i = 0; i < x_max; i += 2)
@@ -216,15 +223,11 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 			memcpy(&((u8*)c3d_tex->data)[c3d_pos + c3d_offset], &((u8*)buf)[Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size)], pixel_size * 2);
 			c3d_pos += increase_list_x[count[0]];
 			count[0]++;
-			if(count[0] >= 4)
-				count[0] = 0;
 		}
 		count[0] = 0;
 		c3d_pos = 0;
 		c3d_offset += increase_list_y[count[1]];
 		count[1]++;
-		if(count[1] >= 8)
-			count[1] = 0;
 	}
 
 /*
