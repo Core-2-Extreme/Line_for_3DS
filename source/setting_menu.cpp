@@ -1859,7 +1859,7 @@ void Sem_check_update_thread(void* arg)
 
 							if (i == 0)
 								newest_ver = stoi(sem_newest_ver_data[i]);
-							else if (i > 0 && i < 8)
+							else if (i > 0 && i < 9)
 								sem_available_ver[i - 1] = stoi(sem_newest_ver_data[i]);
 							else if (i == 9)
 							{
