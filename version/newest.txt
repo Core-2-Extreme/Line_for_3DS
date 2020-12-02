@@ -1,4 +1,4 @@
-<newest>17</newest>
+<newest>18</newest>
 <3dsx_available>1</3dsx_available>
 <cia_32mb_ram_available>0</cia_32mb_ram_available>
 <cia_64mb_ram_available>1</cia_64mb_ram_available>
@@ -6,17 +6,17 @@
 <cia_80mb_ram_available>1</cia_80mb_ram_available>
 <cia_96mb_ram_available>0</cia_96mb_ram_available>
 <cia_124mb_ram_available>1</cia_124mb_ram_available>
-<cia_178mb_ram_available>0</cia_178mb_ram_available>
-<gas_ver>6</gas_ver>
-<patch_note>【App】 Ver 1.6.0
-【Line】 Fixed- The app will crash if use 
- 'send a file' function.
-【Line】 Fixed- Improved 'send a file' function 
- processing speed.
-【Line】 Added- Search function.
-【Line】 Added- Now, you can receive up to 
- 4000 chat logs.
-【Music player】 Fixed- Improved mp3 play quality.
-【Music player】 Added- Seek function.
-【Explorer】 Added- Now, file will be sorted.
+<cia_178mb_ram_available>1</cia_178mb_ram_available>
+<gas_ver>7</gas_ver>
+<patch_note>
+******You CANNOT update using updater because of file size
+You MUST download file from github and update manually******
+
+【App】 Ver 1.7.0
+【App】 Fixed- Fonts was improved.
+【App】 Added- Video player.
+【Line】 Added- Now, you can play audio and video sent by user.
+【Cam】 Fixed- Framerate was improved.
+【Mup】 Added- Additional formats (like aac) are supported.
+【App】 Fixed- Some minor update to better user experience.
 </patch_note>
