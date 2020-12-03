@@ -202,10 +202,10 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 	c3d_subtex->bottom = 1.0 - subtex_height / (float)tex_size_y;
 
 //	int log_num = Log_log_save("", "", 1234567890, false);
-//	memset(c3d_tex->data, 0x0, c3d_tex->size);
-	GX_MemoryFill((u32*)c3d_tex->data, 0x0, (u32*)(c3d_tex->data + (c3d_tex->size / 2)), GX_FILL_TRIGGER |  GX_FILL_24BIT_DEPTH, (u32*)(c3d_tex->data + (c3d_tex->size / 2)), 0x0, (u32*)(c3d_tex->data + c3d_tex->size), GX_FILL_TRIGGER |  GX_FILL_24BIT_DEPTH);
+	memset(c3d_tex->data, 0x0, c3d_tex->size);
+	//GX_MemoryFill((u32*)c3d_tex->data, 0x0, (u32*)(c3d_tex->data + (c3d_tex->size / 2)), GX_FILL_TRIGGER |  GX_FILL_24BIT_DEPTH, (u32*)(c3d_tex->data + (c3d_tex->size / 2)), 0x0, (u32*)(c3d_tex->data + c3d_tex->size), GX_FILL_TRIGGER |  GX_FILL_24BIT_DEPTH);
 	
-	gspWaitForPSC0();
+	//gspWaitForPSC0();
 //	Log_log_add(log_num, "", 1234567890, false);
 	C3D_TexSetFilter(c3d_tex, GPU_LINEAR, GPU_LINEAR);
 
