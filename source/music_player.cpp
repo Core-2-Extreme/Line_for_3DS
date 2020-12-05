@@ -73,7 +73,7 @@ std::string mup_play_thread_string = "Mup/Play thread";
 std::string mup_timer_thread_string = "Mup/Timer thread";
 std::string mup_init_string = "Mup/Init";
 std::string mup_exit_string = "Mup/Exit";
-std::string mup_ver = "v1.1.0";
+std::string mup_ver = "v1.1.1";
 Thread mup_play_thread, mup_timer_thread, mup_worker_thread;
 
 bool Mup_query_init_flag(void)
@@ -189,10 +189,10 @@ void Mup_worker_thread(void* arg)
 			mup_dl_and_play_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (mup_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	Log_log_save(mup_worker_thread_string, "Thread exit.", 1234567890, false);
@@ -230,10 +230,10 @@ void Mup_timer_thread(void* arg)
 			}
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (mup_thread_suspend && !mup_count_request && !mup_count_reset_request)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	Log_log_save(mup_timer_thread_string, "Thread exit.", 1234567890, false);
@@ -246,16 +246,12 @@ void Mup_play_thread(void* arg)
 	bool init_swr = true;
 	int ffmpeg_result = 0;
 	int stream_num = 0;
-	int pre_buffer_num = 0;
 	int buffer_num = 0;
-	int buffer_offset = 0;
 	int random_num = 0;
 	int count = 0;
 	int audio_size = 0;
 	int log_num = 0;
-	int samples = 0;
-	double current_pos[2] = { 0.0, 0.0, };
-	u8* sound_buffer[2] = { NULL, NULL, };
+	u8* sound_buffer[5] = { NULL, NULL, NULL, NULL, NULL, };
 	u8* cache = NULL;
 	u8 status;
 	u64 file_size = 0;
@@ -263,7 +259,7 @@ void Mup_play_thread(void* arg)
 	std::string dir_name = "/";
 	Handle fs_handle = 0;
 	FS_Archive fs_archive = 0;
-	ndspWaveBuf ndsp_buffer[2];
+	ndspWaveBuf ndsp_buffer[5];
 	AVPacket *packet = NULL;
 	AVFrame *raw_data = NULL;
 	AVFormatContext* format_context = NULL;
@@ -272,9 +268,9 @@ void Mup_play_thread(void* arg)
 	AVCodecContext *context = NULL;
 	AVCodec *codec = NULL;
 	Result_with_string result;
+	for(int i = 0; i < 5; i++)
+		sound_buffer[i] = (u8*)linearAlloc(0x10000);
 
-	sound_buffer[0] = (u8*)linearAlloc(0x20000);
-	sound_buffer[1] = (u8*)linearAlloc(0x20000);
 	if(sound_buffer[0] == NULL || sound_buffer[1] == NULL)
 	{
 		Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), mup_play_thread_string, OUT_OF_MEMORY);
@@ -299,13 +295,10 @@ void Mup_play_thread(void* arg)
 			dir_name = mup_load_dir_name;
 			file_size = 0;
 			stream_num = -1;
-			samples = 0;
 			mup_file_size = 0;
-			mup_offset = 0;
-			current_pos[0] = 0.0;
-			current_pos[1] = 0.0;			
-			memset(sound_buffer[0], 0x0, 0x20000);
-			memset(sound_buffer[1], 0x0, 0x20000);
+			mup_offset = 0;		
+			memset(sound_buffer[0], 0x0, 0x10000);
+			memset(sound_buffer[1], 0x0, 0x10000);
 			Expl_set_current_patch(dir_name);
 			Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
 			while (Expl_query_operation_flag(EXPL_READ_DIR_REQUEST))
@@ -373,7 +366,8 @@ void Mup_play_thread(void* arg)
 						codec_info = avcodec_descriptor_get(format_context->streams[stream_num]->codecpar->codec_id);
 						mup_file_type = codec_info->long_name;
 					}
-			
+
+					count = 0;
 					while(true)
 					{
 						mup_count_request = false;
@@ -393,11 +387,9 @@ void Mup_play_thread(void* arg)
 								if(ffmpeg_result >= 0)
 								{
 									mup_bar_pos = mup_offset / 1000;
-									current_pos[0] = mup_bar_pos;
-									current_pos[1] = mup_bar_pos;
-									memset(sound_buffer[0], 0x0, 0x20000);
-									memset(sound_buffer[1], 0x0, 0x20000);
-									buffer_offset = 0;
+									for(int i = 0; i < 5; i++)
+										sound_buffer[i] = (u8*)linearAlloc(0x10000);
+									
 									Log_log_add(log_num, Err_query_template_summary(0), ffmpeg_result, false);
 								}
 								else
@@ -456,12 +448,16 @@ void Mup_play_thread(void* arg)
 											ndspChnReset(8);
 											ndspChnWaveBufClear(8);
 											float mix[12];
-												memset(mix, 0, sizeof(mix));
-												mix[0] = 1.0;
-												mix[1] = 1.0;
-												ndspChnSetMix(8, mix);
+											memset(mix, 0, sizeof(mix));
+											mix[0] = 1.0;
+											mix[1] = 1.0;
+											ndspChnSetMix(8, mix);
 											memset(ndsp_buffer, 0, sizeof(ndsp_buffer));
-											ndspSetOutputMode(NDSP_OUTPUT_STEREO);
+											if(raw_data->channels == 2)
+												ndspSetOutputMode(NDSP_OUTPUT_STEREO);
+											else
+												ndspSetOutputMode(NDSP_OUTPUT_MONO);
+											
 											ndspChnSetInterp(8, NDSP_INTERP_LINEAR);
 											ndspChnSetRate(8, raw_data->sample_rate);
 											ndspChnSetFormat(8, NDSP_FORMAT_STEREO_PCM16);
@@ -471,34 +467,30 @@ void Mup_play_thread(void* arg)
 										av_samples_alloc(&cache, NULL, raw_data->channels, raw_data->nb_samples, AV_SAMPLE_FMT_S16, 0);
 										swr_convert(swr_context, &cache, raw_data->nb_samples, (const uint8_t**)raw_data->data, raw_data->nb_samples);
 										audio_size = av_samples_get_buffer_size(NULL, raw_data->channels, raw_data->nb_samples, AV_SAMPLE_FMT_S16, 1);
-										samples += raw_data->nb_samples;
-										memcpy(sound_buffer[buffer_num] + buffer_offset, cache, audio_size);
-										buffer_offset += audio_size;
+										memcpy(sound_buffer[buffer_num], cache, audio_size);
 										av_freep(&cache);
 
-										if(buffer_offset + audio_size > 0x20000)
+										ndsp_buffer[buffer_num].data_vaddr = sound_buffer[buffer_num];
+										ndsp_buffer[buffer_num].nsamples = raw_data->nb_samples;
+										ndspChnWaveBufAdd(8, &ndsp_buffer[buffer_num]);
+
+										if(buffer_num >= 0 && buffer_num <= 3)
+											buffer_num++;
+										else
+											buffer_num = 0;
+
+										count++;
+										if(count > 30)
 										{
-											current_pos[buffer_num] = (double)raw_data->pkt_pos * 8 / mup_music_bit_rate * 1000;
-											ndsp_buffer[buffer_num].data_vaddr = sound_buffer[buffer_num];
-											ndsp_buffer[buffer_num].nsamples = samples;
-											ndspChnWaveBufAdd(8, &ndsp_buffer[buffer_num]);
-											DSP_FlushDataCache(sound_buffer[buffer_num], 0x20000);
-
-											while((ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_PLAYING || ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_QUEUED)
-											&& !mup_stop_request && !mup_change_music_request && !mup_seek_request)
-												usleep(25000);
-
-											mup_bar_pos = current_pos[pre_buffer_num];
-											pre_buffer_num = buffer_num;
-											if(buffer_num == 0)
-												buffer_num = 1;
-											else
-												buffer_num = 0;
-
-											memset(sound_buffer[buffer_num], 0x0, 0x20000);
-											samples = 0;
-											buffer_offset = 0;
+											mup_bar_pos = (double)raw_data->pkt_pos * 8 / mup_music_bit_rate * 1000;
+											count = 0;
 										}
+
+										while((ndsp_buffer[buffer_num].status == NDSP_WBUF_PLAYING || ndsp_buffer[buffer_num].status == NDSP_WBUF_QUEUED)
+										&& !mup_stop_request && !mup_change_music_request && !mup_seek_request)
+											usleep(7500);
+
+										memset(sound_buffer[buffer_num], 0x0, audio_size);
 									}
 								}
 								av_frame_free(&raw_data);
@@ -526,7 +518,10 @@ void Mup_play_thread(void* arg)
 				}
 			}
 			while(ndsp_buffer[0].status == NDSP_WBUF_PLAYING || ndsp_buffer[0].status == NDSP_WBUF_QUEUED 
-			|| ndsp_buffer[1].status == NDSP_WBUF_PLAYING || ndsp_buffer[1].status == NDSP_WBUF_QUEUED)
+			|| ndsp_buffer[1].status == NDSP_WBUF_PLAYING || ndsp_buffer[1].status == NDSP_WBUF_QUEUED
+			|| ndsp_buffer[2].status == NDSP_WBUF_PLAYING || ndsp_buffer[2].status == NDSP_WBUF_QUEUED
+			|| ndsp_buffer[3].status == NDSP_WBUF_PLAYING || ndsp_buffer[3].status == NDSP_WBUF_QUEUED
+			|| ndsp_buffer[4].status == NDSP_WBUF_PLAYING || ndsp_buffer[4].status == NDSP_WBUF_QUEUED)
 			{
 				if(mup_stop_request || mup_change_music_request)
 					break;
@@ -544,13 +539,13 @@ void Mup_play_thread(void* arg)
 				mup_play_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (mup_thread_suspend && !mup_loop_request && !mup_change_music_request)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 
-	for (int i = 0; i < 2; i++)
+	for (int i = 0; i < 5; i++)
 	{
 		linearFree(sound_buffer[i]);
 		sound_buffer[i] = NULL;
@@ -621,7 +616,7 @@ void Mup_init(void)
 		mup_play_thread_run = true;
 		mup_timer_thread_run = true;
 		mup_worker_thread_run = true;
-		mup_play_thread = threadCreate(Mup_play_thread, (void*)(""), STACKSIZE, PRIORITY_IDLE, 0, false);
+		mup_play_thread = threadCreate(Mup_play_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 0, false);
 		mup_timer_thread = threadCreate(Mup_timer_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, 1, false);
 		mup_worker_thread = threadCreate(Mup_worker_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
 	}
