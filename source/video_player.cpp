@@ -68,6 +68,7 @@ bool vid_count_request = false;
 bool vid_count_reset_request = false;
 bool vid_enable[16];
 bool vid_button_selected[2] = { false, false, };
+int vid_buffer_num = 0;
 int vid_dl_progress = 0;
 int vid_dled_size = 0;
 int vid_pic_num = 0;
@@ -100,7 +101,7 @@ std::string vid_current_audio_format = "none";
 std::string vid_load_file_name = "video.mp4";
 std::string vid_load_dir_name = "/Line/";
 std::string vid_msg[VID_NUM_OF_MSG];
-std::string vid_ver = "v1.0.0";
+std::string vid_ver = "v1.0.1";
 std::string vid_timer_thread_string = "Vid/Timer thread";
 std::string vid_decord_video_thread_string = "Vid/Decode video thread";
 std::string vid_convert_thread_string = "Vid/Convert thread";
@@ -115,6 +116,7 @@ u8* yuv_data[2] = { NULL, NULL, };
 AVCodecContext *context[2] = { NULL, NULL, };
 AVCodec *codec[2] = { NULL, NULL, };
 AVPacket *vid_packet = NULL;
+AVFrame *vid_raw_data[2] = { NULL, NULL, };
 
 bool Vid_query_init_flag(void)
 {
@@ -185,57 +187,84 @@ void YUV420P_to_BGR24(unsigned char *data, unsigned char *data_1, unsigned char 
     unsigned char *ubase = data_1;//&data[width * height];
     unsigned char *vbase = data_2;//&data[width * height * 5 / 4];
 		//    unsigned char *vbase = &data[(width * height) + (width * height / 4)];
-		uint8_t Y = 0;
-		uint8_t U = 0;
-		uint8_t V = 0;
-		//uint8_t r, g, b;
-		//uint16_t rr, gg, bb;
+		uint8_t Y[4], U, V, r[4], g[4], b[4];
 		if(width % 4 != 0)
 		{
 			for (int y = 0; y < height; y++)
 			{
-					for (int x = 0; x < width; x++)
-					{
-							//YYYYYYYYUUVV
-							Y = ybase[x + y * width];
-							U = ubase[y / 2 * width / 2 + (x / 2)];
-							V = vbase[y / 2 * width / 2 + (x / 2)];
-
-							rgba[index++] = YUV2B(Y, U, V);
-							rgba[index++] = YUV2G(Y, U, V);
-							rgba[index++] = YUV2R(Y, U, V);
-					}
+				for (int x = 0; x < width; x++)
+				{
+						//YYYYYYYYUUVV
+						Y[0] = ybase[x + y * width];
+						U = ubase[y / 2 * width / 2 + (x / 2)];
+						V = vbase[y / 2 * width / 2 + (x / 2)];
+						b[0] = YUV2B(Y[0], U, V);
+						g[0] = YUV2G(Y[0], U, V);
+						r[0] = YUV2R(Y[0], U, V);
+						b[0] = b[0] >> 3;
+						g[0] = g[0] >> 2;
+						r[0] = r[0] >> 3;
+						rgba[index++] = (g[0] & 0b00000111) << 5 | b[0];
+						rgba[index++] = (g[0] & 0b00111000) >> 3 | (r[0] & 0b00011111) << 3;
+				}
 			}
 		}
 		else
 		{
 			for (int y = 0; y < height; y++)
 			{
-					for (int x = 0; x < width; x += 4)
+				for (int x = 0; x < width; x += 4)
+				{
+					//YYYYYYYYUUVV
+					U = ubase[y / 2 * width / 2 + (x / 2)];
+					V = vbase[y / 2 * width / 2 + (x / 2)];
+					Y[0] = ybase[x + y * width];
+					Y[1] = ybase[x + 1 + y * width];
+					Y[2] = ybase[x + 2 + y * width];
+					Y[3] = ybase[x + 3 + y * width];
+					b[0] = YUV2B(Y[0], U, V);
+					g[0] = YUV2G(Y[0], U, V);
+					r[0] = YUV2R(Y[0], U, V);
+					b[1] = YUV2B(Y[1], U, V);
+					g[1] = YUV2G(Y[1], U, V);
+					r[1] = YUV2R(Y[1], U, V);
+					b[2] = YUV2B(Y[2], U, V);
+					g[2] = YUV2G(Y[2], U, V);
+					r[2] = YUV2R(Y[2], U, V);
+					b[3] = YUV2B(Y[3], U, V);
+					g[3] = YUV2G(Y[3], U, V);
+					r[3] = YUV2R(Y[3], U, V);
+
+					/*
+					for(int i = 0; i < 4; i++)
 					{
-							//YYYYYYYYUUVV
-							Y = ybase[x + y * width];
-							U = ubase[y / 2 * width / 2 + (x / 2)];
-							V = vbase[y / 2 * width / 2 + (x / 2)];
-							rgba[index++] = YUV2B(Y, U, V);
-							rgba[index++] = YUV2G(Y, U, V);
-							rgba[index++] = YUV2R(Y, U, V);
-
-							Y = ybase[x + 1 + y * width];
-							rgba[index++] = YUV2B(Y, U, V);
-							rgba[index++] = YUV2G(Y, U, V);
-							rgba[index++] = YUV2R(Y, U, V);
-
-							Y = ybase[x + 2 + y * width];
-							rgba[index++] = YUV2B(Y, U, V);
-							rgba[index++] = YUV2G(Y, U, V);
-							rgba[index++] = YUV2R(Y, U, V);
-
-							Y = ybase[x + 3 + y * width];
-							rgba[index++] = YUV2B(Y, U, V);
-							rgba[index++] = YUV2G(Y, U, V);
-							rgba[index++] = YUV2R(Y, U, V);
-					}
+						b[i] = b[i] >> 3;
+						g[i] = g[i] >> 2;
+						r[i] = r[i] >> 3;
+						rgba[index++] = (g[i] & 0b00000111) << 5 | b[i];
+						rgba[index++] = (g[i] & 0b00111000) >> 3 | (r[i] & 0b00011111) << 3;
+					}*/
+					b[0] = b[0] >> 3;
+					g[0] = g[0] >> 2;
+					r[0] = r[0] >> 3;
+					b[1] = b[1] >> 3;
+					g[1] = g[1] >> 2;
+					r[1] = r[1] >> 3;
+					b[2] = b[2] >> 3;
+					g[2] = g[2] >> 2;
+					r[2] = r[2] >> 3;
+					b[3] = b[3] >> 3;
+					g[3] = g[3] >> 2;
+					r[3] = r[3] >> 3;
+					rgba[index++] = (g[0] & 0b00000111) << 5 | b[0];
+					rgba[index++] = (g[0] & 0b00111000) >> 3 | (r[0] & 0b00011111) << 3;
+					rgba[index++] = (g[1] & 0b00000111) << 5 | b[1];
+					rgba[index++] = (g[1] & 0b00111000) >> 3 | (r[1] & 0b00011111) << 3;
+					rgba[index++] = (g[2] & 0b00000111) << 5 | b[2];
+					rgba[index++] = (g[2] & 0b00111000) >> 3 | (r[2] & 0b00011111) << 3;
+					rgba[index++] = (g[3] & 0b00000111) << 5 | b[3];
+					rgba[index++] = (g[3] & 0b00111000) >> 3 | (r[3] & 0b00011111) << 3;
+				}
 			}
 			/*for (int y = 0; y < height; y++)
 			{
@@ -245,44 +274,24 @@ void YUV420P_to_BGR24(unsigned char *data, unsigned char *data_1, unsigned char 
 						Y = ybase[x + y * width];
 						U = ubase[y / 2 * width / 2 + (x / 2)];
 						V = vbase[y / 2 * width / 2 + (x / 2)];
-						b = YUV2B(Y, U, V);
-						g = YUV2G(Y, U, V);
-						r = YUV2R(Y, U, V);
-						bb = (b >> 3);
-						gg = (g >> 2);
-						rr = (r >> 3);
-						rgba[index] = (uint16_t) (((bb & 0x1f) << 11) | ((gg & 0x3f) << 5) | (rr & 0x1f));
-						index += 2;
+						rgba[index++] = YUV2B(Y, U, V);
+						rgba[index++] = YUV2G(Y, U, V);
+						rgba[index++] = YUV2R(Y, U, V);
 
 						Y = ybase[x + 1 + y * width];
-						b = YUV2B(Y, U, V);
-						g = YUV2G(Y, U, V);
-						r = YUV2R(Y, U, V);
-						bb = (b >> 3);
-						gg = (g >> 2);
-						rr = (r >> 3);
-						rgba[index] = (uint16_t) (((bb & 0x1f) << 11) | ((gg & 0x3f) << 5) | (rr & 0x1f));
-						index += 2;
+						rgba[index++] = YUV2B(Y, U, V);
+						rgba[index++] = YUV2G(Y, U, V);
+						rgba[index++] = YUV2R(Y, U, V);
 
 						Y = ybase[x + 2 + y * width];
-						b = YUV2B(Y, U, V);
-						g = YUV2G(Y, U, V);
-						r = YUV2R(Y, U, V);
-						bb = (b >> 3);
-						gg = (g >> 2);
-						rr = (r >> 3);
-						rgba[index] = (uint16_t) (((bb & 0x1f) << 11) | ((gg & 0x3f) << 5) | (rr & 0x1f));
-						index += 2;
+						rgba[index++] = YUV2B(Y, U, V);
+						rgba[index++] = YUV2G(Y, U, V);
+						rgba[index++] = YUV2R(Y, U, V);
 
 						Y = ybase[x + 3 + y * width];
-						b = YUV2B(Y, U, V);
-						g = YUV2G(Y, U, V);
-						r = YUV2R(Y, U, V);
-						bb = (b >> 3);
-						gg = (g >> 2);
-						rr = (r >> 3);
-						rgba[index] = (uint16_t) (((bb & 0x1f) << 11) | ((gg & 0x3f) << 5) | (rr & 0x1f));
-						index += 2;
+						rgba[index++] = YUV2B(Y, U, V);
+						rgba[index++] = YUV2G(Y, U, V);
+						rgba[index++] = YUV2R(Y, U, V);
 				}
 			}*/
 		}
@@ -400,10 +409,10 @@ void Vid_timer_thread(void* arg)
 			}
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (vid_thread_suspend && !vid_count_request && !vid_count_reset_request)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	Log_log_save(vid_timer_thread_string, "Thread exit.", 1234567890, false);
@@ -414,8 +423,8 @@ void Vid_decode_video_thread(void* arg)
 {
 	Log_log_save(vid_decord_video_thread_string, "Thread started.", 1234567890, false);
 	int ffmpeg_result = 0;
+	int buffer_num = 0;
 	Result_with_string result;
-	AVFrame *raw_data = NULL;
 	AVPacket *packet = NULL;
 
 	while (vid_decord_video_thread_run)
@@ -428,32 +437,32 @@ void Vid_decode_video_thread(void* arg)
 				vid_decoding = true;
 				vid_decoded_frames++;
 				packet = av_packet_alloc();
-				raw_data = av_frame_alloc();
+				vid_raw_data[buffer_num] = av_frame_alloc();
 
-				if(!packet || !raw_data)
+				if(!packet || !vid_raw_data[buffer_num])
 					Log_log_save(vid_decord_video_thread_string, "alloc failed ", -1, false);
 				else
 				{
 					av_init_packet(packet);
 					while (vid_wait)
-						usleep(200);
+						usleep(100);
 
 					av_packet_ref(packet, vid_packet);
 					ffmpeg_result = avcodec_send_packet(context[0], packet);
 					if(ffmpeg_result != 0)
 						Log_log_save(vid_worker_thread_string, "avcodec_send_packet()...[Error] ", ffmpeg_result, false);
 
-					ffmpeg_result = avcodec_receive_frame(context[0], raw_data);
+					ffmpeg_result = avcodec_receive_frame(context[0], vid_raw_data[buffer_num]);
 					if(ffmpeg_result != 0)
 						Log_log_save(vid_worker_thread_string, "avcodec_receive_frame()...[Error] ", ffmpeg_result, false);
 					else
 					{
-						vid_bar_pos = (double)raw_data->pkt_pos * 8 / vid_bit_rate * 1000;					
+						vid_bar_pos = (double)vid_raw_data[buffer_num]->pkt_pos * 8 / vid_bit_rate * 1000;					
 						if(vid_get_info_request)
 						{
 							vid_framerate = (double)context[0]->framerate.num / (double)context[0]->framerate.den;
-							vid_video_width = raw_data->width;
-							vid_video_height = raw_data->height;
+							vid_video_width = vid_raw_data[buffer_num]->width;
+							vid_video_height = vid_raw_data[buffer_num]->height;
 							for(int i = 0; i < 2; i++)
 							{
 								free(yuv_data[i]);
@@ -470,28 +479,32 @@ void Vid_decode_video_thread(void* arg)
 							vid_get_info_request = false;
 						}
 						
-						memcpy(yuv_data[0], raw_data->data[0], vid_video_width * vid_video_height);
-						memcpy(yuv_data[0] + (vid_video_width * vid_video_height), raw_data->data[1], vid_video_width * vid_video_height / 4);
-						memcpy(yuv_data[0] + ((vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4)), raw_data->data[2], vid_video_width * vid_video_height / 4);
 						vid_convert_texture_request = true;
 					}
 				}
+				vid_buffer_num = buffer_num;
+				if(buffer_num == 0)
+					buffer_num = 1;
+				else
+					buffer_num = 0;
+				
 				av_packet_free(&packet);
-				av_frame_free(&raw_data);
+				av_frame_free(&vid_raw_data[buffer_num]);
 				vid_temp_decode_fps++;
 				vid_decoding = false;
 			}
 			else
-				usleep(1000);
+				usleep(100);
 		}
-		usleep(ACTIW_THREAD_SLEEP_TIME);
+		usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (vid_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	for(int i = 0; i < 2; i++)
 	{
+		av_frame_free(&vid_raw_data[i]);
 		free(yuv_data[i]);
 		yuv_data[i] = NULL;
 	}
@@ -508,11 +521,8 @@ void Vid_worker_thread(void* arg)
 	int ffmpeg_result = 0;
 	int audio_size = 0;
 	int buffer_num = 0;
-	int pre_buffer_num = 0;
-	int buffer_offset = 0;
 	int count = 0;
-	int samples = 0;
-	u8* sound_buffer[2] = { NULL, NULL, };
+	u8* sound_buffer[5] = { NULL, NULL, NULL, NULL, NULL, };
 	u8* cache = NULL;
 	u8* httpc_buffer = NULL;
 	u32 dl_size = 0;
@@ -521,15 +531,16 @@ void Vid_worker_thread(void* arg)
 	std::string last_url = "";
 	std::string cache_string = "";
 	TickCounter timer;
-	ndspWaveBuf ndsp_buffer[2];
+	ndspWaveBuf ndsp_buffer[5];
 	AVPacket *packet = NULL;
 	AVFrame *raw_data = NULL;
 	AVFormatContext* format_context = NULL;
 	SwrContext* swr_context = NULL;
 	Result_with_string result;
 
-	sound_buffer[0] = (u8*)linearAlloc(0x20000);
-	sound_buffer[1] = (u8*)linearAlloc(0x20000);
+	for(int i = 0; i < 5; i++)
+		sound_buffer[i] = (u8*)linearAlloc(0x10000);
+
 	osTickCounterStart(&timer);
 
 	while (vid_worker_thread_run)
@@ -577,7 +588,6 @@ void Vid_worker_thread(void* arg)
 			vid_change_video_request = false;
 
 			frametime = 0.0;
-			samples = 0;
 			init_swr = true;
 			vid_offset = 0;
 			vid_frames = 0;
@@ -592,8 +602,8 @@ void Vid_worker_thread(void* arg)
 			vid_framerate = 0.0;
 			vid_current_video_format = "none";
 			vid_current_audio_format = "none";
-			memset(sound_buffer[0], 0x0, 0x20000);
-			memset(sound_buffer[1], 0x0, 0x20000);
+			for(int i = 0; i < 5; i++)
+				memset(sound_buffer[i], 0x0, 0x10000);
 
 			format_context = avformat_alloc_context();
 			ffmpeg_result = avformat_open_input(&format_context, (vid_load_dir_name + vid_load_file_name).c_str(), NULL, NULL);
@@ -696,9 +706,9 @@ void Vid_worker_thread(void* arg)
 								if(ffmpeg_result >= 0)
 								{
 									vid_bar_pos = vid_offset / 1000;
-									buffer_offset = 0;
-									memset(sound_buffer[0], 0x0, 0x20000);
-									memset(sound_buffer[1], 0x0, 0x20000);
+									for(int i = 0; i < 5; i++)
+										memset(sound_buffer[i], 0x0, 0x10000);
+
 									Log_log_add(log_num, Err_query_template_summary(0), ffmpeg_result, false);
 								}
 								else
@@ -741,20 +751,20 @@ void Vid_worker_thread(void* arg)
 								frametime = osTickCounterRead(&timer);
 								if(vid_framerate == 0.0)
 								{
-									if(50.0 - frametime > 0)
-										usleep((50.0 - frametime) * 1000);
+									//if(50.0 - frametime > 0)
+									//	usleep((50.0 - frametime) * 1000);
 								}
 								else
 								{
-									if((1000.0 / vid_framerate) - frametime > 0)
-										usleep(((1000.0 / vid_framerate) - frametime) * 1000);
+									//if((1000.0 / vid_framerate) - frametime > 0)
+									//	usleep(((1000.0 / vid_framerate) - frametime) * 1000);
 								}
 								osTickCounterUpdate(&timer);
 
 								if(!vid_allow_skip_frame || packet->flags & AV_PKT_FLAG_KEY)
 								{
 									while(vid_decode_video_request)
-										usleep(1000);
+										usleep(500);
 								}
 
 								vid_temp_read_fps++;
@@ -788,7 +798,7 @@ void Vid_worker_thread(void* arg)
 											{
 												swr_context = swr_alloc();
 												swr_alloc_set_opts(swr_context, av_get_default_channel_layout(context[1]->channels), AV_SAMPLE_FMT_S16, raw_data->sample_rate,
-													av_get_default_channel_layout(context[1]->channels), context[1]->sample_fmt, raw_data->sample_rate, 0, NULL);
+												av_get_default_channel_layout(context[1]->channels), context[1]->sample_fmt, raw_data->sample_rate, 0, NULL);
 												if(!swr_context)
 													Log_log_save(vid_worker_thread_string, "swr_alloc_set_opts()...[Error] ", 1234567890, false);
 
@@ -811,33 +821,25 @@ void Vid_worker_thread(void* arg)
 											av_samples_alloc(&cache, NULL, context[1]->channels, raw_data->nb_samples, AV_SAMPLE_FMT_S16, 0);
 											swr_convert(swr_context, &cache, raw_data->nb_samples, (const uint8_t**)raw_data->data, raw_data->nb_samples);
 											audio_size = av_samples_get_buffer_size(NULL, context[1]->channels, raw_data->nb_samples, AV_SAMPLE_FMT_S16, 1);
-											samples += raw_data->nb_samples;
 
-											memcpy(sound_buffer[buffer_num] + buffer_offset, cache, audio_size);
-											buffer_offset += audio_size;
+											memcpy(sound_buffer[buffer_num], cache, audio_size);
+											Log_log_save("", std::to_string(audio_size), 1234567890, false);
 											av_freep(&cache);
 
-											if(buffer_offset + audio_size > 0x20000)
-											{
-												ndsp_buffer[buffer_num].data_vaddr = sound_buffer[buffer_num];
-												ndsp_buffer[buffer_num].nsamples = samples;
-												ndspChnWaveBufAdd(21, &ndsp_buffer[buffer_num]);
-												DSP_FlushDataCache(sound_buffer[buffer_num], buffer_offset);
+											ndsp_buffer[buffer_num].data_vaddr = sound_buffer[buffer_num];
+											ndsp_buffer[buffer_num].nsamples = raw_data->nb_samples;
+											ndspChnWaveBufAdd(21, &ndsp_buffer[buffer_num]);
 
-												while((ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_PLAYING || ndsp_buffer[pre_buffer_num].status == NDSP_WBUF_QUEUED)
-												&& !vid_stop_request && !vid_change_video_request && !vid_seek_request)
-													usleep(1000);
+											if(buffer_num >= 0 && buffer_num <= 3)
+												buffer_num++;
+											else
+												buffer_num = 0;
 
-												pre_buffer_num = buffer_num;
-												if(buffer_num == 0)
-													buffer_num = 1;
-												else
-													buffer_num = 0;
+											while((ndsp_buffer[buffer_num].status == NDSP_WBUF_PLAYING || ndsp_buffer[buffer_num].status == NDSP_WBUF_QUEUED)
+											&& !vid_stop_request && !vid_change_video_request && !vid_seek_request)
+												usleep(1000);
 
-												memset(sound_buffer[buffer_num], 0x0, 0x20000);
-												buffer_offset = 0;
-												samples = 0;
-											}
+											memset(sound_buffer[buffer_num], 0x0, 0x10000);
 										}
 									}
 								}
@@ -866,7 +868,10 @@ void Vid_worker_thread(void* arg)
 			}
 
 			while(ndsp_buffer[0].status == NDSP_WBUF_PLAYING || ndsp_buffer[0].status == NDSP_WBUF_QUEUED 
-			|| ndsp_buffer[1].status == NDSP_WBUF_PLAYING || ndsp_buffer[1].status == NDSP_WBUF_QUEUED)
+			|| ndsp_buffer[1].status == NDSP_WBUF_PLAYING || ndsp_buffer[1].status == NDSP_WBUF_QUEUED
+			|| ndsp_buffer[2].status == NDSP_WBUF_PLAYING || ndsp_buffer[2].status == NDSP_WBUF_QUEUED
+			|| ndsp_buffer[3].status == NDSP_WBUF_PLAYING || ndsp_buffer[3].status == NDSP_WBUF_QUEUED
+			|| ndsp_buffer[4].status == NDSP_WBUF_PLAYING || ndsp_buffer[4].status == NDSP_WBUF_QUEUED)
 			{
 				if(vid_stop_request || vid_change_video_request)
 					break;
@@ -891,13 +896,13 @@ void Vid_worker_thread(void* arg)
 			if(!vid_change_video_request)
 				vid_decode_request = false;
 		}
-		usleep(ACTIW_THREAD_SLEEP_TIME);
+		usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (vid_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 
-	for(int i = 0; i < 2; i++)
+	for(int i = 0; i < 5; i++)
 	{
 		linearFree(sound_buffer[i]);
 		sound_buffer[i] = NULL;
@@ -933,52 +938,57 @@ void Vid_convert_thread(void* arg)
 				else
 					process_pic_num = 0;
 
-				memcpy(yuv_data[1], yuv_data[0], (vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 2));
-
-				free(vid_bgr_data[process_pic_num]);
-				vid_bgr_data[process_pic_num] = NULL;
-				vid_bgr_data[process_pic_num] = (u8*)malloc(vid_video_width * vid_video_height * 3);
-				if(!vid_bgr_data[process_pic_num])
+				if(vid_raw_data[vid_buffer_num]->data[0] != NULL)
 				{
+					memcpy(yuv_data[vid_buffer_num], vid_raw_data[vid_buffer_num]->data[0], vid_video_width * vid_video_height);
+					memcpy(yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height), vid_raw_data[vid_buffer_num]->data[1], vid_video_width * vid_video_height / 4);
+					memcpy(yuv_data[vid_buffer_num] + ((vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4)), vid_raw_data[vid_buffer_num]->data[2], vid_video_width * vid_video_height / 4);
+	//				memcpy(yuv_data[1], yuv_data[0], (vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 2));
 
-				}
-				else
-				{
-					for(int i = 0; i < 16; i++)
+					free(vid_bgr_data[process_pic_num]);
+					vid_bgr_data[process_pic_num] = NULL;
+					vid_bgr_data[process_pic_num] = (u8*)malloc(vid_video_width * vid_video_height * 2);
+					if(!vid_bgr_data[process_pic_num])
 					{
-						linearFree(vid_c2d_image[(process_pic_num * 16) + i].tex->data);
-						vid_c2d_image[(process_pic_num * 16) + i].tex->data = NULL;
+
 					}
-
-					//log_num = Log_log_save(vid_convert_thread_string, "YUV420P_to_BGR24()..." + result.string, result.code, false);
-					YUV420P_to_BGR24((unsigned char*)yuv_data[1], (unsigned char*)yuv_data[1] + (vid_video_width * vid_video_height), (unsigned char*)yuv_data[1] + (vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4), (unsigned char*)vid_bgr_data[process_pic_num], vid_video_width, vid_video_height);
-					//Log_log_add(log_num, "", 1234567890, false);
-
-					width = vid_video_width;
-					height = vid_video_height;
-
-					for(int i = 0; i < 16; i++)
+					else
 					{
-						if(parse_x <= vid_video_width && parse_y <= vid_video_height)
+						for(int i = 0; i < 16; i++)
 						{
-							//log_num = Log_log_save(vid_convert_thread_string, "Draw_create_texture()..." + result.string, result.code, false);
-							result = Draw_create_texture(vid_c2d_image[(process_pic_num * 16) + i].tex, (Tex3DS_SubTexture*)vid_c2d_image[(process_pic_num * 16) + i].subtex, vid_bgr_data[process_pic_num], (u32)(width  * height * 3), width, height, 3, parse_x, parse_y, 512, 512, GPU_RGB8);
-							//Log_log_add(log_num, "", 1234567890, false);
-							if(result.code != 0)
-								Log_log_save(vid_convert_thread_string, "Draw_create_texture()..." + result.string, result.code, false);
-
-							vid_enable[i] = true;
+							linearFree(vid_c2d_image[(process_pic_num * 16) + i].tex->data);
+							vid_c2d_image[(process_pic_num * 16) + i].tex->data = NULL;
 						}
 
-						if(parse_x + 512 >= 2048)
-						{
-							parse_x = 0;
-							parse_y += 512;
-						}
-						else
-							parse_x += 512;
-					}
+						//log_num = Log_log_save(vid_convert_thread_string, "YUV420P_to_BGR24()..." + result.string, result.code, false);
+						YUV420P_to_BGR24((unsigned char*)yuv_data[vid_buffer_num], (unsigned char*)yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height), (unsigned char*)yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4), (unsigned char*)vid_bgr_data[process_pic_num], vid_video_width, vid_video_height);
+						//Log_log_add(log_num, "", 1234567890, false);
 
+						width = vid_video_width;
+						height = vid_video_height;
+
+						for(int i = 0; i < 16; i++)
+						{
+							if(parse_x <= vid_video_width && parse_y <= vid_video_height)
+							{
+								//log_num = Log_log_save(vid_convert_thread_string, "Draw_create_texture()..." + result.string, result.code, false);
+								result = Draw_create_texture(vid_c2d_image[(process_pic_num * 16) + i].tex, (Tex3DS_SubTexture*)vid_c2d_image[(process_pic_num * 16) + i].subtex, vid_bgr_data[process_pic_num], (u32)(width  * height * 2), width, height, 2, parse_x, parse_y, 512, 512, GPU_RGB565);
+								//Log_log_add(log_num, "", 1234567890, false);
+								if(result.code != 0)
+									Log_log_save(vid_convert_thread_string, "Draw_create_texture()..." + result.string, result.code, false);
+
+								vid_enable[i] = true;
+							}
+
+							if(parse_x + 512 >= 2048)
+							{
+								parse_x = 0;
+								parse_y += 512;
+							}
+							else
+								parse_x += 512;
+						}
+					}
 					if(vid_pic_num == 0)
 						vid_pic_num = 1;
 					else
@@ -990,12 +1000,12 @@ void Vid_convert_thread(void* arg)
 				vid_converting = false;
 			}
 			else
-				usleep(500);
+				usleep(100);
 		}
-		usleep(ACTIW_THREAD_SLEEP_TIME);
+		usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (vid_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(vid_worker_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
@@ -1107,7 +1117,7 @@ void Vid_init(void)
 		}
 		else
 		{
-			vid_convert_thread = threadCreate(Vid_convert_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, 1, false);
+			vid_convert_thread = threadCreate(Vid_convert_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 1, false);
 			vid_decode_video_thread = threadCreate(Vid_decode_video_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
 		}
 	}
