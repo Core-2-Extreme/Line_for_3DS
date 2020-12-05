@@ -811,10 +811,19 @@ void Vid_worker_thread(void* arg)
 												mix[1] = 1.0;
 												ndspChnSetMix(21, mix);
 												memset(ndsp_buffer, 0, sizeof(ndsp_buffer));
-												ndspSetOutputMode(NDSP_OUTPUT_STEREO);
+												if(raw_data->channels == 2)
+												{
+													ndspChnSetFormat(21, NDSP_FORMAT_STEREO_PCM16);
+													ndspSetOutputMode(NDSP_OUTPUT_STEREO);
+												}
+												else
+												{
+													ndspChnSetFormat(21, NDSP_FORMAT_MONO_PCM16);
+													ndspSetOutputMode(NDSP_OUTPUT_MONO);
+												}
+												
 												ndspChnSetInterp(21, NDSP_INTERP_LINEAR);
 												ndspChnSetRate(21, raw_data->sample_rate);
-												ndspChnSetFormat(21, NDSP_FORMAT_STEREO_PCM16);
 												init_swr = false;
 											}
 

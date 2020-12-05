@@ -454,13 +454,18 @@ void Mup_play_thread(void* arg)
 											ndspChnSetMix(8, mix);
 											memset(ndsp_buffer, 0, sizeof(ndsp_buffer));
 											if(raw_data->channels == 2)
+											{
+												ndspChnSetFormat(8, NDSP_FORMAT_STEREO_PCM16);
 												ndspSetOutputMode(NDSP_OUTPUT_STEREO);
+											}
 											else
+											{
+												ndspChnSetFormat(8, NDSP_FORMAT_MONO_PCM16);
 												ndspSetOutputMode(NDSP_OUTPUT_MONO);
+											}
 											
 											ndspChnSetInterp(8, NDSP_INTERP_LINEAR);
 											ndspChnSetRate(8, raw_data->sample_rate);
-											ndspChnSetFormat(8, NDSP_FORMAT_STEREO_PCM16);
 											init_swr = false;
 										}
 
