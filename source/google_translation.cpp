@@ -148,10 +148,10 @@ void Gtr_tr_thread(void* arg)
 			gtr_tr_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (gtr_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(gtr_tr_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);

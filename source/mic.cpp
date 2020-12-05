@@ -237,10 +237,10 @@ void Mic_record_thread(void* arg)
 			aptSetSleepAllowed(true);
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (mic_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(mic_record_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
@@ -317,7 +317,7 @@ void Mic_init(void)
 	if (!failed)
 	{
 		mic_record_thread_run = true;
-		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, 1, false);
+		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 1, false);
 	}
 
 	Mic_resume();

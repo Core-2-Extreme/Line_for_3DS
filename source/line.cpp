@@ -1652,7 +1652,7 @@ void Line_init(void)
 	line_dl_log_thread = threadCreate(Line_log_download_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
 	line_load_log_thread = threadCreate(Line_log_load_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
 	line_parse_log_thread = threadCreate(Line_log_parse_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, -1, false);
-	line_send_msg_thread = threadCreate(Line_send_message_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, -1, false);
+	line_send_msg_thread = threadCreate(Line_send_message_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, -1, false);
 
 	line_icon_dl_request = true;
 
@@ -1924,10 +1924,10 @@ void Line_worker_thread(void* arg)
 			}
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (line_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	Log_log_save(line_worker_thread_string, "Thread exit.", 1234567890, false);
@@ -2109,10 +2109,10 @@ void Line_log_download_thread(void* arg)
 			line_solve_short_url_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (line_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(line_log_dl_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
@@ -2408,10 +2408,10 @@ void Line_send_message_thread(void* arg)
 				line_send_request[2] = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (line_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(line_send_msg_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
@@ -2913,10 +2913,10 @@ void Line_log_parse_thread(void* arg)
 			line_parse_log_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (line_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(line_parse_thread_string, "Thread exit.", 1234567890, false);
 }
@@ -2941,10 +2941,10 @@ void Line_log_load_thread(void* arg)
 			line_load_log_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (line_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(line_log_load_thread_string , "Thread exit.", 1234567890, false);
 	threadExit(0);

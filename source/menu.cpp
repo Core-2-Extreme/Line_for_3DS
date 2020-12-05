@@ -699,7 +699,7 @@ void Menu_check_connectivity_thread(void* arg)
 				menu_connect_test_succes = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		count++;
 	}

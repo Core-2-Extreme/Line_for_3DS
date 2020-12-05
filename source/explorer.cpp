@@ -132,7 +132,7 @@ void Expl_set_operation_flag(int operation_num, bool flag)
 void Expl_init(void)
 {
 	expl_read_dir_thread_run = true;
-	expl_read_dir_thread = threadCreate(Expl_read_dir_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, -1, false);
+	expl_read_dir_thread = threadCreate(Expl_read_dir_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, -1, false);
 }
 
 void Expl_exit(void)
@@ -435,7 +435,7 @@ void Expl_read_dir_thread(void* arg)
       }
 		}
     else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(expl_read_dir_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);

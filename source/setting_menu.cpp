@@ -1732,7 +1732,7 @@ void Sem_worker_thread(void* arg)
 				sem_delete_line_vid_cache_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	Log_log_save(sem_worker_thread_string , "Thread exit.", 1234567890, false);
@@ -1929,10 +1929,10 @@ void Sem_check_update_thread(void* arg)
 				sem_dl_file_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (sem_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(sem_check_update_string, "Thread exit.", 1234567890, false);
 	threadExit(0);

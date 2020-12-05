@@ -318,10 +318,10 @@ void Spt_timer_thread(void* arg)
 			spt_count_reset_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (spt_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(spt_spt_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
@@ -381,10 +381,10 @@ void Spt_spt_thread(void* arg)
 			spt_start_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (spt_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(spt_spt_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);

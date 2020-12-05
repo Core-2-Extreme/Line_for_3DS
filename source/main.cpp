@@ -171,7 +171,7 @@ void Init(void)
 		Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 	}
 
-	svcSetThreadPriority(CUR_THREAD_HANDLE, PRIORITY_HIGHT - 1);
+	svcSetThreadPriority(CUR_THREAD_HANDLE, PRIORITY_HIGH - 1);
 	free(init_buffer);
 	Log_log_save(main_init_string , "Initialized.", 1234567890, false);
 }

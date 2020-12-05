@@ -741,8 +741,8 @@ void Cam_init(void)
 		cam_encode_thread_run = true;
 		cam_parse_thread_run = true;
 		cam_capture_thread = threadCreate(Cam_capture_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, 0, false);
-		cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, 1, false);
-		cam_parse_thread = threadCreate(Cam_parse_thread, (void*)(""), STACKSIZE, PRIORITY_HIGHT, 0, false);
+		cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 1, false);
+		cam_parse_thread = threadCreate(Cam_parse_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 0, false);
 	}
 	cam_display_img_num = -1;
 
@@ -929,10 +929,10 @@ void Cam_encode_thread(void* arg)
 			cam_encode_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (cam_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(cam_encode_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
@@ -1097,7 +1097,7 @@ void Cam_capture_thread(void* arg)
 		}
 
 		while (cam_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	result.code = CAMU_Activate(SELECT_NONE);
@@ -1182,7 +1182,7 @@ void Cam_parse_thread(void* arg)
 			usleep(3000);
 
 		while (cam_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	
 	Log_log_save(cam_parse_thread_string, "Thread exit.", 1234567890, false);

@@ -585,10 +585,10 @@ void Imv_img_parse_thread(void* arg)
 			imv_img_parse_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (imv_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	free(stb_image);
@@ -646,10 +646,10 @@ void Imv_img_load_thread(void* arg)
 				imv_img_load_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (imv_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(imv_img_load_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
@@ -729,10 +729,10 @@ void Imv_img_dl_thread(void* arg)
 				imv_img_dl_request = false;
 		}
 		else
-			usleep(ACTIW_THREAD_SLEEP_TIME);
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
 		while (imv_thread_suspend)
-			usleep(INACTIW_THREAD_SLEEP_TIME);
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(imv_img_dl_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
