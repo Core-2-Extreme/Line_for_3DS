@@ -23,16 +23,6 @@ extern "C" {
 #include "libswresample/swresample.h"
 }
 
-#define CLIP(X) ( (X) > 255 ? 255 : (X) < 0 ? 0 : X)
-// YUV -> RGB
-#define C(Y) ( (Y) - 16  )
-#define D(U) ( (U) - 128 )
-#define E(V) ( (V) - 128 )
-
-#define YUV2R(Y, U, V) CLIP(( 298 * C(Y)              + 409 * E(V) + 128) >> 8)
-#define YUV2G(Y, U, V) CLIP(( 298 * C(Y) - 100 * D(U) - 208 * E(V) + 128) >> 8)
-#define YUV2B(Y, U, V) CLIP(( 298 * C(Y) + 516 * D(U)              + 128) >> 8)
-
 /*For draw*/
 bool vid_need_reflesh = false;
 int vid_pre_dl_progress = 0;
@@ -180,204 +170,6 @@ void Vid_reset_fps(void)
 	vid_temp_convert_fps = 0;
 }
 
-void YUV420P_to_BGR24(unsigned char *data, unsigned char *data_1, unsigned char *data_2, unsigned char *rgba, int width, int height)
-{
-    int index = 0;
-    unsigned char *ybase = data;
-    unsigned char *ubase = data_1;//&data[width * height];
-    unsigned char *vbase = data_2;//&data[width * height * 5 / 4];
-		//    unsigned char *vbase = &data[(width * height) + (width * height / 4)];
-		uint8_t Y[4], U, V, r[4], g[4], b[4];
-		if(width % 4 != 0)
-		{
-			for (int y = 0; y < height; y++)
-			{
-				for (int x = 0; x < width; x++)
-				{
-						//YYYYYYYYUUVV
-						Y[0] = ybase[x + y * width];
-						U = ubase[y / 2 * width / 2 + (x / 2)];
-						V = vbase[y / 2 * width / 2 + (x / 2)];
-						b[0] = YUV2B(Y[0], U, V);
-						g[0] = YUV2G(Y[0], U, V);
-						r[0] = YUV2R(Y[0], U, V);
-						b[0] = b[0] >> 3;
-						g[0] = g[0] >> 2;
-						r[0] = r[0] >> 3;
-						rgba[index++] = (g[0] & 0b00000111) << 5 | b[0];
-						rgba[index++] = (g[0] & 0b00111000) >> 3 | (r[0] & 0b00011111) << 3;
-				}
-			}
-		}
-		else
-		{
-			for (int y = 0; y < height; y++)
-			{
-				for (int x = 0; x < width; x += 4)
-				{
-					//YYYYYYYYUUVV
-					U = ubase[y / 2 * width / 2 + (x / 2)];
-					V = vbase[y / 2 * width / 2 + (x / 2)];
-					Y[0] = ybase[x + y * width];
-					Y[1] = ybase[x + 1 + y * width];
-					Y[2] = ybase[x + 2 + y * width];
-					Y[3] = ybase[x + 3 + y * width];
-					b[0] = YUV2B(Y[0], U, V);
-					g[0] = YUV2G(Y[0], U, V);
-					r[0] = YUV2R(Y[0], U, V);
-					b[1] = YUV2B(Y[1], U, V);
-					g[1] = YUV2G(Y[1], U, V);
-					r[1] = YUV2R(Y[1], U, V);
-					b[2] = YUV2B(Y[2], U, V);
-					g[2] = YUV2G(Y[2], U, V);
-					r[2] = YUV2R(Y[2], U, V);
-					b[3] = YUV2B(Y[3], U, V);
-					g[3] = YUV2G(Y[3], U, V);
-					r[3] = YUV2R(Y[3], U, V);
-
-					/*
-					for(int i = 0; i < 4; i++)
-					{
-						b[i] = b[i] >> 3;
-						g[i] = g[i] >> 2;
-						r[i] = r[i] >> 3;
-						rgba[index++] = (g[i] & 0b00000111) << 5 | b[i];
-						rgba[index++] = (g[i] & 0b00111000) >> 3 | (r[i] & 0b00011111) << 3;
-					}*/
-					b[0] = b[0] >> 3;
-					g[0] = g[0] >> 2;
-					r[0] = r[0] >> 3;
-					b[1] = b[1] >> 3;
-					g[1] = g[1] >> 2;
-					r[1] = r[1] >> 3;
-					b[2] = b[2] >> 3;
-					g[2] = g[2] >> 2;
-					r[2] = r[2] >> 3;
-					b[3] = b[3] >> 3;
-					g[3] = g[3] >> 2;
-					r[3] = r[3] >> 3;
-					rgba[index++] = (g[0] & 0b00000111) << 5 | b[0];
-					rgba[index++] = (g[0] & 0b00111000) >> 3 | (r[0] & 0b00011111) << 3;
-					rgba[index++] = (g[1] & 0b00000111) << 5 | b[1];
-					rgba[index++] = (g[1] & 0b00111000) >> 3 | (r[1] & 0b00011111) << 3;
-					rgba[index++] = (g[2] & 0b00000111) << 5 | b[2];
-					rgba[index++] = (g[2] & 0b00111000) >> 3 | (r[2] & 0b00011111) << 3;
-					rgba[index++] = (g[3] & 0b00000111) << 5 | b[3];
-					rgba[index++] = (g[3] & 0b00111000) >> 3 | (r[3] & 0b00011111) << 3;
-				}
-			}
-			/*for (int y = 0; y < height; y++)
-			{
-				for (int x = 0; x < width; x += 4)
-				{
-						//YYYYYYYYUUVV
-						Y = ybase[x + y * width];
-						U = ubase[y / 2 * width / 2 + (x / 2)];
-						V = vbase[y / 2 * width / 2 + (x / 2)];
-						rgba[index++] = YUV2B(Y, U, V);
-						rgba[index++] = YUV2G(Y, U, V);
-						rgba[index++] = YUV2R(Y, U, V);
-
-						Y = ybase[x + 1 + y * width];
-						rgba[index++] = YUV2B(Y, U, V);
-						rgba[index++] = YUV2G(Y, U, V);
-						rgba[index++] = YUV2R(Y, U, V);
-
-						Y = ybase[x + 2 + y * width];
-						rgba[index++] = YUV2B(Y, U, V);
-						rgba[index++] = YUV2G(Y, U, V);
-						rgba[index++] = YUV2R(Y, U, V);
-
-						Y = ybase[x + 3 + y * width];
-						rgba[index++] = YUV2B(Y, U, V);
-						rgba[index++] = YUV2G(Y, U, V);
-						rgba[index++] = YUV2R(Y, U, V);
-				}
-			}*/
-		}
-
-		//640*360 27.8ms +-0.5ms
-    /*for (int y = 0; y < height; y++)
-		{
-        for (int x = 0; x < width; x ++)
-				{
-            //YYYYYYYYUUVV
-						Y = ybase[x + y * width];
-						U = ubase[y / 2 * width / 2 + (x / 2)];
-            V = vbase[y / 2 * width / 2 + (x / 2)];
-
-						rgba[index++] = Y + 1.77 * (U - 128); //B
-						rgba[index++] = Y - 0.34 * (U - 128) - 0.71 * (V - 128); //G
-						rgba[index++] = Y + 1.40 * (V - 128); //R
-        }
-    }*/
-
-		//640*360 14ms +-0.5ms
-		/*for (int y = 0; y < height; y++)
-		{
-				for (int x = 0; x < width; x ++)
-				{
-						//YYYYYYYYUUVV
-						Y = ybase[x + y * width];
-						U = ubase[y / 2 * width / 2 + (x / 2)];
-						V = vbase[y / 2 * width / 2 + (x / 2)];
-
-						rgba[index++] = YUV2B(Y, U, V);
-						rgba[index++] = YUV2G(Y, U, V);
-						rgba[index++] = YUV2R(Y, U, V);
-				}
-		}*/
-
-		//640*360 15.6ms +-0.5ms
-		/*for (int y = 0; y < height; y++)
-		{
-				for (int x = 0; x < width; x ++)
-				{
-						//YYYYYYYYUUVV
-						Y = ybase[x + y * width];
-						if(x % 4 == 0)
-						{
-							U = ubase[y / 2 * width / 2 + (x / 2)];
-							V = vbase[y / 2 * width / 2 + (x / 2)];
-						}
-
-						rgba[index++] = YUV2B(Y, U, V);
-						rgba[index++] = YUV2G(Y, U, V);
-						rgba[index++] = YUV2R(Y, U, V);
-				}
-		}*/
-
-		//640*360 10ms +-0.5ms
-		/*for (int y = 0; y < height; y++)
-		{
-				for (int x = 0; x < width; x += 4)
-				{
-						//YYYYYYYYUUVV
-						Y = ybase[x + y * width];
-						U = ubase[y / 2 * width / 2 + (x / 2)];
-						V = vbase[y / 2 * width / 2 + (x / 2)];
-						rgba[index++] = YUV2B(Y, U, V);
-						rgba[index++] = YUV2G(Y, U, V);
-						rgba[index++] = YUV2R(Y, U, V);
-
-						Y = ybase[x + 1 + y * width];
-						rgba[index++] = YUV2B(Y, U, V);
-						rgba[index++] = YUV2G(Y, U, V);
-						rgba[index++] = YUV2R(Y, U, V);
-
-						Y = ybase[x + 2 + y * width];
-						rgba[index++] = YUV2B(Y, U, V);
-						rgba[index++] = YUV2G(Y, U, V);
-						rgba[index++] = YUV2R(Y, U, V);
-
-						Y = ybase[x + 3 + y * width];
-						rgba[index++] = YUV2B(Y, U, V);
-						rgba[index++] = YUV2G(Y, U, V);
-						rgba[index++] = YUV2R(Y, U, V);
-				}
-		}*/
-}
-
 void Vid_timer_thread(void* arg)
 {
 	Log_log_save(vid_timer_thread_string, "Thread started.", 1234567890, false);
@@ -457,7 +249,6 @@ void Vid_decode_video_thread(void* arg)
 						Log_log_save(vid_worker_thread_string, "avcodec_receive_frame()...[Error] ", ffmpeg_result, false);
 					else
 					{
-						vid_bar_pos = (double)vid_raw_data[buffer_num]->pkt_pos * 8 / vid_bit_rate * 1000;					
 						if(vid_get_info_request)
 						{
 							vid_framerate = (double)context[0]->framerate.num / (double)context[0]->framerate.den;
@@ -478,7 +269,7 @@ void Vid_decode_video_thread(void* arg)
 							vid_y = 0;
 							vid_get_info_request = false;
 						}
-						
+
 						vid_convert_texture_request = true;
 					}
 				}
@@ -487,7 +278,7 @@ void Vid_decode_video_thread(void* arg)
 					buffer_num = 1;
 				else
 					buffer_num = 0;
-				
+
 				av_packet_free(&packet);
 				av_frame_free(&vid_raw_data[buffer_num]);
 				vid_temp_decode_fps++;
@@ -521,7 +312,7 @@ void Vid_worker_thread(void* arg)
 	int ffmpeg_result = 0;
 	int audio_size = 0;
 	int buffer_num = 0;
-	int count = 0;
+	int count[2] = { 0, 0, };
 	u8* sound_buffer[5] = { NULL, NULL, NULL, NULL, NULL, };
 	u8* cache = NULL;
 	u8* httpc_buffer = NULL;
@@ -749,15 +540,15 @@ void Vid_worker_thread(void* arg)
 
 								osTickCounterUpdate(&timer);
 								frametime = osTickCounterRead(&timer);
-								if(vid_framerate == 0.0)
+								if(vid_framerate == 0.0 && !context[1])
 								{
-									//if(50.0 - frametime > 0)
-									//	usleep((50.0 - frametime) * 1000);
+									if(50.0 - frametime > 0)
+										usleep((50.0 - frametime) * 1000);
 								}
-								else
+								else if(!context[1])
 								{
-									//if((1000.0 / vid_framerate) - frametime > 0)
-									//	usleep(((1000.0 / vid_framerate) - frametime) * 1000);
+									if((1000.0 / vid_framerate) - frametime > 0)
+										usleep(((1000.0 / vid_framerate) - frametime) * 1000);
 								}
 								osTickCounterUpdate(&timer);
 
@@ -780,20 +571,20 @@ void Vid_worker_thread(void* arg)
 									if(ffmpeg_result != 0)
 										Log_log_save(vid_worker_thread_string, "avcodec_send_packet()...[Error] ", ffmpeg_result, false);
 
-									count = 0;
+									count[0] = 0;
 									while(true)
 									{
 										ffmpeg_result = avcodec_receive_frame(context[1], raw_data);
 										if(ffmpeg_result != 0)
 										{
-											if(count <= 0)
+											if(count[0] <= 0)
 												Log_log_save(vid_worker_thread_string, "avcodec_receive_frame()...[Error] ", ffmpeg_result, false);
 
 											break;
 										}
 										else
 										{
-											count++;
+											count[0]++;
 											if(init_swr)
 											{
 												swr_context = swr_alloc();
@@ -821,7 +612,7 @@ void Vid_worker_thread(void* arg)
 													ndspChnSetFormat(21, NDSP_FORMAT_MONO_PCM16);
 													ndspSetOutputMode(NDSP_OUTPUT_MONO);
 												}
-												
+
 												ndspChnSetInterp(21, NDSP_INTERP_LINEAR);
 												ndspChnSetRate(21, raw_data->sample_rate);
 												init_swr = false;
@@ -832,7 +623,6 @@ void Vid_worker_thread(void* arg)
 											audio_size = av_samples_get_buffer_size(NULL, context[1]->channels, raw_data->nb_samples, AV_SAMPLE_FMT_S16, 1);
 
 											memcpy(sound_buffer[buffer_num], cache, audio_size);
-											Log_log_save("", std::to_string(audio_size), 1234567890, false);
 											av_freep(&cache);
 
 											ndsp_buffer[buffer_num].data_vaddr = sound_buffer[buffer_num];
@@ -844,11 +634,18 @@ void Vid_worker_thread(void* arg)
 											else
 												buffer_num = 0;
 
+											count[1]++;
+											if(count[1] > 30)
+											{
+												vid_bar_pos = (double)raw_data->pkt_pos * 8 / vid_bit_rate * 1000;
+												count[1] = 0;
+											}
+
 											while((ndsp_buffer[buffer_num].status == NDSP_WBUF_PLAYING || ndsp_buffer[buffer_num].status == NDSP_WBUF_QUEUED)
 											&& !vid_stop_request && !vid_change_video_request && !vid_seek_request)
 												usleep(1000);
 
-											memset(sound_buffer[buffer_num], 0x0, 0x10000);
+											memset(sound_buffer[buffer_num], 0x0, audio_size);
 										}
 									}
 								}
@@ -865,18 +662,21 @@ void Vid_worker_thread(void* arg)
 					Log_log_save(vid_worker_thread_string, "avformat_find_stream_info()...[Error] ", ffmpeg_result, false);
 				}
 
-				ffmpeg_result = avcodec_send_packet(context[1], NULL);
-				for(int i = 0; i < 100; i++)
+				if(context[1])
 				{
-					raw_data = av_frame_alloc();
-					ffmpeg_result = avcodec_receive_frame(context[1], raw_data);
-					av_frame_free(&raw_data);
-					if(ffmpeg_result == AVERROR_EOF)
-						break;
+					ffmpeg_result = avcodec_send_packet(context[1], NULL);
+					for(int i = 0; i < 100; i++)
+					{
+						raw_data = av_frame_alloc();
+						ffmpeg_result = avcodec_receive_frame(context[1], raw_data);
+						av_frame_free(&raw_data);
+						if(ffmpeg_result == AVERROR_EOF)
+							break;
+					}
 				}
 			}
 
-			while(ndsp_buffer[0].status == NDSP_WBUF_PLAYING || ndsp_buffer[0].status == NDSP_WBUF_QUEUED 
+			while(ndsp_buffer[0].status == NDSP_WBUF_PLAYING || ndsp_buffer[0].status == NDSP_WBUF_QUEUED
 			|| ndsp_buffer[1].status == NDSP_WBUF_PLAYING || ndsp_buffer[1].status == NDSP_WBUF_QUEUED
 			|| ndsp_buffer[2].status == NDSP_WBUF_PLAYING || ndsp_buffer[2].status == NDSP_WBUF_QUEUED
 			|| ndsp_buffer[3].status == NDSP_WBUF_PLAYING || ndsp_buffer[3].status == NDSP_WBUF_QUEUED
@@ -969,9 +769,9 @@ void Vid_convert_thread(void* arg)
 							vid_c2d_image[(process_pic_num * 16) + i].tex->data = NULL;
 						}
 
-						//log_num = Log_log_save(vid_convert_thread_string, "YUV420P_to_BGR24()..." + result.string, result.code, false);
-						YUV420P_to_BGR24((unsigned char*)yuv_data[vid_buffer_num], (unsigned char*)yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height), (unsigned char*)yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4), (unsigned char*)vid_bgr_data[process_pic_num], vid_video_width, vid_video_height);
-						//Log_log_add(log_num, "", 1234567890, false);
+						log_num = Log_log_save(vid_convert_thread_string, "Draw_yuv420p_to_rgb565()..." + result.string, result.code, false);
+						Draw_yuv420p_to_rgb565((unsigned char*)yuv_data[vid_buffer_num], (unsigned char*)yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height), (unsigned char*)yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4), (unsigned char*)vid_bgr_data[process_pic_num], vid_video_width, vid_video_height);
+						Log_log_add(log_num, "", 1234567890, false);
 
 						width = vid_video_width;
 						height = vid_video_height;
@@ -1395,10 +1195,10 @@ void Vid_main(void)
 			msg_num = 11;
 		else
 			msg_num = 1;
-		
+
 		Draw(vid_msg[msg_num], 0, 142.5, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 		Draw(vid_msg[2], 0, 212.5, 160.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-		
+
 		Draw_texture(Square_image, blue_tint, 0, 10.0, 175.0, 300.0, 8.0);
 		if(vid_video_length != 0.0)
 			Draw_texture(Square_image, yellow_tint, 0, 10.0, 175.0, 300.0 * ((vid_bar_pos / 1000) / vid_video_length), 8.0);
