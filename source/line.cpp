@@ -45,6 +45,7 @@ bool line_pre_dl_all_log_no_parse_request = false;
 bool line_pre_sending_msg = false;
 bool line_pre_send_success = false;
 bool line_pre_icon_available[128];
+u32 line_pre_dled_content_size = 0;
 int line_pre_num_of_logs = 150;
 int line_pre_selected_menu_mode = 0;
 int line_pre_selected_sticker_tab_num = 0;
@@ -99,9 +100,11 @@ bool line_send_success = false;
 bool line_bar_selected = false;
 bool line_scroll_mode = false;
 bool line_scroll_bar_selected = false;
+bool line_dl_content_request = false;
 bool line_dl_log_failed[128];
 bool line_icon_available[128];
 bool line_button_selected[4];
+u32 line_dled_content_size = 0;
 int line_unread_msg_num[128];
 int line_msg_offset[128];
 int line_cool_time = 0;
@@ -172,6 +175,7 @@ std::string line_msg_log[4000];
 std::string line_send_file_dir = "";
 std::string line_send_file_name = "";
 std::string line_content[60000];
+std::string line_url = "";
 std::string line_main_thread_string = "Line/Main";
 std::string line_worker_thread_string = "Line/Worker thread";
 std::string line_log_dl_thread_string = "Line/Log dl thread";
@@ -194,10 +198,7 @@ void Line_main(void)
 	int num_of_words = 0;
 	int max_length = 512;
 	u32 feature[2];
-	float text_red;
-	float text_green;
-	float text_blue;
-	float text_alpha;
+	float r, g, b, a;
 	float red[1], green[1], blue[1], alpha[1];
 	float texture_size;
 	float scroll_bar_y_size = 5.0;
@@ -246,27 +247,27 @@ void Line_main(void)
 
 	if (Sem_query_settings(SEM_NIGHT_MODE))
 	{
-		text_red = 1.0;
-		text_green = 1.0;
-		text_blue = 1.0;
-		text_alpha = 0.75;
+		r = 1.0;
+		g = 1.0;
+		b = 1.0;
+		a = 0.75;
 		black_or_white_tint = black_tint;
 		white_or_black_tint = white_tint;
 	}
 	else
 	{
-		text_red = 0.0;
-		text_green = 0.0;
-		text_blue = 0.0;
-		text_alpha = 1.0;
+		r = 0.0;
+		g = 0.0;
+		b = 0.0;
+		a = 1.0;
 		black_or_white_tint = white_tint;
 		white_or_black_tint = black_tint;
 	}
 
-	red[0] = text_red;
-	green[0] = text_green;
-	blue[0] = text_blue;
-	alpha[0] = text_alpha;
+	red[0] = r;
+	green[0] = g;
+	blue[0] = b;
+	alpha[0] = a;
 
 	for(int i = 0; i < 3; i++)
 	{
@@ -296,7 +297,8 @@ void Line_main(void)
 		|| line_pre_sent_data_size != line_sent_data_size || line_pre_total_data_size != line_total_data_size || line_pre_post_and_dl_progress != line_post_and_dl_progress
 		|| line_pre_num_of_logs != line_num_of_logs || line_pre_selected_msg_num != line_selected_msg_num || line_pre_delete_id_check_request != line_delete_id_check_request
 		|| line_pre_select_sticker_request != line_select_sticker_request || line_pre_select_file_request != line_select_file_request
-		|| line_pre_selected_search_highlight_num != line_selected_search_highlight_num || line_pre_selected_highlight_num != line_selected_highlight_num)
+		|| line_pre_selected_search_highlight_num != line_selected_search_highlight_num || line_pre_selected_highlight_num != line_selected_highlight_num
+		|| line_pre_dled_content_size != line_dled_content_size)
 	{
 		line_pre_select_chat_room_request = line_select_chat_room_request;
 		line_pre_dl_log_no_parse_request = line_dl_log_no_parse_request;
@@ -327,6 +329,7 @@ void Line_main(void)
 		line_pre_select_file_request = line_select_file_request;
 		line_pre_selected_search_highlight_num = line_selected_search_highlight_num;
 		line_pre_selected_highlight_num = line_selected_highlight_num;
+		line_pre_dled_content_size = line_dled_content_size;
 
 		for(int i = 0; i < 3; i++)
 		{
@@ -357,6 +360,9 @@ void Line_main(void)
 		else
 			Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
 
+		if(line_dl_content_request)
+			Draw(line_msg[56] + std::to_string(line_dled_content_size / 1024.0 / 1024.0).substr(0, 4) + "MB", 0, 0.0, 20.0, 0.5, 0.5, r, g, b, a);
+
 		if (!line_select_chat_room_request)
 		{
 			if(line_auto_update || line_dl_log_request)
@@ -364,10 +370,10 @@ void Line_main(void)
 
 			for (int i = 1; i <= 59999; i++)
 			{
-				red[0] = text_red;
-				green[0] = text_green;
-				blue[0] = text_blue;
-				alpha[0] = text_alpha;
+				red[0] = r;
+				green[0] = g;
+				blue[0] = b;
+				alpha[0] = a;
 
 				if (i > line_num_of_lines || line_text_y + line_text_interval * i >= 240)
 					break;
@@ -388,7 +394,7 @@ void Line_main(void)
 						Draw_texture(line_stickers_images, dammy_tint, std::stoi(line_content[i].substr((sticker_num_start_pos + 5), sticker_num_end_pos - (sticker_num_start_pos + 5))), line_text_x, (line_text_y + line_text_interval * i), (texture_size * 120.0), (texture_size * 120.0));
 					}
 					else if (line_content[i].find("<type>image</type>") != std::string::npos || line_content[i].find("<type>video</type>") != std::string::npos
-						|| line_content[i].find("<type>audio</type>") != std::string::npos || line_content[i].find("<type>id</type>") != std::string::npos)
+						|| line_content[i].find("<type>audio</type>") != std::string::npos || line_content[i].find("<type>id</type>") != std::string::npos || line_content[i].find("<type>file</type>") != std::string::npos)
 					{
 						Draw_texture(Square_image, weak_red_tint, 0, line_text_x, (line_text_y + line_text_interval * i), 500.0, 20.0);
 						if (line_content[i].find("<type>id</type>") != std::string::npos && (line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
@@ -419,7 +425,7 @@ void Line_main(void)
 			if(line_dl_log_no_parse_request || line_dl_all_log_no_parse_request)
 				alpha[0] = 0.25;
 			else
-				alpha[0] = text_alpha;
+				alpha[0] = a;
 
 			line_max_y = -124.0 * 35.0;
 			for (int i = 0; i < 128; i++)
@@ -456,8 +462,8 @@ void Line_main(void)
 						Draw_texture(line_icon, dammy_tint, i, 0.0, 0.0 + line_text_y + (i * 35.0), 30.0, 30.0);
 
 					Draw_texture(ui_image, dammy_or_aqua_tint, line_dl_log_failed[i], 230.0, 0.0 + line_text_y + (i * 35.0), 30.0, 30.0);
-					Draw(line_names[i], 0, 35.0, 0.0 + line_text_y + (i * 35.0), 0.5, 0.5, text_red, text_green, text_blue, alpha[0]);
-					Draw(hidden_id, 0, 35.0, 20.0 + line_text_y + (i * 35.0), 0.325, 0.325, text_red, text_green, text_blue, alpha[0]);
+					Draw(line_names[i], 0, 35.0, 0.0 + line_text_y + (i * 35.0), 0.5, 0.5, r, g, b, alpha[0]);
+					Draw(hidden_id, 0, 35.0, 20.0 + line_text_y + (i * 35.0), 0.325, 0.325, r, g, b, alpha[0]);
 					if(line_unread_msg_num[i] > 0)
 						Draw(std::to_string(line_unread_msg_num[i]), 0, 200.0, 0.0 + line_text_y + (i * 35.0), 0.5, 0.5, 1.0, 0.0, 0.0, alpha[0]);
 				}
@@ -469,7 +475,7 @@ void Line_main(void)
 		  if (line_solve_short_url_request || line_dl_log_no_parse_request || line_dl_all_log_no_parse_request)
 			{
 				Draw_texture(Square_image, aqua_tint, 0, 20.0, 185.0, 30.0 * line_log_dl_progress, 20.0);
-				Draw(line_msg[42], 0, 40.0, 170.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw(line_msg[42], 0, 40.0, 170.0, 0.5, 0.5, r, g, b, a);
 			}
 			else
 			{
@@ -485,7 +491,7 @@ void Line_main(void)
 				for (int i = 0; i < 6; i++)
 				{
 					Draw_texture(Square_image, weak_aqua_tint, 0, pos_x, pos_y, 130.0, 13.0);
-					Draw(line_msg[msg_num_list[i]], 0, pos_x, pos_y, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
+					Draw(line_msg[msg_num_list[i]], 0, pos_x, pos_y, 0.375, 0.375, r, g, b, a);
 
 					pos_y += 20.0;
 					if (i == 2)
@@ -500,10 +506,10 @@ void Line_main(void)
 		{
 			for (int i = 1; i <= 59999; i++)
 			{
-				red[0] = text_red;
-				green[0] = text_green;
-				blue[0] = text_blue;
-				alpha[0] = text_alpha;
+				red[0] = r;
+				green[0] = g;
+				blue[0] = b;
+				alpha[0] = a;
 				if (i > line_num_of_lines || (line_text_y + line_text_interval * i) - 240 >= 130)
 					break;
 				else if (line_text_y + line_text_interval * i <= -1000)
@@ -523,7 +529,7 @@ void Line_main(void)
 						Draw_texture(line_stickers_images, dammy_tint, std::stoi(line_content[i].substr((sticker_num_start_pos + 5), sticker_num_end_pos - (sticker_num_start_pos + 5))), line_text_x - 40.0, (line_text_y + line_text_interval * i) - 240.0, (texture_size * 120.0), (texture_size * 120.0));
 					}
 					else if (line_content[i].find("<type>image</type>") != std::string::npos || line_content[i].find("<type>video</type>") != std::string::npos
-						|| line_content[i].find("<type>audio</type>") != std::string::npos || line_content[i].find("<type>id</type>") != std::string::npos)
+						|| line_content[i].find("<type>audio</type>") != std::string::npos || line_content[i].find("<type>id</type>") != std::string::npos || line_content[i].find("<type>file</type>") != std::string::npos)
 					{
 						Draw_texture(Square_image, weak_red_tint, 0, line_text_x - 40.0, (line_text_y + line_text_interval * i) - 240.0, 500.0, 20.0);
 						if (line_content[i].find("<type>id</type>") != std::string::npos && (line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
@@ -556,13 +562,13 @@ void Line_main(void)
 			status = "ID = " + hidden_id + "\n" + std::to_string(line_num_of_msg) + line_msg[0] + std::to_string(line_num_of_lines) + line_msg[1];
 
 			Draw_texture(line_icon, dammy_tint, line_selected_room_num, 10.0, 135.0, 32.0, 32.0);
-			Draw(status, 0, 45.0, 135.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
-			Draw(line_names[line_selected_room_num], 0, 45.0, 155.0, 0.475, 0.475, text_red, text_green, text_blue, text_alpha);
+			Draw(status, 0, 45.0, 135.0, 0.35, 0.35, r, g, b, a);
+			Draw(line_names[line_selected_room_num], 0, 45.0, 155.0, 0.475, 0.475, r, g, b, a);
 			Draw_texture(Square_image, yellow_tint, 0, 260.0, 135.0, 40.0, 23.0);
-			red[0] = text_red;
-			green[0] = text_green;
-			blue[0] = text_blue;
-			alpha[0] = text_alpha;
+			red[0] = r;
+			green[0] = g;
+			blue[0] = b;
+			alpha[0] = a;
 			if((line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request
 				|| line_send_request[0] || line_send_request[1] || line_send_request[2]))
 				alpha[0] = 0.25;
@@ -586,20 +592,20 @@ void Line_main(void)
 				if (line_send_request[2])
 				{
 					Draw_texture(Square_image, yellow_tint, 0, 20.0, 205.0, (280.0 / line_step_max) * line_current_step, 13.0);
-					Draw(std::to_string(line_sent_data_size / 1024.0 / 1024.0).substr(0, 4) + "/" + std::to_string(line_total_data_size / 1024.0 / 1024.0).substr(0, 4) + "MB", 0, 120.0, 205.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+					Draw(std::to_string(line_sent_data_size / 1024.0 / 1024.0).substr(0, 4) + "/" + std::to_string(line_total_data_size / 1024.0 / 1024.0).substr(0, 4) + "MB", 0, 120.0, 205.0, 0.45, 0.45, r, g, b, a);
 				}
 
 				if (line_send_request[0])
-					Draw(line_msg[36], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+					Draw(line_msg[36], 0, 22.5, 185.0, 0.45, 0.45, r, g, b, a);
 				else if (line_send_request[1])
-					Draw(line_msg[37], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+					Draw(line_msg[37], 0, 22.5, 185.0, 0.45, 0.45, r, g, b, a);
 				else if (line_send_request[2])
-					Draw(line_msg[38], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+					Draw(line_msg[38], 0, 22.5, 185.0, 0.45, 0.45, r, g, b, a);
 			}
 			else if (line_selected_menu_mode == LINE_MENU_SEND && line_send_success)
 			{
 				Draw_texture(Square_image, weak_red_tint, 0, 20.0, 185.0, 280.0, 13.0);
-				Draw(line_msg[39], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+				Draw(line_msg[39], 0, 22.5, 185.0, 0.45, 0.45, r, g, b, a);
 			}
 			else if (line_selected_menu_mode == LINE_MENU_SEND)
 			{
@@ -607,16 +613,16 @@ void Line_main(void)
 				Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 205.0, 130.0, 13.0);
 				Draw_texture(Square_image, weak_aqua_tint, 0, 170.0, 205.0, 130.0, 13.0);
 
-				Draw(line_msg[6], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-				Draw(line_msg[24], 0, 22.5, 205.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-				Draw(line_msg[34], 0, 172.5, 205.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+				Draw(line_msg[6], 0, 22.5, 185.0, 0.45, 0.45, r, g, b, a);
+				Draw(line_msg[24], 0, 22.5, 205.0, 0.45, 0.45, r, g, b, a);
+				Draw(line_msg[34], 0, 172.5, 205.0, 0.45, 0.45, r, g, b, a);
 			}
 			else if (line_selected_menu_mode == LINE_MENU_RECEIVE)
 			{
 				if(line_dl_log_request || line_auto_update || line_sending_msg)
 					alpha[0] = 0.25;
 				else
-					alpha[0] = text_alpha;
+					alpha[0] = a;
 
 				Draw_texture(Square_image, aqua_tint, 0, 60.0, 170.0, 50.0, 10.0);
 
@@ -625,18 +631,18 @@ void Line_main(void)
 				Draw_texture(Square_image, weak_aqua_tint, 0, 100.0, 210.0, 200.0, 5.0);
 				Draw_texture(Square_image, red_tint, 0, (line_num_of_logs / 20) + 99, 205.0, 5.0, 13.0);
 
-				Draw(line_msg[7], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, alpha[0]);
-				Draw(line_msg[8 + line_auto_update], 0, 172.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
-				Draw(line_msg[50] + std::to_string(line_num_of_logs), 0, 22.5, 205.0, 0.35, 0.35, text_red, text_green, text_blue, alpha[0]);
+				Draw(line_msg[7], 0, 22.5, 185.0, 0.45, 0.45, r, g, b, alpha[0]);
+				Draw(line_msg[8 + line_auto_update], 0, 172.5, 185.0, 0.45, 0.45, r, g, b, a);
+				Draw(line_msg[50] + std::to_string(line_num_of_logs), 0, 22.5, 205.0, 0.35, 0.35, r, g, b, alpha[0]);
 			}
 			else if (line_selected_menu_mode == LINE_MENU_COPY)
 			{
 				Draw_texture(Square_image, aqua_tint, 0, 110.0, 170.0, 50.0, 10.0);
-				Draw(std::to_string(line_selected_highlight_num) + "/" + std::to_string(line_num_of_msg - 1), 0, 20.0, 190.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw(std::to_string(line_selected_highlight_num) + "/" + std::to_string(line_num_of_msg - 1), 0, 20.0, 190.0, 0.5, 0.5, r, g, b, a);
 				for (int i = 0; i < 3; i++)
 				{
 					Draw_texture(Square_image, weak_aqua_tint, 0, 90.0 + (i * 70.0), 185.0, 60.0, 30.0);
-					Draw(line_msg[11 + i], 0, 92.5 + (i * 70.0), 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+					Draw(line_msg[11 + i], 0, 92.5 + (i * 70.0), 185.0, 0.4, 0.4, r, g, b, a);
 				}
 			}
 			else if (line_selected_menu_mode == LINE_MENU_SETTINGS)
@@ -650,7 +656,7 @@ void Line_main(void)
 						pos_x += 10.0;
 
 					Draw_texture(Square_image, weak_aqua_tint, 0, 20.0 + (i * 70.0), 185.0, 60.0, 30.0);
-					Draw(line_msg[14 + i], 0, 22.5 + (i * 70.0), 185.0, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
+					Draw(line_msg[14 + i], 0, 22.5 + (i * 70.0), 185.0, 0.375, 0.375, r, g, b, a);
 				}
 			}
 			else if (line_selected_menu_mode == LINE_MENU_SEARCH)
@@ -659,18 +665,18 @@ void Line_main(void)
 				msg_num[1] = 12;
 				msg_num[2] = 13;
 				Draw_texture(Square_image, aqua_tint, 0, 210.0, 170.0, 50.0, 10.0);
-				Draw(std::to_string(line_selected_search_highlight_num) + "/" + std::to_string(line_found), 0, 20.0, 190.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				Draw(std::to_string(line_selected_search_highlight_num) + "/" + std::to_string(line_found), 0, 20.0, 190.0, 0.5, 0.5, r, g, b, a);
 				for(int i = 0; i < 3; i++)
 				{
 					Draw_texture(Square_image, weak_aqua_tint, 0, 90.0 + (i * 70.0), 185.0, 60.0, 30.0);
-					Draw(line_msg[msg_num[i]], 0, 92.5 + (i * 70.0), 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+					Draw(line_msg[msg_num[i]], 0, 92.5 + (i * 70.0), 185.0, 0.4, 0.4, r, g, b, a);
 				}
 			}
 			else if (line_selected_menu_mode == LINE_MENU_ADVANCED)
 			{
 				Draw_texture(Square_image, aqua_tint, 0, 260.0, 170.0, 50.0, 10.0);
 				Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 185.0, 280.0, 30.0);
-				Draw(line_msg[44], 0, 22.5, 185.0, 0.45, 0.45, text_red, text_green, text_blue, text_alpha);
+				Draw(line_msg[44], 0, 22.5, 185.0, 0.45, 0.45, r, g, b, a);
 			}
 
 			msg_num[0] = 2;
@@ -680,7 +686,7 @@ void Line_main(void)
 			msg_num[4] = 51;
 			msg_num[5] = 5;
 			for (int i = 0; i < 6; i++)
-				Draw(line_msg[msg_num[i]], 0, 12.5 + (i * 50.0), 170.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+				Draw(line_msg[msg_num[i]], 0, 12.5 + (i * 50.0), 170.0, 0.4, 0.4, r, g, b, a);
 
 			if (line_send_check[0] || line_send_check[1] || line_send_check[2] || line_delete_id_check_request)
 			{
@@ -1124,6 +1130,7 @@ void Line_main(void)
 							cut_pos[1] = line_content[i].find("<type>id</type>");
 							cut_pos[2] = line_content[i].find("<type>video</type>");
 							cut_pos[3] = line_content[i].find("<type>audio</type>");
+							cut_pos[4] = line_content[i].find("<type>file</type>");
 
 							//jump to imv
 							if (!(cut_pos[0] == std::string::npos) && key.touch_y >= (line_text_y + line_text_interval * i) - 240.0
@@ -1168,6 +1175,7 @@ void Line_main(void)
 								else
 									Imv_resume();
 							}
+							//jump to mup or vid
 							else if ((!(cut_pos[2] == std::string::npos) || !(cut_pos[3] == std::string::npos)) && key.touch_y >= (line_text_y + line_text_interval * i) - 240.0
 								&& key.touch_y <= (line_text_y + line_text_interval * i) - 220.0
 								&& key.touch_x >= (line_text_x - 40.0) && key.touch_x <= (line_text_x + 460.0))
@@ -1247,6 +1255,42 @@ void Line_main(void)
 										Mup_init();
 									else
 										Mup_resume();
+								}
+							}
+							else if (!(cut_pos[4] == std::string::npos) && key.touch_y >= (line_text_y + line_text_interval * i) - 240.0
+								&& key.touch_y <= (line_text_y + line_text_interval * i) - 220.0
+								&& key.touch_x >= (line_text_x - 40.0) && key.touch_x <= (line_text_x + 460.0))
+							{
+								hit = true;
+								result.code = -1;
+								cut_pos[0] = line_content[i].find("&id=");
+								cut_pos[1] = line_content[i].find("om/d/");
+								if (!(cut_pos[0] == std::string::npos && cut_pos[1] == std::string::npos))
+								{
+									cache_string = "";
+									if (!(cut_pos[0] == std::string::npos))
+										cache_string = line_content[i].substr(cut_pos[0] + 4);
+									else if (!(cut_pos[1] == std::string::npos))
+										cache_string = line_content[i].substr(cut_pos[1] + 5);
+
+									if (cache_string.length() > 33)
+										cache_string = cache_string.substr(0, 33);
+
+									log_num = Log_log_save(line_main_thread_string, "File_check_file_exist()...", 1234567890, false);
+									result = File_check_file_exist(cache_string, "/Line/contents/", fs_handle, fs_archive);
+									Log_log_add(log_num, result.string, result.code, false);
+								}
+
+								if (result.code != 0)
+								{
+									cut_pos[0] = line_content[i].find("<url>");
+									cut_pos[1] = line_content[i].find("</url>");
+									if (cut_pos[0] == std::string::npos || cut_pos[1] == std::string::npos)
+										line_url = "";
+									else
+										line_url = line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5));
+
+									line_dl_content_request = true;
 								}
 							}
 							//add id
@@ -1882,6 +1926,11 @@ void Line_worker_thread(void* arg)
 {
 	Log_log_save(line_worker_thread_string, "Thread started.", 1234567890, false);
 	int log_num;
+	size_t cut_pos = 0;
+	u8* httpc_buffer = NULL;
+	u32 status_code = 0;
+	std::string last_url = "";
+	std::string file_name = "";
 	FS_Archive fs_archive = 0;
 	Result_with_string result;
 
@@ -1922,6 +1971,27 @@ void Line_worker_thread(void* arg)
 				Line_reset_id();
 				line_icon_dl_request = true;
 			}
+		}
+		else if(line_dl_content_request)
+		{
+			cut_pos = line_url.find("&id=");
+			if (!(cut_pos == std::string::npos))
+			{
+				file_name = line_url.substr(cut_pos + 4);
+
+				if (file_name.length() > 33)
+					file_name = file_name.substr(0, 33);
+			}
+
+			line_dled_content_size = 0;
+			httpc_buffer = (u8*)malloc(0x20000);
+			log_num = Log_log_save(line_worker_thread_string, "Httpc_dl_data()...", 1234567890, false);
+			result = Httpc_dl_data(line_url, httpc_buffer, 0x20000, &line_dled_content_size, &status_code, true, &last_url, false, 10, MUP_HTTP_PORT0, "/Line/contents/", file_name);
+			Log_log_add(log_num, result.string, result.code, false);
+			free(httpc_buffer);
+			httpc_buffer = NULL;
+
+			line_dl_content_request = false;
 		}
 		else
 			usleep(ACTIVE_THREAD_SLEEP_TIME);
@@ -2633,6 +2703,8 @@ void Line_log_parse_thread(void* arg)
 	size_t video_url_start_pos;
 	size_t audio_url_end_pos;
 	size_t audio_url_start_pos;
+	size_t file_url_end_pos;
+	size_t file_url_start_pos;
 	size_t sticker_end_pos;
 	size_t sticker_start_pos;
 	size_t id_end_pos;
@@ -2650,6 +2722,8 @@ void Line_log_parse_thread(void* arg)
 	std::string video_url_end = "</video_url>";
 	std::string audio_url_start = "<audio_url>";
 	std::string audio_url_end = "</audio_url>";
+	std::string file_url_start = "<file_url>";
+	std::string file_url_end = "</file_url>";
 	std::string sticker_start = "<sticker>";
 	std::string sticker_end = "</sticker>";
 	std::string id_start = "<id>";
@@ -2658,6 +2732,7 @@ void Line_log_parse_thread(void* arg)
 	std::string image_message = "image";
 	std::string video_message = "video";
 	std::string audio_message = "audio";
+	std::string file_message = "file";
 	std::string id_message = "";
 	std::string data[4];
 	Result_with_string result;
@@ -2677,6 +2752,8 @@ void Line_log_parse_thread(void* arg)
 			video_url_end_pos = std::string::npos;
 			audio_url_start_pos = std::string::npos;
 			audio_url_end_pos = std::string::npos;
+			file_url_start_pos = std::string::npos;
+			file_url_end_pos = std::string::npos;
 			sticker_end_pos = std::string::npos;
 			sticker_start_pos = std::string::npos;
 			id_end_pos = std::string::npos;
@@ -2695,6 +2772,7 @@ void Line_log_parse_thread(void* arg)
 			id_message = line_msg[28];
 			audio_message = line_msg[53];
 			video_message = line_msg[54];
+			file_message = line_msg[55];
 
 			fs_buffer = (u8*)malloc(0x1000);
 			parse_cache = (char*)malloc(0x10000);
@@ -2747,6 +2825,8 @@ void Line_log_parse_thread(void* arg)
 					video_url_end_pos = line_msg_log[i].find(video_url_end);
 					audio_url_start_pos = line_msg_log[i].find(audio_url_start);
 					audio_url_end_pos = line_msg_log[i].find(audio_url_end);
+					file_url_start_pos = line_msg_log[i].find(file_url_start);
+					file_url_end_pos = line_msg_log[i].find(file_url_end);
 					sticker_start_pos = line_msg_log[i].find(sticker_start);
 					sticker_end_pos = line_msg_log[i].find(sticker_end);
 					id_start_pos = line_msg_log[i].find(id_start);
@@ -2779,6 +2859,16 @@ void Line_log_parse_thread(void* arg)
 						content_cache = line_msg_log[i].substr(0, audio_url_start_pos);
 						content_cache += audio_message;
 						content_cache += line_msg_log[i].substr(audio_url_end_pos + audio_url_end.length(), line_msg_log[i].length() - (audio_url_end_pos + audio_url_end.length()));
+						line_msg_log[i] = content_cache;
+					}
+					else if (!(file_url_start_pos == std::string::npos || file_url_end_pos == std::string::npos))
+					{
+						line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((file_url_start_pos + file_url_start.length()), (file_url_end_pos - (file_url_start_pos + file_url_start.length()))) + "</url>";
+						line_content[line_num_of_lines + 1] += "<type>file</type>";
+
+						content_cache = line_msg_log[i].substr(0, file_url_start_pos);
+						content_cache += file_message;
+						content_cache += line_msg_log[i].substr(file_url_end_pos + file_url_end.length(), line_msg_log[i].length() - (file_url_end_pos + file_url_end.length()));
 						line_msg_log[i] = content_cache;
 					}
 					else if (!(sticker_start_pos == std::string::npos || sticker_end_pos == std::string::npos))
