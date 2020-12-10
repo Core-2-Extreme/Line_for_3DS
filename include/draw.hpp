@@ -2,6 +2,20 @@
 #include "citro2d.h"
 #include "types.hpp"
 
+#define CLIP(X) ( (X) > 255 ? 255 : (X) < 0 ? 0 : X)
+// YUV -> RGB
+#define C(Y) ( (Y) - 16  )
+#define D(U) ( (U) - 128 )
+#define E(V) ( (V) - 128 )
+
+#define YUV2R(Y, V) CLIP(( 298 * C(Y)              + 409 * E(V) + 128) >> 8)
+#define YUV2G(Y, U, V) CLIP(( 298 * C(Y) - 100 * D(U) - 208 * E(V) + 128) >> 8)
+#define YUV2B(Y, U) CLIP(( 298 * C(Y) + 516 * D(U)              + 128) >> 8)
+
+#define BitVal(data,y) ( (data>>y) & 1)      //Return Data.Y value
+#define SetBit(data,y)    data |= (1 << y)    //Set Data.Y   to 1
+#define ClearBit(data,y)  data &= ~(1 << y)   //Clear Data.Y to 0
+
 extern C2D_Image Wifi_icon_image[9];
 extern C2D_Image Battery_level_icon_image[21];
 extern C2D_Image Battery_charge_icon_image[1];
@@ -16,6 +30,8 @@ double Draw_query_frametime(void);
 void Draw_reset_fps(void);
 
 void Draw_rgba_to_abgr(u8* buf, u32 width, u32 height);
+
+void Draw_yuv420p_to_rgb565(unsigned char *data, unsigned char *data_1, unsigned char *data_2, unsigned char *rgb, int width, int height);
 
 void Draw_rgb565_to_abgr888_rgb888(u8* rgb565_buffer, u8* rgba8888_buffer, u32 width, u32 height, bool rgb_888);
 
