@@ -1,9 +1,6 @@
 #include <string>
 #include "citro2d.h"
 
-#define BitVal(data,y) ( (data>>y) & 1)      //Return Data.Y value
-#define SetBit(data,y)    data |= (1 << y)    //Set Data.Y   to 1
-#define ClearBit(data,y)  data &= ~(1 << y)   //Clear Data.Y to 0
 #include "hid.hpp"
 #include "draw.hpp"
 #include "error.hpp"
@@ -78,6 +75,227 @@ void Draw_rgba_to_abgr(u8* buf, u32 width, u32 height)
 		}
 	}
 }
+/*
+#include <unistd.h>
+extern "C" uint8_t test(uint8_t, uint8_t);
+extern "C" uint8_t testg(uint8_t, uint8_t, uint8_t);
+extern "C" uint8_t testr(uint8_t, uint8_t);*/
+
+void Draw_yuv420p_to_rgb565(unsigned char *data, unsigned char *data_1, unsigned char *data_2, unsigned char *rgb, int width, int height)
+{
+    int index = 0;
+	int uv_pos = 0;
+	int y_pos = 0;
+    unsigned char *ybase = data;
+    unsigned char *ubase = data_1;//&data[width * height];
+    unsigned char *vbase = data_2;//&data[width * height * 5 / 4];
+		//    unsigned char *vbase = &data[(width * height) + (width * height / 4)];
+		uint8_t Y[4], U, V, r[4], g[4], b[4];
+		if(width % 4 != 0)
+		{
+			for (int y = 0; y < height; y++)
+			{
+				for (int x = 0; x < width; x++)
+				{
+						//YYYYYYYYUUVV
+						Y[0] = ybase[x + y * width];
+						U = ubase[y / 2 * width / 2 + (x / 2)];
+						V = vbase[y / 2 * width / 2 + (x / 2)];
+						b[0] = YUV2B(Y[0], U);
+						g[0] = YUV2G(Y[0], U, V);
+						r[0] = YUV2R(Y[0], V);
+						b[0] = b[0] >> 3;
+						g[0] = g[0] >> 2;
+						r[0] = r[0] >> 3;
+						rgb[index++] = (g[0] & 0b00000111) << 5 | b[0];
+						rgb[index++] = (g[0] & 0b00111000) >> 3 | (r[0] & 0b00011111) << 3;
+				}
+			}
+		}
+		else
+		{
+			for (int y = 0; y < height; y++)
+			{
+				for (int x = 0; x < width; x += 4)
+				{
+					//YYYYYYYYUUVV
+					uv_pos = y / 2 * width / 2 + (x / 2);
+					y_pos = x + y * width;
+					U = ubase[uv_pos];
+					V = vbase[uv_pos];
+					Y[0] = ybase[y_pos];
+					Y[1] = ybase[y_pos + 1];
+					Y[2] = ybase[y_pos + 2];
+					Y[3] = ybase[y_pos + 3];
+					/*b[0] = test(Y[0], U);
+					g[0] = testg(Y[0], U, V);
+					r[0] = testr(Y[0], V);
+					b[1] = test(Y[1], U);
+					g[1] = testg(Y[1], U, V);
+					r[1] = testr(Y[0], V);
+					b[2] = test(Y[2], U);
+					g[2] = testg(Y[2], U, V);
+					r[2] = testr(Y[0], V);
+					b[3] = test(Y[3], U);
+					g[3] = testg(Y[3], U, V);
+					r[3] = testr(Y[0], V);*/
+
+					/*b[0] = YUV2B(Y[0], U);
+					g[0] = YUV2G(Y[0], U, V);
+					r[0] = YUV2R(Y[0], V);
+					b[1] = YUV2B(Y[1], U);
+					g[1] = YUV2G(Y[1], U, V);
+					r[1] = YUV2R(Y[1], V);
+					b[2] = YUV2B(Y[2], U);
+					g[2] = YUV2G(Y[2], U, V);
+					r[2] = YUV2R(Y[2], V);
+					b[3] = YUV2B(Y[3], U);
+					g[3] = YUV2G(Y[3], U, V);
+					r[3] = YUV2R(Y[3], V);*/
+
+					/*
+					for(int i = 0; i < 4; i++)
+					{
+						b[i] = b[i] >> 3;
+						g[i] = g[i] >> 2;
+						r[i] = r[i] >> 3;
+						rgb[index++] = (g[i] & 0b00000111) << 5 | b[i];
+						rgb[index++] = (g[i] & 0b00111000) >> 3 | (r[i] & 0b00011111) << 3;
+					}*/
+					b[0] = b[0] >> 3;
+					g[0] = g[0] >> 2;
+					r[0] = r[0] >> 3;
+					b[1] = b[1] >> 3;
+					g[1] = g[1] >> 2;
+					r[1] = r[1] >> 3;
+					b[2] = b[2] >> 3;
+					g[2] = g[2] >> 2;
+					r[2] = r[2] >> 3;
+					b[3] = b[3] >> 3;
+					g[3] = g[3] >> 2;
+					r[3] = r[3] >> 3;
+
+					rgb[index++] = (g[0] & 0b00000111) << 5 | b[0];
+					rgb[index++] = (g[0] & 0b00111000) >> 3 | (r[0] & 0b00011111) << 3;
+					rgb[index++] = (g[1] & 0b00000111) << 5 | b[1];
+					rgb[index++] = (g[1] & 0b00111000) >> 3 | (r[1] & 0b00011111) << 3;
+					rgb[index++] = (g[2] & 0b00000111) << 5 | b[2];
+					rgb[index++] = (g[2] & 0b00111000) >> 3 | (r[2] & 0b00011111) << 3;
+					rgb[index++] = (g[3] & 0b00000111) << 5 | b[3];
+					rgb[index++] = (g[3] & 0b00111000) >> 3 | (r[3] & 0b00011111) << 3;
+				}
+			}
+			/*for (int y = 0; y < height; y++)
+			{
+				for (int x = 0; x < width; x += 4)
+				{
+						//YYYYYYYYUUVV
+						Y = ybase[x + y * width];
+						U = ubase[y / 2 * width / 2 + (x / 2)];
+						V = vbase[y / 2 * width / 2 + (x / 2)];
+						rgb[index++] = YUV2B(Y, U, V);
+						rgb[index++] = YUV2G(Y, U, V);
+						rgb[index++] = YUV2R(Y, U, V);
+
+						Y = ybase[x + 1 + y * width];
+						rgb[index++] = YUV2B(Y, U, V);
+						rgb[index++] = YUV2G(Y, U, V);
+						rgb[index++] = YUV2R(Y, U, V);
+
+						Y = ybase[x + 2 + y * width];
+						rgb[index++] = YUV2B(Y, U, V);
+						rgb[index++] = YUV2G(Y, U, V);
+						rgb[index++] = YUV2R(Y, U, V);
+
+						Y = ybase[x + 3 + y * width];
+						rgb[index++] = YUV2B(Y, U, V);
+						rgb[index++] = YUV2G(Y, U, V);
+						rgb[index++] = YUV2R(Y, U, V);
+				}
+			}*/
+		}
+
+		//640*360 27.8ms +-0.5ms
+    /*for (int y = 0; y < height; y++)
+		{
+        for (int x = 0; x < width; x ++)
+				{
+            //YYYYYYYYUUVV
+						Y = ybase[x + y * width];
+						U = ubase[y / 2 * width / 2 + (x / 2)];
+            V = vbase[y / 2 * width / 2 + (x / 2)];
+
+						rgb[index++] = Y + 1.77 * (U - 128); //B
+						rgb[index++] = Y - 0.34 * (U - 128) - 0.71 * (V - 128); //G
+						rgb[index++] = Y + 1.40 * (V - 128); //R
+        }
+    }*/
+
+		//640*360 14ms +-0.5ms
+		/*for (int y = 0; y < height; y++)
+		{
+				for (int x = 0; x < width; x ++)
+				{
+						//YYYYYYYYUUVV
+						Y = ybase[x + y * width];
+						U = ubase[y / 2 * width / 2 + (x / 2)];
+						V = vbase[y / 2 * width / 2 + (x / 2)];
+
+						rgb[index++] = YUV2B(Y, U, V);
+						rgb[index++] = YUV2G(Y, U, V);
+						rgb[index++] = YUV2R(Y, U, V);
+				}
+		}*/
+
+		//640*360 15.6ms +-0.5ms
+		/*for (int y = 0; y < height; y++)
+		{
+				for (int x = 0; x < width; x ++)
+				{
+						//YYYYYYYYUUVV
+						Y = ybase[x + y * width];
+						if(x % 4 == 0)
+						{
+							U = ubase[y / 2 * width / 2 + (x / 2)];
+							V = vbase[y / 2 * width / 2 + (x / 2)];
+						}
+
+						rgb[index++] = YUV2B(Y, U, V);
+						rgb[index++] = YUV2G(Y, U, V);
+						rgb[index++] = YUV2R(Y, U, V);
+				}
+		}*/
+
+		//640*360 10ms +-0.5ms
+		/*for (int y = 0; y < height; y++)
+		{
+				for (int x = 0; x < width; x += 4)
+				{
+						//YYYYYYYYUUVV
+						Y = ybase[x + y * width];
+						U = ubase[y / 2 * width / 2 + (x / 2)];
+						V = vbase[y / 2 * width / 2 + (x / 2)];
+						rgb[index++] = YUV2B(Y, U, V);
+						rgb[index++] = YUV2G(Y, U, V);
+						rgb[index++] = YUV2R(Y, U, V);
+
+						Y = ybase[x + 1 + y * width];
+						rgb[index++] = YUV2B(Y, U, V);
+						rgb[index++] = YUV2G(Y, U, V);
+						rgb[index++] = YUV2R(Y, U, V);
+
+						Y = ybase[x + 2 + y * width];
+						rgb[index++] = YUV2B(Y, U, V);
+						rgb[index++] = YUV2G(Y, U, V);
+						rgb[index++] = YUV2R(Y, U, V);
+
+						Y = ybase[x + 3 + y * width];
+						rgb[index++] = YUV2B(Y, U, V);
+						rgb[index++] = YUV2G(Y, U, V);
+						rgb[index++] = YUV2R(Y, U, V);
+				}
+		}*/
+}
 
 void Draw_rgb565_to_abgr888_rgb888(u8* rgb565_buffer, u8* rgba8888_buffer, u32 width, u32 height, bool rgb_888)
 {
@@ -143,6 +361,7 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 	int increase_list_x[1024]; //= { 4, 12, 4, 44, }
 	int increase_list_y[1024]; //= { 2, 6, 2, 22, 2, 6, 2, tex_size_x * 8 - 42, };
 	int count[2] = { 0, 0, };
+	int buf_pos = 0;
 	int c3d_pos = 0;
 	int c3d_offset = 0;
 	Result_with_string result;
@@ -201,12 +420,7 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 	c3d_subtex->right = subtex_width / (float)tex_size_x;
 	c3d_subtex->bottom = 1.0 - subtex_height / (float)tex_size_y;
 
-//	int log_num = Log_log_save("", "", 1234567890, false);
 	memset(c3d_tex->data, 0x0, c3d_tex->size);
-	//GX_MemoryFill((u32*)c3d_tex->data, 0x0, (u32*)(c3d_tex->data + (c3d_tex->size / 2)), GX_FILL_TRIGGER |  GX_FILL_24BIT_DEPTH, (u32*)(c3d_tex->data + (c3d_tex->size / 2)), 0x0, (u32*)(c3d_tex->data + c3d_tex->size), GX_FILL_TRIGGER |  GX_FILL_24BIT_DEPTH);
-	
-	//gspWaitForPSC0();
-//	Log_log_add(log_num, "", 1234567890, false);
 	C3D_TexSetFilter(c3d_tex, GPU_LINEAR, GPU_LINEAR);
 
 	y_max = height - (u32)parse_start_height;
@@ -216,18 +430,66 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 	if ((u32)tex_size_x < x_max)
 		x_max = tex_size_x;
 
-	for(u32 k = 0; k < y_max; k++)
+	if(pixel_size == 2)
 	{
-		for(u32 i = 0; i < x_max; i += 2)
+		for(u32 k = 0; k < y_max; k++)
 		{
-			memcpy(&((u8*)c3d_tex->data)[c3d_pos + c3d_offset], &((u8*)buf)[Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size)], pixel_size * 2);
-			c3d_pos += increase_list_x[count[0]];
-			count[0]++;
+			for(u32 i = 0; i < x_max; i += 2)
+			{
+				buf_pos = Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size);
+				__asm(
+				"mov %0, %4;"
+				"mov %1, %5;"
+				"mov %2, %6;"
+				"mov %3, %7;"
+				: "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 1]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 2]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 3])
+				: "r" (((u8*)buf)[buf_pos]), "r" (((u8*)buf)[buf_pos + 1]), "r" (((u8*)buf)[buf_pos + 2]), "r" (((u8*)buf)[buf_pos + 3])
+				);
+
+				//memcpy(&((u8*)c3d_tex->data)[c3d_pos + c3d_offset], &((u8*)buf)[Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size)], pixel_size * 2);
+				c3d_pos += increase_list_x[count[0]];
+				count[0]++;
+			}
+			count[0] = 0;
+			c3d_pos = 0;
+			c3d_offset += increase_list_y[count[1]];
+			count[1]++;
 		}
-		count[0] = 0;
-		c3d_pos = 0;
-		c3d_offset += increase_list_y[count[1]];
-		count[1]++;
+	}
+	else if(pixel_size == 4)
+	{
+		for(u32 k = 0; k < y_max; k++)
+		{
+			for(u32 i = 0; i < x_max; i += 2)
+			{
+				buf_pos = Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size);
+				__asm(
+				"mov %0, %4;"
+				"mov %1, %5;"
+				"mov %2, %6;"
+				"mov %3, %7;"
+				: "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 1]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 2]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 3])
+				: "r" (((u8*)buf)[buf_pos]), "r" (((u8*)buf)[buf_pos + 1]), "r" (((u8*)buf)[buf_pos + 2]), "r" (((u8*)buf)[buf_pos + 3])
+				);
+
+				__asm(
+				"mov %0, %4;"
+				"mov %1, %5;"
+				"mov %2, %6;"
+				"mov %3, %7;"
+				: "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 4]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 5]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 6]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 7])
+				: "r" (((u8*)buf)[buf_pos + 4]), "r" (((u8*)buf)[buf_pos + 5]), "r" (((u8*)buf)[buf_pos + 6]), "r" (((u8*)buf)[buf_pos + 7])
+				);
+
+				//memcpy(&((u8*)c3d_tex->data)[c3d_pos + c3d_offset], &((u8*)buf)[Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size)], pixel_size * 2);
+				c3d_pos += increase_list_x[count[0]];
+				count[0]++;
+			}
+			count[0] = 0;
+			c3d_pos = 0;
+			c3d_offset += increase_list_y[count[1]];
+			count[1]++;
+		}
 	}
 
 /*
