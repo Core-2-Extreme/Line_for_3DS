@@ -140,7 +140,7 @@ void Draw_yuv420p_to_rgb565(unsigned char *data, unsigned char *data_1, unsigned
 					g[3] = testg(Y[3], U, V);
 					r[3] = testr(Y[0], V);*/
 
-					/*b[0] = YUV2B(Y[0], U);
+					b[0] = YUV2B(Y[0], U);
 					g[0] = YUV2G(Y[0], U, V);
 					r[0] = YUV2R(Y[0], V);
 					b[1] = YUV2B(Y[1], U);
@@ -151,7 +151,7 @@ void Draw_yuv420p_to_rgb565(unsigned char *data, unsigned char *data_1, unsigned
 					r[2] = YUV2R(Y[2], V);
 					b[3] = YUV2B(Y[3], U);
 					g[3] = YUV2G(Y[3], U, V);
-					r[3] = YUV2R(Y[3], V);*/
+					r[3] = YUV2R(Y[3], V);
 
 					/*
 					for(int i = 0; i < 4; i++)
