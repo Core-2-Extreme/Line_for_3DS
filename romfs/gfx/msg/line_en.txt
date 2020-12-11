@@ -58,3 +58,5 @@ size(R)</17>
 <52>Search (A)</52>
 <53>Touch to play audio </53>
 <54>Touch to play video </54>
+<55>Touch to download file </55>
+<56>Downloading... </56>
