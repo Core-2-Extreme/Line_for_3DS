@@ -769,9 +769,9 @@ void Vid_convert_thread(void* arg)
 							vid_c2d_image[(process_pic_num * 16) + i].tex->data = NULL;
 						}
 
-						log_num = Log_log_save(vid_convert_thread_string, "Draw_yuv420p_to_rgb565()..." + result.string, result.code, false);
+						//log_num = Log_log_save(vid_convert_thread_string, "Draw_yuv420p_to_rgb565()..." + result.string, result.code, false);
 						Draw_yuv420p_to_rgb565((unsigned char*)yuv_data[vid_buffer_num], (unsigned char*)yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height), (unsigned char*)yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4), (unsigned char*)vid_bgr_data[process_pic_num], vid_video_width, vid_video_height);
-						Log_log_add(log_num, "", 1234567890, false);
+						//Log_log_add(log_num, "", 1234567890, false);
 
 						width = vid_video_width;
 						height = vid_video_height;
