@@ -15,7 +15,7 @@
 * 【Line】 Added- Supported download all files.
 * 【Mup/Vid】 Added- Additional formats  support(.ogg).
 * 【App】 Some minor update to better user experience.
-
+* 
 * 【App】 Ver 1.7.0
 * 【App】 Fixed- Fonts was improved.
 * 【App】 Added- Video player.
