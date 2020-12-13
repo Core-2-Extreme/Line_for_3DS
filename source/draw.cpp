@@ -75,11 +75,12 @@ void Draw_rgba_to_abgr(u8* buf, u32 width, u32 height)
 		}
 	}
 }
-/*
-#include <unistd.h>
-extern "C" uint8_t test(uint8_t, uint8_t);
-extern "C" uint8_t testg(uint8_t, uint8_t, uint8_t);
-extern "C" uint8_t testr(uint8_t, uint8_t);*/
+
+/*#include <unistd.h>
+extern "C" uint8_t read_b(void);
+extern "C" uint8_t read_g(void);
+extern "C" uint8_t read_r(void);
+extern "C" uint16_t set_yuv(uint8_t, uint8_t, uint8_t);*/
 
 void Draw_yuv420p_to_rgb565(unsigned char *data, unsigned char *data_1, unsigned char *data_2, unsigned char *rgb, int width, int height)
 {
@@ -127,18 +128,15 @@ void Draw_yuv420p_to_rgb565(unsigned char *data, unsigned char *data_1, unsigned
 					Y[1] = ybase[y_pos + 1];
 					Y[2] = ybase[y_pos + 2];
 					Y[3] = ybase[y_pos + 3];
-					/*b[0] = test(Y[0], U);
-					g[0] = testg(Y[0], U, V);
-					r[0] = testr(Y[0], V);
-					b[1] = test(Y[1], U);
-					g[1] = testg(Y[1], U, V);
-					r[1] = testr(Y[0], V);
-					b[2] = test(Y[2], U);
-					g[2] = testg(Y[2], U, V);
-					r[2] = testr(Y[0], V);
-					b[3] = test(Y[3], U);
-					g[3] = testg(Y[3], U, V);
-					r[3] = testr(Y[0], V);*/
+
+					/*rgb[index] = set_yuv(Y[0], U, V);
+					index += 2;
+					rgb[index] = set_yuv(Y[1], U, V);
+					index += 2;
+					rgb[index] = set_yuv(Y[2], U, V);
+					index += 2;
+					rgb[index] = set_yuv(Y[3], U, V);
+					index += 2;*/
 
 					b[0] = YUV2B(Y[0], U);
 					g[0] = YUV2G(Y[0], U, V);
@@ -353,6 +351,7 @@ int Draw_convert_to_pos(int height, int width, int img_height, int img_width, in
 	return pos * pixel_size;
 }
 
+
 Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_subtex, u8* buf, u32 size, u32 width, u32 height, int pixel_size, int parse_start_width, int parse_start_height, int tex_size_x, int tex_size_y, GPU_TEXCOLOR format)
 {
 	bool init_result = false;
@@ -437,11 +436,12 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 			for(u32 i = 0; i < x_max; i += 2)
 			{
 				buf_pos = Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size);
+
 				__asm(
-				"mov %0, %4;"
-				"mov %1, %5;"
-				"mov %2, %6;"
-				"mov %3, %7;"
+				"mov %0, %4;"//move 32bit???
+				//"mov %1, %5;"//doesn't need???
+				//"mov %2, %6;"//doesn't need???
+				//"mov %3, %7;"//doesn't need???
 				: "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 1]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 2]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 3])
 				: "r" (((u8*)buf)[buf_pos]), "r" (((u8*)buf)[buf_pos + 1]), "r" (((u8*)buf)[buf_pos + 2]), "r" (((u8*)buf)[buf_pos + 3])
 				);
@@ -464,19 +464,19 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 			{
 				buf_pos = Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size);
 				__asm(
-				"mov %0, %4;"
-				"mov %1, %5;"
-				"mov %2, %6;"
-				"mov %3, %7;"
+				"mov %0, %4;"//move 32bit???
+				//"mov %1, %5;"//doesn't need???
+				//"mov %2, %6;"//doesn't need???
+				//"mov %3, %7;"//doesn't need???
 				: "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 1]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 2]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 3])
 				: "r" (((u8*)buf)[buf_pos]), "r" (((u8*)buf)[buf_pos + 1]), "r" (((u8*)buf)[buf_pos + 2]), "r" (((u8*)buf)[buf_pos + 3])
 				);
 
 				__asm(
-				"mov %0, %4;"
-				"mov %1, %5;"
-				"mov %2, %6;"
-				"mov %3, %7;"
+				"mov %0, %4;"//move 32bit???
+				//"mov %1, %5;"//doesn't need???
+				//"mov %2, %6;"//doesn't need???
+				//"mov %3, %7;"//doesn't need???
 				: "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 4]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 5]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 6]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 7])
 				: "r" (((u8*)buf)[buf_pos + 4]), "r" (((u8*)buf)[buf_pos + 5]), "r" (((u8*)buf)[buf_pos + 6]), "r" (((u8*)buf)[buf_pos + 7])
 				);
@@ -689,7 +689,7 @@ void Draw(std::string text, int type, float x, float y, float text_size_x, float
 			continue;
 		}
 
-		if(font_num_list[1][i] >= 0 && font_num_list[1][i] <= 3)
+		if(!Sem_query_loaded_external_font_flag(0) || (font_num_list[1][i] >= 0 && font_num_list[1][i] <= 3))
 		{
 			C2D_TextBufClear(c2d_buf);
 			if(font_num_list[1][i] == 1)
