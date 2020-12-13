@@ -11,13 +11,18 @@
 * [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 
 ## Patch note
+* 【App】 Ver 1.7.1
+* 【Line】 Added- Supported download all files.
+* 【Mup/Vid】 Added- Additional formats  support(.ogg).
+* 【App】 Some minor update to better user experience.
+
 * 【App】 Ver 1.7.0
 * 【App】 Fixed- Fonts was improved.
 * 【App】 Added- Video player.
 * 【Line】 Added- Now, you can play audio and video sent by user.
 * 【Cam】 Fixed- Framerate was improved.
 * 【Mup】 Added- Additional formats (like aac) are supported.
-* 【App】 Fixed- Some minor update to better user experience.
+* 【App】 Some minor update to better user experience.
 
 ## Summary
 ![00000028](https://user-images.githubusercontent.com/45873899/85299815-b9bbfb80-b4e0-11ea-8ee1-7551cedd83d4.jpg)
