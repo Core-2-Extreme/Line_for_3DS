@@ -1631,7 +1631,7 @@ void Sem_worker_thread(void* arg)
 			{
 				if (sem_load_external_font[i] && !sem_loaded_external_font[i])
 				{
-					log_num = Log_log_save(sem_worker_thread_string, "Exfont_load_exfont()...", 1234567890, false);
+					log_num = Log_log_save(sem_worker_thread_string, "Exfont_load_exfont()...", 1234567890, FORCE_DEBUG);
 					result = Exfont_load_exfont(i);
 					Log_log_add(log_num, result.string, result.code, false);
 
@@ -1663,7 +1663,7 @@ void Sem_worker_thread(void* arg)
 			{
 				if(!sem_loaded_system_font[i] && sem_load_system_font[i] && i != sem_system_region)
 				{
-					log_num = Log_log_save(sem_worker_thread_string, "Draw_load_system_font()...", 1234567890, false);
+					log_num = Log_log_save(sem_worker_thread_string, "Draw_load_system_font()...", 1234567890, FORCE_DEBUG);
 					result = Draw_load_system_font(i);
 					Log_log_add(log_num, result.string, result.code, false);
 					if(result.code == 0)
