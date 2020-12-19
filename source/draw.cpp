@@ -76,6 +76,7 @@ void Draw_rgba_to_abgr(u8* buf, u32 width, u32 height)
 	}
 }
 
+extern "C" void memcpy_asm_4b(u8*, u8*);
 /*#include <unistd.h>
 extern "C" uint8_t read_b(void);
 extern "C" uint8_t read_g(void);
@@ -435,17 +436,7 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 		{
 			for(u32 i = 0; i < x_max; i += 2)
 			{
-				buf_pos = Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size);
-
-				__asm(
-				"mov %0, %4;"//move 32bit???
-				//"mov %1, %5;"//doesn't need???
-				//"mov %2, %6;"//doesn't need???
-				//"mov %3, %7;"//doesn't need???
-				: "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 1]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 2]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 3])
-				: "r" (((u8*)buf)[buf_pos]), "r" (((u8*)buf)[buf_pos + 1]), "r" (((u8*)buf)[buf_pos + 2]), "r" (((u8*)buf)[buf_pos + 3])
-				);
-
+				memcpy_asm_4b(&(((u8*)c3d_tex->data)[c3d_pos + c3d_offset]), &(((u8*)buf)[Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size)]));
 				//memcpy(&((u8*)c3d_tex->data)[c3d_pos + c3d_offset], &((u8*)buf)[Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size)], pixel_size * 2);
 				c3d_pos += increase_list_x[count[0]];
 				count[0]++;

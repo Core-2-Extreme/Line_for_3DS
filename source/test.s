@@ -1,5 +1,7 @@
 .data      
 .align 4
+.global memcpy_asm_4b
+.global memcpy_asm
 .global test
 .global memory_test
 .global arg_test
@@ -8,6 +10,8 @@
 .global read_b
 .global read_g
 .global read_r
+.type memcpy_asm, "function"
+.type memcpy_asm_4b, "function"
 .type test, "function"
 .type memory_test, "function"
 .type arg_test, "function"
@@ -36,6 +40,29 @@ value_0: .int 0
 //#define YUV2B(Y, U) CLIP(( 298 * C(Y) + 516 * D(U)              + 128) >> 8)
 
 .text
+memcpy_asm:
+    push { r4-r11 }
+    mov r11, r0
+    add r11, r2
+    sub r11, #1
+
+    cpy_loop:
+    cmp r0, r11
+    bgt cpy_end
+    ldm r1, { r3-r10 }
+    stm r0, { r3-r10 }
+    add r1, #32
+    add r0, #32
+    b cpy_loop
+    cpy_end:
+    pop { r4-r11 }
+    bx lr
+
+memcpy_asm_4b:
+    ldr r2, [r1]
+    str r2, [r0]
+    bx lr
+
 test:
     ldr r0, =0x10000000
     mov r1, #0
@@ -68,7 +95,7 @@ arg_test:
     bx lr
 
 test_set:
-    push { r4-r9 }
+    push { r4-r6 }
     //setup fill data
     mov r4, r1
     mov r5, r1
@@ -76,33 +103,25 @@ test_set:
     lsl r4, #24
     lsl r5, #16
     lsl r6, #8
-    add r1, r4;
-    add r1, r5;
-    add r1, r6;
-
+    add r1, r4
+    add r1, r5
+    add r1, r6
+    mov r3, r1
     mov r4, r1
     mov r5, r1
     mov r6, r1
-    mov r3, #0
-    mov r7, #4
-    mov r8, #8
-    mov r9, #12
+
+    add r2, r0
+    sub r2, #1
 
     start:
-    cmp r3, r2
+    cmp r0, r2
     bgt end
-    str r1, [r0, r3]
-    add r3, #16
-    str r4, [r0, r7]
-    add r7, #16
-    str r5, [r0, r8]
-    add r8, #16
-    str r6, [r0, r9]
-    add r9, #16
+    stm r0, { r3-r6 }
+    add r0, #16
     b start
-
     end:
-    pop { r4-r9 }
+    pop { r4-r6 }
     bx lr
 
 yuv_bgr555:
