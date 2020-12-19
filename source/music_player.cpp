@@ -269,7 +269,7 @@ void Mup_play_thread(void* arg)
 	AVCodec *codec = NULL;
 	Result_with_string result;
 	for(int i = 0; i < 5; i++)
-		sound_buffer[i] = (u8*)linearAlloc(0x10000);
+		sound_buffer[i] = (u8*)linearAlloc(0x2000);
 
 	if(sound_buffer[0] == NULL || sound_buffer[1] == NULL)
 	{
@@ -296,9 +296,7 @@ void Mup_play_thread(void* arg)
 			file_size = 0;
 			stream_num = -1;
 			mup_file_size = 0;
-			mup_offset = 0;		
-			memset(sound_buffer[0], 0x0, 0x10000);
-			memset(sound_buffer[1], 0x0, 0x10000);
+			mup_offset = 0;
 			Expl_set_current_patch(dir_name);
 			Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
 			while (Expl_query_operation_flag(EXPL_READ_DIR_REQUEST))
@@ -388,7 +386,7 @@ void Mup_play_thread(void* arg)
 								{
 									mup_bar_pos = mup_offset / 1000;
 									for(int i = 0; i < 5; i++)
-										sound_buffer[i] = (u8*)linearAlloc(0x10000);
+										sound_buffer[i] = (u8*)linearAlloc(0x2000);
 									
 									Log_log_add(log_num, Err_query_template_summary(0), ffmpeg_result, false);
 								}
