@@ -216,6 +216,7 @@ void Vid_decode_video_thread(void* arg)
 	Log_log_save(vid_decord_video_thread_string, "Thread started.", 1234567890, false);
 	int ffmpeg_result = 0;
 	int buffer_num = 0;
+	int size = 0;
 	Result_with_string result;
 	AVPacket *packet = NULL;
 
@@ -254,19 +255,21 @@ void Vid_decode_video_thread(void* arg)
 							vid_framerate = (double)context[0]->framerate.num / (double)context[0]->framerate.den;
 							vid_video_width = vid_raw_data[buffer_num]->width;
 							vid_video_height = vid_raw_data[buffer_num]->height;
+							size = (vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 2);
+							size += 32;
 							for(int i = 0; i < 2; i++)
 							{
 								free(yuv_data[i]);
 								yuv_data[i] = NULL;
-								yuv_data[i] = (u8*)malloc((vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 2));
+								yuv_data[i] = (u8*)malloc(size);
 							}
 
 							vid_zoom = 1.0;
-							while(vid_video_width * vid_zoom > 400.0 || vid_video_height * vid_zoom > 240.0)
+							while(vid_video_width * vid_zoom > 400.0 || vid_video_height * vid_zoom > 220.0)
 								vid_zoom -= 0.01;
 
 							vid_x = 0;
-							vid_y = 0;
+							vid_y = 15;
 							vid_get_info_request = false;
 						}
 
@@ -313,7 +316,8 @@ void Vid_worker_thread(void* arg)
 	int audio_size = 0;
 	int buffer_num = 0;
 	int count[2] = { 0, 0, };
-	u8* sound_buffer[5] = { NULL, NULL, NULL, NULL, NULL, };
+	int num_of_buffers = 50;
+	u8* sound_buffer[num_of_buffers];
 	u8* cache = NULL;
 	u8* httpc_buffer = NULL;
 	u32 dl_size = 0;
@@ -322,15 +326,15 @@ void Vid_worker_thread(void* arg)
 	std::string last_url = "";
 	std::string cache_string = "";
 	TickCounter timer;
-	ndspWaveBuf ndsp_buffer[5];
+	ndspWaveBuf ndsp_buffer[num_of_buffers];
 	AVPacket *packet = NULL;
 	AVFrame *raw_data = NULL;
 	AVFormatContext* format_context = NULL;
 	SwrContext* swr_context = NULL;
 	Result_with_string result;
 
-	for(int i = 0; i < 5; i++)
-		sound_buffer[i] = (u8*)linearAlloc(0x10000);
+	for(int i = 0; i < num_of_buffers; i++)
+		sound_buffer[i] = (u8*)linearAlloc(0x2000);
 
 	osTickCounterStart(&timer);
 
@@ -393,8 +397,8 @@ void Vid_worker_thread(void* arg)
 			vid_framerate = 0.0;
 			vid_current_video_format = "none";
 			vid_current_audio_format = "none";
-			for(int i = 0; i < 5; i++)
-				memset(sound_buffer[i], 0x0, 0x10000);
+			for(int i = 0; i < num_of_buffers; i++)
+				memset(sound_buffer[i], 0x0, 0x2000);
 
 			format_context = avformat_alloc_context();
 			ffmpeg_result = avformat_open_input(&format_context, (vid_load_dir_name + vid_load_file_name).c_str(), NULL, NULL);
@@ -497,8 +501,8 @@ void Vid_worker_thread(void* arg)
 								if(ffmpeg_result >= 0)
 								{
 									vid_bar_pos = vid_offset / 1000;
-									for(int i = 0; i < 5; i++)
-										memset(sound_buffer[i], 0x0, 0x10000);
+									for(int i = 0; i < num_of_buffers; i++)
+										memset(sound_buffer[i], 0x0, 0x2000);
 
 									Log_log_add(log_num, Err_query_template_summary(0), ffmpeg_result, false);
 								}
@@ -540,16 +544,17 @@ void Vid_worker_thread(void* arg)
 
 								osTickCounterUpdate(&timer);
 								frametime = osTickCounterRead(&timer);
-								if(vid_framerate == 0.0 && !context[1])
+								if(vid_framerate == 0.0)
 								{
 									if(50.0 - frametime > 0)
 										usleep((50.0 - frametime) * 1000);
 								}
-								else if(!context[1])
+								else
 								{
 									if((1000.0 / vid_framerate) - frametime > 0)
 										usleep(((1000.0 / vid_framerate) - frametime) * 1000);
 								}
+
 								osTickCounterUpdate(&timer);
 
 								if(!vid_allow_skip_frame || packet->flags & AV_PKT_FLAG_KEY)
@@ -629,7 +634,7 @@ void Vid_worker_thread(void* arg)
 											ndsp_buffer[buffer_num].nsamples = raw_data->nb_samples;
 											ndspChnWaveBufAdd(21, &ndsp_buffer[buffer_num]);
 
-											if(buffer_num >= 0 && buffer_num <= 3)
+											if(buffer_num >= 0 && buffer_num <= (num_of_buffers - 2))
 												buffer_num++;
 											else
 												buffer_num = 0;
@@ -711,7 +716,7 @@ void Vid_worker_thread(void* arg)
 			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 
-	for(int i = 0; i < 5; i++)
+	for(int i = 0; i < num_of_buffers; i++)
 	{
 		linearFree(sound_buffer[i]);
 		sound_buffer[i] = NULL;
@@ -721,6 +726,7 @@ void Vid_worker_thread(void* arg)
 	threadExit(0);
 }
 
+extern "C" void memcpy_asm(u8*, u8*, int);
 void Vid_convert_thread(void* arg)
 {
 	Log_log_save(vid_convert_thread_string, "Thread started.", 1234567890, false);
@@ -749,9 +755,11 @@ void Vid_convert_thread(void* arg)
 
 				if(vid_raw_data[vid_buffer_num]->data[0] != NULL)
 				{
-					memcpy(yuv_data[vid_buffer_num], vid_raw_data[vid_buffer_num]->data[0], vid_video_width * vid_video_height);
-					memcpy(yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height), vid_raw_data[vid_buffer_num]->data[1], vid_video_width * vid_video_height / 4);
-					memcpy(yuv_data[vid_buffer_num] + ((vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4)), vid_raw_data[vid_buffer_num]->data[2], vid_video_width * vid_video_height / 4);
+					//log_num = Log_log_save(vid_convert_thread_string, "memcpy_asm()...", 1234567890, false);
+					memcpy_asm(yuv_data[vid_buffer_num], vid_raw_data[vid_buffer_num]->data[0], vid_video_width * vid_video_height);
+					memcpy_asm(yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height), vid_raw_data[vid_buffer_num]->data[1], vid_video_width * vid_video_height / 4);
+					memcpy_asm(yuv_data[vid_buffer_num] + ((vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4)), vid_raw_data[vid_buffer_num]->data[2], vid_video_width * vid_video_height / 4);
+					//Log_log_add(log_num, "", 1234567890, false);
 	//				memcpy(yuv_data[1], yuv_data[0], (vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 2));
 
 					free(vid_bgr_data[process_pic_num]);
@@ -771,6 +779,7 @@ void Vid_convert_thread(void* arg)
 
 						//log_num = Log_log_save(vid_convert_thread_string, "Draw_yuv420p_to_rgb565()..." + result.string, result.code, false);
 						Draw_yuv420p_to_rgb565((unsigned char*)yuv_data[vid_buffer_num], (unsigned char*)yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height), (unsigned char*)yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4), (unsigned char*)vid_bgr_data[process_pic_num], vid_video_width, vid_video_height);
+						//memcpy_asm(vid_bgr_data[process_pic_num], yuv_data[vid_buffer_num], vid_video_width * vid_video_height * 1.5);
 						//Log_log_add(log_num, "", 1234567890, false);
 
 						width = vid_video_width;
