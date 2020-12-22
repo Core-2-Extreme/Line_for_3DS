@@ -56,10 +56,10 @@ bool mup_dl_and_play_request = false;
 bool mup_pause_request = false;
 double mup_music_length = 0.0;
 float mup_bar_pos = 0.0;
+u64 mup_offset = 0;
 int mup_music_sample_rate = 0;
 int mup_num_of_music_ch = 0;
 int mup_music_bit_rate = 0;
-int mup_offset = 0;
 int mup_file_size = 0;
 int mup_dled_size = 0;
 int mup_dl_progress = 0;
@@ -249,6 +249,7 @@ void Mup_play_thread(void* arg)
 	int buffer_num = 0;
 	int random_num = 0;
 	int count = 0;
+	int file_index = 0;
 	int audio_size = 0;
 	int log_num = 0;
 	u8* sound_buffer[5] = { NULL, NULL, NULL, NULL, NULL, };
@@ -293,6 +294,7 @@ void Mup_play_thread(void* arg)
 			mup_count_reset_request = true;
 			file_name = mup_load_file_name;
 			dir_name = mup_load_dir_name;
+			count = 0;
 			file_size = 0;
 			stream_num = -1;
 			mup_file_size = 0;
@@ -304,20 +306,20 @@ void Mup_play_thread(void* arg)
 
 			if(mup_shuffle_request)
 			{
-				count++;
+				file_index++;
 				srand((unsigned) time(NULL));
 				while (true)
 				{
 					random_num = rand() % 2;
-					if(!(count < Expl_query_num_of_file()))
-						count = 0;
-					else if(random_num == 1 && Expl_query_type(count) == "file")
+					if(!(file_index < Expl_query_num_of_file()))
+						file_index = 0;
+					else if(random_num == 1 && Expl_query_type(file_index) == "file")
 						break;
 					else
-						count++;
+						file_index++;
 				}
 
-				file_name = Expl_query_file_name(count);
+				file_name = Expl_query_file_name(file_index);
 			}
 
 			format_context = avformat_alloc_context();
