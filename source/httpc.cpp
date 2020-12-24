@@ -64,8 +64,6 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 	std::string moved_url_string;
 	std::string dl_string;
 	httpcContext dl_httpc;
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Result_with_string result;
 	Result_with_string fs_result;
 	*last_url = url;
@@ -180,7 +178,7 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 				{
 					if(dir_path != "" && file_path != "" && result.code == (s32)0xD840A02B)
 					{
-						fs_result = File_save_to_file(file_path, data_buffer, (int)dl_size, dir_path, false, fs_handle, fs_archive);
+						fs_result = File_save_to_file(file_path, data_buffer, (int)dl_size, dir_path, false);
 						if(fs_result.code != 0)
 						{
 							function_fail = true;
@@ -191,7 +189,7 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 					else
 					{
 						if(dir_path != "" && file_path != "")
-							File_delete_file(file_path, dir_path, fs_archive);
+							File_delete_file(file_path, dir_path);
 /*						if(result.code == (s32)0xD840A02B)
 							result.error_description = "In the case that the buffer size is too small, this'll occur.\nPlease increase buffer size from settings.";
 						else*/
@@ -206,7 +204,7 @@ Result_with_string Httpc_dl_data(std::string url, u8* data_buffer, int buffer_si
 				{
 					if(dir_path != "" && file_path != "")
 					{
-						fs_result = File_save_to_file(file_path, data_buffer, (int)dl_size, dir_path, false, fs_handle, fs_archive);
+						fs_result = File_save_to_file(file_path, data_buffer, (int)dl_size, dir_path, false);
 						if(fs_result.code != 0)
 						{
 							function_fail = true;

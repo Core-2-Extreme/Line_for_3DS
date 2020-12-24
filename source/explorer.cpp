@@ -37,7 +37,7 @@ Thread expl_read_dir_thread;
 
 std::string Expl_query_current_patch(void)
 {
- 	return expl_current_patch;
+  return expl_current_patch;
 }
 
 std::string Expl_query_file_name(int file_num)
@@ -294,8 +294,6 @@ void Expl_read_dir_thread(void* arg)
 	std::string name_of_read_only[256];
 	std::string name_of_unknown[256];
 	std::string sort_cache[256];
-  FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
   Result_with_string read_dir_result;
 
 	for (int i = 0; i < 256; i++)
@@ -429,7 +427,7 @@ void Expl_read_dir_thread(void* arg)
         if(expl_read_dir_request)
           break;
 
-        read_dir_result = File_check_file_size(expl_files[i], expl_current_patch, &file_size, fs_handle, fs_archive);
+        read_dir_result = File_check_file_size(expl_files[i], expl_current_patch, &file_size);
         if(read_dir_result.code == 0)
           expl_size[i] = (int)file_size;
       }

@@ -121,14 +121,12 @@ Thread sem_check_update_thread, sem_worker_thread;
 Result_with_string Sem_load_setting(std::string file_name, std::string dir_name, int item_num, std::string out_data[])
 {
 	u32 read_size;
-	Handle fs_handle = 0;
-	FS_Archive fs_archive = 0;
 	u8* fs_buffer;
 	Result_with_string result;
 	fs_buffer = (u8*)malloc(0x2000);
 	memset(fs_buffer, 0x0, 0x2000);
 
-	result = File_load_from_file(file_name, fs_buffer, 0x2000, &read_size, dir_name, fs_handle, fs_archive);
+	result = File_load_from_file(file_name, fs_buffer, 0x2000, &read_size, dir_name);
 
 	if (result.code == 0)
 		result = Sem_parse_file((char*)fs_buffer, item_num, out_data);
@@ -547,8 +545,6 @@ void Sem_exit(void)
 	+ "</10><11>" + std::to_string(Line_query_buffer_size(LINE_SEND_BUFFER)) + "</11><12>" + std::to_string(Spt_query_buffer_size(SPT_HTTPC_BUFFER))
 	+ "</12><13>" + std::to_string(Imv_query_max_buffer_size())
 	+ "</13>";
-	Handle fs_handle = 0;
-	FS_Archive fs_archive = 0;
 	Result_with_string result;
 
 	Draw_progress("[Sem] Exiting...");
@@ -558,7 +554,7 @@ void Sem_exit(void)
 	sem_worker_thread_run = false;
 
 	log_num = Log_log_save(sem_exit_string, "File_save_to_file()...", 1234567890, FORCE_DEBUG);
-	result = File_save_to_file("Sem_setting.txt", (u8*)data.c_str(), data.length(), "/Line/", true, fs_handle, fs_archive);
+	result = File_save_to_file("Sem_setting.txt", (u8*)data.c_str(), data.length(), "/Line/", true);
 	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 
 	log_num = Log_log_save(sem_exit_string, "threadJoin()0/1...", 1234567890, FORCE_DEBUG);
@@ -1563,7 +1559,6 @@ void Sem_worker_thread(void* arg)
 	std::string file_type[256];
 	std::string load_file_name[9] = {"line_", "sem_", "imv_", "spt_", "gtr_", "cam_", "mup_", "mic_", "vid_" };
 	std::string dir = "/Line/images/";
-	FS_Archive fs_archive = 0;
 	Result_with_string result;
 
 	fs_buffer = (u8*)malloc(0x2000);
@@ -1713,7 +1708,7 @@ void Sem_worker_thread(void* arg)
 					if (file_type[i] == "file")
 					{
 						log_num = Log_log_save(sem_worker_thread_string, "File_file_delete()...", 1234567890, false);
-						result = File_delete_file(file_name[i], dir, fs_archive);
+						result = File_delete_file(file_name[i], dir);
 						Log_log_add(log_num, result.string, result.code, false);
 					}
 				}
@@ -1767,8 +1762,6 @@ void Sem_check_update_thread(void* arg)
 	"</gas_ver>", "</patch_note>", };
 	std::string editions[8] = { ".3dsx", "_32mb.cia", "_64mb.cia", "_72mb.cia",
 	"_80mb.cia", "_96mb.cia", "_124mb.cia", "_178mb.cia", };
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Handle am_handle = 0;
 	Result_with_string result;
 
@@ -1815,7 +1808,7 @@ void Sem_check_update_thread(void* arg)
 						dir_path = "/Line/ver_" + sem_newest_ver_data[0] + "/";
 
 					file_name = "Line_for_3DS" + editions[sem_selected_edition_num];
-					File_delete_file(file_name, dir_path, fs_archive);//delete old file if exist
+					File_delete_file(file_name, dir_path);//delete old file if exist
 				}
 
 				if(sem_dl_file_request)
@@ -1893,7 +1886,7 @@ void Sem_check_update_thread(void* arg)
 							while (true)
 							{
 								log_num = Log_log_save(sem_check_update_string, "File_load_from_file_with_range()...", 1234567890, false);
-								result = File_load_from_file_with_range(file_name, (u8*)buffer, 0x20000, offset, &read_size, dir_path, fs_handle, fs_archive);
+								result = File_load_from_file_with_range(file_name, (u8*)buffer, 0x20000, offset, &read_size, dir_path);
 								Log_log_add(log_num, result.string, result.code, false);
 								if(result.code != 0 || read_size <= 0)
 									break;

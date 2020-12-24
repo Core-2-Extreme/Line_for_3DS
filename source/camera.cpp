@@ -612,8 +612,6 @@ void Cam_init(void)
 	u8* fs_buffer;
 	u32 read_size;
 	std::string data[11];
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Result_with_string result;
 	fs_buffer = (u8*)malloc(0x1000);
 
@@ -633,7 +631,7 @@ void Cam_init(void)
 	Draw_progress("1/3 [Cam] Loading settings...");
 	memset(fs_buffer, 0x0, 0x1000);
 	log_num = Log_log_save(cam_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
-	result = File_load_from_file("Cam_setting.txt", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
+	result = File_load_from_file("Cam_setting.txt", fs_buffer, 0x2000, &read_size, "/Line/");
 	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 	if (result.code == 0)
 	{
@@ -758,11 +756,9 @@ void Cam_exit(void)
 	int log_num;
 	bool failed = false;
 	std::string data =  "<0>" + std::to_string(cam_camera_mode) + "</0><1>" + std::to_string(cam_resolution_mode) + "</1><2>" + std::to_string(cam_fps_mode) + "</2>"
-	 + "<3>" + std::to_string(cam_contrast_mode) + "</3><4>" + std::to_string(cam_white_balance_mode) + "</4><5>" + std::to_string(cam_lens_correction_mode) + "</5>"
-	 + "<6>" + std::to_string(cam_exposure_mode) + "</6><7>" + std::to_string(cam_encode_format_mode) + "</7><8>" + std::to_string(cam_noise_filter_mode) + "</8>"
-	 + "<9>" + std::to_string(cam_selected_jpg_quality) + "</9><10>" + std::to_string(cam_shutter_sound_mode) + "</10>";
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
+	+ "<3>" + std::to_string(cam_contrast_mode) + "</3><4>" + std::to_string(cam_white_balance_mode) + "</4><5>" + std::to_string(cam_lens_correction_mode) + "</5>"
+	+ "<6>" + std::to_string(cam_exposure_mode) + "</6><7>" + std::to_string(cam_encode_format_mode) + "</7><8>" + std::to_string(cam_noise_filter_mode) + "</8>"
+	+ "<9>" + std::to_string(cam_selected_jpg_quality) + "</9><10>" + std::to_string(cam_shutter_sound_mode) + "</10>";
 	Result_with_string result;
 
 	Draw_progress("[Cam] Exiting...");
@@ -773,7 +769,7 @@ void Cam_exit(void)
 	cam_parse_thread_run = false;
 
 	log_num = Log_log_save(cam_exit_string, "File_save_to_file()...", 1234567890, FORCE_DEBUG);
-	result = File_save_to_file("Cam_setting.txt", (u8*)data.c_str(), data.length(), "/Line/", true, fs_handle, fs_archive);
+	result = File_save_to_file("Cam_setting.txt", (u8*)data.c_str(), data.length(), "/Line/", true);
 	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 
 	for (int i = 0; i < 3; i++)
@@ -830,14 +826,12 @@ void Cam_encode_thread(void* arg)
 	std::string file_name = "";
 	std::string extension = "";
 	std::string dir_patch = "";
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Result_with_string result;
 
 	//create directory
-	File_save_to_file(".", NULL, 0, "/Line/dcim/", true, fs_handle, fs_archive);
-	File_save_to_file(".", NULL, 0, "/Line/dcim/JPG/", true, fs_handle, fs_archive);
-	File_save_to_file(".", NULL, 0, "/Line/dcim/PNG/", true, fs_handle, fs_archive);
+	File_save_to_file(".", NULL, 0, "/Line/dcim/", true);
+	File_save_to_file(".", NULL, 0, "/Line/dcim/JPG/", true);
+	File_save_to_file(".", NULL, 0, "/Line/dcim/PNG/", true);
 
 	while (cam_encode_thread_run)
 	{
@@ -854,7 +848,7 @@ void Cam_encode_thread(void* arg)
 			if(cam_encode_format_mode == 0)
 			{
 				extension = ".png";
-			 	dir_patch = "/Line/dcim/PNG/" + Menu_query_time(1) + "/";
+				dir_patch = "/Line/dcim/PNG/" + Menu_query_time(1) + "/";
 			}
 			else if(cam_encode_format_mode == 1)
 			{
@@ -864,7 +858,7 @@ void Cam_encode_thread(void* arg)
 
 			for(int i = 0; i < 100; i++)
 			{
-				result = File_check_file_exist(file_name + std::to_string(i) + extension, dir_patch, fs_handle, fs_archive);
+				result = File_check_file_exist(file_name + std::to_string(i) + extension, dir_patch);
 				if(result.code != 0)
 				{
 					file_name = file_name + std::to_string(i) + extension;
@@ -897,7 +891,7 @@ void Cam_encode_thread(void* arg)
 					if (cam_png_buffer != NULL)
 					{
 						log_num = Log_log_save(cam_encode_thread_string, "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file(file_name, (u8*)cam_png_buffer, file_size, dir_patch, true, fs_handle, fs_archive);
+						result = File_save_to_file(file_name, (u8*)cam_png_buffer, file_size, dir_patch, true);
 						Log_log_add(log_num, result.string, result.code, false);
 					}
 				}
@@ -909,7 +903,7 @@ void Cam_encode_thread(void* arg)
 					if (stbi_result != 0)
 					{
 						log_num = Log_log_save(cam_encode_thread_string, "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file(file_name, (u8*)cam_png_buffer, file_size, dir_patch, true, fs_handle, fs_archive);
+						result = File_save_to_file(file_name, (u8*)cam_png_buffer, file_size, dir_patch, true);
 						Log_log_add(log_num, result.string, result.code, false);
 					}
 				}

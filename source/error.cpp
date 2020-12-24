@@ -130,10 +130,8 @@ bool Err_query_need_reflesh(void)
 
 void Err_save_error(void)
 {
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	File_save_to_file("error.txt", (u8*)(err_error_summary + "\n" + err_error_description + "\n" + err_error_place + "\n" + err_error_code).c_str(), (err_error_summary + "\n" + err_error_description + "\n" + err_error_place + "\n" + err_error_code).length()
-, "/Line/error/", true, fs_handle, fs_archive);
+, "/Line/error/", true);
 }
 
 void Err_set_error_code(long error_code)

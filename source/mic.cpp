@@ -90,15 +90,13 @@ void Mic_record_thread(void* arg)
 	u32 buffer_pos = 0;
 	u32 buffer_offset = 0;
 	u32 data_size = 0;
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Result_with_string result;
 	/*AVPacket *packet = NULL;
 	AVFrame *raw_data = NULL;
 	AVCodecContext *context = NULL;
 	AVCodec *codec = NULL;*/
 
-	File_save_to_file(".", NULL, 0, "/Line/sound/", true, fs_handle, fs_archive);
+	File_save_to_file(".", NULL, 0, "/Line/sound/", true);
 	mic_max_time = mic_buffer_size;
 
 	while (mic_record_thread_run)
@@ -180,7 +178,7 @@ void Mic_record_thread(void* arg)
 						if(!packet)
 							log_num = Log_log_save(mic_record_thread_string, "av_packet_alloc()... [Error]", ffmpeg_result, false);
 
-					    raw_data = av_frame_alloc();
+						raw_data = av_frame_alloc();
 						if(!raw_data)
 							log_num = Log_log_save(mic_record_thread_string, "av_frame_alloc()... [Error]", ffmpeg_result, false);
 						
@@ -216,11 +214,11 @@ void Mic_record_thread(void* arg)
 						memcpy((void*)(header + 40), (void*)chunk_size, 0x4);
 
 						log_num = Log_log_save(mic_record_thread_string, "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file(file_name, (u8*)header, 44, dir_path, true, fs_handle, fs_archive);
+						result = File_save_to_file(file_name, (u8*)header, 44, dir_path, true);
 						Log_log_add(log_num, "", result.code, false);
 
 						log_num = Log_log_save(mic_record_thread_string, "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file(file_name, (u8*)fs_buffer, buffer_offset, dir_path, false, fs_handle, fs_archive);
+						result = File_save_to_file(file_name, (u8*)fs_buffer, buffer_offset, dir_path, false);
 						Log_log_add(log_num, "", result.code, false);
 
 						break;

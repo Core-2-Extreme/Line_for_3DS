@@ -603,8 +603,6 @@ void Imv_img_load_thread(void* arg)
 	Log_log_save(imv_img_load_thread_string, "Thread started.", 1234567890, false);
 	u32 read_size;
 	int log_num;
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Result_with_string result;
 
 	while (imv_load_thread_run)
@@ -624,7 +622,7 @@ void Imv_img_load_thread(void* arg)
 			else
 			{
 				log_num = Log_log_save(imv_img_load_thread_string, "File_load_from_file()...", 1234567890, false);
-				result = File_load_from_file(imv_img_load_file_name, imv_img_buffer, imv_max_buffer_size, &read_size, imv_img_load_dir_name, fs_handle, fs_archive);
+				result = File_load_from_file(imv_img_load_file_name, imv_img_buffer, imv_max_buffer_size, &read_size, imv_img_load_dir_name);
 				Log_log_add(log_num, result.string, result.code, false);
 
 				if (result.code == 0)
@@ -713,7 +711,7 @@ void Imv_img_dl_thread(void* arg)
 						file_name = file_name.substr(0, 33);
 
 					log_num = Log_log_save(imv_img_dl_thread_string, "File_save_to_file()...", 1234567890, false);
-					result = File_save_to_file(file_name + ".jpg", imv_img_buffer, (int)dl_size, "/Line/images/", true, fs_handle, fs_archive);
+					result = File_save_to_file(file_name + ".jpg", imv_img_buffer, (int)dl_size, "/Line/images/", true);
 					Log_log_add(log_num, result.string, result.code, false);
 				}
 				else

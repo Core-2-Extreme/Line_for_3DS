@@ -221,8 +221,6 @@ void Line_main(void)
 	std::string file_name;
 	std::string cache_string;
 	std::string dir = "";
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	SwkbdType type;
 	SwkbdValidInput valid_input;
 	C2D_ImageTint weak_aqua_or_aqua_tint, dammy_or_aqua_tint;
@@ -472,7 +470,7 @@ void Line_main(void)
 			Draw_texture(Square_image, black_or_white_tint, 0, 0.0, 165.0, 320.0, 60.0);
 			Draw_texture(Square_image, weak_yellow_tint, 0, 10.0, 165.0, 300.0, 60.0);
 
-		  if (line_solve_short_url_request || line_dl_log_no_parse_request || line_dl_all_log_no_parse_request)
+		if (line_solve_short_url_request || line_dl_log_no_parse_request || line_dl_all_log_no_parse_request)
 			{
 				Draw_texture(Square_image, aqua_tint, 0, 20.0, 185.0, 30.0 * line_log_dl_progress, 20.0);
 				Draw(line_msg[42], 0, 40.0, 170.0, 0.5, 0.5, r, g, b, a);
@@ -1154,7 +1152,7 @@ void Line_main(void)
 
 									cache_string += ".jpg";
 									log_num = Log_log_save(line_main_thread_string, "File_check_file_exist()...", 1234567890, false);
-									result = File_check_file_exist(cache_string, "/Line/images/", fs_handle, fs_archive);
+									result = File_check_file_exist(cache_string, "/Line/images/");
 									Log_log_add(log_num, result.string, result.code, false);
 								}
 
@@ -1209,7 +1207,7 @@ void Line_main(void)
 									}
 
 									log_num = Log_log_save(line_main_thread_string, "File_check_file_exist()...", 1234567890, false);
-									result = File_check_file_exist(cache_string, dir, fs_handle, fs_archive);
+									result = File_check_file_exist(cache_string, dir);
 									Log_log_add(log_num, result.string, result.code, false);
 								}
 
@@ -1277,7 +1275,7 @@ void Line_main(void)
 										cache_string = cache_string.substr(0, 33);
 
 									log_num = Log_log_save(line_main_thread_string, "File_check_file_exist()...", 1234567890, false);
-									result = File_check_file_exist(cache_string, "/Line/contents/", fs_handle, fs_archive);
+									result = File_check_file_exist(cache_string, "/Line/contents/");
 									Log_log_add(log_num, result.string, result.code, false);
 								}
 
@@ -1497,7 +1495,7 @@ void Line_main(void)
 					file_name = "script_auth";
 					line_script_auth = swkbd_data;
 				}
-				result = File_save_to_file(file_name, (u8*)swkbd_data.c_str(), swkbd_data.length(), "/Line/", true, fs_handle, fs_archive);
+				result = File_save_to_file(file_name, (u8*)swkbd_data.c_str(), swkbd_data.length(), "/Line/", true);
 			}
 			else if(line_search_request)
 			{
@@ -1562,8 +1560,6 @@ void Line_init(void)
 	std::string input_string = "";
 	std::string swkbd_data = ".";
 	std::string data[4];
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Result_with_string result;
 	fs_buffer = (u8*)malloc(0x2000);
 	for (int i = 0; i < 128; i++)
@@ -1577,7 +1573,7 @@ void Line_init(void)
 	Draw_progress("0/3 [Line] Authing...");
 	memset(fs_buffer, 0x0, 0x2000);
 	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
-	result = File_load_from_file("auth", fs_buffer, 0x2000, &read_size, "/Line/",  fs_handle, fs_archive);
+	result = File_load_from_file("auth", fs_buffer, 0x2000, &read_size, "/Line/");
 	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 
 	if (result.code == 0)
@@ -1597,7 +1593,7 @@ void Line_init(void)
 			if (input_string == swkbd_data)
 			{
 				log_num = Log_log_save(line_init_string, "File_save_to_file()...", 1234567890, FORCE_DEBUG);
-				result = File_save_to_file("auth", (u8*)swkbd_data.c_str(), swkbd_data.length(), "/Line/", true, fs_handle, fs_archive);
+				result = File_save_to_file("auth", (u8*)swkbd_data.c_str(), swkbd_data.length(), "/Line/", true);
 				Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 				auth_code = swkbd_data;
 				break;
@@ -1640,7 +1636,7 @@ void Line_init(void)
 	Draw_progress("1/3 [Line] Loading settings...");
 	memset(fs_buffer, 0x0, 0x2000);
 	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
-	result = File_load_from_file("script_auth", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
+	result = File_load_from_file("script_auth", fs_buffer, 0x2000, &read_size, "/Line/");
 	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 	if (result.code == 0)
 		line_script_auth = (char*)fs_buffer;
@@ -1649,7 +1645,7 @@ void Line_init(void)
 
 	memset(fs_buffer, 0x0, 0x2000);
 	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
-	result = File_load_from_file("main_url.txt", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
+	result = File_load_from_file("main_url.txt", fs_buffer, 0x2000, &read_size, "/Line/");
 	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 	if (result.code == 0)
 		line_main_url = (char*)fs_buffer;
@@ -1662,7 +1658,7 @@ void Line_init(void)
 	line_hide_id = false;
 	memset(fs_buffer, 0x0, 0x2000);
 	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
-	result = File_load_from_file("Line_setting.txt", fs_buffer, 0x2000, &read_size, "/Line/", fs_handle, fs_archive);
+	result = File_load_from_file("Line_setting.txt", fs_buffer, 0x2000, &read_size, "/Line/");
 	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 	if (result.code == 0)
 	{
@@ -1738,8 +1734,6 @@ void Line_exit(void)
 	int log_num;
 	bool failed = false;
 	std::string data =  "<0>" + std::to_string(line_text_size) + "</0><1>" + std::to_string(line_text_interval) + "</1><2>" + std::to_string(line_num_of_logs) + "</2><3>" + std::to_string(line_hide_id) + "</3>";
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Result_with_string result;
 
 	Draw_progress("[Line] Exiting...");
@@ -1752,7 +1746,7 @@ void Line_exit(void)
 	line_send_msg_thread_run = false;
 
 	log_num = Log_log_save(line_exit_string, "File_save_to_file()...", 1234567890, FORCE_DEBUG);
-	result = File_save_to_file("Line_setting.txt", (u8*)data.c_str(), data.length(), "/Line/", true, fs_handle, fs_archive);
+	result = File_save_to_file("Line_setting.txt", (u8*)data.c_str(), data.length(), "/Line/", true);
 	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 
 	for(int i = 0; i < 5; i++)
@@ -1931,7 +1925,6 @@ void Line_worker_thread(void* arg)
 	u32 status_code = 0;
 	std::string last_url = "";
 	std::string file_name = "";
-	FS_Archive fs_archive = 0;
 	Result_with_string result;
 
 	while (line_worker_thread_run)
@@ -1957,7 +1950,7 @@ void Line_worker_thread(void* arg)
 		{
 			line_delete_id_request = false;
 			log_num = Log_log_save(line_send_msg_thread_string, "File_delete_file()...", 1234567890, false);
-			result = File_delete_file(line_ids[line_selected_room_num], "/Line/to/", fs_archive);
+			result = File_delete_file(line_ids[line_selected_room_num], "/Line/to/");
 			Log_log_add(log_num, result.string, result.code, false);
 
 			if (result.code == 0)
@@ -1965,7 +1958,7 @@ void Line_worker_thread(void* arg)
 				line_select_chat_room_request = true;
 
 				log_num = Log_log_save(line_send_msg_thread_string, "File_delete_file()...", 1234567890, false);
-				result = File_delete_file(line_ids[line_selected_room_num].substr(0, 16), "/Line/", fs_archive);
+				result = File_delete_file(line_ids[line_selected_room_num].substr(0, 16), "/Line/");
 				Log_log_add(log_num, result.string, result.code, false);
 
 				Line_reset_id();
@@ -2017,8 +2010,6 @@ void Line_log_download_thread(void* arg)
 	std::string file_name;
 	std::string out_data[6];
 	std::string last_url;
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Result_with_string result;
 
 	while (line_log_dl_thread_run)
@@ -2073,7 +2064,7 @@ void Line_log_download_thread(void* arg)
 
 						file_name = line_ids[room_num].substr(0, 16);
 						log_num = Log_log_save(line_log_dl_thread_string, "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file(file_name, (u8*)out_data[0].c_str(), out_data[0].length(), "/Line/", true, fs_handle, fs_archive);
+						result = File_save_to_file(file_name, (u8*)out_data[0].c_str(), out_data[0].length(), "/Line/", true);
 						Log_log_add(log_num, result.string, result.code, false);
 
 						if (result.code != 0)
@@ -2082,7 +2073,7 @@ void Line_log_download_thread(void* arg)
 						if (!failed)
 						{
 							log_num = Log_log_save(line_log_dl_thread_string, "File_save_to_file()...", 1234567890, false);
-							result = File_save_to_file(line_ids[room_num], (u8*)(out_data[1] + out_data[2] + out_data[3] + out_data[5]).c_str(), (out_data[1] + out_data[2] + out_data[3] + out_data[5]).length(), "/Line/to/", true, fs_handle, fs_archive);
+							result = File_save_to_file(line_ids[room_num], (u8*)(out_data[1] + out_data[2] + out_data[3] + out_data[5]).c_str(), (out_data[1] + out_data[2] + out_data[3] + out_data[5]).length(), "/Line/to/", true);
 							Log_log_add(log_num, result.string, result.code, false);
 							if (result.code != 0)
 								failed = true;
@@ -2210,8 +2201,6 @@ void Line_send_message_thread(void* arg)
 	std::string dled_data[6] = { "", "", "", "", "", "", };
 	std::string file_name = "";
 	std::string file_type = "";
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	AVFormatContext* format_context = NULL;
 	Result_with_string result;
 
@@ -2282,7 +2271,7 @@ void Line_send_message_thread(void* arg)
 				else if (line_send_request[2])
 				{
 					log_num[1] = Log_log_save(line_send_msg_thread_string, "File_check_file_size()...", 1234567890, false);
-					result = File_check_file_size(line_send_file_name, line_send_file_dir, &file_size, fs_handle, fs_archive);
+					result = File_check_file_size(line_send_file_name, line_send_file_dir, &file_size);
 					Log_log_add(log_num[1], result.string, result.code, false);
 
 					format_context = avformat_alloc_context();
@@ -2311,7 +2300,7 @@ void Line_send_message_thread(void* arg)
 					for (int i = 0; i <= num_of_loop; i++)
 					{
 						log_num[1] = Log_log_save(line_send_msg_thread_string, "File_load_from_file_with_range()...", 1234567890, false);
-						result = File_load_from_file_with_range(line_send_file_name, content_fs_buffer[1], line_send_buffer_size, u64(i * line_send_buffer_size), &read_size, line_send_file_dir, fs_handle, fs_archive);
+						result = File_load_from_file_with_range(line_send_file_name, content_fs_buffer[1], line_send_buffer_size, u64(i * line_send_buffer_size), &read_size, line_send_file_dir);
 						Log_log_add(log_num[1], result.string, result.code, false);
 						if (result.code != 0)
 						{
@@ -2401,7 +2390,7 @@ void Line_send_message_thread(void* arg)
 
 						file_name = line_ids[room_num].substr(0, 16);
 						log_num[0] = Log_log_save(line_send_msg_thread_string, "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file(file_name, (u8*)dled_data[0].c_str(), dled_data[0].length(), "/Line/", true, fs_handle, fs_archive);
+						result = File_save_to_file(file_name, (u8*)dled_data[0].c_str(), dled_data[0].length(), "/Line/", true);
 						Log_log_add(log_num[0], result.string, result.code, false);
 
 						if (result.code != 0)
@@ -2410,7 +2399,7 @@ void Line_send_message_thread(void* arg)
 						if (!failed)
 						{
 							log_num[0] = Log_log_save(line_send_msg_thread_string, "File_save_to_file()...", 1234567890, false);
-							result = File_save_to_file(line_ids[room_num], (u8*)(dled_data[1] + dled_data[2] + dled_data[3] + dled_data[5]).c_str(), (dled_data[1] + dled_data[2] + dled_data[3] + dled_data[5]).length(), "/Line/to/", true, fs_handle, fs_archive);
+							result = File_save_to_file(line_ids[room_num], (u8*)(dled_data[1] + dled_data[2] + dled_data[3] + dled_data[5]).c_str(), (dled_data[1] + dled_data[2] + dled_data[3] + dled_data[5]).length(), "/Line/to/", true);
 							Log_log_add(log_num[0], result.string, result.code, false);
 							if (result.code != 0)
 								failed = true;
@@ -2536,8 +2525,6 @@ Result_with_string Line_load_icon(int room_num)
 	u32 status_code;
 	std::string file_name = "";
 	std::string last_url;
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Result_with_string result;
 
 	httpc_fs_buffer = (u8*)malloc(0x4000);
@@ -2554,15 +2541,15 @@ Result_with_string Line_load_icon(int room_num)
 			if (file_name.length() > 33)
 				file_name = file_name.substr(0, 33);
 
-			result = File_check_file_exist(file_name, "/Line/images/", fs_handle, fs_archive);
+			result = File_check_file_exist(file_name, "/Line/images/");
 			if(result.code == 0)
-				result = File_load_from_file(file_name, httpc_fs_buffer, 0x4000, &pic_size, "/Line/images/", fs_handle, fs_archive);
+				result = File_load_from_file(file_name, httpc_fs_buffer, 0x4000, &pic_size, "/Line/images/");
 
 			if (result.code != 0)
 			{
 				memset(httpc_fs_buffer, 0x0, 0x4000);
 				result = Httpc_dl_data(line_icon_url[room_num], httpc_fs_buffer, 0x4000, &pic_size, &status_code, true, &last_url, false, 100, LINE_HTTP_PORT2);
-				File_save_to_file(file_name, (u8*)httpc_fs_buffer, pic_size, "/Line/images/", true, fs_handle, fs_archive);
+				File_save_to_file(file_name, (u8*)httpc_fs_buffer, pic_size, "/Line/images/", true);
 			}
 		}
 		else
@@ -2646,8 +2633,6 @@ Result_with_string Line_load_log_from_sd(std::string file_name)
 {
 	u8* fs_buffer;
 	u32 read_size = 0;
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Result_with_string result;
 
 	fs_buffer = (u8*)malloc(line_log_fs_buffer_size);
@@ -2661,7 +2646,7 @@ Result_with_string Line_load_log_from_sd(std::string file_name)
 	{
 		memset(fs_buffer, 0x0, line_log_fs_buffer_size);
 		line_log_data = "";
-		result = File_load_from_file(file_name, fs_buffer, line_log_fs_buffer_size, &read_size, "/Line/", fs_handle, fs_archive);
+		result = File_load_from_file(file_name, fs_buffer, line_log_fs_buffer_size, &read_size, "/Line/");
 
 		if (result.code == 0)
 		{
@@ -2736,8 +2721,6 @@ void Line_log_parse_thread(void* arg)
 	std::string id_message = "";
 	std::string data[4];
 	Result_with_string result;
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 
 	while (line_log_parse_thread_run)
 	{
@@ -2975,7 +2958,7 @@ void Line_log_parse_thread(void* arg)
 					Log_log_add(log_num, Err_query_template_summary(0), 1234567890, false);
 
 					log_num = Log_log_save(line_parse_thread_string, "File_load_from_file()...", 1234567890, false);
-					result = File_load_from_file(line_ids[line_selected_room_num], fs_buffer, 0x1000, &read_size, "/Line/to/", fs_handle, fs_archive);
+					result = File_load_from_file(line_ids[line_selected_room_num], fs_buffer, 0x1000, &read_size, "/Line/to/");
 					Log_log_add(log_num , result.string, result.code, false);
 					result = Sem_parse_file((char*)fs_buffer, 4, data);
 
@@ -2987,7 +2970,7 @@ void Line_log_parse_thread(void* arg)
 					data[3] = "<3>" + std::to_string(line_unread_msg_num[line_selected_room_num]) + "</3>"; //num of new msg
 
 					log_num = Log_log_save(line_parse_thread_string, "File_save_to_file()...", 1234567890, false);
-					result = File_save_to_file(line_ids[line_selected_room_num], (u8*)(data[0] + data[1] + data[2] + data[3]).c_str(), (data[0] + data[1] + data[2] + data[3]).length(), "/Line/to/", true, fs_handle, fs_archive);
+					result = File_save_to_file(line_ids[line_selected_room_num], (u8*)(data[0] + data[1] + data[2] + data[3]).c_str(), (data[0] + data[1] + data[2] + data[3]).length(), "/Line/to/", true);
 					Log_log_add(log_num, result.string, result.code, false);
 				}
 			}

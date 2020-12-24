@@ -60,7 +60,6 @@ u64 mup_offset = 0;
 int mup_music_sample_rate = 0;
 int mup_num_of_music_ch = 0;
 int mup_music_bit_rate = 0;
-int mup_file_size = 0;
 int mup_dled_size = 0;
 int mup_dl_progress = 0;
 std::string mup_url = "";
@@ -258,8 +257,6 @@ void Mup_play_thread(void* arg)
 	u64 file_size = 0;
 	std::string file_name = "";
 	std::string dir_name = "/";
-	Handle fs_handle = 0;
-	FS_Archive fs_archive = 0;
 	ndspWaveBuf ndsp_buffer[5];
 	AVPacket *packet = NULL;
 	AVFrame *raw_data = NULL;
@@ -297,7 +294,6 @@ void Mup_play_thread(void* arg)
 			count = 0;
 			file_size = 0;
 			stream_num = -1;
-			mup_file_size = 0;
 			mup_offset = 0;
 			Expl_set_current_patch(dir_name);
 			Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
@@ -333,8 +329,6 @@ void Mup_play_thread(void* arg)
 			else
 			{
 				Log_log_save(mup_play_thread_string, "avformat_open_input()...[Success] ", ffmpeg_result, false);
-				File_check_file_size(file_name, dir_name, &file_size, fs_handle, fs_archive);
-				mup_file_size = file_size;
 
 				for(int i = 0; i < (int)format_context->nb_streams; i++)
 				{

@@ -8,12 +8,14 @@
 #include "file.hpp"
 #include "log.hpp"
 
-Result_with_string File_save_to_file(std::string file_name, u8* write_data, int size, std::string dir_path, bool delete_old_file, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string File_save_to_file(std::string file_name, u8* write_data, int size, std::string dir_path, bool delete_old_file)
 {
 	u32 written_size = 0;
 	u64 file_size = 0;
 	bool failed = false;
 	std::string file_path = dir_path + file_name;
+	Handle fs_handle = 0;
+	FS_Archive fs_archive = 0;
 	TickCounter write_time;
 	Result_with_string save_file_result;
 
@@ -95,9 +97,9 @@ Result_with_string File_save_to_file(std::string file_name, u8* write_data, int 
 	return save_file_result;
 }
 
-Result_with_string File_load_from_file(std::string file_name, u8* read_data, int max_size, u32* read_size, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string File_load_from_file(std::string file_name, u8* read_data, int max_size, u32* read_size, std::string dir_path)
 {
-	return File_load_from_file_with_range(file_name, read_data, max_size, 0, read_size, dir_path, fs_handle, fs_archive);
+	return File_load_from_file_with_range(file_name, read_data, max_size, 0, read_size, dir_path);
 }
 
 Result_with_string File_load_from_rom(std::string file_name, u8* read_data, int max_size, u32* read_size, std::string dir_path)
@@ -148,11 +150,13 @@ Result_with_string File_load_from_rom(std::string file_name, u8* read_data, int 
 	return result;
 }
 
-Result_with_string File_load_from_file_with_range(std::string file_name, u8* read_data, int read_length, u64 read_offset, u32* read_size, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string File_load_from_file_with_range(std::string file_name, u8* read_data, int read_length, u64 read_offset, u32* read_size, std::string dir_path)
 {
 	bool failed = false;
 	u32 read_size_calc;
 	std::string file_path = dir_path + file_name;
+	Handle fs_handle = 0;
+	FS_Archive fs_archive = 0;
 	TickCounter read_time;
 	Result_with_string result;
 
@@ -196,10 +200,11 @@ Result_with_string File_load_from_file_with_range(std::string file_name, u8* rea
 	return result;
 }
 
-Result_with_string File_delete_file(std::string file_name, std::string dir_path, FS_Archive fs_archive)
+Result_with_string File_delete_file(std::string file_name, std::string dir_path)
 {
 	bool failed = false;
 	std::string file_path = dir_path + file_name;
+	FS_Archive fs_archive = 0;
 	Result_with_string result;
 
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
@@ -226,10 +231,12 @@ Result_with_string File_delete_file(std::string file_name, std::string dir_path,
 	return result;
 }
 
-Result_with_string File_check_file_size(std::string file_name, std::string dir_path, u64* file_size, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string File_check_file_size(std::string file_name, std::string dir_path, u64* file_size)
 {
 	bool failed = false;
 	std::string file_path = dir_path + file_name;
+	Handle fs_handle = 0;
+	FS_Archive fs_archive = 0;
 	Result_with_string result;
 
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
@@ -267,10 +274,12 @@ Result_with_string File_check_file_size(std::string file_name, std::string dir_p
 	return result;
 }
 
-Result_with_string File_check_file_exist(std::string file_name, std::string dir_path, Handle fs_handle, FS_Archive fs_archive)
+Result_with_string File_check_file_exist(std::string file_name, std::string dir_path)
 {
 	bool failed = false;
 	std::string file_path = dir_path + file_name;
+	Handle fs_handle = 0;
+	FS_Archive fs_archive = 0;
 	Result_with_string result;
 
 	result.code = FSUSER_OpenArchive(&fs_archive, ARCHIVE_SDMC, fsMakePath(PATH_EMPTY, ""));
