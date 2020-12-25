@@ -182,7 +182,7 @@ void Menu_init(void)
 {
 	Log_log_save(menu_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
 
-	Draw_progress("0/0 [Menu] Starting threads...");
+	Draw_progress("[Menu] Starting threads...");
 	menu_update_thread_run = true;
 	menu_check_connectivity_thread_run = true;
 	menu_update_thread = threadCreate(Menu_update_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, 1, false);
@@ -215,7 +215,6 @@ void Menu_exit(void)
 	Log_log_save(menu_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
-	bool failed = false;
 	Result_with_string result;
 
 	menu_update_thread_run = false;
@@ -254,17 +253,11 @@ void Menu_exit(void)
 		if (result.code == 0)
 			Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 		else
-		{
-			failed = true;
 			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-		}
 	}
 
 	threadFree(menu_update_thread);
 	threadFree(menu_check_connectivity_thread);
-
-	if (failed)
-		Log_log_save(menu_exit_string, "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
 
 	Log_log_save(menu_exit_string, "Exited.", 1234567890, FORCE_DEBUG);
 }
@@ -287,7 +280,7 @@ void Menu_main(void)
 	else
 		sprintf(menu_status_short, "%04d/%02d/%02d %02d:%02d:%02d ", menu_years, menu_months, menu_days, menu_hours, menu_minutes, menu_seconds);
 
-	sprintf(menu_status, "%dfps %.1fms %s", menu_fps,  Draw_query_frametime(), menu_status_short);
+	sprintf(menu_status, "%s %dfps %.1fms", menu_status_short, menu_fps,  Draw_query_frametime());
 
 	if (menu_main_run)
 	{

@@ -30,6 +30,8 @@ void Mup_play_thread(void* arg);
 
 void Mup_exit(void);
 
+Result_with_string Mup_load_msg(std::string lang);
+
 void Mup_init(void);
 
 void Mup_main(void);

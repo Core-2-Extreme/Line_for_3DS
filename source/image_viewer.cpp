@@ -152,6 +152,35 @@ void Imv_resume(void)
 	imv_need_reflesh = true;
 }
 
+Result_with_string Imv_load_msg(std::string lang)
+{
+	u8* fs_buffer = NULL;
+	u32 read_size;
+	std::string setting_data[128];
+	Result_with_string result;
+	fs_buffer = (u8*)malloc(0x2000);
+
+	result = File_load_from_rom("imv_" + lang + ".txt", fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	result = Sem_parse_file((char*)fs_buffer, IMV_NUM_OF_MSG, setting_data);
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	for (int k = 0; k < IMV_NUM_OF_MSG; k++)
+		Imv_set_msg(k, setting_data[k]);
+
+	free(fs_buffer);
+	return result;
+}
+
 void Imv_init(void)
 {
 	Log_log_save(imv_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
@@ -163,7 +192,7 @@ void Imv_init(void)
 		imv_first = false;
 	}
 
-	Draw_progress("0/0 [Imv] Starting threads...");
+	Draw_progress("[Imv] Starting threads...");
 
 	if (!failed)
 	{
@@ -662,8 +691,6 @@ void Imv_img_dl_thread(void* arg)
 	size_t cut_pos[2];
 	std::string file_name;
 	std::string last_url;
-	FS_Archive fs_archive = 0;
-	Handle fs_handle = 0;
 	Result_with_string result;
 
 	while (imv_dl_thread_run)
@@ -741,7 +768,6 @@ void Imv_exit(void)
 	Log_log_save(imv_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
-	bool failed = false;
 	Result_with_string result;
 
 	Draw_progress("[Imv] Exiting...");
@@ -765,10 +791,7 @@ void Imv_exit(void)
 		if (result.code == 0)
 			Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 		else
-		{
-			failed = true;
 			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-		}
 	}
 
 	threadFree(imv_parse_img_thread);
@@ -788,9 +811,6 @@ void Imv_exit(void)
 
 	free(imv_img_buffer);
 	imv_img_buffer = NULL;
-
-	if (failed)
-		Log_log_save(imv_exit_string, "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
 
 	Log_log_save(imv_exit_string, "Exited.", 1234567890, FORCE_DEBUG);
 }

@@ -14,13 +14,11 @@ bool Gtr_query_init_flag(void);
 
 bool Gtr_query_running_flag(void);
 
-void Gtr_set_msg(int msg_num, int num_of_msg, std::string msg);
-
 void Gtr_suspend(void);
 
 void Gtr_resume(void);
 
-std::string Gtr_get_lang_name(std::string short_name);
+Result_with_string Gtr_load_msg(std::string lang);
 
 void Gtr_init(void);
 

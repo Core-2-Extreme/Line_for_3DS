@@ -12,6 +12,7 @@
 #include "log.hpp"
 #include "types.hpp"
 #include "swkbd.hpp"
+#include "file.hpp"
 
 /*For draw*/
 bool gtr_need_reflesh = false;
@@ -70,7 +71,7 @@ bool Gtr_query_running_flag(void)
 void Gtr_set_msg(int msg_num, int msg_type, std::string msg)
 {
 	if (msg_type == GTR_SHORT_LANG_LIST && msg_num >= 0 && msg_num < GTR_NUM_OF_LANG_SHORT_LIST_MSG)
-	    gtr_lang_short_list[msg_num] = msg;
+		gtr_lang_short_list[msg_num] = msg;
 	else if (msg_type == GTR_LANG_LIST && msg_num >= 0 && msg_num < GTR_NUM_OF_LANG_LIST_MSG)
 		gtr_lang_list[msg_num] = msg;
 	else if (msg_type == GTR_MSG && msg_num >= 0 && msg_num < GTR_NUM_OF_MSG)
@@ -157,6 +158,41 @@ void Gtr_tr_thread(void* arg)
 	threadExit(0);
 }
 
+Result_with_string Gtr_load_msg(std::string lang)
+{
+	int num_of_msg[3] = { GTR_NUM_OF_LANG_LIST_MSG, GTR_NUM_OF_LANG_SHORT_LIST_MSG, GTR_NUM_OF_MSG, };
+	int msg_list[3] = { GTR_LANG_LIST, GTR_SHORT_LANG_LIST, GTR_MSG, };
+	u8* fs_buffer = NULL;
+	u32 read_size;
+	std::string setting_data[128];
+	std::string file_name[3] = { "gtr_lang_list.txt", "gtr_short_lang_list.txt", "gtr_" + lang + ".txt",};
+	Result_with_string result;
+	fs_buffer = (u8*)malloc(0x2000);
+
+	for(int i = 0; i < 3; i++)
+	{
+		result = File_load_from_rom(file_name[i], fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
+		if (result.code != 0)
+		{
+			free(fs_buffer);
+			return result;
+		}
+
+		result = Sem_parse_file((char*)fs_buffer, num_of_msg[i], setting_data);
+		if (result.code != 0)
+		{
+			free(fs_buffer);
+			return result;
+		}
+
+		for (int k = 0; k < num_of_msg[i]; k++)
+			Gtr_set_msg(k, msg_list[i], setting_data[k]);
+	}
+
+	free(fs_buffer);
+	return result;
+}
+
 void Gtr_init(void)
 {
 	Log_log_save(gtr_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
@@ -164,7 +200,7 @@ void Gtr_init(void)
 	gtr_current_history_num = 9;
 	gtr_text_pos_x = 0.0;
 
-	Draw_progress("0/0 [Gtr] Starting threads...");
+	Draw_progress("[Gtr] Starting threads...");
 	gtr_tr_thread_run = true;
 	gtr_tr_thread = threadCreate(Gtr_tr_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
 
@@ -178,7 +214,6 @@ void Gtr_exit(void)
 	Log_log_save(gtr_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
-	bool failed = false;
 	Result_with_string result;
 
 	Draw_progress("[Gtr] Exiting...");
@@ -191,10 +226,7 @@ void Gtr_exit(void)
 	if (result.code == 0)
 		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
-	{
-		failed = true;
 		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-	}
 
 	threadFree(gtr_tr_thread);
 
@@ -206,9 +238,6 @@ void Gtr_exit(void)
 		gtr_history[i] = "n/a";
 		gtr_history[i].reserve(10);
 	}
-
-	if (failed)
-		Log_log_save(gtr_exit_string, "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
 
 	Log_log_save(gtr_exit_string, "Exited.", 1234567890, FORCE_DEBUG);
 }

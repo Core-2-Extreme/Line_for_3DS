@@ -1549,6 +1549,35 @@ void Line_main(void)
 	}
 }
 
+Result_with_string Line_load_msg(std::string lang)
+{
+	u8* fs_buffer = NULL;
+	u32 read_size;
+	std::string setting_data[128];
+	Result_with_string result;
+	fs_buffer = (u8*)malloc(0x2000);
+
+	result = File_load_from_rom("line_" + lang + ".txt", fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	result = Sem_parse_file((char*)fs_buffer, LINE_NUM_OF_MSG, setting_data);
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	for (int k = 0; k < LINE_NUM_OF_MSG; k++)
+		Line_set_msg(k, setting_data[k]);
+
+	free(fs_buffer);
+	return result;
+}
+
 void Line_init(void)
 {
 	Log_log_save(line_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
@@ -1570,7 +1599,7 @@ void Line_init(void)
 	Line_reset_id();
 	Line_reset_msg();
 
-	Draw_progress("0/3 [Line] Authing...");
+	Draw_progress("[Line] Authing...");
 	memset(fs_buffer, 0x0, 0x2000);
 	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
 	result = File_load_from_file("auth", fs_buffer, 0x2000, &read_size, "/Line/");
@@ -1629,11 +1658,11 @@ void Line_init(void)
 	if (!auth_success)
 	{
 		Log_log_save(line_init_string, "Auth failed, rebooting...", 1234567890, FORCE_DEBUG);
-		Draw_progress("0/3 [Line] Auth failed.");
+		Draw_progress("[Line] Auth failed.");
 		APT_HardwareResetAsync();
 	}
 
-	Draw_progress("1/3 [Line] Loading settings...");
+	Draw_progress("[Line] Loading settings...");
 	memset(fs_buffer, 0x0, 0x2000);
 	log_num = Log_log_save(line_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
 	result = File_load_from_file("script_auth", fs_buffer, 0x2000, &read_size, "/Line/");
@@ -1681,7 +1710,7 @@ void Line_init(void)
 	if(line_text_interval >= 250.0 || line_text_interval <= 10.0)
 		line_text_interval = 35.0;
 
-	Draw_progress("2/3 [Line] Starting threads...");
+	Draw_progress("[Line] Starting threads...");
 	line_worker_thread_run = true;
 	line_log_dl_thread_run = true;
 	line_log_load_thread_run = true;
@@ -1696,7 +1725,7 @@ void Line_init(void)
 
 	line_icon_dl_request = true;
 
-	Draw_progress("3/3 [Line] Loading textures...");
+	Draw_progress("[Line] Loading textures...");
 	log_num = Log_log_save(line_init_string, "Draw_load_texture()...", 1234567890, FORCE_DEBUG);
 	result = Draw_load_texture("romfs:/gfx/stickers.t3x", 51, line_stickers_images, 0, 121);
 	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
@@ -1732,7 +1761,6 @@ void Line_exit(void)
 	Log_log_save(line_exit_string , "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
-	bool failed = false;
 	std::string data =  "<0>" + std::to_string(line_text_size) + "</0><1>" + std::to_string(line_text_interval) + "</1><2>" + std::to_string(line_num_of_logs) + "</2><3>" + std::to_string(line_hide_id) + "</3>";
 	Result_with_string result;
 
@@ -1767,10 +1795,7 @@ void Line_exit(void)
 		if (result.code == 0)
 			Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 		else
-		{
-			failed = true;
 			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-		}
 	}
 
 	threadFree(line_dl_log_thread);
@@ -1795,9 +1820,6 @@ void Line_exit(void)
 		line_icon[i].tex = NULL;
 		line_icon[i].subtex = NULL;
 	}
-
-	if(failed)
-		Log_log_save(line_exit_string , "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
 
 	Log_log_save(line_exit_string , "Exited.", 1234567890, FORCE_DEBUG);
 }

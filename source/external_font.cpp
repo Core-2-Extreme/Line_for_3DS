@@ -678,8 +678,15 @@ void Exfont_init(void)
   u8* fs_buffer;
   u32 read_size;
   std::string temp;
+	std::string setting_data[128];
   Result_with_string result;
   fs_buffer = (u8*)malloc(0x8000);
+
+	memset((void*)fs_buffer, 0x0, 0x8000);
+	result = File_load_from_rom("font_name.txt", fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
+	result = Sem_parse_file((char*)fs_buffer, EXFONT_NUM_OF_FONT_NAME, setting_data);
+	for (int k = 0; k < EXFONT_NUM_OF_FONT_NAME; k++)
+		Exfont_set_msg(k, setting_data[k]);
 
 	memset((void*)fs_buffer, 0x0, 0x8000);
   result = File_load_from_rom("font_samples.txt", fs_buffer, 0x8000, &read_size, "romfs:/gfx/font/sample/");
@@ -702,6 +709,7 @@ void Exfont_init(void)
     exfont_font_start_num[i] = exfont_font_start_num[i - 1] + exfont_font_characters[i - 1];
 
   free(fs_buffer);
+
 }
 
 std::string Exfont_query_font_name(int exfont_num)

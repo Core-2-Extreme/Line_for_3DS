@@ -911,6 +911,35 @@ void Vid_exit(void)
 	APT_SetAppCpuTimeLimit(30);
 }
 
+Result_with_string Vid_load_msg(std::string lang)
+{
+	u8* fs_buffer = NULL;
+	u32 read_size;
+	std::string setting_data[128];
+	Result_with_string result;
+	fs_buffer = (u8*)malloc(0x2000);
+
+	result = File_load_from_rom("vid_" + lang + ".txt", fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	result = Sem_parse_file((char*)fs_buffer, VID_NUM_OF_MSG, setting_data);
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	for (int k = 0; k < VID_NUM_OF_MSG; k++)
+		Vid_set_msg(k, setting_data[k]);
+
+	free(fs_buffer);
+	return result;
+}
+
 void Vid_init(void)
 {
 	Log_log_save(vid_init_string, "Initializing...", 1234567890, FORCE_DEBUG);

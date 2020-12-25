@@ -104,7 +104,7 @@ int sem_total_cia_size = 0;
 double sem_scroll_speed = 0.5;
 double sem_y_offset = 0.0;
 double sem_y_max = 0.0;
-double sem_buffer_size[5];
+double sem_buffer_size[6];
 double sem_touch_x_move_left = 0.0;
 double sem_touch_y_move_left = 0.0;
 std::string sem_lang = "en";
@@ -466,7 +466,7 @@ void Sem_init(void)
 	sem_night_mode = false;
 	sem_eco_mode = true;
 
-	Draw_progress("0/1 [Sem] Loading settings...");
+	Draw_progress("[Sem] Loading settings...");
 	log_num = Log_log_save(sem_init_string , "Sem_load_setting()...", 1234567890, FORCE_DEBUG);
 	result = Sem_load_setting("Sem_setting.txt", "/Line/", 14, data);
 	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
@@ -520,7 +520,7 @@ void Sem_init(void)
 			sem_system_region = 0;
 	}
 
-	Draw_progress("1/1 [Sem] Starting threads...");
+	Draw_progress("[Sem] Starting threads...");
 	sem_check_update_thread_run = true;
 	sem_worker_thread_run = true;
 	sem_check_update_thread = threadCreate(Sem_check_update_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
@@ -536,7 +536,6 @@ void Sem_exit(void)
 	Log_log_save(sem_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
-	bool failed = false;
 	sem_num_of_app_start++;
 	std::string data = "<0>" + sem_lang + "</0><1>" + std::to_string(sem_lcd_brightness) + "</1><2>" + std::to_string(sem_time_to_turn_off_lcd)
 	+ "</2><3>" + std::to_string(sem_lcd_brightness_before_turn_off) + "</3><4>" + std::to_string(sem_scroll_speed) + "</4><5>" + std::to_string(sem_allow_send_app_info)
@@ -562,26 +561,17 @@ void Sem_exit(void)
 	if (result.code == 0)
 		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
-	{
-		failed = true;
 		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-	}
 
 	log_num = Log_log_save(sem_exit_string, "threadJoin()1/1...", 1234567890, FORCE_DEBUG);
 	result.code = threadJoin(sem_worker_thread, time_out);
 	if (result.code == 0)
 		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
-	{
-		failed = true;
 		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-	}
 
 	threadFree(sem_check_update_thread);
 	threadFree(sem_worker_thread);
-
-	if (failed)
-		Log_log_save(sem_exit_string, "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
 
 	Log_log_save(sem_exit_string, "Exited.", 1234567890, FORCE_DEBUG);
 }
@@ -649,7 +639,7 @@ void Sem_main(void)
 	|| sem_pre_update_progress != sem_update_progress || sem_pre_selected_edition_num != sem_selected_edition_num
 	|| sem_pre_selected_menu_mode != sem_selected_menu_mode || sem_pre_dled_size != sem_dled_size)
 	{
-		for (int i = 0; i < 5; i++)
+		for (int i = 0; i < 6; i++)
 			sem_pre_buffer_size[i] = sem_buffer_size[i];
 
 		for (int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
@@ -1546,64 +1536,79 @@ void Sem_main(void)
 	}
 }
 
+Result_with_string Sem_load_msg(std::string lang)
+{
+	u8* fs_buffer = NULL;
+	u32 read_size;
+	std::string setting_data[128];
+	fs_buffer = (u8*)malloc(0x2000);
+
+	Result_with_string result;
+	result = File_load_from_rom("sem_" + lang + ".txt", fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	result = Sem_parse_file((char*)fs_buffer, SEM_NUM_OF_MSG, setting_data);
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	for (int k = 0; k < SEM_NUM_OF_MSG; k++)
+		Sem_set_msg(k, setting_data[k]);
+
+	free(fs_buffer);
+	return result;
+}
+
 void Sem_worker_thread(void* arg)
 {
 	Log_log_save(sem_worker_thread_string , "Thread started.", 1234567890, false);
 	int log_num;
 	int num_of_files;
-	int num_of_msg[9] = { LINE_NUM_OF_MSG, SEM_NUM_OF_MSG, IMV_NUM_OF_MSG, SPT_NUM_OF_MSG, GTR_NUM_OF_MSG, CAM_NUM_OF_MSG, MUP_NUM_OF_MSG, MIC_NUM_OF_MSG, VID_NUM_OF_MSG, };
-	u8* fs_buffer;
-	u32 read_size;
-	std::string setting_data[128];
 	std::string file_name[256];
 	std::string file_type[256];
-	std::string load_file_name[9] = {"line_", "sem_", "imv_", "spt_", "gtr_", "cam_", "mup_", "mic_", "vid_" };
 	std::string dir = "/Line/images/";
 	Result_with_string result;
 
-	fs_buffer = (u8*)malloc(0x2000);
-
 	while (sem_worker_thread_run)
 	{
-		if (sem_reload_msg_request)
+		if (sem_reload_msg_request)//reload msg
 		{
-			for (int i = 0; i < 9; i++)
-			{
-				log_num = Log_log_save(sem_worker_thread_string, "File_load_from_rom()...", 1234567890, false);
-				result = File_load_from_rom(load_file_name[i] + sem_lang + ".txt", fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
-				Log_log_add(log_num, result.string, result.code, false);
-				log_num = Log_log_save(sem_worker_thread_string, "Sem_load_setting()...", 1234567890, false);
-				result = Sem_parse_file((char*)fs_buffer, num_of_msg[i], setting_data);
-				Log_log_add(log_num, result.string, result.code, false);
-				if (result.code == 0)
-				{
-					for (int k = 0; k < num_of_msg[i]; k++)
-					{
-						if (i == 0)
-							Line_set_msg(k, setting_data[k]);
-						else if (i == 1)
-							Sem_set_msg(k, setting_data[k]);
-						else if (i == 2)
-							Imv_set_msg(k, setting_data[k]);
-						else if (i == 3)
-							Spt_set_msg(k, setting_data[k]);
-						else if (i == 4)
-							Gtr_set_msg(k, GTR_MSG, setting_data[k]);
-						else if (i == 5)
-							Cam_set_msg(k, CAM_MSG, setting_data[k]);
-						else if (i == 6)
-							Mup_set_msg(k, setting_data[k]);
-						else if (i == 7)
-							Mic_set_msg(k, setting_data[k]);
-						else if (i == 8)
-							Vid_set_msg(k, setting_data[k]);
-					}
-				}
-			}
-
+			log_num = Log_log_save(sem_worker_thread_string, "Line_load_msg()...", 1234567890, false);
+			result = Line_load_msg(sem_lang);
+			Log_log_add(log_num, result.string, result.code, false);
+			log_num = Log_log_save(sem_worker_thread_string, "Gtr_load_msg()...", 1234567890, false);
+			result = Gtr_load_msg(sem_lang);
+			Log_log_add(log_num, result.string, result.code, false);
+			log_num = Log_log_save(sem_worker_thread_string, "Spt_load_msg()...", 1234567890, false);
+			result = Spt_load_msg(sem_lang);
+			Log_log_add(log_num, result.string, result.code, false);
+			log_num = Log_log_save(sem_worker_thread_string, "Imv_load_msg()...", 1234567890, false);
+			result = Imv_load_msg(sem_lang);
+			Log_log_add(log_num, result.string, result.code, false);
+			log_num = Log_log_save(sem_worker_thread_string, "Cam_load_msg()...", 1234567890, false);
+			result = Cam_load_msg(sem_lang);
+			Log_log_add(log_num, result.string, result.code, false);
+			log_num = Log_log_save(sem_worker_thread_string, "Mic_load_msg()...", 1234567890, false);
+			result = Mic_load_msg(sem_lang);
+			Log_log_add(log_num, result.string, result.code, false);
+			log_num = Log_log_save(sem_worker_thread_string, "Mup_load_msg()...", 1234567890, false);
+			result = Mup_load_msg(sem_lang);
+			Log_log_add(log_num, result.string, result.code, false);
+			log_num = Log_log_save(sem_worker_thread_string, "Vid_load_msg()...", 1234567890, false);
+			result = Vid_load_msg(sem_lang);
+			Log_log_add(log_num, result.string, result.code, false);			
+			log_num = Log_log_save(sem_worker_thread_string, "Sem_load_msg()...", 1234567890, false);
+			result = Sem_load_msg(sem_lang);
+			Log_log_add(log_num, result.string, result.code, false);
 			sem_reload_msg_request = false;
 		}
-		else if (sem_change_wifi_state_request)
+		else if (sem_change_wifi_state_request)//change wifi on/off
 		{
 			if (sem_wifi_enabled)
 			{
@@ -1620,7 +1625,7 @@ void Sem_worker_thread(void* arg)
 
 			sem_change_wifi_state_request= false;
 		}
-		else if (sem_load_external_font_request)
+		else if (sem_load_external_font_request)//load exfonts
 		{
 			for (int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
 			{
@@ -1639,7 +1644,7 @@ void Sem_worker_thread(void* arg)
 
 			sem_load_external_font_request = false;
 		}
-		else if (sem_unload_external_font_request)
+		else if (sem_unload_external_font_request)//unload exfonts
 		{
 			//cannnot unload basic latin font
 			for (int i = 1; i < EXFONT_NUM_OF_FONT_NAME; i++)
@@ -1652,7 +1657,7 @@ void Sem_worker_thread(void* arg)
 			}
 			sem_unload_external_font_request = false;
 		}
-		else if (sem_load_system_font_request)
+		else if (sem_load_system_font_request)//load system fonts
 		{
 			for(int i = 0; i < 4; i++)
 			{
@@ -1669,7 +1674,7 @@ void Sem_worker_thread(void* arg)
 			}
 			sem_load_system_font_request = false;
 		}
-		else if (sem_unload_system_font_request)
+		else if (sem_unload_system_font_request)//unload systemfonts
 		{
 			for(int i = 0; i < 4; i++)
 			{
@@ -1681,7 +1686,7 @@ void Sem_worker_thread(void* arg)
 			}
 			sem_unload_system_font_request = false;
 		}
-		else if (sem_delete_line_img_cache_request || sem_delete_line_audio_cache_request || sem_delete_line_vid_cache_request)
+		else if (sem_delete_line_img_cache_request || sem_delete_line_audio_cache_request || sem_delete_line_vid_cache_request)//delete cache files
 		{
 			if(sem_delete_line_img_cache_request)
 				dir = "/Line/images/";

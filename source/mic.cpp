@@ -249,7 +249,6 @@ void Mic_exit(void)
 	Log_log_save(mic_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
-	bool failed = false;
 	Result_with_string result;
 
 	mic_already_init = false;
@@ -264,19 +263,42 @@ void Mic_exit(void)
 	if (result.code == 0)
 		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
-	{
-		failed = true;
 		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-	}
 
 	threadFree(mic_record_thread);
 
 	MICU_SetPower(false);
 	micExit();
 	free(mic_buffer);
+}
 
-	if (failed)
-		Log_log_save(mic_exit_string, "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
+Result_with_string Mic_load_msg(std::string lang)
+{
+	u8* fs_buffer = NULL;
+	u32 read_size;
+	std::string setting_data[128];
+	Result_with_string result;
+	fs_buffer = (u8*)malloc(0x2000);
+
+	result = File_load_from_rom("mic_" + lang + ".txt", fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	result = Sem_parse_file((char*)fs_buffer, MIC_NUM_OF_MSG, setting_data);
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	for (int k = 0; k < MIC_NUM_OF_MSG; k++)
+		Mic_set_msg(k, setting_data[k]);
+
+	free(fs_buffer);
+	return result;
 }
 
 void Mic_init(void)
@@ -294,7 +316,7 @@ void Mic_init(void)
 		failed = true;
 	}
 
-	Draw_progress("0/1 [Mic] Initializing mic...");
+	Draw_progress("[Mic] Initializing mic...");
 	if (!failed)
 	{
 		log_num = Log_log_save(mic_init_string, "micInit()...", 1234567890, FORCE_DEBUG);
@@ -311,7 +333,7 @@ void Mic_init(void)
 		}
 	}
 
-	Draw_progress("1/1 [Mic] Starting threads...");
+	Draw_progress("[Mic] Starting threads...");
 	if (!failed)
 	{
 		mic_record_thread_run = true;

@@ -28,18 +28,11 @@ std::string main_svc_name_list[10] = { "fs", "ac", "apt", "mcuHwc", "ptmu", "htt
 
 void Init(void)
 {
-	u8* init_buffer;
-	u32 read_size;
 	int log_num;
-	int num_of_msg_list[4] = { GTR_NUM_OF_LANG_LIST_MSG, GTR_NUM_OF_LANG_SHORT_LIST_MSG, CAM_NUM_OF_OPTION_MSG, EXFONT_NUM_OF_FONT_NAME, };
-	std::string setting_data[128];
 	std::string texture_name_list[5] = { "wifi_signal", "battery_level", "battery_charge", "square", "ui", };
-	std::string file_name_list[4] = { "gtr_lang_list", "gtr_short_lang_list", "cam_options", "font_name", };
 	Result_with_string result;
 
 	Log_start_up_time_timer();
-	init_buffer = (u8*)malloc(0x2000);
-	memset(init_buffer, 0x0, 0x2000);
 	Log_log_save(main_init_string , "Initializing...", 1234567890, false);
 	Log_log_save(main_init_string, Menu_query_ver(), 1234567890, false);
 
@@ -55,7 +48,7 @@ void Init(void)
 	Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);
 	Draw_screen_ready_to_draw(1, true, 0, 1.0, 1.0, 1.0);
 	Draw_apply_draw();
-	Draw_progress("0/3 [Main] Initializing service...");
+	Draw_progress("[Main] Initializing service...");
 
 	for (int i = 0; i < 10; i++)
 	{
@@ -101,33 +94,7 @@ void Init(void)
 
 	aptSetSleepAllowed(true);
 
-	Draw_progress("1/3 [Main] Loading messages...");
-
-	for (int i = 0; i < 4; i++)
-	{
-		log_num = Log_log_save(main_init_string, "File_load_from_rom()...", 1234567890, FORCE_DEBUG);
-		result = File_load_from_rom(file_name_list[i] + ".txt", init_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
-		Log_log_add(log_num, result.string, result.code, false);
-		log_num = Log_log_save(main_init_string, "Sem_load_setting()...", 1234567890, FORCE_DEBUG);
-		result = Sem_parse_file((char*)init_buffer, num_of_msg_list[i], setting_data);
-		Log_log_add(log_num, result.string, result.code, false);
-		if (result.code == 0)
-		{
-			for (int k = 0; k < num_of_msg_list[i]; k++)
-			{
-				if(i == 0)
-					Gtr_set_msg(k, GTR_LANG_LIST, setting_data[k]);
-				else if (i == 1)
-					Gtr_set_msg(k, GTR_SHORT_LANG_LIST, setting_data[k]);
-				else if (i == 2)
-					Cam_set_msg(k, CAM_OPTION_MSG, setting_data[k]);
-				else if (i == 3)
-					Exfont_set_msg(k, setting_data[k]);
-			}
-		}
-	}
-
-	Draw_progress("2/3 [Main] Starting threads...");
+	Draw_progress("[Main] Starting threads...");
 	Hid_init();
 	Expl_init();
 	Exfont_init();
@@ -142,7 +109,7 @@ void Init(void)
 		Sem_set_load_system_font_request(i, true);
 
 	Sem_set_operation_flag(SEM_LOAD_EXTERNAL_FONT_REQUEST, true);
-	for(int i = 0; i < 300; i++)
+	for(int i = 0; i < 50; i++)
 	{
 		if(Sem_query_loaded_external_font_flag(0))
 			break;
@@ -151,7 +118,7 @@ void Init(void)
 	}
 	Sem_set_operation_flag(SEM_LOAD_SYSTEM_FONT_REQUEST, true);
 
-	Draw_progress("3/3 [Main] Loading textures...");
+	Draw_progress("[Main] Loading textures...");
 
 	for (int i = 0; i < 5; i++)
 	{
@@ -172,7 +139,6 @@ void Init(void)
 	}
 
 	svcSetThreadPriority(CUR_THREAD_HANDLE, PRIORITY_HIGH - 1);
-	free(init_buffer);
 	Log_log_save(main_init_string , "Initialized.", 1234567890, false);
 }
 

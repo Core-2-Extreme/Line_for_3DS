@@ -22,6 +22,8 @@
 
 void Line_main(void);
 
+Result_with_string Line_load_msg(std::string lang);
+
 void Line_init(void);
 
 void Line_exit(void);

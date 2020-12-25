@@ -14,6 +14,8 @@ void Mic_suspend(void);
 
 void Mic_exit(void);
 
+Result_with_string Mic_load_msg(std::string lang);
+
 void Mic_init(void);
 
 void Mic_main(void);

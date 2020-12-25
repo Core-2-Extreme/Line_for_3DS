@@ -94,6 +94,8 @@ void Sem_exit(void);
 
 void Sem_main(void);
 
+Result_with_string Sem_load_msg(std::string lang);
+
 void Sem_worker_thread(void* arg);
 
 void Sem_check_update_thread(void* arg);

@@ -253,8 +253,6 @@ void Mup_play_thread(void* arg)
 	int log_num = 0;
 	u8* sound_buffer[5] = { NULL, NULL, NULL, NULL, NULL, };
 	u8* cache = NULL;
-	u8 status;
-	u64 file_size = 0;
 	std::string file_name = "";
 	std::string dir_name = "/";
 	ndspWaveBuf ndsp_buffer[5];
@@ -292,7 +290,6 @@ void Mup_play_thread(void* arg)
 			file_name = mup_load_file_name;
 			dir_name = mup_load_dir_name;
 			count = 0;
-			file_size = 0;
 			stream_num = -1;
 			mup_offset = 0;
 			Expl_set_current_patch(dir_name);
@@ -559,7 +556,6 @@ void Mup_exit(void)
 	Log_log_save(mup_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
-	bool failed = false;
 	Result_with_string result;
 
 	if(mup_play_request)
@@ -588,28 +584,51 @@ void Mup_exit(void)
 		if (result.code == 0)
 			Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 		else
-		{
-			failed = true;
 			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-		}
 	}
 
 	threadFree(mup_play_thread);
 	threadFree(mup_timer_thread);
 	threadFree(mup_worker_thread);
-
-	if (failed)
-		Log_log_save(mup_exit_string, "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
 }
+
+Result_with_string Mup_load_msg(std::string lang)
+{
+	u8* fs_buffer = NULL;
+	u32 read_size;
+	std::string setting_data[128];
+	Result_with_string result;
+	fs_buffer = (u8*)malloc(0x2000);
+
+	result = File_load_from_rom("mup_" + lang + ".txt", fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	result = Sem_parse_file((char*)fs_buffer, MUP_NUM_OF_MSG, setting_data);
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	for (int k = 0; k < MUP_NUM_OF_MSG; k++)
+		Mup_set_msg(k, setting_data[k]);
+
+	free(fs_buffer);
+	return result;
+}
+
 
 void Mup_init(void)
 {
 	Log_log_save(mup_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
 	bool failed = false;
-	int log_num;
 	Result_with_string result;
 
-	Draw_progress("0/0 [Mup] Starting threads...");
+	Draw_progress("[Mup] Starting threads...");
 	if (!failed)
 	{
 		mup_play_thread_run = true;

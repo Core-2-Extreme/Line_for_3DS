@@ -24,6 +24,8 @@ void Spt_resume(void);
 
 void Spt_suspend(void);
 
+Result_with_string Spt_load_msg(std::string lang);
+
 void Spt_init(void);
 
 void Spt_exit(void);

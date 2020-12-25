@@ -604,6 +604,41 @@ void Cam_main(void)
 	}
 }
 
+Result_with_string Cam_load_msg(std::string lang)
+{
+	int num_of_msg[2] = { CAM_NUM_OF_OPTION_MSG, CAM_NUM_OF_MSG, };
+	int msg_list[2] = { CAM_OPTION_MSG, CAM_MSG, };
+	u8* fs_buffer = NULL;
+	u32 read_size;
+	std::string setting_data[128];
+	std::string file_name[2] = { "cam_options.txt", "cam_" + lang + ".txt",};
+	Result_with_string result;
+	fs_buffer = (u8*)malloc(0x2000);
+
+	for(int i = 0; i < 2; i++)
+	{
+		result = File_load_from_rom(file_name[i], fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
+		if (result.code != 0)
+		{
+			free(fs_buffer);
+			return result;
+		}
+
+		result = Sem_parse_file((char*)fs_buffer, num_of_msg[i], setting_data);
+		if (result.code != 0)
+		{
+			free(fs_buffer);
+			return result;
+		}
+
+		for (int k = 0; k < num_of_msg[i]; k++)
+			Cam_set_msg(k, msg_list[i], setting_data[k]);
+	}
+
+	free(fs_buffer);
+	return result;
+}
+
 void Cam_init(void)
 {
 	Log_log_save(cam_init_string , "Initializing...", 1234567890, FORCE_DEBUG);
@@ -615,7 +650,7 @@ void Cam_init(void)
 	Result_with_string result;
 	fs_buffer = (u8*)malloc(0x1000);
 
-	Draw_progress("0/3 [Cam] Initializing service...");
+	Draw_progress("[Cam] Initializing service...");
 	log_num = Log_log_save(cam_init_string , "camInit()...", 1234567890, FORCE_DEBUG);
 	result.code = camInit();
 	if (result.code == 0)
@@ -628,7 +663,7 @@ void Cam_init(void)
 		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
 	}
 
-	Draw_progress("1/3 [Cam] Loading settings...");
+	Draw_progress("[Cam] Loading settings...");
 	memset(fs_buffer, 0x0, 0x1000);
 	log_num = Log_log_save(cam_init_string, "File_load_from_file()...", 1234567890, FORCE_DEBUG);
 	result = File_load_from_file("Cam_setting.txt", fs_buffer, 0x2000, &read_size, "/Line/");
@@ -699,7 +734,7 @@ void Cam_init(void)
 	cam_request_lens_correction_mode = cam_lens_correction_mode;
 	cam_request_exposure_mode = cam_exposure_mode;
 
-	Draw_progress("2/3 [Cam] Initializing camera...");
+	Draw_progress("[Cam] Initializing camera...");
 	if (!failed)
 	{
 		log_num = Log_log_save(cam_init_string, "Initializing camera...", 1234567890, FORCE_DEBUG);
@@ -732,7 +767,7 @@ void Cam_init(void)
 		}
 	}
 
-	Draw_progress("3/3 [Cam] Starting threads...");
+	Draw_progress("[Cam] Starting threads...");
 	if (!failed)
 	{
 		cam_capture_thread_run = true;
@@ -754,7 +789,6 @@ void Cam_exit(void)
 	Log_log_save(cam_exit_string , "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
-	bool failed = false;
 	std::string data =  "<0>" + std::to_string(cam_camera_mode) + "</0><1>" + std::to_string(cam_resolution_mode) + "</1><2>" + std::to_string(cam_fps_mode) + "</2>"
 	+ "<3>" + std::to_string(cam_contrast_mode) + "</3><4>" + std::to_string(cam_white_balance_mode) + "</4><5>" + std::to_string(cam_lens_correction_mode) + "</5>"
 	+ "<6>" + std::to_string(cam_exposure_mode) + "</6><7>" + std::to_string(cam_encode_format_mode) + "</7><8>" + std::to_string(cam_noise_filter_mode) + "</8>"
@@ -786,10 +820,7 @@ void Cam_exit(void)
 		if (result.code == 0)
 			Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 		else
-		{
-			failed = true;
 			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-		}
 	}
 
 	threadFree(cam_encode_thread);
@@ -809,10 +840,6 @@ void Cam_exit(void)
 		cam_capture_image[i].tex = NULL;
 		cam_capture_image[i].subtex = NULL;
 	}
-
-	if (failed)
-		Log_log_save(cam_exit_string , "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
-
 }
 
 void Cam_encode_thread(void* arg)

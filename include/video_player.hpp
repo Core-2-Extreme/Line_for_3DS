@@ -24,6 +24,8 @@ void Vid_cancel_select_file(void);
 
 void Vid_exit(void);
 
+Result_with_string Vid_load_msg(std::string lang);
+
 void Vid_init(void);
 
 void Vid_main(void);

@@ -11,6 +11,7 @@
 #include "log.hpp"
 #include "types.hpp"
 #include "setting_menu.hpp"
+#include "file.hpp"
 
 /*For draw*/
 bool spt_need_reflesh = false;
@@ -103,16 +104,45 @@ void Spt_suspend(void)
 	Menu_resume();
 }
 
+Result_with_string Spt_load_msg(std::string lang)
+{
+	u8* fs_buffer = NULL;
+	u32 read_size;
+	std::string setting_data[128];
+	Result_with_string result;
+	fs_buffer = (u8*)malloc(0x2000);
+
+	result = File_load_from_rom("spt_" + lang + ".txt", fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	result = Sem_parse_file((char*)fs_buffer, SPT_NUM_OF_MSG, setting_data);
+	if (result.code != 0)
+	{
+		free(fs_buffer);
+		return result;
+	}
+
+	for (int k = 0; k < SPT_NUM_OF_MSG; k++)
+		Spt_set_msg(k, setting_data[k]);
+
+	free(fs_buffer);
+	return result;
+}
+
 void Spt_init(void)
 {
 	Log_log_save(spt_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
 
-	Draw_progress("0/0 [Spt] Starting threads...");
+	Draw_progress("[Spt] Starting threads...");
 	spt_thread_run = true;
 	spt_spt_thread = threadCreate(Spt_spt_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
 	spt_timer_thread = threadCreate(Spt_timer_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, 1, false);
 
- 	Spt_reset_data();
+	Spt_reset_data();
 	Spt_resume();
 	spt_already_init = true;
 	Log_log_save(spt_init_string, "Initialized.", 1234567890, FORCE_DEBUG);
@@ -123,9 +153,7 @@ void Spt_exit(void)
 	Log_log_save(spt_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
 	u64 time_out = 10000000000;
 	int log_num;
-	bool failed = false;
 	Result_with_string result;
-
 
 	Draw_progress("[Spt] Exiting...");
 	spt_already_init = false;
@@ -137,26 +165,17 @@ void Spt_exit(void)
 	if (result.code == 0)
 		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
-	{
-		failed = true;
 		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-	}
 
 	log_num = Log_log_save(spt_exit_string, "threadJoin()1/1...", 1234567890, FORCE_DEBUG);
 	result.code = threadJoin(spt_timer_thread, time_out);
 	if (result.code == 0)
 		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
-	{
-		failed = true;
 		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-	}
 
 	threadFree(spt_spt_thread);
 	threadFree(spt_timer_thread);
-
-	if (failed)
-		Log_log_save(spt_exit_string, "[Warn] Some function returned error.", 1234567890, FORCE_DEBUG);
 
 	Log_log_save(spt_exit_string, "Exited.", 1234567890, FORCE_DEBUG);
 }

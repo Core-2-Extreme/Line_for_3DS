@@ -1,9 +1,5 @@
 #pragma once
 
-#include "citro2d.h"
-
-#include "types.hpp"
-
 #define IMV_NUM_OF_MSG 7
 
 #define IMV_HTTPC_BUFFER 0
@@ -30,6 +26,8 @@ void Imv_cancel_select_file(void);
 void Imv_suspend(void);
 
 void Imv_resume(void);
+
+Result_with_string Imv_load_msg(std::string lang);
 
 void Imv_init(void);
 

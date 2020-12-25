@@ -11,6 +11,8 @@
 #define CAM_MSG 0
 #define CAM_OPTION_MSG 1
 
+Result_with_string Cam_load_msg(std::string lang);
+
 void Cam_main(void);
 
 void Cam_init(void);
