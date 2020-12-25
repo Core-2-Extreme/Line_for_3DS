@@ -393,7 +393,7 @@ void Mic_main(void)
 			Draw(mic_msg[i], 0, (draw_x + 2.5), draw_y + 20.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			draw_x += 60.0;
 		}
-		Draw(Sem_convert_seconds_to_time((double)mic_record_time / (16360 / 8.0)) + " / " + Sem_convert_seconds_to_time((double)mic_max_time / (16360 / 8.0)), 0, 12.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(Sem_convert_seconds_to_time((double)mic_record_time / (16360 * 2.0)) + " / " + Sem_convert_seconds_to_time((double)mic_max_time / (16360 * 2.0)), 0, 12.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		Draw_texture(Square_image, aqua_tint, 0, 10.0, 120.0, 300.0, 5.0);
 		if(mic_max_time != 0.0)
 			Draw_texture(Square_image, red_tint, 0, 10.0, 120.0, 300.0 * (mic_record_time / mic_max_time), 5.0);
