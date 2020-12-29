@@ -251,7 +251,7 @@ void Vid_decode_video_thread(void* arg)
 					else
 					{
 						if(vid_get_info_request)
-						{
+						{							
 							vid_framerate = (double)context[0]->framerate.num / (double)context[0]->framerate.den;
 							vid_video_width = vid_raw_data[buffer_num]->width;
 							vid_video_height = vid_raw_data[buffer_num]->height;
@@ -266,10 +266,10 @@ void Vid_decode_video_thread(void* arg)
 
 							vid_zoom = 1.0;
 							while(vid_video_width * vid_zoom > 400.0 || vid_video_height * vid_zoom > 220.0)
-								vid_zoom -= 0.01;
+								vid_zoom -= 0.0001;
 
-							vid_x = 0;
-							vid_y = 15;
+							vid_x = (400 - (vid_video_width * vid_zoom)) / 2;
+							vid_y = 15 + ((220 - (vid_video_height * vid_zoom)) / 2);
 							vid_get_info_request = false;
 						}
 
@@ -464,13 +464,13 @@ void Vid_worker_thread(void* arg)
 					{
 						const AVCodecDescriptor* codec_info = NULL;
 						codec_info = avcodec_descriptor_get(format_context->streams[vid_video_stream_num]->codecpar->codec_id);
-						vid_current_video_format = codec_info->long_name;
+						vid_current_video_format = codec_info->name;
 					}
 					if(context[1])
 					{
 						const AVCodecDescriptor* codec_info = NULL;
 						codec_info = avcodec_descriptor_get(format_context->streams[vid_audio_stream_num]->codecpar->codec_id);
-						vid_current_audio_format = codec_info->long_name;
+						vid_current_audio_format = codec_info->name;
 					}
 					/*if(context[0]->codec->max_lowres >= 2 && vid_strong_down_sampling)
 						context[0]->lowres = 2;
@@ -681,18 +681,6 @@ void Vid_worker_thread(void* arg)
 				}
 			}
 
-			while(ndsp_buffer[0].status == NDSP_WBUF_PLAYING || ndsp_buffer[0].status == NDSP_WBUF_QUEUED
-			|| ndsp_buffer[1].status == NDSP_WBUF_PLAYING || ndsp_buffer[1].status == NDSP_WBUF_QUEUED
-			|| ndsp_buffer[2].status == NDSP_WBUF_PLAYING || ndsp_buffer[2].status == NDSP_WBUF_QUEUED
-			|| ndsp_buffer[3].status == NDSP_WBUF_PLAYING || ndsp_buffer[3].status == NDSP_WBUF_QUEUED
-			|| ndsp_buffer[4].status == NDSP_WBUF_PLAYING || ndsp_buffer[4].status == NDSP_WBUF_QUEUED)
-			{
-				if(vid_stop_request || vid_change_video_request)
-					break;
-
-				usleep(25000);
-			}
-
 			while(vid_decoding || vid_converting)
 				usleep(10000);
 
@@ -736,6 +724,7 @@ void Vid_convert_thread(void* arg)
 	int height = 0;
 	int parse_x = 0;
 	int parse_y = 0;
+	int cpy_size[2] = { 0, 0, };
 	Result_with_string result;
 
 	while (vid_convert_thread_run)
@@ -756,9 +745,13 @@ void Vid_convert_thread(void* arg)
 				if(vid_raw_data[vid_buffer_num]->data[0] != NULL)
 				{
 					//log_num = Log_log_save(vid_convert_thread_string, "memcpy_asm()...", 1234567890, false);
-					memcpy_asm(yuv_data[vid_buffer_num], vid_raw_data[vid_buffer_num]->data[0], vid_video_width * vid_video_height);
-					memcpy_asm(yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height), vid_raw_data[vid_buffer_num]->data[1], vid_video_width * vid_video_height / 4);
-					memcpy_asm(yuv_data[vid_buffer_num] + ((vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4)), vid_raw_data[vid_buffer_num]->data[2], vid_video_width * vid_video_height / 4);
+					cpy_size[0] = vid_video_width * vid_video_height;
+					cpy_size[1] = vid_video_width * vid_video_height / 4;
+					cpy_size[0] -= cpy_size[0] % 32;
+					cpy_size[1] -= cpy_size[1] % 32;
+					memcpy_asm(yuv_data[vid_buffer_num], vid_raw_data[vid_buffer_num]->data[0], cpy_size[0]);
+					memcpy_asm(yuv_data[vid_buffer_num] + (vid_video_width * vid_video_height), vid_raw_data[vid_buffer_num]->data[1], cpy_size[1]);
+					memcpy_asm(yuv_data[vid_buffer_num] + ((vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 4)), vid_raw_data[vid_buffer_num]->data[2], cpy_size[1]);
 					//Log_log_add(log_num, "", 1234567890, false);
 	//				memcpy(yuv_data[1], yuv_data[0], (vid_video_width * vid_video_height) + (vid_video_width * vid_video_height / 2));
 
@@ -1276,8 +1269,7 @@ void Vid_main(void)
 		else if(vid_menu_mode == 1)
 		{
 			Draw_texture(Square_image, yellow_tint, 0, 85.0, 185.0, 75.0, 10.0);
-			Draw(vid_current_video_format, 0, 10.0, 195.0, 0.35, 0.35, 1.0, 0.0, 0.0, 1.0);
-			Draw(vid_current_audio_format, 0, 10.0, 202.5, 0.35, 0.35, 1.0, 0.0, 0.0, 1.0);
+			Draw(vid_current_video_format + " , " + vid_current_audio_format, 0, 10.0, 195.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 			Draw(std::to_string(vid_video_width) + " x " + std::to_string(vid_video_height) + "@" + std::to_string(vid_framerate).substr(0, 5) + "fps " + std::to_string(vid_read_fps) + " / " + std::to_string(vid_decode_fps) + " / " + std::to_string(vid_convert_fps) + "fps  Skipped " + std::to_string(vid_frames - vid_decoded_frames) + " / " + std::to_string(vid_frames), 0, 10.0, 210.0, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
 		}
 		Draw(vid_msg[3], 0, 12.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
