@@ -356,7 +356,7 @@ void Mup_play_thread(void* arg)
 						if(context)
 						{
 							codec_info = avcodec_descriptor_get(format_context->streams[stream_num]->codecpar->codec_id);
-							mup_file_type = codec_info->long_name;
+							mup_file_type = codec_info->name;
 						}
 
 						count = 0;
