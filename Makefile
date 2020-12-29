@@ -57,7 +57,7 @@ RSF_PATH				:= resource/app.rsf
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
+ARCH	:=	-march=armv6k -mfloat-abi=hard -mtune=mpcore -mtp=cp15
 
 CFLAGS	:= -Wall -O2 -mword-relocations \
 		-fomit-frame-pointer -ffunction-sections \
