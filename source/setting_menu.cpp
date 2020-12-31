@@ -266,6 +266,15 @@ bool Sem_query_loaded_external_font_flag(int external_font_num)
 		return false;
 }
 
+void Sem_init_font_flag(void)
+{
+	for(int i = 0; i < EXFONT_NUM_OF_FONT_NAME; i++)
+	{
+		sem_pre_loaded_external_font[i] = false;
+		sem_loaded_external_font[i] = false;
+	}
+}
+
 bool Sem_query_loaded_system_font_flag(int system_font_num)
 {
 	if(system_font_num == sem_system_region)

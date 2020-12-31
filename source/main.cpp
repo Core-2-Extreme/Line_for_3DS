@@ -43,6 +43,7 @@ void Init(void)
 	C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
 	C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
 
+	Sem_init_font_flag();
 	Draw_init();
 	Draw_frame_ready();
 	Draw_screen_ready_to_draw(0, true, 0, 1.0, 1.0, 1.0);

@@ -453,24 +453,8 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 		{
 			for(u32 i = 0; i < x_max; i += 2)
 			{
-				buf_pos = Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size);
-				__asm(
-				"mov %0, %4;"//move 32bit???
-				//"mov %1, %5;"//doesn't need???
-				//"mov %2, %6;"//doesn't need???
-				//"mov %3, %7;"//doesn't need???
-				: "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 1]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 2]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 3])
-				: "r" (((u8*)buf)[buf_pos]), "r" (((u8*)buf)[buf_pos + 1]), "r" (((u8*)buf)[buf_pos + 2]), "r" (((u8*)buf)[buf_pos + 3])
-				);
-
-				__asm(
-				"mov %0, %4;"//move 32bit???
-				//"mov %1, %5;"//doesn't need???
-				//"mov %2, %6;"//doesn't need???
-				//"mov %3, %7;"//doesn't need???
-				: "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 4]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 5]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 6]), "=r" (((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 7])
-				: "r" (((u8*)buf)[buf_pos + 4]), "r" (((u8*)buf)[buf_pos + 5]), "r" (((u8*)buf)[buf_pos + 6]), "r" (((u8*)buf)[buf_pos + 7])
-				);
+				memcpy_asm_4b(&(((u8*)c3d_tex->data)[c3d_pos + c3d_offset]), &(((u8*)buf)[Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size)]));
+				memcpy_asm_4b(&(((u8*)c3d_tex->data)[c3d_pos + c3d_offset + 4]), &(((u8*)buf)[Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size) + 4]));
 
 				//memcpy(&((u8*)c3d_tex->data)[c3d_pos + c3d_offset], &((u8*)buf)[Draw_convert_to_pos(k + parse_start_height, i + parse_start_width, height, width, pixel_size)], pixel_size * 2);
 				c3d_pos += increase_list_x[count[0]];
@@ -531,6 +515,7 @@ void Draw_set_do_not_draw_flag(bool flag)
 	draw_do_not_draw = flag;
 }
 
+#include <unistd.h>
 void Draw(std::string text, int type, float x, float y, float text_size_x, float text_size_y, float r, float g, float b, float a)
 {
 	bool reverse = false;
@@ -566,8 +551,8 @@ void Draw(std::string text, int type, float x, float y, float text_size_x, float
 		}
 
 		if((memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[2].c_str(), 0x3) > 0 && memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[3].c_str(), 0x3) < 0)
-	  || (memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[4].c_str(), 0x3) > 0 && memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[5].c_str(), 0x3) < 0)
-  	|| (memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[6].c_str(), 0x3) > 0 && memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[7].c_str(), 0x3) < 0))
+		|| (memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[4].c_str(), 0x3) > 0 && memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[5].c_str(), 0x3) < 0)
+		|| (memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[6].c_str(), 0x3) > 0 && memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[7].c_str(), 0x3) < 0))
 		{
 			if(memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[2].c_str(), 0x3) > 0 && memcmp((void*)draw_part_text[0][i].c_str(), (void*)sample[3].c_str(), 0x3) < 0)
 			{
@@ -682,6 +667,9 @@ void Draw(std::string text, int type, float x, float y, float text_size_x, float
 
 		if(!Sem_query_loaded_external_font_flag(0) || (font_num_list[1][i] >= 0 && font_num_list[1][i] <= 3))
 		{
+			if(!Sem_query_loaded_external_font_flag(0))
+				system_fonts[font_num_list[1][i]] = 0;
+
 			C2D_TextBufClear(c2d_buf);
 			if(font_num_list[1][i] == 1)
 				y_offset = 3 * text_size_y;
@@ -849,7 +837,7 @@ void Draw_progress(std::string message)
 	if (draw_do_not_draw)
 		return;
 
-  for(int i = 0; i < 2; i++)
+	for(int i = 0; i < 2; i++)
 	{
 		Draw_frame_ready();
 		if (Sem_query_settings(SEM_NIGHT_MODE))
@@ -860,7 +848,7 @@ void Draw_progress(std::string message)
 		Draw(message, 0, 80.0, 110.0, 0.75, 0.75, 0.0, 0.5, 1.0, 1.0);
 
 		Draw_apply_draw();
-  }
+	}
 }
 
 void Draw_log(bool force_draw)

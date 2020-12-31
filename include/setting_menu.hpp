@@ -56,6 +56,8 @@ std::string Sem_query_lang(void);
 
 bool Sem_query_loaded_external_font_flag(int external_font_num);
 
+void Sem_init_font_flag(void);
+
 bool Sem_query_loaded_system_font_flag(int system_font_num);
 
 bool Sem_query_operation_flag(int operation_num);
