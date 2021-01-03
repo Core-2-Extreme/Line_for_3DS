@@ -96,7 +96,7 @@ std::string vid_current_audio_format = "none";
 std::string vid_load_file_name = "video.mp4";
 std::string vid_load_dir_name = "/Line/";
 std::string vid_msg[VID_NUM_OF_MSG];
-std::string vid_ver = "v1.0.1";
+std::string vid_ver = "v1.0.2";
 std::string vid_timer_thread_string = "Vid/Timer thread";
 std::string vid_decord_video_thread_string = "Vid/Decode video thread";
 std::string vid_convert_thread_string = "Vid/Convert thread";
@@ -262,7 +262,7 @@ void Vid_decode_video_thread(void* arg)
 						vid_decoding_time[count + 15] = 1000.0;
 					
 					count++;
-					if(count > 320)
+					if(count >= 320)
 					{
 						count = 0;
 						for(int i = 0; i < 15; i++)
@@ -275,7 +275,7 @@ void Vid_decode_video_thread(void* arg)
 					else
 					{
 						if(vid_get_info_request)
-						{							
+						{
 							vid_framerate = (double)context[0]->framerate.num / (double)context[0]->framerate.den;
 							vid_video_width = vid_raw_data[buffer_num]->width;
 							vid_video_height = vid_raw_data[buffer_num]->height;
