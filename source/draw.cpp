@@ -420,8 +420,6 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 	c3d_subtex->top = 1.0f;
 	c3d_subtex->right = x_max / (float)tex_size_x;
 	c3d_subtex->bottom = 1.0 - y_max / (float)tex_size_y;
-	Log_log_save("", "r" + std::to_string(c3d_subtex->right) + " b" + std::to_string(c3d_subtex->bottom) + " x" + std::to_string(x_max) + " y" + std::to_string(y_max), 1234567890, false);
-
 
 	if(pixel_size == 2)
 	{
