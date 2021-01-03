@@ -52,6 +52,8 @@ int imv_img_dl_progress = 0;
 int imv_img_pos_x = 0;
 int imv_img_pos_y = 0;
 int imv_max_buffer_size = 0x200000;
+double imv_x_size[64];
+double imv_y_size[64];
 double imv_img_zoom = 0.5;
 const char* imv_failed_reason;
 std::string imv_img_load_dir_name = "";
@@ -209,6 +211,8 @@ void Imv_init(void)
 		imv_c2d_image[i].tex = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
 		imv_c2d_image[i].subtex = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
 		imv_enable[i] = false;
+		imv_x_size[i] = 0.0;
+		imv_y_size[i] = 0.0;
 	}
 
 	Imv_resume();
@@ -333,7 +337,7 @@ void Imv_main(void)
 				img_pos_y_offset += tex_size_y;
 			}
 			if (imv_enable[i])
-				Draw_texture(imv_c2d_image, dammy_tint, i, (imv_img_pos_x + img_pos_x_offset), (imv_img_pos_y + img_pos_y_offset), tex_size_x, tex_size_y);
+				Draw_texture(imv_c2d_image, dammy_tint, i, (imv_img_pos_x + img_pos_x_offset), (imv_img_pos_y + img_pos_y_offset), imv_x_size[i] * imv_img_zoom, imv_y_size[i] * imv_img_zoom);
 
 			img_pos_x_offset += tex_size_x;
 		}
@@ -357,7 +361,7 @@ void Imv_main(void)
 				img_pos_y_offset += tex_size_y;
 			}
 			if (imv_enable[i])
-				Draw_texture(imv_c2d_image, dammy_tint, i, (imv_img_pos_x + img_pos_x_offset - 40), (imv_img_pos_y + img_pos_y_offset - 240), tex_size_x, tex_size_y);
+				Draw_texture(imv_c2d_image, dammy_tint, i, (imv_img_pos_x + img_pos_x_offset - 40), (imv_img_pos_y + img_pos_y_offset - 240), imv_x_size[i] * imv_img_zoom, imv_y_size[i] * imv_img_zoom);
 
 			img_pos_x_offset += tex_size_x;
 		}
@@ -499,6 +503,11 @@ void Imv_img_parse_thread(void* arg)
 	{
 		if (imv_img_parse_request)
 		{
+			for (int i = 0; i < 64; i++)
+			{
+				imv_x_size[i] = 0.0;
+				imv_y_size[i] = 0.0;
+			}
 			log_num = Log_log_save(imv_img_parse_thread_string, "APT_SetAppCpuTimeLimit()...", 1234567890, false);
 			result.code = APT_SetAppCpuTimeLimit(80);
 			if (result.code == 0)
@@ -548,9 +557,18 @@ void Imv_img_parse_thread(void* arg)
 				{
 					if (!(parse_start_pos_x > imv_img_width || parse_start_pos_y > imv_img_height))
 					{
+						imv_x_size[i] = imv_img_width - parse_start_pos_x;
+						imv_y_size[i] = imv_img_height - parse_start_pos_y;
+						if(imv_x_size[i] > 512)
+							imv_x_size[i] = 512;
+						if(imv_y_size[i] > 512)
+							imv_y_size[i] = 512;
+						
 						imv_enable[i] = true;
 						log_num = Log_log_save(imv_img_parse_thread_string, "Draw_create_texture()...", 1234567890, false);
 						result = Draw_create_texture(imv_c2d_image[i].tex, (Tex3DS_SubTexture*)imv_c2d_image[i].subtex, stb_image, (u32)(imv_img_width * imv_img_height * 4), imv_img_width, imv_img_height, 4, parse_start_pos_x, parse_start_pos_y, 512, 512, GPU_RGBA8);
+
+
 						Log_log_add(log_num, result.string, result.code, false);
 						if (result.code != 0)
 						{

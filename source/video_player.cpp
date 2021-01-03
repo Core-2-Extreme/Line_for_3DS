@@ -22,6 +22,7 @@ extern "C" {
 #include "libavformat/avformat.h"
 #include "libswresample/swresample.h"
 }
+extern "C" void memcpy_asm(u8*, u8*, int);
 
 /*For draw*/
 bool vid_need_reflesh = false;
@@ -56,6 +57,7 @@ bool vid_scroll_mode = false;
 bool vid_dl_and_decode_request = false;
 bool vid_count_request = false;
 bool vid_count_reset_request = false;
+bool vid_display_decoding_detail = false;
 bool vid_enable[16];
 bool vid_button_selected[2] = { false, false, };
 u64 vid_offset = 0;
@@ -76,6 +78,9 @@ int vid_temp_convert_fps = 0;
 int vid_frames = 0;
 int vid_decoded_frames = 0;
 int vid_menu_mode = 0;
+float vid_decoding_time[320];
+double vid_x_size[16];
+double vid_y_size[16];
 double vid_bit_rate = 0.0;
 double vid_video_length = 0.0;
 double vid_bar_pos = 0.0;
@@ -217,6 +222,10 @@ void Vid_decode_video_thread(void* arg)
 	int ffmpeg_result = 0;
 	int buffer_num = 0;
 	int size = 0;
+	int count = 0;
+	TickCounter decoding_time;
+	osTickCounterStart(&decoding_time);
+
 	Result_with_string result;
 	AVPacket *packet = NULL;
 
@@ -229,6 +238,7 @@ void Vid_decode_video_thread(void* arg)
 				vid_decode_video_request = false;
 				vid_decoding = true;
 				vid_decoded_frames++;
+				osTickCounterUpdate(&decoding_time);
 				packet = av_packet_alloc();
 				vid_raw_data[buffer_num] = av_frame_alloc();
 
@@ -241,9 +251,23 @@ void Vid_decode_video_thread(void* arg)
 						usleep(100);
 
 					av_packet_ref(packet, vid_packet);
+
 					ffmpeg_result = avcodec_send_packet(context[0], packet);
 					if(ffmpeg_result != 0)
 						Log_log_save(vid_worker_thread_string, "avcodec_send_packet()...[Error] ", ffmpeg_result, false);
+
+					osTickCounterUpdate(&decoding_time);
+					vid_decoding_time[count] = osTickCounterRead(&decoding_time);
+					if(count + 15 < 320)
+						vid_decoding_time[count + 15] = 1000.0;
+					
+					count++;
+					if(count > 320)
+					{
+						count = 0;
+						for(int i = 0; i < 15; i++)
+							vid_decoding_time[i] = 1000.0;
+					}
 
 					ffmpeg_result = avcodec_receive_frame(context[0], vid_raw_data[buffer_num]);
 					if(ffmpeg_result != 0)
@@ -269,7 +293,7 @@ void Vid_decode_video_thread(void* arg)
 								vid_zoom -= 0.0001;
 
 							vid_x = (400 - (vid_video_width * vid_zoom)) / 2;
-							vid_y = 15 + ((220 - (vid_video_height * vid_zoom)) / 2);
+							vid_y = 15 + ((225 - (vid_video_height * vid_zoom)) / 2);
 							vid_get_info_request = false;
 						}
 
@@ -376,7 +400,11 @@ void Vid_worker_thread(void* arg)
 			APT_SetAppCpuTimeLimit(80);
 			osTickCounterUpdate(&timer);
 			for(int i = 0; i < 16; i++)
+			{
 				vid_enable[i] = false;
+				vid_x_size[i] = 0.0;
+				vid_y_size[i] = 0.0;
+			}
 
 			vid_stop_request = false;
 			vid_pause_request = false;
@@ -714,7 +742,6 @@ void Vid_worker_thread(void* arg)
 	threadExit(0);
 }
 
-extern "C" void memcpy_asm(u8*, u8*, int);
 void Vid_convert_thread(void* arg)
 {
 	Log_log_save(vid_convert_thread_string, "Thread started.", 1234567890, false);
@@ -782,6 +809,13 @@ void Vid_convert_thread(void* arg)
 						{
 							if(parse_x <= vid_video_width && parse_y <= vid_video_height)
 							{
+								vid_x_size[i] = vid_video_width - parse_x;
+								vid_y_size[i] = vid_video_height - parse_y;
+								if(vid_x_size[i] > 512)
+									vid_x_size[i] = 512;
+								if(vid_y_size[i] > 512)
+									vid_y_size[i] = 512;
+
 								//log_num = Log_log_save(vid_convert_thread_string, "Draw_create_texture()..." + result.string, result.code, false);
 								result = Draw_create_texture(vid_c2d_image[(process_pic_num * 16) + i].tex, (Tex3DS_SubTexture*)vid_c2d_image[(process_pic_num * 16) + i].subtex, vid_bgr_data[process_pic_num], (u32)(width  * height * 2), width, height, 2, parse_x, parse_y, 512, 512, GPU_RGB565);
 								//Log_log_add(log_num, "", 1234567890, false);
@@ -967,117 +1001,22 @@ void Vid_init(void)
 		vid_c2d_image[i].tex = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
 		vid_c2d_image[i].subtex = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
 	}
+	for(int i = 0; i < 16; i++)
+	{
+		vid_x_size[i] = 0.0;
+		vid_y_size[i] = 0.0;
+	}
 
 	for(int i = 0; i < 16; i++)
 		vid_enable[i] = false;
 
+	for(int i = 0; i < 320; i++)
+		vid_decoding_time[i] = 0.0;
+	
 	vid_stop_request = false;
 	Vid_resume();
 	vid_already_init = true;
 	Log_log_save(vid_init_string, "Initialized", 1234567890, FORCE_DEBUG);
-}
-
-void Test_thread(void* args)
-{
-	std::string file = "/test.mp4";
-	int ffmpeg_result = 0;
-	int video_stream_num = 0;
-	AVCodecContext *context = NULL;
-	AVFrame *raw_image = NULL;
-	AVPacket *packet = NULL;
-	AVCodec *codec = NULL;
-	AVFormatContext* format_context = NULL;
-
-	//alloc memory
-	//Log_log_save() is my logging api you can use printf() insted.
-	format_context = avformat_alloc_context();
-	packet = av_packet_alloc();
-	raw_image = av_frame_alloc();
-	if(!format_context || !packet || !raw_image)
-			Log_log_save("debug", "alloc failed ", -1, false);
-	else
-			Log_log_save("debug", "alloc ok ", 0, false);
-
-	//open file
-	ffmpeg_result = avformat_open_input(&format_context, file.c_str(), NULL, NULL);
-	if(ffmpeg_result != 0)
-			Log_log_save("debug", "avformat_open_input() failed ", -1, false);
-	else
-			Log_log_save("debug", "avformat_open_input() ok ", 0, false);
-
-	//search video stream
-	for(int i = 0; i < (int)format_context->nb_streams; i++)
-	{
-			if (format_context->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
-			{
-					video_stream_num = i;
-					break;
-			}
-	}
-
-	Log_log_save("debug", "video stream " + std::to_string(video_stream_num) + " ", 0, false);
-
-	//find decoder
-	codec = avcodec_find_decoder(format_context->streams[video_stream_num]->codecpar->codec_id);
-	if(!codec)
-			Log_log_save("debug", "avcodec_find_decoder() failed ", -1, false);
-	else
-			Log_log_save("debug", "avcodec_find_decoder() ok ", 0, false);
-
-	//alloc memory
-	context = avcodec_alloc_context3(codec);
-	if(!context)
-			Log_log_save("debug", "alloc failed ", -1, false);
-	else
-			Log_log_save("debug", "alloc ok ", 0, false);
-
-	ffmpeg_result = avcodec_parameters_to_context(context, format_context->streams[video_stream_num]->codecpar);
-	if(ffmpeg_result == 0)
-		Log_log_save("debug", "avcodec_parameters_to_context() ok ", ffmpeg_result, false);
-	else
-		Log_log_save("debug", "avcodec_parameters_to_context() failed ", ffmpeg_result, false);
-
-	//open codec
-	ffmpeg_result = avcodec_open2(context, codec, NULL);
-	if(ffmpeg_result != 0)
-			Log_log_save("debug", "avcodec_open2() failed ", ffmpeg_result, false);
-	else
-			Log_log_save("debug", "avcodec_open2() ok ", ffmpeg_result, false);
-
-	while(true)
-	{
-			//read 1 frame
-			ffmpeg_result = av_read_frame(format_context, packet);
-			if(ffmpeg_result != 0)
-					Log_log_save("debug", "av_read_frame() failed ", ffmpeg_result, false);
-			else
-					Log_log_save("debug", "av_read_frame() ok ", ffmpeg_result, false);
-
-			Log_log_save("debug", "frame size " + std::to_string(packet->size) + " ", 0, false);
-
-			if(packet->stream_index == format_context->streams[video_stream_num]->index) //if frame was video data
-			{
-					Log_log_save("debug", "video frame ", 0, false);
-
-					ffmpeg_result = avcodec_send_packet(context, packet);
-					if(ffmpeg_result != 0)
-							Log_log_save("debug", "avcodec_send_packet() failed ", ffmpeg_result, false);
-					else
-							Log_log_save("debug", "avcodec_send_packet() ok ", ffmpeg_result, false);
-
-					ffmpeg_result = avcodec_receive_frame(context, raw_image);
-					if(ffmpeg_result != 0)
-							Log_log_save("debug", "avcodec_receive_frame() failed ", ffmpeg_result, false);
-					else
-							Log_log_save("debug", "avcodec_receive_frame() ok ", ffmpeg_result, false);
-
-		//      Log_log_save("debug", "w " + std::to_string(raw_image->width) + " h " + std::to_string(raw_image->height) + " format " + av_get_pix_fmt_name((AVPixelFormat)raw_image->format), 1234567890, false);
-
-					break;
-			}
-			else
-					Log_log_save("debug", "other frame retrying... ", 0, false);
-	}
 }
 
 void Vid_main(void)
@@ -1177,7 +1116,7 @@ void Vid_main(void)
 		for(int i = 0; i < 16; i++)
 		{
 			if(vid_enable[i])
-				Draw_texture(vid_c2d_image, dammy_tint, (16 * vid_pic_num) + i, (vid_x + draw_x), (vid_y + draw_y), tex_size_x, tex_size_y);
+				Draw_texture(vid_c2d_image, dammy_tint, (16 * vid_pic_num) + i, (vid_x + draw_x), (vid_y + draw_y), vid_x_size[i] * vid_zoom, vid_y_size[i] * vid_zoom);
 
 			if(draw_x + tex_size_x > tex_size_x * 3)
 			{
@@ -1205,7 +1144,7 @@ void Vid_main(void)
 		for(int i = 0; i < 16; i++)
 		{
 			if(vid_enable[i])
-				Draw_texture(vid_c2d_image, dammy_tint, (16 * vid_pic_num) + i, (vid_x + draw_x - 40.0), (vid_y + draw_y - 240.0), tex_size_x, tex_size_y);
+				Draw_texture(vid_c2d_image, dammy_tint, (16 * vid_pic_num) + i, (vid_x + draw_x - 40.0), (vid_y + draw_y - 240.0), vid_x_size[i] * vid_zoom, vid_y_size[i] * vid_zoom);
 
 			if(draw_x + tex_size_x > tex_size_x * 3)
 			{
@@ -1214,6 +1153,11 @@ void Vid_main(void)
 			}
 			else
 				draw_x += tex_size_x;
+		}
+
+		if (vid_display_decoding_detail)
+		{
+			
 		}
 
 		Draw_texture(Square_image, weak_yellow_tint, 0, 5.0, 155.0, 310.0, 70.0);
@@ -1271,6 +1215,20 @@ void Vid_main(void)
 			Draw_texture(Square_image, yellow_tint, 0, 85.0, 185.0, 75.0, 10.0);
 			Draw(vid_current_video_format + " , " + vid_current_audio_format, 0, 10.0, 195.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
 			Draw(std::to_string(vid_video_width) + " x " + std::to_string(vid_video_height) + "@" + std::to_string(vid_framerate).substr(0, 5) + "fps " + std::to_string(vid_read_fps) + " / " + std::to_string(vid_decode_fps) + " / " + std::to_string(vid_convert_fps) + "fps  Skipped " + std::to_string(vid_frames - vid_decoded_frames) + " / " + std::to_string(vid_frames), 0, 10.0, 210.0, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
+
+			Draw_texture(Square_image, weak_aqua_tint, 0, 210.0, 195.0, 100.0, 15.0);
+			if(vid_display_decoding_detail)
+			{
+				Draw("Display detail : ON", 0, 212.5, 195.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+
+				if(vid_framerate != 0.0)
+					Draw_texture(Square_image, aqua_tint, 0, 0.0, 140.0 - (1000.0 / vid_framerate), 320.0, 1.0);
+				for(int i = 0; i < 320; i++)
+					Draw_texture(Square_image, red_tint, 0, i, 140.0 - vid_decoding_time[i], 2.0, 2.0);
+				
+			}
+			else
+				Draw("Display detail : OFF", 0, 212.5, 195.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 		}
 		Draw(vid_msg[3], 0, 12.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
 		Draw(vid_msg[4], 0, 87.5, 185.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
@@ -1388,6 +1346,8 @@ void Vid_main(void)
 			vid_zoom += 0.01;
 			vid_need_reflesh = true;
 		}
+		else if(vid_menu_mode == 1 && key.p_touch && key.touch_x >= 210 && key.touch_x <= 309 && key.touch_y >= 195 && key.touch_y <= 209)
+			vid_display_decoding_detail = !vid_display_decoding_detail;
 
 		if(key.h_c_down || key.h_c_up || key.h_c_left || key.h_c_right || key.h_r || key.h_l || vid_touch_x_move_left != 0.0 || vid_touch_y_move_left != 0.0)
 		{

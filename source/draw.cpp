@@ -388,15 +388,6 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 		increase_list_y[i] *= pixel_size;
 	*/
 
-
-	u32 subtex_width = width;
-	u32 subtex_height = height;
-
-	if (subtex_width > (u32)tex_size_x)
-		subtex_width = (u32)tex_size_x;
-	if (subtex_height > (u32)tex_size_y)
-		subtex_height = (u32)tex_size_y;
-
 	if (parse_start_width > (int)width || parse_start_height > (int)height)
 	{
 		result.code = WRONG_PARSING_POS;
@@ -413,22 +404,24 @@ Result_with_string Draw_create_texture(C3D_Tex* c3d_tex, Tex3DS_SubTexture* c3d_
 		return result;
 	}
 
-	c3d_subtex->width = (u16)subtex_width;
-	c3d_subtex->height = (u16)subtex_height;
-	c3d_subtex->left = 0.0f;
-	c3d_subtex->top = 1.0f;
-	c3d_subtex->right = subtex_width / (float)tex_size_x;
-	c3d_subtex->bottom = 1.0 - subtex_height / (float)tex_size_y;
-
-	memset(c3d_tex->data, 0x0, c3d_tex->size);
+	//memset(c3d_tex->data, 0xFF, c3d_tex->size);
 	C3D_TexSetFilter(c3d_tex, GPU_LINEAR, GPU_LINEAR);
-
+	
 	y_max = height - (u32)parse_start_height;
 	x_max = width - (u32)parse_start_width;
 	if ((u32)tex_size_y < y_max)
 		y_max = tex_size_y;
 	if ((u32)tex_size_x < x_max)
 		x_max = tex_size_x;
+
+	c3d_subtex->width = (u16)x_max;
+	c3d_subtex->height = (u16)y_max;
+	c3d_subtex->left = 0.0f;
+	c3d_subtex->top = 1.0f;
+	c3d_subtex->right = x_max / (float)tex_size_x;
+	c3d_subtex->bottom = 1.0 - y_max / (float)tex_size_y;
+	Log_log_save("", "r" + std::to_string(c3d_subtex->right) + " b" + std::to_string(c3d_subtex->bottom) + " x" + std::to_string(x_max) + " y" + std::to_string(y_max), 1234567890, false);
+
 
 	if(pixel_size == 2)
 	{
@@ -515,7 +508,6 @@ void Draw_set_do_not_draw_flag(bool flag)
 	draw_do_not_draw = flag;
 }
 
-#include <unistd.h>
 void Draw(std::string text, int type, float x, float y, float text_size_x, float text_size_y, float r, float g, float b, float a)
 {
 	bool reverse = false;
