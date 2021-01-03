@@ -276,11 +276,11 @@ void Menu_main(void)
 	Menu_get_system_info();
 
 	if (Cam_query_running_flag())
-		sprintf(menu_status_short, "%04d/%02d/%02d %02d:%02d:%02d cam %dfps ", menu_years, menu_months, menu_days, menu_hours, menu_minutes, menu_seconds, menu_cam_fps);
+		sprintf(menu_status_short, "%04d/%02d/%02d %02d:%02d:%02d cam %02dfps ", menu_years, menu_months, menu_days, menu_hours, menu_minutes, menu_seconds, menu_cam_fps);
 	else
 		sprintf(menu_status_short, "%04d/%02d/%02d %02d:%02d:%02d ", menu_years, menu_months, menu_days, menu_hours, menu_minutes, menu_seconds);
 
-	sprintf(menu_status, "%s %dfps %.1fms", menu_status_short, menu_fps,  Draw_query_frametime());
+	sprintf(menu_status, "%02dfps %06.1fms %s", menu_fps,  Draw_query_frametime(), menu_status_short);
 
 	if (menu_main_run)
 	{
