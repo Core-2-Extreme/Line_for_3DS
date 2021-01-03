@@ -289,7 +289,7 @@ void Vid_decode_video_thread(void* arg)
 							}
 
 							vid_zoom = 1.0;
-							while(vid_video_width * vid_zoom > 400.0 || vid_video_height * vid_zoom > 220.0)
+							while(vid_video_width * vid_zoom >= 400.0 || vid_video_height * vid_zoom >= 225.0)
 								vid_zoom -= 0.0001;
 
 							vid_x = (400 - (vid_video_width * vid_zoom)) / 2;
