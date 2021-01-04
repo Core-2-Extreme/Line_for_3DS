@@ -72,7 +72,7 @@ std::string mup_play_thread_string = "Mup/Play thread";
 std::string mup_timer_thread_string = "Mup/Timer thread";
 std::string mup_init_string = "Mup/Init";
 std::string mup_exit_string = "Mup/Exit";
-std::string mup_ver = "v1.1.1";
+std::string mup_ver = "v1.1.2";
 Thread mup_play_thread, mup_timer_thread, mup_worker_thread;
 
 bool Mup_query_init_flag(void)
@@ -247,7 +247,6 @@ void Mup_play_thread(void* arg)
 	int stream_num = 0;
 	int buffer_num = 0;
 	int random_num = 0;
-	int count = 0;
 	int file_index = 0;
 	int audio_size = 0;
 	int log_num = 0;
@@ -289,7 +288,6 @@ void Mup_play_thread(void* arg)
 			mup_count_reset_request = true;
 			file_name = mup_load_file_name;
 			dir_name = mup_load_dir_name;
-			count = 0;
 			stream_num = -1;
 			mup_offset = 0;
 			Expl_set_current_patch(dir_name);
@@ -359,7 +357,6 @@ void Mup_play_thread(void* arg)
 							mup_file_type = codec_info->name;
 						}
 
-						count = 0;
 						while(true)
 						{
 							mup_count_request = false;
@@ -475,13 +472,6 @@ void Mup_play_thread(void* arg)
 												buffer_num++;
 											else
 												buffer_num = 0;
-
-											count++;
-											if(count > 30)
-											{
-												mup_bar_pos = (double)raw_data->pkt_pos * 8 / mup_music_bit_rate * 1000;
-												count = 0;
-											}
 
 											while((ndsp_buffer[buffer_num].status == NDSP_WBUF_PLAYING || ndsp_buffer[buffer_num].status == NDSP_WBUF_QUEUED)
 											&& !mup_stop_request && !mup_change_music_request && !mup_seek_request)

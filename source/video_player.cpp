@@ -60,6 +60,7 @@ bool vid_count_reset_request = false;
 bool vid_display_decoding_detail = false;
 bool vid_enable[16];
 bool vid_button_selected[2] = { false, false, };
+bool vid_key_frame[320];
 u64 vid_offset = 0;
 int vid_buffer_num = 0;
 int vid_dl_progress = 0;
@@ -222,7 +223,6 @@ void Vid_decode_video_thread(void* arg)
 	int ffmpeg_result = 0;
 	int buffer_num = 0;
 	int size = 0;
-	int count = 0;
 	TickCounter decoding_time;
 	osTickCounterStart(&decoding_time);
 
@@ -238,7 +238,6 @@ void Vid_decode_video_thread(void* arg)
 				vid_decode_video_request = false;
 				vid_decoding = true;
 				vid_decoded_frames++;
-				osTickCounterUpdate(&decoding_time);
 				packet = av_packet_alloc();
 				vid_raw_data[buffer_num] = av_frame_alloc();
 
@@ -250,6 +249,8 @@ void Vid_decode_video_thread(void* arg)
 					while (vid_wait)
 						usleep(100);
 
+
+					osTickCounterUpdate(&decoding_time);
 					av_packet_ref(packet, vid_packet);
 
 					ffmpeg_result = avcodec_send_packet(context[0], packet);
@@ -257,23 +258,23 @@ void Vid_decode_video_thread(void* arg)
 						Log_log_save(vid_worker_thread_string, "avcodec_send_packet()...[Error] ", ffmpeg_result, false);
 
 					osTickCounterUpdate(&decoding_time);
-					vid_decoding_time[count] = osTickCounterRead(&decoding_time);
-					if(count + 15 < 320)
-						vid_decoding_time[count + 15] = 1000.0;
 					
-					count++;
-					if(count >= 320)
-					{
-						count = 0;
-						for(int i = 0; i < 15; i++)
-							vid_decoding_time[i] = 1000.0;
-					}
-
 					ffmpeg_result = avcodec_receive_frame(context[0], vid_raw_data[buffer_num]);
 					if(ffmpeg_result != 0)
 						Log_log_save(vid_worker_thread_string, "avcodec_receive_frame()...[Error] ", ffmpeg_result, false);
 					else
 					{
+						if(vid_display_decoding_detail)
+						{
+							vid_decoding_time[319] = osTickCounterRead(&decoding_time);
+							vid_key_frame[319] = vid_raw_data[buffer_num]->key_frame;
+							for(int i = 0; i < 319; i++)
+							{
+								vid_decoding_time[i] = vid_decoding_time[i + 1];
+								vid_key_frame[i] = vid_key_frame[i + 1];
+							}
+						}
+
 						if(vid_get_info_request)
 						{
 							vid_framerate = (double)context[0]->framerate.num / (double)context[0]->framerate.den;
@@ -339,8 +340,8 @@ void Vid_worker_thread(void* arg)
 	int ffmpeg_result = 0;
 	int audio_size = 0;
 	int buffer_num = 0;
-	int count[2] = { 0, 0, };
-	int num_of_buffers = 50;
+	int count = 0;
+	int num_of_buffers = 60;
 	u8* sound_buffer[num_of_buffers];
 	u8* cache = NULL;
 	u8* httpc_buffer = NULL;
@@ -399,16 +400,21 @@ void Vid_worker_thread(void* arg)
 		{
 			APT_SetAppCpuTimeLimit(80);
 			osTickCounterUpdate(&timer);
+			vid_stop_request = false;
+			vid_pause_request = false;
+			vid_change_video_request = false;
+
 			for(int i = 0; i < 16; i++)
 			{
 				vid_enable[i] = false;
 				vid_x_size[i] = 0.0;
 				vid_y_size[i] = 0.0;
 			}
-
-			vid_stop_request = false;
-			vid_pause_request = false;
-			vid_change_video_request = false;
+			for(int i = 0; i < 320; i++)
+			{
+				vid_decoding_time[i] = 0.0;
+				vid_key_frame[i] = false;
+			}
 
 			frametime = 0.0;
 			init_swr = true;
@@ -574,11 +580,12 @@ void Vid_worker_thread(void* arg)
 								frametime = osTickCounterRead(&timer);
 								if(vid_framerate == 0.0)
 								{
-									if(50.0 - frametime > 0)
-										usleep((50.0 - frametime) * 1000);
+									if(33.3 - frametime > 0)
+										usleep((33.3 - frametime) * 1000);
 								}
 								else
 								{
+									vid_bar_pos = ((double)packet->dts / packet->duration) * (1000 / vid_framerate);
 									if((1000.0 / vid_framerate) - frametime > 0)
 										usleep(((1000.0 / vid_framerate) - frametime) * 1000);
 								}
@@ -604,20 +611,20 @@ void Vid_worker_thread(void* arg)
 									if(ffmpeg_result != 0)
 										Log_log_save(vid_worker_thread_string, "avcodec_send_packet()...[Error] ", ffmpeg_result, false);
 
-									count[0] = 0;
+									count = 0;
 									while(true)
 									{
 										ffmpeg_result = avcodec_receive_frame(context[1], raw_data);
 										if(ffmpeg_result != 0)
 										{
-											if(count[0] <= 0)
+											if(count <= 0)
 												Log_log_save(vid_worker_thread_string, "avcodec_receive_frame()...[Error] ", ffmpeg_result, false);
 
 											break;
 										}
 										else
 										{
-											count[0]++;
+											count++;
 											if(init_swr)
 											{
 												swr_context = swr_alloc();
@@ -666,13 +673,6 @@ void Vid_worker_thread(void* arg)
 												buffer_num++;
 											else
 												buffer_num = 0;
-
-											count[1]++;
-											if(count[1] > 30)
-											{
-												vid_bar_pos = (double)raw_data->pkt_pos * 8 / vid_bit_rate * 1000;
-												count[1] = 0;
-											}
 
 											while((ndsp_buffer[buffer_num].status == NDSP_WBUF_PLAYING || ndsp_buffer[buffer_num].status == NDSP_WBUF_QUEUED)
 											&& !vid_stop_request && !vid_change_video_request && !vid_seek_request)
@@ -1006,12 +1006,15 @@ void Vid_init(void)
 		vid_x_size[i] = 0.0;
 		vid_y_size[i] = 0.0;
 	}
+	
+	for(int i = 0; i < 320; i++)
+	{
+		vid_decoding_time[i] = 0.0;
+		vid_key_frame[i] = false;
+	}
 
 	for(int i = 0; i < 16; i++)
 		vid_enable[i] = false;
-
-	for(int i = 0; i < 320; i++)
-		vid_decoding_time[i] = 0.0;
 	
 	vid_stop_request = false;
 	Vid_resume();
@@ -1220,12 +1223,19 @@ void Vid_main(void)
 			if(vid_display_decoding_detail)
 			{
 				Draw("Display detail : ON", 0, 212.5, 195.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-
-				if(vid_framerate != 0.0)
-					Draw_texture(Square_image, aqua_tint, 0, 0.0, 140.0 - (1000.0 / vid_framerate), 320.0, 1.0);
-				for(int i = 0; i < 320; i++)
-					Draw_texture(Square_image, red_tint, 0, i, 140.0 - vid_decoding_time[i], 2.0, 2.0);
 				
+				if(vid_framerate != 0.0)
+				{
+					Draw(std::to_string(vid_decoding_time[319]).substr(0, 5) + "/" + std::to_string(1000.0 / vid_framerate).substr(0, 5) + "ms", 0, 170.0, 185.0, 0.4, 0.4, 0.5, 0.0, 0.5, 1.0);
+					Draw_texture(Square_image, aqua_tint, 0, 0.0, 150.0 - (1000.0 / vid_framerate), 320.0, 1.0);
+				}
+
+				for(int i = 0; i < 319; i++)
+				{
+					C2D_DrawLine(i, 150.0 - vid_decoding_time[i], 0xFF0000FF, i + 1, 150.0 - vid_decoding_time[i + 1], 0xFF0000FF, 1.0, 0.0);
+					if(vid_key_frame[i])
+						Draw_texture(Square_image, blue_tint, 0, i, 150.0 - vid_decoding_time[i], 3.0, 3.0);
+				}
 			}
 			else
 				Draw("Display detail : OFF", 0, 212.5, 195.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
