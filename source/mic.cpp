@@ -36,7 +36,7 @@ u32 mic_buffer_size = 0x300000;
 double mic_record_time = 0.0;
 double mic_max_time = 0.0;
 std::string mic_msg[MIC_NUM_OF_MSG];
-std::string mic_ver = "v1.0.2";
+std::string mic_ver = "v1.0.3";
 std::string mic_record_thread_string = "Mic/Record thread";
 std::string mic_init_string = "Mic/Init";
 std::string mic_exit_string = "Mic/Exit";

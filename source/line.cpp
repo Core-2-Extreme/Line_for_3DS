@@ -184,7 +184,7 @@ std::string line_log_load_thread_string = "Line/Log load thread";
 std::string line_parse_thread_string = "Line/Log parse thread";
 std::string line_init_string = "Line/Init";
 std::string line_exit_string = "Line/Exit";
-std::string line_ver = "v1.7.1";
+std::string line_ver = "v1.7.2";
 C2D_Image line_stickers_images[121], line_icon[128];
 stbi_uc* line_stb_image[128];
 Thread line_dl_log_thread, line_load_log_thread, line_send_msg_thread, line_parse_log_thread, line_worker_thread;

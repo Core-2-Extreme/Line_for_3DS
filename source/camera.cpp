@@ -90,7 +90,7 @@ std::string cam_encode_thread_string = "Cam/Encode thread";
 std::string cam_parse_thread_string = "Cam/Parse thread";
 std::string cam_init_string = "Cam/Init";
 std::string cam_exit_string = "Cam/Exit";
-std::string cam_ver = "v1.0.3";
+std::string cam_ver = "v1.0.4";
 Thread cam_capture_thread, cam_encode_thread, cam_parse_thread;
 C2D_Image cam_capture_image[4];
 

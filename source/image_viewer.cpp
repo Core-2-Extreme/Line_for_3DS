@@ -65,7 +65,7 @@ std::string imv_img_load_thread_string = "Imv/Img load thread";
 std::string imv_img_dl_thread_string = "Imv/Img dl thread";
 std::string imv_init_string = "Imv/init";
 std::string imv_exit_string = "Imv/exit";
-std::string imv_ver = "v1.0.5";
+std::string imv_ver = "v1.0.6";
 Thread imv_parse_img_thread, imv_dl_img_thread, imv_load_img_thread;
 C2D_Image imv_c2d_image[64];
 
