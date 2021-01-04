@@ -1314,7 +1314,14 @@ void Sem_main(void)
 						sem_y_offset += (double)key.cpad_y * sem_scroll_speed * 0.0625;
 
 					if (key.h_touch && sem_scroll_bar_selected)
-						sem_y_offset *= (key.touch_y - 15.0) / 195.0;
+					{
+						if(sem_selected_menu_mode == 5)
+							sem_y_offset = (key.touch_y - 15.0) / 195.0 * -950.0;
+						else if(sem_selected_menu_mode == 6)
+							sem_y_offset = (key.touch_y - 15.0) / 195.0 * -200.0;
+
+						sem_touch_y_move_left = 0.0;
+					}
 
 					if (key.p_touch && key.touch_x >= 305 && key.touch_x <= 320 && key.touch_y >= 15)
 						sem_scroll_bar_selected = true;
