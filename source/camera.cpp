@@ -752,7 +752,7 @@ void Cam_init(void)
 	{
 		for (int i = 0; i < 4; i++)
 		{
-			cam_capture_frame_buffer[i] = (u8*)malloc(640 * 480 * 2);
+			cam_capture_frame_buffer[i] = (u8*)linearAlloc(640 * 480 * 2);
 			cam_capture_image[i].tex = (C3D_Tex*)linearAlloc(sizeof(C3D_Tex));
 			cam_capture_image[i].subtex = (Tex3DS_SubTexture*)linearAlloc(sizeof(Tex3DS_SubTexture));
 
@@ -831,7 +831,7 @@ void Cam_exit(void)
 
 	for (int i = 0; i < 4; i++)
 	{
-		free(cam_capture_frame_buffer[i]);
+		linearFree(cam_capture_frame_buffer[i]);
 		linearFree(cam_capture_image[i].tex->data);
 		linearFree(cam_capture_image[i].tex);
 		linearFree((void*)cam_capture_image[i].subtex);
@@ -1150,9 +1150,20 @@ void Cam_parse_thread(void* arg)
 				height = Cam_convert_to_resolution(cam_resolution_mode, false);
 
 				if (cam_current_img_num == 0)
-					memcpy(cam_capture_frame_buffer[0], cam_capture_frame_buffer[3], (width * height * 2));
+				{
+					GX_TextureCopy((u32*)cam_capture_frame_buffer[3], 0, (u32*)cam_capture_frame_buffer[0], 0, (u32)(width * height * 2), 0x8);
+					GSPGPU_FlushDataCache(cam_capture_frame_buffer[3], (width * height * 2));
+					GSPGPU_InvalidateDataCache(cam_capture_frame_buffer[0], (width * height * 2));
+//					memcpy(cam_capture_frame_buffer[0], cam_capture_frame_buffer[3], (width * height * 2));
+				}
 				else
-					memcpy(cam_capture_frame_buffer[1], cam_capture_frame_buffer[2], (width * height * 2));
+				{
+					GX_TextureCopy((u32*)cam_capture_frame_buffer[2], 0, (u32*)cam_capture_frame_buffer[1], 0, (u32)(width * height * 2), 0x8);
+					GSPGPU_FlushDataCache(cam_capture_frame_buffer[2], (width * height * 2));
+					GSPGPU_InvalidateDataCache(cam_capture_frame_buffer[1], (width * height * 2));
+//					memcpy(cam_capture_frame_buffer[1], cam_capture_frame_buffer[2], (width * height * 2));
+				}
+				gspWaitForPPF();
 
 				if (cam_current_img_num == 0)
 				{
