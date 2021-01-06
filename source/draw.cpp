@@ -561,6 +561,11 @@ void Draw(std::string text, int type, float x, float y, float text_size_x, float
 
 						if((s < 0 || s > 3000) && reverse)
 							break;
+						else if(s > 3000)
+						{
+							reverse = true;
+							s = 3000;
+						}
 						else
 							memcmp_result = memcmp((void*)draw_part_text[0][i].c_str(), (void*)draw_japanese_kanji[s].c_str(), 3);
 
@@ -570,12 +575,8 @@ void Draw(std::string text, int type, float x, float y, float text_size_x, float
 							found = true;
 							break;
 						}
-						else if(memcmp_result < 0 || s > 3000)
-						{
+						else if(memcmp_result < 0)
 							reverse = true;
-							if(s > 3000)
-								s = 3000;
-						}
 					}
 				}
 
