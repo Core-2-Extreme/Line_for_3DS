@@ -783,8 +783,10 @@ void Line_main(void)
 
 	if (Err_query_error_show_flag())
 	{
-		if (key.p_touch && key.touch_x >= 150 && key.touch_x <= 170 && key.touch_y >= 150 && key.touch_y < 170)
+		if (key.p_a || (key.p_touch && key.touch_x >= 150 && key.touch_x <= 169 && key.touch_y >= 150 && key.touch_y <= 169))
 			Err_set_error_show_flag(false);
+		else if(key.p_x || (key.p_touch && key.touch_x >= 200 && key.touch_x <= 239 && key.touch_y >= 150 && key.touch_y <= 169))
+			Err_save_error();
 	}
 	else if (line_select_file_request)
 		Expl_main();
@@ -2122,9 +2124,6 @@ void Line_log_download_thread(void* arg)
 					else
 					{
 						out_data[0] = (char*)httpc_buffer;
-						if(out_data[0].length() >= 300)
-							out_data[0] = out_data[0].substr(0, 300);
-
 						Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), out_data[0], line_log_dl_thread_string, GAS_RETURNED_NOT_SUCCESS);
 						Err_set_error_show_flag(true);
 						failed = true;
@@ -2362,9 +2361,6 @@ void Line_send_message_thread(void* arg)
 							}
 							else
 							{
-								if(response_string.length() >= 300)
-									response_string = response_string.substr(0, 300);
-
 								Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), response_string, line_send_msg_thread_string, GAS_RETURNED_NOT_SUCCESS);
 								Err_set_error_show_flag(true);
 								Log_log_add(log_num[1], Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), GAS_RETURNED_NOT_SUCCESS, false);
@@ -2446,9 +2442,6 @@ void Line_send_message_thread(void* arg)
 					}
 					else
 					{
-					//	if(response_string.length() >= 300)
-						//	response_string = response_string.substr(0, 300);
-
 						Err_set_error_message(Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), response_string, line_send_msg_thread_string, GAS_RETURNED_NOT_SUCCESS);
 						Err_set_error_show_flag(true);
 						Log_log_add(log_num[0], Err_query_template_summary(GAS_RETURNED_NOT_SUCCESS), GAS_RETURNED_NOT_SUCCESS, false);

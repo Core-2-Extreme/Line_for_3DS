@@ -390,8 +390,10 @@ void Cam_main(void)
 
 	if (Err_query_error_show_flag())
 	{
-		if (key.p_touch && key.touch_x >= 150 && key.touch_x <= 170 && key.touch_y >= 150 && key.touch_y < 170)
+		if (key.p_a || (key.p_touch && key.touch_x >= 150 && key.touch_x <= 169 && key.touch_y >= 150 && key.touch_y <= 169))
 			Err_set_error_show_flag(false);
+		else if(key.p_x || (key.p_touch && key.touch_x >= 200 && key.touch_x <= 239 && key.touch_y >= 150 && key.touch_y <= 169))
+			Err_save_error();
 	}
 	else
 	{
