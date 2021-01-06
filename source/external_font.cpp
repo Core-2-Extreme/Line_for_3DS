@@ -610,8 +610,8 @@ double exfont_font_interval[10240] =
 };
 
 std::string exfont_part_string[1024];
-std::string exfont_font_samples[10240];
-std::string exfont_font_right_to_left_samples[256];
+std::string exfont_font_samples[10241];
+std::string exfont_font_right_to_left_samples[257];
 std::string exfont_font_name[EXFONT_NUM_OF_FONT_NAME];
 std::string exfont_ignore_chars = "\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u200B\u200C\u200D\u200E\u200F\uFE00\uFE01\uFE02\uFE03\uFE04\uFE05\uFE06\uFE07\uFE08\uFE09\uFE0A\uFE0B\uFE0C\uFE0D\uFE0E\uFE0F";
 /*
@@ -799,7 +799,7 @@ void Exfont_text_parse(std::string sorce_string, std::string part_string[], int 
 	}
 	part_string[std_num] = "\u0000";
 	free(sorce_string_char);
-  *out_element = std_num + 1;
+  *out_element = std_num;
 }
 
 void Exfont_draw_external_fonts(std::string in_string, float texture_x, float texture_y, float texture_size_x, float texture_size_y, float red, float green, float blue, float alpha, float* out_width, float* out_height)
@@ -827,7 +827,7 @@ void Exfont_draw_external_fonts(std::string in_string, float texture_x, float te
   *out_height = 0;
 
   C2D_PlainImageTint(&tint, C2D_Color32f(red, green, blue, alpha), true);
-	Exfont_text_parse(in_string, exfont_part_string, 1024, &characters);
+	Exfont_text_parse(in_string, exfont_part_string, 1023, &characters);
 
   for(int s = 0; s < characters; s++)
   {

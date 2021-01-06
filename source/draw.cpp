@@ -523,8 +523,8 @@ void Draw(std::string text, int type, float x, float y, float text_size_x, float
 	original_x = x;
 	c2d_buf = C2D_TextBufNew(4096);
 
-	Exfont_text_parse(text, draw_part_text[0], 1024, &characters);
-	Exfont_text_parse(Exfont_text_sort(draw_part_text[0], 1024), draw_part_text[0], 1024, &characters);
+	Exfont_text_parse(text, draw_part_text[0], 1023, &characters);
+	Exfont_text_parse(Exfont_text_sort(draw_part_text[0], 1023), draw_part_text[0], 1023, &characters);
 
 	for (int i = 0; i < characters; i++)
 	{
@@ -812,6 +812,7 @@ void Draw_error(void)
 {
 	Draw_texture(Square_image, aqua_tint, 0, 20.0, 30.0, 280.0, 150.0);
 	Draw_texture(Square_image, weak_yellow_tint, 0, 150.0, 150.0, 20.0, 20.0);
+	Draw_texture(Square_image, weak_yellow_tint, 0, 200.0, 150.0, 40.0, 20.0);
 
 	Draw("Summary : ", 0, 22.5, 40.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
 	Draw(Err_query_error_data(ERR_SUMMARY), 0, 22.5, 50.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
@@ -821,7 +822,8 @@ void Draw_error(void)
 	Draw(Err_query_error_data(ERR_PLACE), 0, 22.5, 100.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
 	Draw("Error code : ", 0, 22.5, 110.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
 	Draw(Err_query_error_data(ERR_CODE), 0, 22.5, 120.0, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
-	Draw("OK", 0, 152.5, 152.5, 0.45, 0.45, 0.0, 0.0, 0.0, 1.0);
+	Draw("OK(A)", 0, 152.5, 152.5, 0.375, 0.375, 0.0, 0.0, 0.0, 1.0);
+	Draw("SAVE(X)", 0, 202.5, 152.5, 0.375, 0.375, 0.0, 0.0, 0.0, 1.0);
 }
 
 void Draw_progress(std::string message)
