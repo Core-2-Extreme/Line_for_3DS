@@ -595,6 +595,11 @@ void Draw(std::string text, int type, float x, float y, float text_size_x, float
 
 							if((s < 0 || s > 6300) && reverse)
 								break;
+							else if(s > 6300)
+							{
+								reverse = true;
+								s = 6300;
+							}
 							else
 								memcmp_result = memcmp((void*)draw_part_text[0][i].c_str(), (void*)draw_simple_chinese[s].c_str(), 3);
 
@@ -604,12 +609,8 @@ void Draw(std::string text, int type, float x, float y, float text_size_x, float
 								found = true;
 								break;
 							}
-							else if(memcmp_result < 0 || s > 6300)
-							{
+							else if(memcmp_result < 0)
 								reverse = true;
-								if(s > 6300)
-									s = 6300;
-							}
 						}
 					}
 				}
