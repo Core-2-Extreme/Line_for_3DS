@@ -11,6 +11,12 @@
 * [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 
 ## Patch note
+* 【App】 Ver 1.7.2
+* 【Line】 Fixed some bugs.
+* 【Vid】 Added debug infomation.
+* 【Vid】 Changed initial image size and position
+* 【App】 Some minor update to better user experience.
+* 
 * 【App】 Ver 1.7.1
 * 【Line】 Added- Supported download all files.
 * 【Mup/Vid】 Added- Additional formats  support(.ogg).
