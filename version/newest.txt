@@ -1,4 +1,4 @@
-<newest>19</newest>
+<newest>20</newest>
 <3dsx_available>1</3dsx_available>
 <cia_32mb_ram_available>0</cia_32mb_ram_available>
 <cia_64mb_ram_available>1</cia_64mb_ram_available>
@@ -10,11 +10,11 @@
 <gas_ver>7</gas_ver>
 <patch_note>
 
-【App】 Ver 1.7.1
-【Line】 Added- Supported download all 
- files.
-【Mup/Vid】 Added- Additional formats 
- support(.ogg).
+【App】 Ver 1.7.2
+【Line】 Fixed some bugs.
+【Vid】 Added debug infomation.
+【Vid】 Changed initial image size 
+ and position
 【App】 Some minor update to better
  user experience.
 </patch_note>
