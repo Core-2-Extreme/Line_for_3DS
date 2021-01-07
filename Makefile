@@ -189,9 +189,17 @@ MAKEROM_ARGS_178 := -elf "$(OUTPUT).elf" -rsf "$(RSF_PATH_178)" -banner "$(BUILD
 
 ifneq ($(strip $(LOGO)),)
 	MAKEROM_ARGS	+=	 -logo "$(LOGO)"
+	MAKEROM_ARGS_64 	+=	 -logo "$(LOGO)"
+	MAKEROM_ARGS_80 	+=	 -logo "$(LOGO)"
+	MAKEROM_ARGS_124	+=	 -logo "$(LOGO)"
+	MAKEROM_ARGS_178	+=	 -logo "$(LOGO)"
 endif
 ifneq ($(strip $(ROMFS)),)
 	MAKEROM_ARGS	+=	 -DAPP_ROMFS="$(ROMFS)"
+	MAKEROM_ARGS_64 	+=	 -DAPP_ROMFS="$(ROMFS)"
+	MAKEROM_ARGS_80 	+=	 -DAPP_ROMFS="$(ROMFS)"
+	MAKEROM_ARGS_124	+=	 -DAPP_ROMFS="$(ROMFS)"
+	MAKEROM_ARGS_178	+=	 -DAPP_ROMFS="$(ROMFS)"
 endif
 
 BANNERTOOL   ?= bannertool
