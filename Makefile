@@ -52,6 +52,10 @@ BANNER_AUDIO				:= resource/banner.wav
 BANNER_IMAGE				:= resource/banner.png
 ICON        				:= resource/icon.png
 RSF_PATH				:= resource/app.rsf
+RSF_PATH_64				:= resource/app_64.rsf
+RSF_PATH_80				:= resource/app_80.rsf
+RSF_PATH_124			:= resource/app_124.rsf
+RSF_PATH_178			:= resource/app_178.rsf
 
 #---------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------
@@ -178,6 +182,11 @@ endif
 MAKEROM      ?= makerom
 MAKEROM_ARGS := -elf "$(OUTPUT).elf" -rsf "$(RSF_PATH)" -banner "$(BUILD)/banner.bnr" -icon "$(BUILD)/icon.icn" -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(PRODUCT_CODE)" -DAPP_UNIQUE_ID="$(UNIQUE_ID)"
 
+MAKEROM_ARGS_64 := -elf "$(OUTPUT).elf" -rsf "$(RSF_PATH_64)" -banner "$(BUILD)/banner.bnr" -icon "$(BUILD)/icon.icn" -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(PRODUCT_CODE)" -DAPP_UNIQUE_ID="$(UNIQUE_ID)"
+MAKEROM_ARGS_80 := -elf "$(OUTPUT).elf" -rsf "$(RSF_PATH_80)" -banner "$(BUILD)/banner.bnr" -icon "$(BUILD)/icon.icn" -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(PRODUCT_CODE)" -DAPP_UNIQUE_ID="$(UNIQUE_ID)"
+MAKEROM_ARGS_124 := -elf "$(OUTPUT).elf" -rsf "$(RSF_PATH_124)" -banner "$(BUILD)/banner.bnr" -icon "$(BUILD)/icon.icn" -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(PRODUCT_CODE)" -DAPP_UNIQUE_ID="$(UNIQUE_ID)"
+MAKEROM_ARGS_178 := -elf "$(OUTPUT).elf" -rsf "$(RSF_PATH_178)" -banner "$(BUILD)/banner.bnr" -icon "$(BUILD)/icon.icn" -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(PRODUCT_CODE)" -DAPP_UNIQUE_ID="$(UNIQUE_ID)"
+
 ifneq ($(strip $(LOGO)),)
 	MAKEROM_ARGS	+=	 -logo "$(LOGO)"
 endif
@@ -223,6 +232,16 @@ ifneq ($(DEPSDIR),$(BUILD))
 $(DEPSDIR):
 	@mkdir -p $@
 endif
+
+#---------------------------------------------------------------------------------
+
+all_cias:
+	@$(BANNERTOOL) makebanner $(BANNER_IMAGE_ARG) $(BANNER_IMAGE) $(BANNER_AUDIO_ARG) $(BANNER_AUDIO) -o $(BUILD)/banner.bnr
+	@$(BANNERTOOL) makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)" -p $(APP_AUTHOR) -i $(APP_ICON) -o $(BUILD)/icon.icn
+	@$(MAKEROM) -f cia -o $(OUTPUT)_64mb.cia -target t -exefslogo $(MAKEROM_ARGS_64) -ver $(APP_VER)
+	@$(MAKEROM) -f cia -o $(OUTPUT)_80mb.cia -target t -exefslogo $(MAKEROM_ARGS_80) -ver $(APP_VER)
+	@$(MAKEROM) -f cia -o $(OUTPUT)_124mb.cia -target t -exefslogo $(MAKEROM_ARGS_124) -ver $(APP_VER)
+	@$(MAKEROM) -f cia -o $(OUTPUT)_178mb.cia -target t -exefslogo $(MAKEROM_ARGS_178) -ver $(APP_VER)
 
 #---------------------------------------------------------------------------------
 clean:
