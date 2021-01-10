@@ -87,7 +87,7 @@ void Init(void)
 	Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 
 	log_num = Log_log_save(main_init_string, "APT_SetAppCpuTimeLimit()...", 1234567890, FORCE_DEBUG);
-	result.code = APT_SetAppCpuTimeLimit(5);
+	result.code = APT_SetAppCpuTimeLimit(30);
 	if (result.code == 0)
 		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 	else
