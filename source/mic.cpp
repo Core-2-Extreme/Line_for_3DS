@@ -14,15 +14,15 @@
 #include "setting_menu.hpp"
 #include "mic.hpp"
 #include "music_player.hpp"
-/*extern "C" {
+
+extern "C" {
 #include <libavcodec/avcodec.h>
-}*/
+#include <libswresample/swresample.h>
+}
+extern "C" void memcpy_asm(u8*, u8*, int);
 
 /*For draw*/
 bool mic_need_reflesh = false;
-bool mic_pre_start_record_request = false;
-double mic_pre_record_time = 0.0;
-double mic_pre_max_time = 0.0;
 /*---------------------------------------------*/
 
 bool mic_main_run = false;
@@ -31,16 +31,22 @@ bool mic_already_init = false;
 bool mic_thread_suspend = true;
 bool mic_start_record_request = false;
 bool mic_stop_record_request = false;
-u8* mic_buffer;
-u32 mic_buffer_size = 0x300000;
+u8* mic_buffer = NULL;
+u32 mic_buffer_size = 0x80000;
 double mic_record_time = 0.0;
 double mic_max_time = 0.0;
 std::string mic_msg[MIC_NUM_OF_MSG];
-std::string mic_ver = "v1.0.3";
+std::string mic_ver = "v1.1.0";
 std::string mic_record_thread_string = "Mic/Record thread";
 std::string mic_init_string = "Mic/Init";
 std::string mic_exit_string = "Mic/Exit";
 Thread mic_record_thread;
+AVPacket *mic_packet = NULL;
+AVFrame *mic_raw_data = NULL;
+AVCodecContext *mic_context = NULL;
+AVCodec *mic_codec = NULL;
+SwrContext* mic_swr_context = NULL;
+
 
 bool Mic_query_init_flag(void)
 {
@@ -73,28 +79,183 @@ void Mic_suspend(void)
 	Menu_resume();
 }
 
+Result_with_string Mic_init_encoder(AVCodecID id, int samplerate, int bitrate)
+{
+	int ffmpeg_result = 0;
+	int original_samplerate = samplerate;
+	Result_with_string result;
+
+	mic_codec = avcodec_find_encoder(id);
+	if(!mic_codec)
+	{
+		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+		result.string = "avcodec_find_encoder() failed";
+		return result;
+	}
+
+	mic_context = avcodec_alloc_context3(mic_codec);
+	if(!mic_codec)
+	{
+		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+		result.string = "avcodec_alloc_context3() failed";
+		return result;
+	}
+
+	for(int i = 0; i < 30; i++)//select supported samplerate
+	{
+		if(!mic_codec->supported_samplerates[i])
+			break;
+		else
+		{
+			if(mic_codec->supported_samplerates[i] - samplerate <= 0)
+			{
+				samplerate += mic_codec->supported_samplerates[i] - samplerate;
+				Log_log_save("", std::to_string(samplerate), 1234567890, false);
+				break;
+			}
+		}
+	}
+	mic_context->bit_rate = bitrate;
+	mic_context->sample_fmt = AV_SAMPLE_FMT_S16;
+	mic_context->sample_rate = samplerate;
+	mic_context->channel_layout = AV_CH_LAYOUT_MONO;
+	mic_context->channels = av_get_channel_layout_nb_channels(AV_CH_LAYOUT_MONO);
+	//context->profile = FF_PROFILE_AAC_MAIN;
+	mic_context->codec_type = AVMEDIA_TYPE_AUDIO;
+
+	ffmpeg_result = avcodec_open2(mic_context, mic_codec, NULL);
+	if(ffmpeg_result != 0)
+	{
+		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+		result.string = "avcodec_open2() failed";
+		result.error_description = "avcodec error code : " + std::to_string(ffmpeg_result);
+		return result;
+	}
+	
+	mic_packet = av_packet_alloc();
+	mic_raw_data = av_frame_alloc();
+	if(!mic_raw_data || !mic_packet)
+	{
+		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+		result.string = "av_packet_alloc() / av_frame_alloc() failed";
+		return result;	
+	}
+
+	mic_raw_data->nb_samples = mic_context->frame_size;
+	mic_raw_data->format = mic_context->sample_fmt;
+	mic_raw_data->channel_layout = mic_context->channel_layout;
+
+	ffmpeg_result = av_frame_get_buffer(mic_raw_data, 0);
+	if(ffmpeg_result != 0)
+	{
+		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+		result.string = "av_frame_get_buffer() failed";
+		result.error_description = "avcodec error code : " + std::to_string(ffmpeg_result);
+		return result;
+	}
+
+	av_frame_make_writable(mic_raw_data);
+
+	mic_swr_context = swr_alloc();
+	swr_alloc_set_opts(mic_swr_context, av_get_default_channel_layout(mic_context->channels), mic_context->sample_fmt, mic_context->sample_rate,
+	av_get_default_channel_layout(mic_context->channels), AV_SAMPLE_FMT_S16, original_samplerate, 0, NULL);
+	if(!mic_swr_context)
+	{
+		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+		result.string = "swr_alloc_set_opts() failed";
+		return result;
+	}
+	swr_init(mic_swr_context);
+
+	return result;
+}
+
+Result_with_string Mic_encode(int size, u8* raw_data, int* encoded_size, u8* encoded_data)
+{
+	int encode_offset = 0;
+	int encoded_offset = 0;
+	int ffmpeg_result = 0;
+	int one_frame_size = av_samples_get_buffer_size(NULL, mic_context->channels, mic_context->frame_size, mic_context->sample_fmt, 0);
+	u8* swr_in_cache[1] = { NULL, };
+	u8* swr_out_cache = NULL;
+	Result_with_string result;
+
+	*encoded_size = 0;
+	swr_in_cache[0] = (u8*)malloc(size);
+	swr_out_cache = (u8*)malloc(size);
+	if(swr_in_cache[0] == NULL || swr_out_cache == NULL)
+	{
+		result.code = OUT_OF_MEMORY;
+		result.string = Err_query_template_summary(OUT_OF_MEMORY);
+		result.error_description = Err_query_template_detail(OUT_OF_MEMORY);
+		free(swr_in_cache[0]);
+		free(swr_out_cache);
+		swr_in_cache[0] = NULL;
+		swr_out_cache = NULL;
+		return result;
+	}
+
+	memcpy(swr_in_cache[0] , raw_data, size);
+	swr_convert(mic_swr_context, &swr_out_cache, size / 2, (const uint8_t**)swr_in_cache, size / 2);
+	free(swr_in_cache[0]);
+	swr_in_cache[0] = NULL;
+
+	for(int i = 0; i < 100000; i++)
+	{
+		mic_raw_data->data[0] = swr_out_cache  + encode_offset;
+
+		ffmpeg_result = avcodec_send_frame(mic_context, mic_raw_data);
+		if(ffmpeg_result != 0)
+		{
+			result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+			result.string = "avcodec_send_frame() failed";
+			result.error_description = "avcodec error code : " + std::to_string(ffmpeg_result);
+			break;
+		}
+
+		ffmpeg_result = avcodec_receive_packet(mic_context, mic_packet);
+		if(ffmpeg_result == 0)
+		{
+			memcpy_asm(encoded_data + encoded_offset, mic_packet->data, mic_packet->size);
+			encoded_offset += mic_packet->size;
+			av_packet_unref(mic_packet);
+		}
+
+		if(encode_offset + one_frame_size*2 > (int)size)
+			break;
+		else
+			encode_offset += one_frame_size;
+	}
+	*encoded_size = encoded_offset;
+	free(swr_out_cache);
+	swr_out_cache = NULL;
+
+	return result;
+}
+
+void Mic_exit_encoder(void)
+{
+	avcodec_free_context(&mic_context);
+	av_packet_free(&mic_packet);
+	av_frame_free(&mic_raw_data);
+	swr_free(&mic_swr_context);	
+}
+
 void Mic_record_thread(void* arg)
 {
 	Log_log_save(mic_record_thread_string, "Thread started.", 1234567890, false);
+	int buffer_num = 0;
 	int log_num;
-	//int ffmpeg_result = 0;
-	int* chunk_size = new int (0);
-	char riff[5] = "RIFF";
-	char wave[5] = "WAVE";
-	char fmt[5] = "fmt ";
-	char data[5] = "data";
-	std::string file_name = "";
-	std::string dir_path = "";
-	u8* header;
-	u8* fs_buffer;
+	int encoded_size = 0;
+	int count = 0;
+	u8* buffer[2] = { NULL, NULL, };
+	u8* cache = NULL;
 	u32 buffer_pos = 0;
 	u32 buffer_offset = 0;
-	u32 data_size = 0;
+	u32 sample_size = 0;
+	std::string dir_path = "";
+	std::string file_name = "";
 	Result_with_string result;
-	/*AVPacket *packet = NULL;
-	AVFrame *raw_data = NULL;
-	AVCodecContext *context = NULL;
-	AVCodec *codec = NULL;*/
 
 	File_save_to_file(".", NULL, 0, "/Line/sound/", true);
 	mic_max_time = mic_buffer_size;
@@ -104,10 +265,10 @@ void Mic_record_thread(void* arg)
 		if (mic_start_record_request)
 		{
 			aptSetSleepAllowed(false);
-			*chunk_size = 0;
-			header = (u8*)malloc(44);
-			fs_buffer = (u8*)malloc(mic_buffer_size);
-			if (fs_buffer == NULL)
+			buffer[0] = (u8*)malloc(mic_buffer_size);
+			buffer[1] = (u8*)malloc(mic_buffer_size);
+			cache = (u8*)malloc(mic_buffer_size / 2);
+			if (buffer[0] == NULL || buffer[1] == NULL || cache == NULL)
 			{
 				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", mic_record_thread_string, OUT_OF_MEMORY);
 				Err_set_error_show_flag(true);
@@ -115,30 +276,75 @@ void Mic_record_thread(void* arg)
 			}
 			else
 			{
+				memset(buffer[0], 0x0, mic_buffer_size);
+				memset(buffer[1], 0x0, mic_buffer_size);
 				dir_path = "/Line/sound/" + Menu_query_time(1) + "/";
-				file_name = Menu_query_time(2) + ".wav";
-				memset(header, 0x0, 44);
-				memset(fs_buffer, 0x0, mic_buffer_size);
+				file_name = Menu_query_time(2) + ".mp2";
 				buffer_offset = 0;
 				buffer_pos = 0;
-				data_size = micGetSampleDataSize();
+				count = 0;
+				sample_size = micGetSampleDataSize();
+
 				log_num = Log_log_save(mic_record_thread_string, "MICU_StartSampling()...", 1234567890, false);
-				result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_16360, 0, data_size, false);
+				result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_32730, 0, sample_size, true);
 				Log_log_add(log_num, "", result.code, false);
+				if(result.code != 0)
+				{
+					Err_set_error_show_flag(true);
+					Err_set_error_message("MICU_StartSampling() failed", "", mic_record_thread_string, result.code);
+					mic_stop_record_request = true;
+				}
+				
+				log_num = Log_log_save(mic_record_thread_string, "Mic_init_encoder()...", 1234567890, false);
+				result = Mic_init_encoder(AV_CODEC_ID_MP2, 32730, 64000);
+				Log_log_add(log_num, result.string, result.code, false);
+				if(result.code != 0)
+				{
+					Err_set_error_show_flag(true);
+					Err_set_error_message(result.string, result.error_description, mic_record_thread_string, result.code);
+					mic_stop_record_request = true;
+				}
 
 				while (true)
 				{
-					usleep(100000);
+					usleep(33000);
+					if(count > 2)//update screen
+					{
+						count = 0;
+						mic_need_reflesh = true;
+					}
+					else
+						count++;
 
 					if (buffer_pos != micGetLastSampleOffset())
 					{
-						buffer_pos = micGetLastSampleOffset();
+						if(buffer_pos > micGetLastSampleOffset())
+						{
+							log_num = Log_log_save(mic_record_thread_string, "Mic_encode()...", 1234567890, false);
+							result = Mic_encode(buffer_offset, buffer[buffer_num], &encoded_size, cache);
+							Log_log_add(log_num, "", result.code, false);
+							if(result.code == 0)
+							{
+								log_num = Log_log_save(mic_record_thread_string, "File_save_to_file()...", 1234567890, false);
+								result = File_save_to_file(file_name, cache, encoded_size, dir_path, false);
+								Log_log_add(log_num, "", result.code, false);
+							}
+
+							buffer_pos = 0;
+							buffer_offset = 0;
+							if(buffer_num == 0)
+								buffer_num = 1;
+							else
+								buffer_num = 0;
+						}
+						else
+						{
+							buffer_pos = micGetLastSampleOffset();
+							memcpy((void*)(buffer[buffer_num] + buffer_offset), (void*)(mic_buffer + buffer_offset), (buffer_pos - buffer_offset));
+							buffer_offset += (buffer_pos - buffer_offset);
+						}
 						mic_record_time = buffer_pos;
-						memcpy((void*)(fs_buffer + buffer_offset), (void*)(mic_buffer + buffer_offset), (buffer_pos - buffer_offset));
-						buffer_offset += (buffer_pos - buffer_offset);
 					}
-					else
-						mic_stop_record_request = true;
 
 					if (mic_stop_record_request)
 					{
@@ -146,56 +352,7 @@ void Mic_record_thread(void* arg)
 						result.code = MICU_StopSampling();
 						Log_log_add(log_num, "", result.code, false);
 
-						/*codec = avcodec_find_encoder(AV_CODEC_ID_MP2);
-						if(!codec)
-							log_num = Log_log_save(mic_record_thread_string, "avcodec_find_encoder()... [Error]", 1234567890, false);
-	
-						context = avcodec_alloc_context3(codec);
-						if(!context)
-							log_num = Log_log_save(mic_record_thread_string, "avcodec_alloc_context3()... [Error]", 1234567890, false);
-
-						context->bit_rate = 96000;//261760;
-						context->sample_fmt = AV_SAMPLE_FMT_S16;
-						context->sample_rate = 16000;
-						context->channel_layout = AV_CH_LAYOUT_MONO;
-						context->channels = av_get_channel_layout_nb_channels(context->channel_layout);
-						//context->profile = FF_PROFILE_AAC_MAIN;
-					    context->codec_type = AVMEDIA_TYPE_AUDIO;
-
-						for(int i = 0; i < 100; i++)
-						{
-							if(codec->supported_samplerates[i] != NULL)
-								Log_log_save("", std::to_string(codec->supported_samplerates[i]), 1234567890, false);
-							else
-								break;
-						}
-
-						ffmpeg_result = avcodec_open2(context, codec, NULL);
-						if(ffmpeg_result != 0)
-							log_num = Log_log_save(mic_record_thread_string, "avcodec_open2()... [Error]", ffmpeg_result, false);
-
-						packet = av_packet_alloc();
-						if(!packet)
-							log_num = Log_log_save(mic_record_thread_string, "av_packet_alloc()... [Error]", ffmpeg_result, false);
-
-						raw_data = av_frame_alloc();
-						if(!raw_data)
-							log_num = Log_log_save(mic_record_thread_string, "av_frame_alloc()... [Error]", ffmpeg_result, false);
-						
-						raw_data->data[0] = fs_buffer;
-						raw_data->nb_samples = context->frame_size;
-						raw_data->format = context->sample_fmt;
-						raw_data->channel_layout = context->channel_layout;
-
-						ffmpeg_result = avcodec_send_frame(context, raw_data);
-						if(ffmpeg_result != 0)
-							log_num = Log_log_save(mic_record_thread_string, "avcodec_send_frame()... [Error]", ffmpeg_result, false);
-
-						ffmpeg_result = avcodec_receive_packet(context, packet);
-						if(ffmpeg_result != 0)
-							log_num = Log_log_save(mic_record_thread_string, "avcodec_receive_packet()... [Error]", ffmpeg_result, false);*/
-						
-						*chunk_size = (int)buffer_offset + 36;
+						/**chunk_size = (int)buffer_offset + 36;
 						memcpy((void*)header, (void*)riff, 0x4);
 						memcpy((void*)(header + 4), (void*)(chunk_size), 0x4);
 						memcpy((void*)(header + 8), (void*)wave, 0x4);
@@ -219,17 +376,20 @@ void Mic_record_thread(void* arg)
 
 						log_num = Log_log_save(mic_record_thread_string, "File_save_to_file()...", 1234567890, false);
 						result = File_save_to_file(file_name, (u8*)fs_buffer, buffer_offset, dir_path, false);
-						Log_log_add(log_num, "", result.code, false);
+						Log_log_add(log_num, "", result.code, false);*/
 
 						break;
 					}
 				}
 			}
 
-			free(header);
-			free(fs_buffer);
-			header = NULL;
-			fs_buffer = NULL;
+			Mic_exit_encoder();
+			free(buffer[0]);
+			free(buffer[1]);
+			free(cache);
+			buffer[0] = NULL;
+			buffer[1] = NULL;
+			cache = NULL;
 			mic_start_record_request = false;
 			mic_stop_record_request = false;
 			aptSetSleepAllowed(true);
@@ -321,9 +481,11 @@ void Mic_init(void)
 	{
 		log_num = Log_log_save(mic_init_string, "micInit()...", 1234567890, FORCE_DEBUG);
 		result.code = micInit(mic_buffer, mic_buffer_size);
-		Log_log_add(log_num, result.string, result.code, FORCE_DEBUG);
 		if (result.code == 0)
+		{
+			MICU_SetAllowShellClosed(true);
 			Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
+		}
 		else
 		{
 			failed = true;
@@ -372,14 +534,6 @@ void Mic_main(void)
 		white_or_black_tint = black_tint;
 	}
 
-	if(mic_pre_start_record_request != mic_start_record_request || mic_pre_record_time != mic_record_time || mic_pre_max_time != mic_max_time)
-	{
-		mic_pre_start_record_request = mic_start_record_request;
-		mic_pre_record_time = mic_record_time;
-		mic_pre_max_time = mic_max_time;
-		mic_need_reflesh = true;
-	}
-
 	Hid_query_key_state(&key);
 	Log_main();
 	if(Draw_query_need_reflesh() || !Sem_query_settings(SEM_ECO_MODE))
@@ -415,10 +569,10 @@ void Mic_main(void)
 			Draw(mic_msg[i], 0, (draw_x + 2.5), draw_y + 20.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 			draw_x += 60.0;
 		}
-		Draw(Sem_convert_seconds_to_time((double)mic_record_time / (16360 * 2.0)) + " / " + Sem_convert_seconds_to_time((double)mic_max_time / (16360 * 2.0)), 0, 12.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw_texture(Square_image, aqua_tint, 0, 10.0, 120.0, 300.0, 5.0);
+		Draw(Sem_convert_seconds_to_time((double)mic_record_time / (32730 * 2.0)) + " / " + Sem_convert_seconds_to_time((double)mic_max_time / (32730 * 2.0)), 0, 102.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		/*Draw_texture(Square_image, aqua_tint, 0, 10.0, 120.0, 300.0, 5.0);
 		if(mic_max_time != 0.0)
-			Draw_texture(Square_image, red_tint, 0, 10.0, 120.0, 300.0 * (mic_record_time / mic_max_time), 5.0);
+			Draw_texture(Square_image, red_tint, 0, 10.0, 120.0, 300.0 * (mic_record_time / mic_max_time), 5.0);*/
 
 		Draw_bot_ui();
 		Draw_touch_pos();
