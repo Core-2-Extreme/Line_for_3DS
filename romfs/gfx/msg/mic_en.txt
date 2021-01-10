@@ -2,4 +2,4 @@
 <1>Stop(B)</1>
 <2>Recording...</2>
 <3>File will be saved to
-sdmc:/Line/audio/</3>
+sdmc:/Line/sound/</3>
