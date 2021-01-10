@@ -14,12 +14,11 @@
 #include "setting_menu.hpp"
 #include "mic.hpp"
 #include "music_player.hpp"
+#include "util.hpp"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
-#include <libswresample/swresample.h>
 }
-extern "C" void memcpy_asm(u8*, u8*, int);
 
 /*For draw*/
 bool mic_need_reflesh = false;
@@ -47,11 +46,6 @@ std::string mic_exit_string = "Mic/Exit";
 std::string mic_dir_path = "";
 std::string mic_file_name = "";
 Thread mic_record_thread, mic_encode_thread;
-AVPacket *mic_packet = NULL;
-AVFrame *mic_raw_data = NULL;
-AVCodecContext *mic_context = NULL;
-AVCodec *mic_codec = NULL;
-SwrContext* mic_swr_context = NULL;
 
 
 bool Mic_query_init_flag(void)
@@ -85,169 +79,6 @@ void Mic_suspend(void)
 	Menu_resume();
 }
 
-Result_with_string Mic_init_encoder(AVCodecID id, int samplerate, int bitrate)
-{
-	int ffmpeg_result = 0;
-	int original_samplerate = samplerate;
-	Result_with_string result;
-
-	mic_codec = avcodec_find_encoder(id);
-	if(!mic_codec)
-	{
-		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
-		result.string = "avcodec_find_encoder() failed";
-		return result;
-	}
-
-	mic_context = avcodec_alloc_context3(mic_codec);
-	if(!mic_codec)
-	{
-		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
-		result.string = "avcodec_alloc_context3() failed";
-		return result;
-	}
-
-	for(int i = 0; i < 30; i++)//select supported samplerate
-	{
-		if(!mic_codec->supported_samplerates[i])
-			break;
-		else
-		{
-			if(mic_codec->supported_samplerates[i] - samplerate <= 0)
-			{
-				samplerate += mic_codec->supported_samplerates[i] - samplerate;
-				Log_log_save("", std::to_string(samplerate), 1234567890, false);
-				break;
-			}
-		}
-	}
-	mic_context->bit_rate = bitrate;
-	mic_context->sample_fmt = AV_SAMPLE_FMT_S16;
-	mic_context->sample_rate = samplerate;
-	mic_context->channel_layout = AV_CH_LAYOUT_MONO;
-	mic_context->channels = av_get_channel_layout_nb_channels(AV_CH_LAYOUT_MONO);
-	//context->profile = FF_PROFILE_AAC_MAIN;
-	mic_context->codec_type = AVMEDIA_TYPE_AUDIO;
-
-	ffmpeg_result = avcodec_open2(mic_context, mic_codec, NULL);
-	if(ffmpeg_result != 0)
-	{
-		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
-		result.string = "avcodec_open2() failed";
-		result.error_description = "avcodec error code : " + std::to_string(ffmpeg_result);
-		return result;
-	}
-	
-	mic_packet = av_packet_alloc();
-	mic_raw_data = av_frame_alloc();
-	if(!mic_raw_data || !mic_packet)
-	{
-		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
-		result.string = "av_packet_alloc() / av_frame_alloc() failed";
-		return result;	
-	}
-
-	mic_raw_data->nb_samples = mic_context->frame_size;
-	mic_raw_data->format = mic_context->sample_fmt;
-	mic_raw_data->channel_layout = mic_context->channel_layout;
-
-	ffmpeg_result = av_frame_get_buffer(mic_raw_data, 0);
-	if(ffmpeg_result != 0)
-	{
-		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
-		result.string = "av_frame_get_buffer() failed";
-		result.error_description = "avcodec error code : " + std::to_string(ffmpeg_result);
-		return result;
-	}
-
-	av_frame_make_writable(mic_raw_data);
-
-	mic_swr_context = swr_alloc();
-	swr_alloc_set_opts(mic_swr_context, av_get_default_channel_layout(mic_context->channels), mic_context->sample_fmt, mic_context->sample_rate,
-	av_get_default_channel_layout(mic_context->channels), AV_SAMPLE_FMT_S16, original_samplerate, 0, NULL);
-	if(!mic_swr_context)
-	{
-		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
-		result.string = "swr_alloc_set_opts() failed";
-		return result;
-	}
-	swr_init(mic_swr_context);
-
-	return result;
-}
-
-Result_with_string Mic_encode(int size, u8* raw_data, int* encoded_size, u8* encoded_data)
-{
-	int encode_offset = 0;
-	int encoded_offset = 0;
-	int ffmpeg_result = 0;
-	int one_frame_size = av_samples_get_buffer_size(NULL, mic_context->channels, mic_context->frame_size, mic_context->sample_fmt, 0);
-	int out_samples = 0;
-	u8* swr_in_cache[1] = { NULL, };
-	u8* swr_out_cache = NULL;
-	Result_with_string result;
-
-	*encoded_size = 0;
-	swr_in_cache[0] = (u8*)malloc(size);
-	swr_out_cache = (u8*)malloc(size);
-	if(swr_in_cache[0] == NULL || swr_out_cache == NULL)
-	{
-		result.code = OUT_OF_MEMORY;
-		result.string = Err_query_template_summary(OUT_OF_MEMORY);
-		result.error_description = Err_query_template_detail(OUT_OF_MEMORY);
-		free(swr_in_cache[0]);
-		free(swr_out_cache);
-		swr_in_cache[0] = NULL;
-		swr_out_cache = NULL;
-		return result;
-	}
-
-	memcpy(swr_in_cache[0] , raw_data, size);
-	out_samples = swr_convert(mic_swr_context, &swr_out_cache, size / 2, (const uint8_t**)swr_in_cache, size / 2);
-	free(swr_in_cache[0]);
-	swr_in_cache[0] = NULL;
-
-	for(int i = 0; i < 100000; i++)
-	{
-		mic_raw_data->data[0] = swr_out_cache  + encode_offset;
-
-		ffmpeg_result = avcodec_send_frame(mic_context, mic_raw_data);
-		if(ffmpeg_result != 0)
-		{
-			result.code = FFMPEG_RETURNED_NOT_SUCCESS;
-			result.string = "avcodec_send_frame() failed";
-			result.error_description = "avcodec error code : " + std::to_string(ffmpeg_result);
-			break;
-		}
-
-		ffmpeg_result = avcodec_receive_packet(mic_context, mic_packet);
-		if(ffmpeg_result == 0)
-		{
-			memcpy_asm(encoded_data + encoded_offset, mic_packet->data, mic_packet->size);
-			encoded_offset += mic_packet->size;
-			av_packet_unref(mic_packet);
-		}
-
-		if(encode_offset + one_frame_size*2 > (int)out_samples * 2)
-			break;
-		else
-			encode_offset += one_frame_size;
-	}
-	*encoded_size = encoded_offset;
-	free(swr_out_cache);
-	swr_out_cache = NULL;
-
-	return result;
-}
-
-void Mic_exit_encoder(void)
-{
-	avcodec_free_context(&mic_context);
-	av_packet_free(&mic_packet);
-	av_frame_free(&mic_raw_data);
-	swr_free(&mic_swr_context);	
-}
-
 void Mic_encode_thread(void* arg)
 {
 	Log_log_save(mic_encode_thread_string, "Thread started.", 1234567890, false);
@@ -275,7 +106,7 @@ void Mic_encode_thread(void* arg)
 			else
 			{
 				log_num = Log_log_save(mic_encode_thread_string, "Mic_encode()...", 1234567890, false);
-				result = Mic_encode(mic_buffer_offset[mic_buffer_num], mic_buffer[mic_buffer_num], &encoded_size, encoded_data);
+				result = Util_encode_audio(mic_buffer_offset[mic_buffer_num], mic_buffer[mic_buffer_num], &encoded_size, encoded_data, UTIL_AUDIO_ENCODER_0);
 				Log_log_add(log_num, "", result.code, false);
 				mic_encoding = false;
 
@@ -339,7 +170,7 @@ void Mic_record_thread(void* arg)
 				sample_size = micGetSampleDataSize();
 
 				log_num = Log_log_save(mic_record_thread_string, "Mic_init_encoder()...", 1234567890, false);
-				result = Mic_init_encoder(AV_CODEC_ID_MP2, 32730, 128000);
+				result = Util_init_audio_encoder(AV_CODEC_ID_MP2, 32730, 128000, UTIL_AUDIO_ENCODER_0);
 				Log_log_add(log_num, result.string, result.code, false);
 				if(result.code != 0)
 				{
@@ -444,7 +275,7 @@ void Mic_record_thread(void* arg)
 				}
 			}
 
-			Mic_exit_encoder();
+			Util_exit_audio_encoder(UTIL_AUDIO_ENCODER_0);
 			free(mic_buffer[0]);
 			free(mic_buffer[1]);
 			mic_buffer[0] = NULL;
