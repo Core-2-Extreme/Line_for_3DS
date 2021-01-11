@@ -105,7 +105,7 @@ void Mic_encode_thread(void* arg)
 			}
 			else
 			{
-				log_num = Log_log_save(mic_encode_thread_string, "Mic_encode()...", 1234567890, false);
+				log_num = Log_log_save(mic_encode_thread_string, "Util_encode_audio()...", 1234567890, false);
 				result = Util_encode_audio(mic_buffer_offset[mic_buffer_num], mic_buffer[mic_buffer_num], &encoded_size, encoded_data, UTIL_AUDIO_ENCODER_0);
 				Log_log_add(log_num, "", result.code, false);
 				mic_encoding = false;
@@ -169,7 +169,7 @@ void Mic_record_thread(void* arg)
 				count = 0;
 				sample_size = micGetSampleDataSize();
 
-				log_num = Log_log_save(mic_record_thread_string, "Mic_init_encoder()...", 1234567890, false);
+				log_num = Log_log_save(mic_record_thread_string, "Util_init_audio_encoder()...", 1234567890, false);
 				result = Util_init_audio_encoder(AV_CODEC_ID_MP2, 32730, 128000, UTIL_AUDIO_ENCODER_0);
 				Log_log_add(log_num, result.string, result.code, false);
 				if(result.code != 0)
