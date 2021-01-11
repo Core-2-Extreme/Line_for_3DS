@@ -101,9 +101,9 @@ int Log_log_save(std::string type, std::string text, Result result, bool draw)
 	memset(app_log_cache, 0x0, 4096);
 
 	if (result == 1234567890)
-		sprintf(app_log_cache, "[%.5f][%s] %s", time_cache, type.c_str(), text.c_str());
+		sprintf(app_log_cache, "[%.5f][%s] %s ", time_cache, type.c_str(), text.c_str());
 	else
-		sprintf(app_log_cache, "[%.5f][%s] %s0x%lx", time_cache, type.c_str(), text.c_str(), result);
+		sprintf(app_log_cache, "[%.5f][%s] %s 0x%lx", time_cache, type.c_str(), text.c_str(), result);
 
 	log_logs[log_current_log_num] = app_log_cache;
 	log_current_log_num++;
