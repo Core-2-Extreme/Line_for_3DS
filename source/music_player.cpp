@@ -242,7 +242,8 @@ void Mup_play_thread(void* arg)
 {
 	Log_log_save(mup_play_thread_string, "Thread started.", 1234567890, false);
 	bool init = true;
-	int ffmpeg_result = 0;
+	bool has_audio = false;
+	bool has_video = false;
 	int buffer_num = 0;
 	int random_num = 0;
 	int file_index = 0;
@@ -258,9 +259,7 @@ void Mup_play_thread(void* arg)
 	for(int i = 0; i < 5; i++)
 		sound_buffer[i] = (u8*)linearAlloc(0x5000);
 
-	sound_cache = (u8*)malloc(0x5000);
-
-	if(sound_buffer[0] == NULL || sound_buffer[1] == NULL || sound_buffer[2] == NULL || sound_buffer[3] == NULL || sound_buffer[4] == NULL || sound_cache == NULL)
+	if(sound_buffer[0] == NULL || sound_buffer[1] == NULL || sound_buffer[2] == NULL || sound_buffer[3] == NULL || sound_buffer[4] == NULL)
 	{
 		Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), mup_play_thread_string, OUT_OF_MEMORY);
 		Err_set_error_show_flag(true);
@@ -306,16 +305,16 @@ void Mup_play_thread(void* arg)
 				file_name = Expl_query_file_name(file_index);
 			}
 
-			result = Util_open_audio_file(dir_name + file_name, UTIL_AUDIO_DECODER_0);
+			result = Util_open_file(dir_name + file_name, &has_audio, &has_video, UTIL_DECODER_0);
 			if(result.code != 0)
 			{
 				Err_set_error_message(result.string, result.error_description, mup_play_thread_string, result.code);
 				Err_set_error_show_flag(true);
 				Log_log_save(mup_play_thread_string, result.string, result.code, false);
 			}
-			else
+			else if(has_audio)
 			{
-				result = Util_init_audio_decoder(UTIL_AUDIO_DECODER_0);
+				result = Util_init_audio_decoder(UTIL_DECODER_0);
 				if(result.code != 0)
 				{
 					Err_set_error_message(result.string, result.error_description, mup_play_thread_string, result.code);
@@ -336,20 +335,12 @@ void Mup_play_thread(void* arg)
 							ndspChnWaveBufClear(8);
 							if(mup_seek_request)
 							{
-								log_num = Log_log_save(mup_play_thread_string, "avformat_seek_file()... ", 1234567890, false);
 								//Use us(microsecond) to specify time
-								Log_log_save(mup_play_thread_string, std::to_string(mup_offset), 1234567890, false);
-								//ffmpeg_result = avformat_seek_file(format_context, -1, mup_offset, mup_offset, mup_offset, AVSEEK_FLAG_ANY);
-								if(ffmpeg_result >= 0)
-								{
+								log_num = Log_log_save(mup_play_thread_string, "Util_seek()... ", 1234567890, false);
+								result = Util_seek(mup_offset, 4, UTIL_DECODER_0);//AVSEEK_FLAG_ANY
+								Log_log_add(log_num, result.string, result.code, false);
+								if(result.code >= 0)
 									mup_bar_pos = mup_offset / 1000;
-									for(int i = 0; i < 5; i++)
-										sound_buffer[i] = (u8*)linearAlloc(0x2000);
-									
-									Log_log_add(log_num, Err_query_template_summary(0), ffmpeg_result, false);
-								}
-								else
-									Log_log_add(log_num, Err_query_template_summary(1024), ffmpeg_result, false);
 
 								mup_seek_request = false;
 							}
@@ -357,20 +348,22 @@ void Mup_play_thread(void* arg)
 								break;
 						}
 
-						result = Util_read_packet(&type, UTIL_AUDIO_DECODER_0);
+						result = Util_read_packet(&type, UTIL_DECODER_0);
 						if(result.code == 0)
 						{
 							if(type == AVMEDIA_TYPE_AUDIO)
 							{
-								result = Util_ready_audio_packet(UTIL_AUDIO_DECODER_0);
+								result = Util_ready_audio_packet(UTIL_DECODER_0);
 								if(result.code == 0)
 								{
-									result = Util_decode_audio(&audio_size, sound_cache, UTIL_AUDIO_DECODER_0);
+									free(sound_cache);
+									sound_cache = NULL;
+									result = Util_decode_audio(&audio_size, &sound_cache, UTIL_DECODER_0);
 									if(result.code == 0)
 									{
 										if(init)
 										{
-											Util_get_audio_info(&mup_music_bit_rate, &mup_music_sample_rate, &mup_num_of_music_ch, &mup_file_type, &mup_music_length, UTIL_AUDIO_DECODER_0);
+											Util_get_audio_info(&mup_music_bit_rate, &mup_music_sample_rate, &mup_num_of_music_ch, &mup_file_type, &mup_music_length, UTIL_DECODER_0);
 
 											ndspChnReset(8);
 											ndspChnWaveBufClear(8);
@@ -425,22 +418,11 @@ void Mup_play_thread(void* arg)
 					}
 				}
 			}
-			/*while(ndsp_buffer[0].status == NDSP_WBUF_PLAYING || ndsp_buffer[0].status == NDSP_WBUF_QUEUED 
-			|| ndsp_buffer[1].status == NDSP_WBUF_PLAYING || ndsp_buffer[1].status == NDSP_WBUF_QUEUED
-			|| ndsp_buffer[2].status == NDSP_WBUF_PLAYING || ndsp_buffer[2].status == NDSP_WBUF_QUEUED
-			|| ndsp_buffer[3].status == NDSP_WBUF_PLAYING || ndsp_buffer[3].status == NDSP_WBUF_QUEUED
-			|| ndsp_buffer[4].status == NDSP_WBUF_PLAYING || ndsp_buffer[4].status == NDSP_WBUF_QUEUED)
-			{
-				if(mup_stop_request || mup_change_music_request)
-					break;
 
-				usleep(25000);
-			}*/
+			usleep(100000);
 
-			usleep(25000);
-
-			Util_exit_audio_decoder(UTIL_AUDIO_DECODER_0);
-			Util_close_file(UTIL_AUDIO_DECODER_0);
+			Util_exit_audio_decoder(UTIL_DECODER_0);
+			Util_close_file(UTIL_DECODER_0);
 			mup_count_request = false;
 			if (!mup_loop_request && !mup_change_music_request)
 				mup_play_request = false;

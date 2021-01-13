@@ -1,6 +1,6 @@
 #pragma once
 
-#define VID_NUM_OF_MSG 12
+#define VID_NUM_OF_MSG 9
 
 #define VID_HTTP_PORT0 7
 
