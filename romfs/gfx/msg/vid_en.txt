@@ -7,6 +7,4 @@
 <6>Select file(X)</6>
 <7>Decrease size(L)</7>
 <8>Increase size(R)</8>
-<9>Allow</9>
-<10>Deny</10>
-<11>Pause(A)</11>
+<9>Pause(A)</9>
