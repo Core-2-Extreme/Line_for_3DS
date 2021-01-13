@@ -3,8 +3,7 @@
 <2>Stop(B)</2>
 <3>Settings</3>
 <4>Video info</4>
-<5>Skip frame</5>
-<6>Select file(X)</6>
-<7>Decrease size(L)</7>
-<8>Increase size(R)</8>
-<9>Pause(A)</9>
+<5>Select file(X)</5>
+<6>Decrease size(L)</6>
+<7>Increase size(R)</7>
+<8>Pause(A)</8>
