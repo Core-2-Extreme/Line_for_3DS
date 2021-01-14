@@ -107,14 +107,14 @@ void Mic_encode_thread(void* arg)
 			{
 				log_num = Log_log_save(mic_encode_thread_string, "Util_encode_audio()...", 1234567890, false);
 				result = Util_encode_audio(mic_buffer_offset[mic_buffer_num], mic_buffer[mic_buffer_num], &encoded_size, encoded_data, UTIL_AUDIO_ENCODER_0);
-				Log_log_add(log_num, "", result.code, false);
+				Log_log_add(log_num, result.string, result.code, false);
 				mic_encoding = false;
 
 				if(result.code == 0)
 				{
 					log_num = Log_log_save(mic_encode_thread_string, "File_save_to_file()...", 1234567890, false);
 					result = File_save_to_file(mic_file_name, encoded_data, encoded_size, mic_dir_path, false);
-					Log_log_add(log_num, "", result.code, false);
+					Log_log_add(log_num, result.string, result.code, false);
 				}
 			}
 
@@ -222,9 +222,9 @@ void Mic_record_thread(void* arg)
 						{
 							buffer_pos = micGetLastSampleOffset();
 							memcpy((void*)(mic_buffer[buffer_num] + buffer_offset), (void*)(mic_buffer[2] + buffer_offset), (buffer_pos - buffer_offset));
+							mic_record_time += (buffer_pos - buffer_offset);
 							buffer_offset += (buffer_pos - buffer_offset);
 						}
-						mic_record_time = buffer_pos;
 					}
 
 					if (mic_stop_record_request)
@@ -465,7 +465,7 @@ void Mic_main(void)
 		for (int i = 0; i < 2; i++)
 		{
 			Draw_texture(Square_image, weak_aqua_tint, 0, draw_x, draw_y, 50.0, 50.0);
-			Draw(mic_msg[i], 0, (draw_x + 2.5), draw_y + 20.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			Draw(mic_msg[i], 0, (draw_x + 2.5), draw_y + 20.0, 0.425, 0.425, text_red, text_green, text_blue, text_alpha);
 			draw_x += 60.0;
 		}
 		Draw(Sem_convert_seconds_to_time((double)mic_record_time / (32730 * 2.0)), 0, 102.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
