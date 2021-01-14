@@ -47,8 +47,6 @@ bool vid_seek_request = false;
 bool vid_get_info_request = false;
 bool vid_decoding = false;
 bool vid_converting = false;
-bool vid_down_sampling = false;
-bool vid_strong_down_sampling = false;
 bool vid_scroll_mode = false;
 bool vid_dl_and_decode_request = false;
 bool vid_count_request = false;
@@ -72,6 +70,7 @@ int vid_temp_convert_fps = 0;
 int vid_frames = 0;
 int vid_decoded_frames = 0;
 int vid_menu_mode = 0;
+int vid_low_resolution = 0;
 float vid_decoding_time[320];
 double vid_x_size[16];
 double vid_y_size[16];
@@ -408,9 +407,29 @@ void Vid_worker_thread(void* arg)
 			else if(has_audio || has_video)
 			{
 				if(has_audio)
+				{
+					log_num = Log_log_save(vid_worker_thread_string, "Util_init_audio_decoder()...", 1234567890, false);
 					result = Util_init_audio_decoder(UTIL_DECODER_1);
+					Log_log_add(log_num, result.string, result.code, false);
+					if(result.code != 0)
+					{
+						has_audio = false;
+						Err_set_error_show_flag(true);
+						Err_set_error_message(result.string, result.error_description, vid_worker_thread_string, result.code);
+					}
+				}
 				if(has_video)
-					result = Util_init_video_decoder(UTIL_DECODER_1);
+				{
+					log_num = Log_log_save(vid_worker_thread_string, "Util_init_video_decoder()...", 1234567890, false);
+					result = Util_init_video_decoder(vid_low_resolution, UTIL_DECODER_1);
+					Log_log_add(log_num, result.string, result.code, false);
+					if(result.code != 0)
+					{
+						has_video = false;
+						Err_set_error_show_flag(true);
+						Err_set_error_message(result.string, result.error_description, vid_worker_thread_string, result.code);
+					}
+				}
 
 				vid_count_request = true;
 				while (true)
@@ -429,7 +448,7 @@ void Vid_worker_thread(void* arg)
 						{
 							//Use us(microsecond) to specify time
 							log_num = Log_log_save(vid_worker_thread_string, "avformat_seek_file()...", 1234567890, false);
-							result = Util_seek(vid_offset, 9, UTIL_DECODER_1);//AVSEEK_FLAG_FRAME | AVSEEK_FLAG_BACKWORD
+							result = Util_seek(vid_offset, 8, UTIL_DECODER_1);//AVSEEK_FLAG_FRAME
 							Log_log_add(log_num, result.string, result.code, false);
 							if(result.code >= 0)
 								vid_bar_pos = vid_offset / 1000;
@@ -443,7 +462,7 @@ void Vid_worker_thread(void* arg)
 					result = Util_read_packet(&type, UTIL_DECODER_1);
 					if(result.code == 0)
 					{
-						if(type == AVMEDIA_TYPE_VIDEO)
+						if(type == AVMEDIA_TYPE_VIDEO && has_video)
 						{
 							vid_frames++;
 							while(vid_decode_video_request || vid_decoding)
@@ -475,7 +494,7 @@ void Vid_worker_thread(void* arg)
 							else
 								Log_log_save(vid_worker_thread_string, result.string + result.error_description, result.code, false);
 						}
-						else if(type == AVMEDIA_TYPE_AUDIO)
+						else if(type == AVMEDIA_TYPE_AUDIO && has_audio)
 						{
 							result = Util_ready_audio_packet(UTIL_DECODER_1);
 							if(result.code == 0)
@@ -536,7 +555,6 @@ void Vid_worker_thread(void* arg)
 							else
 								Log_log_save(vid_worker_thread_string, result.string + result.error_description, result.code, false);
 						}
-						
 					}
 					else
 					{
@@ -868,7 +886,7 @@ void Vid_main(void)
 	double draw_y = 0.0;
 	double tex_size_x = 0.0;
 	double tex_size_y = 0.0;
-	//std::string msg = "";
+	std::string msg = "";
  	Hid_info key;
 
 	if(vid_dl_and_decode_request)
@@ -1020,19 +1038,19 @@ void Vid_main(void)
 		if(vid_menu_mode == 0)
 		{
 			Draw_texture(Square_image, aqua_tint, 0, 10.0, 185.0, 75.0, 10.0);
-			//Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 205.0, 70.0, 15.0);
+			Draw_texture(Square_image, weak_aqua_tint, 0, 10.0, 205.0, 70.0, 15.0);
 
-			//Draw(vid_msg[5], 0, 10.0, 195.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			//Draw(msg, 0, 10.0, 207.5, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			if(vid_low_resolution == 2)
+				msg = "25%";
+			else if(vid_low_resolution == 1)
+				msg = "50%";
+			else
+				msg = "100%";
+			
+			Draw(vid_msg[9] + msg, 0, 10.0, 207.5, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
 
 			/*Draw_texture(Square_image, weak_aqua_tint, 0, 20.0, 210.0, 70.0, 15.0);
-			Draw("Down sampling", 0, 20.0, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
-			if(vid_strong_down_sampling)
-				msg = "ON(1/4)";
-			else if(vid_down_sampling)
-				msg = "ON(1/2)";
-			else
-				msg = "OFF";*/
+			Draw("Down sampling", 0, 20.0, 200.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);*/
 
 			Draw_texture(Square_image, weak_aqua_tint, 0, 90.0, 205.0, 70.0, 15.0);
 			Draw(vid_msg[5], 0, 92.5, 205.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
@@ -1158,20 +1176,15 @@ void Vid_main(void)
 			Expl_set_operation_flag(EXPL_READ_DIR_REQUEST, true);
 			vid_select_file_request = true;
 		}
-		/*else if(vid_menu_mode == 0 && key.p_touch && key.touch_x > 20 && key.touch_x < 90 && key.touch_y > 210 && key.touch_y < 225)
+		else if(vid_menu_mode == 0 && key.p_touch && key.touch_x >= 10 && key.touch_x <= 79 && key.touch_y >= 205 && key.touch_y <= 219)
 		{
-			if(vid_strong_down_sampling)
-			{
-				vid_strong_down_sampling = false;
-			}
-			else if(vid_down_sampling)
-			{
-				vid_strong_down_sampling = true;
-				vid_down_sampling = false;
-			}
+			if(vid_low_resolution == 2)
+				vid_low_resolution = 0;
+			else if(vid_low_resolution == 1)
+				vid_low_resolution = 2;
 			else
-				vid_down_sampling = true;
-		}*/
+				vid_low_resolution = 1;
+		}
 		else if(vid_menu_mode == 0 && key.p_touch && key.touch_x >= 170 && key.touch_x <= 309 && key.touch_y >= 185 && key.touch_y <= 199)
 			vid_button_selected[0] = true;
 		else if(vid_menu_mode == 0 && key.p_touch && key.touch_x >= 170 && key.touch_x <= 309 && key.touch_y >= 205 && key.touch_y <= 219)

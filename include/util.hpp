@@ -20,7 +20,7 @@ Result_with_string Util_open_file(std::string file_path, bool* has_audio, bool* 
 
 Result_with_string Util_init_audio_decoder(int session);
 
-Result_with_string Util_init_video_decoder(int session);
+Result_with_string Util_init_video_decoder(int low_resolution, int session);
 
 void Util_get_audio_info(int* bitrate, int* samplerate, int* ch, std::string* format_name, double* duration, int session);
 

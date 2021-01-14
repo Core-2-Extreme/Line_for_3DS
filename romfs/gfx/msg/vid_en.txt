@@ -7,3 +7,4 @@
 <6>Decrease size(L)</6>
 <7>Increase size(R)</7>
 <8>Pause(A)</8>
+<9>Resolution(Y)</9>

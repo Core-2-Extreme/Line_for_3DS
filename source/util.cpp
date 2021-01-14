@@ -324,7 +324,7 @@ Result_with_string Util_init_audio_decoder(int session)
 	return result;
 }
 
-Result_with_string Util_init_video_decoder(int session)
+Result_with_string Util_init_video_decoder(int low_resolution, int session)
 {
 	int ffmpeg_result = 0;
 	Result_with_string result;
@@ -350,6 +350,7 @@ Result_with_string Util_init_video_decoder(int session)
 		goto fail;
 	}
 
+	util_video_decoder_context[session]->lowres = low_resolution;
 	ffmpeg_result = avcodec_open2(util_video_decoder_context[session], util_video_decoder_codec[session], NULL);
 	if(ffmpeg_result != 0)
 	{
