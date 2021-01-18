@@ -67,7 +67,6 @@ int vid_convert_fps = 0;
 int vid_temp_read_fps = 0;
 int vid_temp_decode_fps = 0;
 int vid_temp_convert_fps = 0;
-int vid_frames = 0;
 int vid_decoded_frames = 0;
 int vid_menu_mode = 0;
 int vid_low_resolution = 0;
@@ -210,6 +209,7 @@ void Vid_decode_video_thread(void* arg)
 	bool key = false;
 	int height = 0;
 	int width = 0;
+	double video_pos = 0;
 	Result_with_string result;
 	TickCounter decoding_time;
 	
@@ -226,11 +226,12 @@ void Vid_decode_video_thread(void* arg)
 
 				osTickCounterUpdate(&decoding_time);
 
-				result = Util_decode_video(&width, &height, &key, UTIL_DECODER_1);
+				result = Util_decode_video(&width, &height, &key, &video_pos, UTIL_DECODER_1);
 				osTickCounterUpdate(&decoding_time);
 				
 				if(result.code == 0)
 				{
+					vid_bar_pos = video_pos;
 					vid_decoded_frames++;
 					if(vid_display_decoding_detail)
 					{
@@ -385,7 +386,6 @@ void Vid_worker_thread(void* arg)
 			frametime = 0.0;
 			init = true;
 			vid_offset = 0;
-			vid_frames = 0;
 			vid_decoded_frames = 0;
 			vid_count_reset_request = true;
 			vid_get_info_request = true;
@@ -464,7 +464,6 @@ void Vid_worker_thread(void* arg)
 					{
 						if(type == AVMEDIA_TYPE_VIDEO && has_video)
 						{
-							vid_frames++;
 							while(vid_decode_video_request || vid_decoding)
 								usleep(500);
 							
@@ -483,7 +482,6 @@ void Vid_worker_thread(void* arg)
 								}
 								else
 								{
-									//vid_bar_pos = ((double)packet->dts / packet->duration) * (1000 / vid_framerate);
 									if((1000.0 / vid_framerate) - frametime > 0)
 										usleep(((1000.0 / vid_framerate) - frametime) * 1000);
 								}
@@ -507,7 +505,7 @@ void Vid_worker_thread(void* arg)
 								{
 									if(init)
 									{
-										Util_get_audio_info(&bitrate, &samplerate, &channels, &format, &duration, UTIL_DECODER_1);
+										Util_get_audio_info(&bitrate, &samplerate, &channels, &vid_current_audio_format, &duration, UTIL_DECODER_1);
 										ndspChnReset(21);
 										ndspChnWaveBufClear(21);
 										memset(mix, 0, sizeof(mix));
@@ -1065,7 +1063,7 @@ void Vid_main(void)
 		{
 			Draw_texture(Square_image, yellow_tint, 0, 85.0, 185.0, 75.0, 10.0);
 			Draw(vid_current_video_format + " , " + vid_current_audio_format, 0, 10.0, 195.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-			Draw(std::to_string(vid_video_width) + " x " + std::to_string(vid_video_height) + "@" + std::to_string(vid_framerate).substr(0, 5) + "fps " + std::to_string(vid_read_fps) + " / " + std::to_string(vid_decode_fps) + " / " + std::to_string(vid_convert_fps) + "fps  Skipped " + std::to_string(vid_frames - vid_decoded_frames) + " / " + std::to_string(vid_frames), 0, 10.0, 210.0, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
+			Draw(std::to_string(vid_video_width) + " x " + std::to_string(vid_video_height) + "@" + std::to_string(vid_framerate).substr(0, 5) + "fps " + std::to_string(vid_read_fps) + " / " + std::to_string(vid_decode_fps) + " / " + std::to_string(vid_convert_fps) + "fps  Frames : " + std::to_string(vid_decoded_frames), 0, 10.0, 210.0, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
 
 			Draw_texture(Square_image, weak_aqua_tint, 0, 210.0, 195.0, 100.0, 15.0);
 			if(vid_display_decoding_detail)

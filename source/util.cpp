@@ -143,23 +143,23 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int* encoded_size, 
 	int one_frame_size = av_samples_get_buffer_size(NULL, util_audio_encoder_context[session]->channels, util_audio_encoder_context[session]->frame_size, util_audio_encoder_context[session]->sample_fmt, 0);
 	int out_samples = 0;
 	u8* swr_in_cache[1] = { NULL, };
-	u8* swr_out_cache = NULL;
+	u8* swr_out_cache[1] = { NULL, };
 	Result_with_string result;
 
 	*encoded_size = 0;
 	swr_in_cache[0] = (u8*)malloc(size);
-	swr_out_cache = (u8*)malloc(size);
-	if(swr_in_cache[0] == NULL || swr_out_cache == NULL)
+	swr_out_cache[0] = (u8*)malloc(size);
+	if(swr_in_cache[0] == NULL || swr_out_cache[0] == NULL)
 		goto fail_;
 
 	memcpy(swr_in_cache[0] , raw_data, size);
-	out_samples = swr_convert(util_audio_encoder_swr_context[session], &swr_out_cache, size / 2, (const uint8_t**)swr_in_cache, size / 2);
+	out_samples = swr_convert(util_audio_encoder_swr_context[session], (uint8_t**)swr_out_cache, size / 2, (const uint8_t**)swr_in_cache, size / 2);
 	free(swr_in_cache[0]);
 	swr_in_cache[0] = NULL;
-
+		
 	for(int i = 0; i < 100000; i++)
 	{
-		util_audio_encoder_raw_data[session]->data[0] = swr_out_cache  + encode_offset;
+		util_audio_encoder_raw_data[session]->data[0] = swr_out_cache[0]  + encode_offset;
 
 		ffmpeg_result = avcodec_send_frame(util_audio_encoder_context[session], util_audio_encoder_raw_data[session]);
 		if(ffmpeg_result != 0)
@@ -182,8 +182,8 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int* encoded_size, 
 			encode_offset += one_frame_size;
 	}
 	*encoded_size = encoded_offset;
-	free(swr_out_cache);
-	swr_out_cache = NULL;
+	free(swr_out_cache[0]);
+	swr_out_cache[0] = NULL;
 
 	return result;
 
@@ -196,9 +196,9 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int* encoded_size, 
 	fail_:
 
 	free(swr_in_cache[0]);
-	free(swr_out_cache);
+	free(swr_out_cache[0]);
 	swr_in_cache[0] = NULL;
-	swr_out_cache = NULL;
+	swr_out_cache[0] = NULL;
 	result.code = OUT_OF_MEMORY;
 	result.string = Err_query_template_summary(OUT_OF_MEMORY);
 	result.error_description = Err_query_template_detail(OUT_OF_MEMORY);
@@ -381,7 +381,7 @@ void Util_get_video_info(int* width, int* height, double* framerate, std::string
 {
 	*width = util_video_decoder_context[session]->width;
 	*height = util_video_decoder_context[session]->height;
-	*framerate = (double)util_video_decoder_context[session]->framerate.num / (double)util_video_decoder_context[session]->framerate.den;
+	*framerate = (double)util_decoder_format_context[session]->streams[util_video_decoder_stream_num[session]]->avg_frame_rate.num / util_decoder_format_context[session]->streams[util_video_decoder_stream_num[session]]->avg_frame_rate.den;
 	*format_name = util_video_decoder_codec[session]->name;
 	*duration = (double)util_decoder_format_context[session]->duration / AV_TIME_BASE;
 }
@@ -571,13 +571,19 @@ Result_with_string Util_decode_audio(int* size, u8** raw_data, int session)
 	return result;
 }
 
-Result_with_string Util_decode_video(int* width, int* height, bool* key_frame, int session)
+Result_with_string Util_decode_video(int* width, int* height, bool* key_frame, double* current_pos, int session)
 {
 	int ffmpeg_result = 0;
 	int count = 0;
+	double framerate = (double)util_decoder_format_context[session]->streams[util_video_decoder_stream_num[session]]->avg_frame_rate.num / util_decoder_format_context[session]->streams[util_video_decoder_stream_num[session]]->avg_frame_rate.den;
+	double current_frame = (double)util_video_decoder_packet[session]->dts / util_video_decoder_packet[session]->duration;
 	Result_with_string result;
 	*width = 0;
 	*height = 0;
+	*current_pos = 0;
+	if(framerate != 0.0)
+		*current_pos = current_frame * (1000 / framerate);//calc frame pos
+	//Log_log_save("", std::to_string(framerate) + " " + std::to_string(current_frame), 1234567890, false);
 
 	if(util_video_decoder_packet[session]->flags == 1)
 		*key_frame = true;

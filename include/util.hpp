@@ -34,7 +34,7 @@ Result_with_string Util_ready_video_packet(int session);
 
 Result_with_string Util_decode_audio(int* size, u8** raw_data, int session);
 
-Result_with_string Util_decode_video(int* width, int* height, bool* key_frame, int session);
+Result_with_string Util_decode_video(int* width, int* height, bool* key_frame, double* current_pos, int session);
 
 void Util_get_video_image(u8* raw_data, int width, int height, int session);
 
