@@ -174,7 +174,7 @@ std::string Sem_convert_seconds_to_time(double input_seconds)
 	long count = 0;
 	std::string time = "";
 
-	for(count = 0; count < input_seconds; count++)
+	for(count = 0; count < (int)input_seconds; count++)
 	{
 		if(seconds + 1 >= 60)
 		{
