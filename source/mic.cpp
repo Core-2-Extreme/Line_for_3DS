@@ -123,9 +123,6 @@ void Mic_encode_thread(void* arg)
 		}
 		else
 			usleep(ACTIVE_THREAD_SLEEP_TIME / 2);
-
-		while (mic_thread_suspend)
-			usleep(INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Log_log_save(mic_encode_thread_string, "Thread exit.", 1234567890, false);
 	threadExit(0);
@@ -163,6 +160,7 @@ void Mic_record_thread(void* arg)
 				memset(mic_buffer[1], 0x0, mic_buffer_size);
 				mic_dir_path = "/Line/sound/" + Menu_query_time(1) + "/";
 				mic_file_name = Menu_query_time(2) + ".mp2";
+				mic_record_time = 0;
 				buffer_offset = 0;
 				buffer_pos = 0;
 				buffer_num = 0;
@@ -469,9 +467,6 @@ void Mic_main(void)
 			draw_x += 60.0;
 		}
 		Draw(Sem_convert_seconds_to_time((double)mic_record_time / (32730 * 2.0)), 0, 102.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		/*Draw_texture(Square_image, aqua_tint, 0, 10.0, 120.0, 300.0, 5.0);
-		if(mic_max_time != 0.0)
-			Draw_texture(Square_image, red_tint, 0, 10.0, 120.0, 300.0 * (mic_record_time / mic_max_time), 5.0);*/
 
 		Draw_bot_ui();
 		Draw_touch_pos();
