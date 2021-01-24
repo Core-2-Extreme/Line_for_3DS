@@ -204,6 +204,7 @@ void Menu_init(void)
 	menu_wifi_state_internet_sample = (u8*)malloc(0x1);
 	memset(menu_wifi_state, 0xff, 0x1);
 	memset(menu_wifi_state_internet_sample, 0x2, 0x1);
+	Menu_get_system_info();
 
 	Menu_resume();
 	Log_log_save(menu_init_string, "Initialized", 1234567890, FORCE_DEBUG);
@@ -273,7 +274,6 @@ void Menu_main(void)
 	float text_blue;
 	float text_alpha;
 	std::string app_name[9] = { "     Line", "    Google \n  translation", " Speed test", "Image viewer", "   Camera", "      Mic", "Music player", "Video player", "Settings" };
-	Menu_get_system_info();
 
 	if (Cam_query_running_flag())
 		sprintf(menu_status_short, "%04d/%02d/%02d %02d:%02d:%02d cam %02dfps ", menu_years, menu_months, menu_days, menu_hours, menu_minutes, menu_seconds, menu_cam_fps);
@@ -723,6 +723,7 @@ void Menu_update_thread(void* arg)
 			Draw_reset_fps();
 			Cam_reset_framerate();
 			Vid_reset_fps();
+			Menu_get_system_info();
 			count = 0;
 		}
 
