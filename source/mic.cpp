@@ -33,11 +33,12 @@ bool mic_stop_record_request = false;
 bool mic_encode_request = false;
 bool mic_encoding = false;
 u8* mic_buffer[3] = { NULL, NULL, NULL, };
-u32 mic_buffer_size = 0x80000;
+u32 mic_buffer_size = 0x40000;
 int mic_buffer_offset[2] = { 0, 0, };
 int mic_buffer_num = 0;
 double mic_record_time = 0.0;
 std::string mic_msg[MIC_NUM_OF_MSG];
+std::string mic_format = "mp4";
 std::string mic_ver = "v1.1.0";
 std::string mic_record_thread_string = "Mic/Record thread";
 std::string mic_encode_thread_string = "Mic/Encode thread";
@@ -83,8 +84,6 @@ void Mic_encode_thread(void* arg)
 {
 	Log_log_save(mic_encode_thread_string, "Thread started.", 1234567890, false);
 	int log_num;
-	int encoded_size = 0;
-	u8* encoded_data = NULL;
 	Result_with_string result;
 
 	File_save_to_file(".", NULL, 0, "/Line/sound/", true);
@@ -96,30 +95,11 @@ void Mic_encode_thread(void* arg)
 			mic_encode_request = false;
 			mic_encoding = true;
 			
-			encoded_data = (u8*)malloc(mic_buffer_size / 2);
-			if(encoded_data == NULL)
-			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", mic_encode_thread_string, OUT_OF_MEMORY);
-				Err_set_error_show_flag(true);
-				Log_log_save(mic_encode_thread_string, "[Error] Out of memory.", OUT_OF_MEMORY, false);				
-			}
-			else
-			{
-				log_num = Log_log_save(mic_encode_thread_string, "Util_encode_audio()...", 1234567890, false);
-				result = Util_encode_audio(mic_buffer_offset[mic_buffer_num], mic_buffer[mic_buffer_num], &encoded_size, encoded_data, UTIL_AUDIO_ENCODER_0);
-				Log_log_add(log_num, result.string, result.code, false);
-				mic_encoding = false;
+			log_num = Log_log_save(mic_encode_thread_string, "Util_encode_audio()...", 1234567890, false);
+			result = Util_encode_audio(mic_buffer_offset[mic_buffer_num], mic_buffer[mic_buffer_num], UTIL_AUDIO_ENCODER_0);
+			Log_log_add(log_num, result.string, result.code, false);
 
-				if(result.code == 0)
-				{
-					log_num = Log_log_save(mic_encode_thread_string, "File_save_to_file()...", 1234567890, false);
-					result = File_save_to_file(mic_file_name, encoded_data, encoded_size, mic_dir_path, false);
-					Log_log_add(log_num, result.string, result.code, false);
-				}
-			}
-
-			free(encoded_data);
-			encoded_data = NULL;
+			mic_encoding = false;
 		}
 		else
 			usleep(ACTIVE_THREAD_SLEEP_TIME / 2);
@@ -159,7 +139,7 @@ void Mic_record_thread(void* arg)
 				memset(mic_buffer[0], 0x0, mic_buffer_size);
 				memset(mic_buffer[1], 0x0, mic_buffer_size);
 				mic_dir_path = "/Line/sound/" + Menu_query_time(1) + "/";
-				mic_file_name = Menu_query_time(2) + ".mp2";
+				mic_file_name = Menu_query_time(2) + "." + mic_format;
 				mic_record_time = 0;
 				buffer_offset = 0;
 				buffer_pos = 0;
@@ -167,8 +147,26 @@ void Mic_record_thread(void* arg)
 				count = 0;
 				sample_size = micGetSampleDataSize();
 
+				File_save_to_file(".", NULL, 0, mic_dir_path, true);//create directory
+
+				log_num = Log_log_save(mic_record_thread_string, "Util_create_file()...", 1234567890, false);
+				result = Util_create_output_file(mic_dir_path + mic_file_name, UTIL_AUDIO_ENCODER_0);
+				Log_log_add(log_num, result.string, result.code, false);
+				if(result.code != 0)
+				{
+					Err_set_error_show_flag(true);
+					Err_set_error_message(result.string, result.error_description, mic_record_thread_string, result.code);
+					mic_stop_record_request = true;
+				}
+
 				log_num = Log_log_save(mic_record_thread_string, "Util_init_audio_encoder()...", 1234567890, false);
-				result = Util_init_audio_encoder(AV_CODEC_ID_MP2, 32730, 128000, UTIL_AUDIO_ENCODER_0);
+				if(mic_format == "mp4")
+					result = Util_init_audio_encoder(AV_CODEC_ID_AAC, 32730, 32000, 128000, UTIL_AUDIO_ENCODER_0);
+				else if(mic_format == "mp2")
+					result = Util_init_audio_encoder(AV_CODEC_ID_MP2, 32730, 32000, 128000, UTIL_AUDIO_ENCODER_0);
+				else
+					result = Util_init_audio_encoder(AV_CODEC_ID_AC3, 32730, 32000, 128000, UTIL_AUDIO_ENCODER_0);
+								
 				Log_log_add(log_num, result.string, result.code, false);
 				if(result.code != 0)
 				{
@@ -241,7 +239,6 @@ void Mic_record_thread(void* arg)
 						do
 							usleep(100000);
 						while(mic_encoding);
-
 						/**chunk_size = (int)buffer_offset + 36;
 						memcpy((void*)header, (void*)riff, 0x4);
 						memcpy((void*)(header + 4), (void*)(chunk_size), 0x4);
@@ -274,6 +271,7 @@ void Mic_record_thread(void* arg)
 			}
 
 			Util_exit_audio_encoder(UTIL_AUDIO_ENCODER_0);
+			Util_close_output_file(UTIL_AUDIO_ENCODER_0);
 			free(mic_buffer[0]);
 			free(mic_buffer[1]);
 			mic_buffer[0] = NULL;
@@ -395,7 +393,7 @@ void Mic_init(void)
 	if (!failed)
 	{
 		mic_thread_run = true;
-		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 1, false);
+		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 1, false);
 		mic_encode_thread = threadCreate(Mic_encode_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
 	}
 
@@ -467,6 +465,8 @@ void Mic_main(void)
 			draw_x += 60.0;
 		}
 		Draw(Sem_convert_seconds_to_time((double)mic_record_time / (32730 * 2.0)), 0, 102.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw("format(Y) " + mic_format, 0, 102.5, 125.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		
 
 		Draw_bot_ui();
 		Draw_touch_pos();
@@ -492,5 +492,16 @@ void Mic_main(void)
 			mic_start_record_request = true;
 		else if (key.p_b || (key.p_touch && key.touch_x >= 165 && key.touch_x <= 214 && key.touch_y >= 60 && key.touch_y <= 109))
 			mic_stop_record_request = true;
+		else if (key.p_y && !mic_start_record_request)
+		{
+			if(mic_format == "mp4")
+				mic_format = "ac3";
+			else if(mic_format == "ac3")
+				mic_format = "mp2";
+			else
+				mic_format = "mp4";
+			
+			mic_need_reflesh = true;
+		}
 	}
 }
