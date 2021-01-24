@@ -15,12 +15,14 @@ extern "C" {
 
 extern "C" void memcpy_asm(u8*, u8*, int);
 
-
+int util_audio_pos[2] = { 0, 0, };
 AVPacket* util_audio_encoder_packet[2] = { NULL, NULL, };
 AVFrame* util_audio_encoder_raw_data[2] = { NULL, NULL, };
 AVCodecContext* util_audio_encoder_context[2] = { NULL, NULL, };
 AVCodec* util_audio_encoder_codec[2] = { NULL, NULL, };
 SwrContext* util_audio_encoder_swr_context[2] = { NULL, NULL, };
+AVFormatContext* util_audio_encoder_format_context = NULL;
+AVStream* util_audio_encoder_stream = NULL;
 
 bool util_video_decoder_lock[2][2] = { { false, false, }, { false, false, } };
 int util_video_decoder_buffer_num[2] = { 0, 0, };
@@ -41,12 +43,49 @@ AVCodec* util_audio_decoder_codec[2] = { NULL, NULL, };
 SwrContext* util_audio_decoder_swr_context[2] = { NULL, NULL, };
 AVFormatContext* util_decoder_format_context[2] = { NULL, NULL, };
 
-Result_with_string Util_init_audio_encoder(AVCodecID id, int samplerate, int bitrate, int session)
+Result_with_string Util_create_output_file(std::string file_name, int session)
+{
+	Result_with_string result;
+	int ffmpeg_result = 0;
+
+	util_audio_encoder_format_context = avformat_alloc_context();
+	if(!util_audio_encoder_format_context)
+	{
+		result.error_description = "avformat_alloc_context() failed";
+		goto fail;
+	}
+
+	util_audio_encoder_format_context->oformat = av_guess_format(NULL, file_name.c_str(), NULL);
+	if(!util_audio_encoder_format_context->oformat)
+	{
+		result.error_description = "av_guess_format() failed";
+		goto fail;
+	}
+
+	ffmpeg_result = avio_open(&util_audio_encoder_format_context->pb, file_name.c_str(), AVIO_FLAG_READ_WRITE);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avio_open() failed " + std::to_string(ffmpeg_result);
+		goto fail;
+	}
+
+	return result;
+
+	fail:
+
+	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
+	avio_close(util_audio_encoder_format_context->pb);
+	avformat_free_context(util_audio_encoder_format_context);
+	return result;
+}
+
+Result_with_string Util_init_audio_encoder(AVCodecID id, int original_samplerate, int encode_samplerate, int bitrate, int session)
 {
 	int ffmpeg_result = 0;
-	int original_samplerate = samplerate;
 	Result_with_string result;
 
+	util_audio_pos[session] = 0;
 	util_audio_encoder_codec[session] = avcodec_find_encoder(id);
 	if(!util_audio_encoder_codec[session])
 	{
@@ -55,33 +94,28 @@ Result_with_string Util_init_audio_encoder(AVCodecID id, int samplerate, int bit
 	}
 
 	util_audio_encoder_context[session] = avcodec_alloc_context3(util_audio_encoder_codec[session]);
-	if(!util_audio_encoder_codec[session])
+	if(!util_audio_encoder_context[session])
 	{
 		result.error_description = "avcodec_alloc_context3() failed";
 		goto fail;
 	}
 
-	for(int i = 0; i < 30; i++)//select supported samplerate
-	{
-		if(!util_audio_encoder_codec[session]->supported_samplerates[i])
-			break;
-		else
-		{
-			if(util_audio_encoder_codec[session]->supported_samplerates[i] - samplerate <= 0)
-			{
-				samplerate += util_audio_encoder_codec[session]->supported_samplerates[i] - samplerate;
-				break;
-			}
-		}
-	}
+	if(id == AV_CODEC_ID_MP2)
+		util_audio_encoder_context[session]->sample_fmt = AV_SAMPLE_FMT_S16;
+	else if(id == AV_CODEC_ID_ALAC || id == AV_CODEC_ID_FLAC)
+		util_audio_encoder_context[session]->sample_fmt = AV_SAMPLE_FMT_S16P;
+	else
+		util_audio_encoder_context[session]->sample_fmt = AV_SAMPLE_FMT_FLT;
+	
 	util_audio_encoder_context[session]->bit_rate = bitrate;
-	util_audio_encoder_context[session]->sample_fmt = AV_SAMPLE_FMT_S16;
-	util_audio_encoder_context[session]->sample_rate = samplerate;
+	util_audio_encoder_context[session]->sample_rate = encode_samplerate;
 	util_audio_encoder_context[session]->channel_layout = AV_CH_LAYOUT_MONO;
 	util_audio_encoder_context[session]->channels = av_get_channel_layout_nb_channels(AV_CH_LAYOUT_MONO);
-	//context->profile = FF_PROFILE_AAC_MAIN;
 	util_audio_encoder_context[session]->codec_type = AVMEDIA_TYPE_AUDIO;
-
+	util_audio_encoder_context[session]->time_base = (AVRational){ 1, encode_samplerate };
+	if(id == AV_CODEC_ID_AAC)
+		util_audio_encoder_context[session]->profile = FF_PROFILE_AAC_LOW;
+	
 	ffmpeg_result = avcodec_open2(util_audio_encoder_context[session], util_audio_encoder_codec[session], NULL);
 	if(ffmpeg_result != 0)
 	{
@@ -96,7 +130,7 @@ Result_with_string Util_init_audio_encoder(AVCodecID id, int samplerate, int bit
 		result.error_description = "av_packet_alloc() / av_frame_alloc() failed";
 		goto fail;
 	}
-
+	
 	util_audio_encoder_raw_data[session]->nb_samples = util_audio_encoder_context[session]->frame_size;
 	util_audio_encoder_raw_data[session]->format = util_audio_encoder_context[session]->sample_fmt;
 	util_audio_encoder_raw_data[session]->channel_layout = util_audio_encoder_context[session]->channel_layout;
@@ -126,6 +160,30 @@ Result_with_string Util_init_audio_encoder(AVCodecID id, int samplerate, int bit
 		goto fail;
 	}
 
+	util_audio_encoder_stream = avformat_new_stream(util_audio_encoder_format_context, util_audio_encoder_codec[session]);
+	if(!util_audio_encoder_stream)
+	{
+		result.error_description = "avformat_new_stream() failed";
+		goto fail;
+	}
+
+	if (util_audio_encoder_format_context->oformat->flags & AVFMT_GLOBALHEADER)
+		util_audio_encoder_format_context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+
+	ffmpeg_result = avcodec_parameters_from_context(util_audio_encoder_stream->codecpar, util_audio_encoder_context[session]);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avcodec_parameters_from_context() failed";
+		goto fail;
+	}
+
+	ffmpeg_result = avformat_write_header(util_audio_encoder_format_context, NULL);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avformat_write_header() failed";
+		goto fail;
+	}
+
 	return result;
 
 	fail:
@@ -135,31 +193,30 @@ Result_with_string Util_init_audio_encoder(AVCodecID id, int samplerate, int bit
 	return result;
 }
 
-Result_with_string Util_encode_audio(int size, u8* raw_data, int* encoded_size, u8* encoded_data, int session)
+Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 {
 	int encode_offset = 0;
-	int encoded_offset = 0;
 	int ffmpeg_result = 0;
 	int one_frame_size = av_samples_get_buffer_size(NULL, util_audio_encoder_context[session]->channels, util_audio_encoder_context[session]->frame_size, util_audio_encoder_context[session]->sample_fmt, 0);
 	int out_samples = 0;
+	int bytes_per_sample = av_get_bytes_per_sample(util_audio_encoder_context[session]->sample_fmt);
 	u8* swr_in_cache[1] = { NULL, };
 	u8* swr_out_cache[1] = { NULL, };
 	Result_with_string result;
 
-	*encoded_size = 0;
-	swr_in_cache[0] = (u8*)malloc(size);
-	swr_out_cache[0] = (u8*)malloc(size);
-	if(swr_in_cache[0] == NULL || swr_out_cache[0] == NULL)
+	swr_in_cache[0] = raw_data;
+	swr_out_cache[0] = (u8*)malloc(size * bytes_per_sample);
+	if(swr_out_cache[0] == NULL)
 		goto fail_;
 
-	memcpy(swr_in_cache[0] , raw_data, size);
-	out_samples = swr_convert(util_audio_encoder_swr_context[session], (uint8_t**)swr_out_cache, size / 2, (const uint8_t**)swr_in_cache, size / 2);
-	free(swr_in_cache[0]);
-	swr_in_cache[0] = NULL;
-		
-	for(int i = 0; i < 100000; i++)
+	out_samples = swr_convert(util_audio_encoder_swr_context[session], (uint8_t**)swr_out_cache, size, (const uint8_t**)swr_in_cache, size);
+	out_samples *= bytes_per_sample / 2;
+
+	while(true)
 	{
-		util_audio_encoder_raw_data[session]->data[0] = swr_out_cache[0]  + encode_offset;
+		util_audio_encoder_raw_data[session]->data[0] = swr_out_cache[0] + encode_offset;
+		util_audio_encoder_raw_data[session]->pts = util_audio_pos[session];
+		util_audio_pos[session] += one_frame_size / bytes_per_sample;
 
 		ffmpeg_result = avcodec_send_frame(util_audio_encoder_context[session], util_audio_encoder_raw_data[session]);
 		if(ffmpeg_result != 0)
@@ -171,20 +228,23 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int* encoded_size, 
 		ffmpeg_result = avcodec_receive_packet(util_audio_encoder_context[session], util_audio_encoder_packet[session]);
 		if(ffmpeg_result == 0)
 		{
-			memcpy_asm(encoded_data + encoded_offset, util_audio_encoder_packet[session]->data, util_audio_encoder_packet[session]->size);
-			encoded_offset += util_audio_encoder_packet[session]->size;
+			ffmpeg_result = av_interleaved_write_frame(util_audio_encoder_format_context, util_audio_encoder_packet[session]);
+			if(ffmpeg_result != 0)
+			{
+				result.error_description = "av_interleaved_write_frame() failed " + std::to_string(ffmpeg_result);
+				goto fail;
+			}
 			av_packet_unref(util_audio_encoder_packet[session]);
 		}
 
-		if(encode_offset + one_frame_size*2 > (int)out_samples * 2)
+		out_samples -= one_frame_size;
+		encode_offset += one_frame_size;
+		if(one_frame_size > out_samples)
 			break;
-		else
-			encode_offset += one_frame_size;
 	}
-	*encoded_size = encoded_offset;
+
 	free(swr_out_cache[0]);
 	swr_out_cache[0] = NULL;
-
 	return result;
 
 	fail:
@@ -195,14 +255,19 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int* encoded_size, 
 
 	fail_:
 
-	free(swr_in_cache[0]);
 	free(swr_out_cache[0]);
-	swr_in_cache[0] = NULL;
 	swr_out_cache[0] = NULL;
 	result.code = OUT_OF_MEMORY;
 	result.string = Err_query_template_summary(OUT_OF_MEMORY);
 	result.error_description = Err_query_template_detail(OUT_OF_MEMORY);
 	return result;
+}
+
+void Util_close_output_file(int session)
+{
+	av_write_trailer(util_audio_encoder_format_context);
+	avio_close(util_audio_encoder_format_context->pb);
+	avformat_free_context(util_audio_encoder_format_context);
 }
 
 void Util_exit_audio_encoder(int session)
@@ -298,6 +363,7 @@ Result_with_string Util_init_audio_decoder(int session)
 		goto fail;
 	}
 
+	//Log_log_save("", av_get_sample_fmt_name(util_audio_decoder_context[session]->sample_fmt), 1234567890, false);
 	util_audio_decoder_swr_context[session] = swr_alloc();
 	swr_alloc_set_opts(util_audio_decoder_swr_context[session], av_get_default_channel_layout(util_audio_decoder_context[session]->channels), AV_SAMPLE_FMT_S16, util_audio_decoder_context[session]->sample_rate,
 		av_get_default_channel_layout(util_audio_decoder_context[session]->channels), util_audio_decoder_context[session]->sample_fmt, util_audio_decoder_context[session]->sample_rate, 0, NULL);

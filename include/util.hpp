@@ -10,9 +10,13 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 }
 
-Result_with_string Util_init_audio_encoder(AVCodecID id, int samplerate, int bitrate, int session);
+Result_with_string Util_create_output_file(std::string file_name, int session);
 
-Result_with_string Util_encode_audio(int size, u8* raw_data, int* encoded_size, u8* encoded_data, int session);
+void Util_close_output_file(int session);
+
+Result_with_string Util_init_audio_encoder(AVCodecID id, int original_samplerate, int encode_samplerate, int bitrate, int session);
+
+Result_with_string Util_encode_audio(int size, u8* raw_data, int session);
 
 void Util_exit_audio_encoder(int session);
 
