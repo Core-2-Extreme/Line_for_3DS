@@ -98,6 +98,11 @@ void Mic_encode_thread(void* arg)
 			log_num = Log_log_save(mic_encode_thread_string, "Util_encode_audio()...", 1234567890, false);
 			result = Util_encode_audio(mic_buffer_offset[mic_buffer_num], mic_buffer[mic_buffer_num], UTIL_AUDIO_ENCODER_0);
 			Log_log_add(log_num, result.string, result.code, false);
+			if(result.code != 0)
+			{
+				Err_set_error_show_flag(true);
+				Err_set_error_message(result.string, result.error_description, mic_encode_thread_string, result.code);
+			}
 
 			mic_encoding = false;
 		}
@@ -465,8 +470,10 @@ void Mic_main(void)
 			draw_x += 60.0;
 		}
 		Draw(Sem_convert_seconds_to_time((double)mic_record_time / (32730 * 2.0)), 0, 102.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		Draw("format(Y) " + mic_format, 0, 102.5, 125.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-		
+		if(mic_start_record_request)
+			Draw("format(Y) " + mic_format, 0, 102.5, 125.0, 0.5, 0.5, text_red, text_green, text_blue, 0.25);
+		else
+			Draw("format(Y) " + mic_format, 0, 102.5, 125.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 
 		Draw_bot_ui();
 		Draw_touch_pos();
