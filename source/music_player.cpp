@@ -412,6 +412,8 @@ void Mup_play_thread(void* arg)
 								else
 									Log_log_save(mup_play_thread_string, "Util_ready_audio_packet()..." + result.string + result.error_description, result.code, false);
 							}
+							else if(type == AVMEDIA_TYPE_VIDEO)
+								Util_skip_video_packet(UTIL_DECODER_0);
 						}
 						else
 							break;
