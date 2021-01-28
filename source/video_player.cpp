@@ -52,6 +52,7 @@ bool vid_dl_and_decode_request = false;
 bool vid_count_request = false;
 bool vid_count_reset_request = false;
 bool vid_display_decoding_detail = false;
+bool vid_allow_skip = false;
 bool vid_enable[16];
 bool vid_button_selected[2] = { false, false, };
 bool vid_key_frame[320];
@@ -68,6 +69,7 @@ int vid_temp_read_fps = 0;
 int vid_temp_decode_fps = 0;
 int vid_temp_convert_fps = 0;
 int vid_decoded_frames = 0;
+int vid_skipped_frames = 0;
 int vid_menu_mode = 0;
 int vid_low_resolution = 0;
 float vid_decoding_time[320];
@@ -309,6 +311,7 @@ void Vid_worker_thread(void* arg)
 	int samplerate = 0;
 	int channels = 1;
 	double duration = 0;
+	double delay = 0;
 	float mix[12];	
 	u8* sound_buffer[num_of_buffers];
 	u8* sound_cache = NULL;
@@ -387,11 +390,13 @@ void Vid_worker_thread(void* arg)
 			init = true;
 			vid_offset = 0;
 			vid_decoded_frames = 0;
+			vid_skipped_frames = 0;
 			vid_count_reset_request = true;
 			vid_get_info_request = true;
 			vid_video_width = 0;
 			vid_video_height = 0;
 			vid_framerate = 0.0;
+			delay = 0;
 			vid_current_video_format = "none";
 			vid_current_audio_format = "none";
 			for(int i = 0; i < num_of_buffers; i++)
@@ -464,33 +469,44 @@ void Vid_worker_thread(void* arg)
 					{
 						if(type == AVMEDIA_TYPE_VIDEO && has_video)
 						{
+							delay = 0;
 							while(vid_decode_video_request || vid_decoding)
-								usleep(500);
-							
-							result = Util_ready_video_packet(UTIL_DECODER_1);
-
-							if(result.code == 0)
 							{
-								vid_decode_video_request = true;
+								usleep(500);
+								delay += 0.5;
+								if(delay > (1000.0 / vid_framerate) / 4 && vid_allow_skip)
+									break;
+							}
 
-								osTickCounterUpdate(&timer);
-								frametime = osTickCounterRead(&timer);
-								if(vid_framerate == 0.0)
-								{
-									if(33.3 - frametime > 0)
-										usleep((33.3 - frametime) * 1000);
-								}
-								else
-								{
-									if((1000.0 / vid_framerate) - frametime > 0)
-										usleep(((1000.0 / vid_framerate) - frametime) * 1000);
-								}
-
-								osTickCounterUpdate(&timer);
-								vid_temp_read_fps++;
+							if(vid_decode_video_request || vid_decoding)
+							{
+								Util_skip_video_packet(UTIL_DECODER_1);
+								vid_skipped_frames++;
 							}
 							else
-								Log_log_save(vid_worker_thread_string, result.string + result.error_description, result.code, false);
+							{
+								result = Util_ready_video_packet(UTIL_DECODER_1);
+								if(result.code == 0)
+									vid_decode_video_request = true;
+								else
+									Log_log_save(vid_worker_thread_string, result.string + result.error_description, result.code, false);
+							}
+
+							osTickCounterUpdate(&timer);
+							frametime = osTickCounterRead(&timer);
+							if(vid_framerate == 0.0)
+							{
+								if(33.3 - frametime > 0)
+									usleep((33.3 - frametime) * 1000);
+							}
+							else
+							{
+								if((1000.0 / vid_framerate) - frametime > 0)
+									usleep(((1000.0 / vid_framerate) - frametime) * 1000);
+							}
+
+							osTickCounterUpdate(&timer);
+							vid_temp_read_fps++;
 						}
 						else if(type == AVMEDIA_TYPE_AUDIO && has_audio)
 						{
@@ -1063,9 +1079,15 @@ void Vid_main(void)
 		{
 			Draw_texture(Square_image, yellow_tint, 0, 85.0, 185.0, 75.0, 10.0);
 			Draw(vid_current_video_format + " , " + vid_current_audio_format, 0, 10.0, 195.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
-			Draw(std::to_string(vid_video_width) + " x " + std::to_string(vid_video_height) + "@" + std::to_string(vid_framerate).substr(0, 5) + "fps " + std::to_string(vid_read_fps) + " / " + std::to_string(vid_decode_fps) + " / " + std::to_string(vid_convert_fps) + "fps  Frames : " + std::to_string(vid_decoded_frames), 0, 10.0, 210.0, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
+			Draw(std::to_string(vid_video_width) + " x " + std::to_string(vid_video_height) + "@" + std::to_string(vid_framerate).substr(0, 5) + "fps " + std::to_string(vid_read_fps) + " / " + std::to_string(vid_decode_fps) + " / " + std::to_string(vid_convert_fps) + "fps  Frames : " + std::to_string(vid_skipped_frames) + "/" + std::to_string(vid_decoded_frames), 0, 10.0, 210.0, 0.375, 0.375, text_red, text_green, text_blue, text_alpha);
 
+			Draw_texture(Square_image, weak_aqua_tint, 0, 100.0, 195.0, 100.0, 15.0);
 			Draw_texture(Square_image, weak_aqua_tint, 0, 210.0, 195.0, 100.0, 15.0);
+			if(vid_allow_skip)
+				Draw("Allow skip : ON", 0, 102.5, 195.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+			else
+				Draw("Allow skip : OFF", 0, 102.5, 195.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
+
 			if(vid_display_decoding_detail)
 			{
 				Draw("Display detail : ON", 0, 212.5, 195.0, 0.4, 0.4, text_red, text_green, text_blue, text_alpha);
@@ -1199,6 +1221,8 @@ void Vid_main(void)
 		}
 		else if(vid_menu_mode == 1 && key.p_touch && key.touch_x >= 210 && key.touch_x <= 309 && key.touch_y >= 195 && key.touch_y <= 209)
 			vid_display_decoding_detail = !vid_display_decoding_detail;
+		else if(vid_menu_mode == 1 && key.p_touch && key.touch_x >= 100 && key.touch_x <= 199 && key.touch_y >= 195 && key.touch_y <= 209)
+			vid_allow_skip = !vid_allow_skip;
 
 		if(key.h_c_down || key.h_c_up || key.h_c_left || key.h_c_right || key.h_r || key.h_l || vid_touch_x_move_left != 0.0 || vid_touch_y_move_left != 0.0)
 		{
