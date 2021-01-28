@@ -16,6 +16,8 @@ extern "C" {
 extern "C" void memcpy_asm(u8*, u8*, int);
 
 int util_audio_pos[2] = { 0, 0, };
+int util_audio_cache_size = 0;
+u8* util_audio_cache = NULL;
 AVPacket* util_audio_encoder_packet[2] = { NULL, NULL, };
 AVFrame* util_audio_encoder_raw_data[2] = { NULL, NULL, };
 AVCodecContext* util_audio_encoder_context[2] = { NULL, NULL, };
@@ -184,6 +186,8 @@ Result_with_string Util_init_audio_encoder(AVCodecID id, int original_samplerate
 		goto fail;
 	}
 
+	util_audio_cache = (u8*)malloc(0x10000);
+
 	return result;
 
 	fail:
@@ -205,16 +209,20 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 	Result_with_string result;
 
 	swr_in_cache[0] = raw_data;
-	swr_out_cache[0] = (u8*)malloc(size * bytes_per_sample);
+	swr_out_cache[0] = (u8*)malloc(size * bytes_per_sample + util_audio_cache_size);
 	if(swr_out_cache[0] == NULL)
 		goto fail_;
 
 	out_samples = swr_convert(util_audio_encoder_swr_context[session], (uint8_t**)swr_out_cache, size, (const uint8_t**)swr_in_cache, size);
 	out_samples *= bytes_per_sample / 2;
+	memmove((void*)(swr_out_cache[0] + util_audio_cache_size), swr_out_cache[0], out_samples);
+	memcpy(swr_out_cache[0], util_audio_cache, util_audio_cache_size);
+	out_samples += util_audio_cache_size;
 
 	while(true)
 	{
-		util_audio_encoder_raw_data[session]->data[0] = swr_out_cache[0] + encode_offset;
+		memcpy(util_audio_encoder_raw_data[session]->data[0], swr_out_cache[0] + encode_offset, one_frame_size);
+		//util_audio_encoder_raw_data[session]->data[0] = swr_out_cache[0] + encode_offset;
 		util_audio_encoder_raw_data[session]->pts = util_audio_pos[session];
 		util_audio_pos[session] += one_frame_size / bytes_per_sample;
 
@@ -240,15 +248,21 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 		out_samples -= one_frame_size;
 		encode_offset += one_frame_size;
 		if(one_frame_size > out_samples)
+		{
+			util_audio_cache_size = out_samples;
+			memcpy(util_audio_cache, swr_out_cache[0] + encode_offset, util_audio_cache_size);
+			Log_log_save("", std::to_string(util_audio_cache_size), 1234567890, false);
 			break;
+		}
 	}
-
 	free(swr_out_cache[0]);
 	swr_out_cache[0] = NULL;
+
 	return result;
 
 	fail:
 
+	av_packet_unref(util_audio_encoder_packet[session]);	
 	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
 	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
 	return result;
@@ -257,6 +271,7 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 
 	free(swr_out_cache[0]);
 	swr_out_cache[0] = NULL;
+	av_packet_unref(util_audio_encoder_packet[session]);	
 	result.code = OUT_OF_MEMORY;
 	result.string = Err_query_template_summary(OUT_OF_MEMORY);
 	result.error_description = Err_query_template_detail(OUT_OF_MEMORY);
@@ -272,6 +287,8 @@ void Util_close_output_file(int session)
 
 void Util_exit_audio_encoder(int session)
 {
+	free(util_audio_cache);
+	util_audio_cache = NULL;
 	avcodec_free_context(&util_audio_encoder_context[session]);
 	av_packet_free(&util_audio_encoder_packet[session]);
 	av_frame_free(&util_audio_encoder_raw_data[session]);
@@ -587,6 +604,16 @@ Result_with_string Util_ready_video_packet(int session)
 	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
 	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
 	return result;
+}
+
+void Util_skip_audio_packet(int session)
+{
+	av_packet_free(&util_audio_decoder_cache_packet[session]);
+}
+
+void Util_skip_video_packet(int session)
+{
+	av_packet_free(&util_video_decoder_cache_packet[session]);
 }
 
 Result_with_string Util_decode_audio(int* size, u8** raw_data, int session)
