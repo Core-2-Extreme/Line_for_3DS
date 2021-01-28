@@ -26,13 +26,13 @@ SwrContext* util_audio_encoder_swr_context[2] = { NULL, NULL, };
 AVFormatContext* util_audio_encoder_format_context = NULL;
 AVStream* util_audio_encoder_stream = NULL;
 
-bool util_video_decoder_lock[2][2] = { { false, false, }, { false, false, } };
+bool util_video_decoder_lock[2][3] = { { false, false, false, }, { false, false, false, } };
 int util_video_decoder_buffer_num[2] = { 0, 0, };
 int util_video_decoder_ready_buffer_num[2] = { 0, 0, };
 int util_video_decoder_stream_num[2] = { -1, -1, };
 AVPacket* util_video_decoder_packet[2] = { NULL, NULL, };
 AVPacket* util_video_decoder_cache_packet[2] = { NULL, NULL, };
-AVFrame* util_video_decoder_raw_data[2][2] = { { NULL, NULL, }, { NULL, NULL, } };
+AVFrame* util_video_decoder_raw_data[2][3] = { { NULL, NULL, NULL, }, { NULL, NULL, NULL, } };
 AVCodecContext* util_video_decoder_context[2] = { NULL, NULL, };
 AVCodec* util_video_decoder_codec[2] = { NULL, NULL, };
 
@@ -713,6 +713,8 @@ Result_with_string Util_decode_video(int* width, int* height, bool* key_frame, d
 
 	if(util_video_decoder_buffer_num[session] == 0)
 		util_video_decoder_buffer_num[session] = 1;
+	else if(util_video_decoder_buffer_num[session] == 1)
+		util_video_decoder_buffer_num[session] = 2;
 	else
 		util_video_decoder_buffer_num[session] = 0;
 	
@@ -726,9 +728,11 @@ Result_with_string Util_decode_video(int* width, int* height, bool* key_frame, d
 	}
 
 	if(util_video_decoder_buffer_num[session] == 0)
-		util_video_decoder_ready_buffer_num[session] = 1;
-	else
+		util_video_decoder_ready_buffer_num[session] = 2;
+	else if(util_video_decoder_buffer_num[session] == 1)
 		util_video_decoder_ready_buffer_num[session] = 0;
+	else
+		util_video_decoder_ready_buffer_num[session] = 1;
 
 	av_packet_free(&util_video_decoder_packet[session]);
 	av_frame_free(&util_video_decoder_raw_data[session][util_video_decoder_buffer_num[session]]);
@@ -797,4 +801,5 @@ void Util_exit_video_decoder(int session)
 	av_packet_free(&util_video_decoder_cache_packet[session]);
 	av_frame_free(&util_video_decoder_raw_data[session][0]);
 	av_frame_free(&util_video_decoder_raw_data[session][1]);
+	av_frame_free(&util_video_decoder_raw_data[session][2]);
 }
