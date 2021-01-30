@@ -171,7 +171,7 @@ void Mic_record_thread(void* arg)
 					result = Util_init_audio_encoder(AV_CODEC_ID_MP2, 32730, 32000, 128000, UTIL_AUDIO_ENCODER_0);
 				else
 					result = Util_init_audio_encoder(AV_CODEC_ID_AC3, 32730, 32000, 128000, UTIL_AUDIO_ENCODER_0);
-								
+
 				Log_log_add(log_num, result.string, result.code, false);
 				if(result.code != 0)
 				{
