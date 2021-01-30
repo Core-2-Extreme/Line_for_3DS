@@ -109,7 +109,11 @@ double sem_touch_x_move_left = 0.0;
 double sem_touch_y_move_left = 0.0;
 std::string sem_lang = "en";
 std::string sem_msg[SEM_NUM_OF_MSG];
-std::string sem_newest_ver_data[11];
+std::string sem_newest_ver_data[19];
+std::string sem_update_dir = "Line";
+std::string sem_update_file = "Line_for_3DS";
+std::string sem_update_url = "https://script.google.com/macros/s/AKfycbyzO15G2DaFX0ns7pA5sahSBj91nF7JCTxOb1CzAdtk3ofMuCMFNQyA/exec";
+std::string	sem_setting_folder = "/Line/";
 std::string sem_init_string = "Sem/Init";
 std::string sem_exit_string = "Sem/Exit";
 std::string sem_worker_thread_string = "Sem/Worker thread";
@@ -1194,7 +1198,7 @@ void Sem_main(void)
 			if (sem_selected_edition_num == 0)
 			{
 				Draw(sem_msg[60], 0, 17.5, 140.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0);
-				Draw("sdmc:/3ds/Line_ver_" + sem_newest_ver_data[0] + "/Line_for_3DS.3dsx", 0, 17.5, 150.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
+				Draw("sdmc:/3ds/" + sem_update_dir + "_ver_" + sem_newest_ver_data[0] + "/" + sem_update_file + ".3dsx", 0, 17.5, 150.0, 0.45, 0.45, 1.0, 0.0, 0.0, 1.0);
 			}
 
 			if(sem_update_progress == 0)
@@ -1775,14 +1779,16 @@ void Sem_check_update_thread(void* arg)
 	std::string url = "";
 	std::string last_url = "";
 	std::string parse_cache = "";
-	std::string parse_start[11] = {"<newest>", "<3dsx_available>", "<cia_32mb_ram_available>",
+	std::string parse_start[19] = {"<newest>", "<3dsx_available>", "<cia_32mb_ram_available>",
 	"<cia_64mb_ram_available>", "<cia_72mb_ram_available>", "<cia_80mb_ram_available>",
 	"<cia_96mb_ram_available>", "<cia_124mb_ram_available>", "<cia_178mb_ram_available>",
-	"<gas_ver>", "<patch_note>", };
-	std::string parse_end[11] = { "</newest>", "</3dsx_available>", "</cia_32mb_ram_available>",
+	"<gas_ver>", "<patch_note>", "<3dsx_url>", "<32mbcia_url>", "<64mbcia_url>", "<72mbcia_url>", "<80mbcia_url>",
+	"<96mbcia_url>", "<124mbcia_url>", "<178mbcia_url>", };
+	std::string parse_end[19] = { "</newest>", "</3dsx_available>", "</cia_32mb_ram_available>",
 	"</cia_64mb_ram_available>", "</cia_72mb_ram_available>", "</cia_80mb_ram_available>",
 	"</cia_96mb_ram_available>", "</cia_124mb_ram_available>", "</cia_178mb_ram_available>",
-	"</gas_ver>", "</patch_note>", };
+	"</gas_ver>", "</patch_note>", "</3dsx_url>", "</32mbcia_url>", "</64mbcia_url>", "</72mbcia_url>", "</80mbcia_url>",
+	"</96mbcia_url>", "</124mbcia_url>", "</178mbcia_url>", };
 	std::string editions[8] = { ".3dsx", "_32mb.cia", "_64mb.cia", "_72mb.cia",
 	"_80mb.cia", "_96mb.cia", "_124mb.cia", "_178mb.cia", };
 	Handle am_handle = 0;
@@ -1794,17 +1800,17 @@ void Sem_check_update_thread(void* arg)
 		{
 			if (sem_check_update_request)
 			{
-				url = "https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/version/newest.txt";
+				url = sem_update_url;
 				sem_check_update_progress = 0;
 				new_version_available = false;
 				for(int i = 0; i < 8; i++)
 					sem_available_ver[i] = false;
-				for (int i = 0; i < 11; i++)
+				for (int i = 0; i < 18; i++)
 					sem_newest_ver_data[i] = "";
 			}
 			else if (sem_dl_file_request)
 			{
-				url = "https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/version/Line_for_3DS" + editions[sem_selected_edition_num];
+				url = sem_newest_ver_data[sem_selected_edition_num + 11];
 				sem_update_progress = 0;
 			}
 
@@ -1826,11 +1832,11 @@ void Sem_check_update_thread(void* arg)
 				if(sem_dl_file_request)
 				{
 					if(sem_selected_edition_num == 0)
-						dir_path = "/3ds/Line_ver_" + sem_newest_ver_data[0] + "/";
+						dir_path = "/3ds/" + sem_update_dir + "_ver_" + sem_newest_ver_data[0] + "/";
 					else
-						dir_path = "/Line/ver_" + sem_newest_ver_data[0] + "/";
+						dir_path = "/" + sem_update_dir + "/ver_" + sem_newest_ver_data[0] + "/";
 
-					file_name = "Line_for_3DS" + editions[sem_selected_edition_num];
+					file_name = sem_update_file + editions[sem_selected_edition_num];
 					File_delete_file(file_name, dir_path);//delete old file if exist
 				}
 
@@ -1856,7 +1862,7 @@ void Sem_check_update_thread(void* arg)
 					{
 						parse_cache = (char*)buffer;
 
-						for (int i = 0; i < 11; i++)
+						for (int i = 0; i < 19; i++)
 						{
 							parse_start_pos = std::string::npos;
 							parse_end_pos = std::string::npos;
