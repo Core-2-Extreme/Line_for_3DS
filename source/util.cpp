@@ -215,10 +215,9 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 	while(true)
 	{
 		memcpy(util_audio_encoder_raw_data[session]->data[0], swr_out_cache[0] + encode_offset, one_frame_size);
-		//util_audio_encoder_raw_data[session]->data[0] = swr_out_cache[0] + encode_offset;
 		util_audio_encoder_raw_data[session]->pts = util_audio_pos[session];
 		util_audio_pos[session] += one_frame_size / bytes_per_sample;
-
+		
 		ffmpeg_result = avcodec_send_frame(util_audio_encoder_context[session], util_audio_encoder_raw_data[session]);
 		if(ffmpeg_result != 0)
 		{
@@ -240,7 +239,7 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 
 		out_samples -= one_frame_size;
 		encode_offset += one_frame_size;
-		if(one_frame_size * 5 > out_samples)
+		if(one_frame_size > out_samples)
 			break;
 	}
 	free(swr_out_cache[0]);

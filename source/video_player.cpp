@@ -89,7 +89,7 @@ std::string vid_current_audio_format = "none";
 std::string vid_load_file_name = "video.mp4";
 std::string vid_load_dir_name = "/Line/";
 std::string vid_msg[VID_NUM_OF_MSG];
-std::string vid_ver = "v1.0.2";
+std::string vid_ver = "v1.0.3";
 std::string vid_timer_thread_string = "Vid/Timer thread";
 std::string vid_decord_video_thread_string = "Vid/Decode video thread";
 std::string vid_convert_thread_string = "Vid/Convert thread";
