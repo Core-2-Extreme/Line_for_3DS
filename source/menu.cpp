@@ -63,7 +63,7 @@ std::string menu_send_app_info_thread_string = "Menu/Send app info thread";
 std::string menu_check_connection_thread_string = "Menu/Check connection thread";
 std::string menu_init_string = "Menu/Init";
 std::string menu_exit_string = "Menu/Exit";
-std::string menu_app_ver = "v1.7.2";
+std::string menu_app_ver = "v1.7.3";
 Thread menu_update_thread, menu_send_app_info_thread, menu_check_connectivity_thread;
 
 
