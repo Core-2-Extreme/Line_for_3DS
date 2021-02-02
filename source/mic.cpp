@@ -33,7 +33,7 @@ bool mic_stop_record_request = false;
 bool mic_encode_request = false;
 bool mic_encoding = false;
 u8* mic_buffer[3] = { NULL, NULL, NULL, };
-u32 mic_buffer_size = 0x40000;
+u32 mic_buffer_size = 0x80000;
 int mic_buffer_offset[2] = { 0, 0, };
 int mic_buffer_num = 0;
 double mic_record_time = 0.0;
@@ -192,8 +192,8 @@ void Mic_record_thread(void* arg)
 
 				while (true)
 				{
-					usleep(25000);
-					if(count > 2)//update screen
+					usleep(10000);
+					if(count > 10)//update screen
 					{
 						count = 0;
 						mic_need_reflesh = true;

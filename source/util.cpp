@@ -210,7 +210,8 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 		goto fail_;
 
 	out_samples = swr_convert(util_audio_encoder_swr_context[session], (uint8_t**)swr_out_cache, size, (const uint8_t**)swr_in_cache, size);
-	out_samples *= bytes_per_sample / 2;
+	out_samples /= 2;
+	out_samples *= bytes_per_sample;
 
 	while(true)
 	{
