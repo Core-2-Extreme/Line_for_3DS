@@ -74,7 +74,7 @@ CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 ASFLAGS	:= $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -lswresample -lavformat -lavcodec -lavutil -lcitro2d -lcitro3d -lctru -lm
+LIBS	:= -lswresample -lswscale -lavformat -lavcodec -lavutil -lcitro2d -lcitro3d -lctru -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
