@@ -96,7 +96,7 @@ void Mic_encode_thread(void* arg)
 			mic_encoding = true;
 			
 			log_num = Log_log_save(mic_encode_thread_string, "Util_encode_audio()...", 1234567890, false);
-			result = Util_encode_audio(mic_buffer_offset[mic_buffer_num], mic_buffer[mic_buffer_num], UTIL_AUDIO_ENCODER_0);
+			result = Util_encode_audio(mic_buffer_offset[mic_buffer_num], mic_buffer[mic_buffer_num], UTIL_ENCODER_0);
 			Log_log_add(log_num, result.string, result.code, false);
 			if(result.code != 0)
 			{
@@ -155,7 +155,7 @@ void Mic_record_thread(void* arg)
 				File_save_to_file(".", NULL, 0, mic_dir_path, true);//create directory
 
 				log_num = Log_log_save(mic_record_thread_string, "Util_create_file()...", 1234567890, false);
-				result = Util_create_output_file(mic_dir_path + mic_file_name, UTIL_AUDIO_ENCODER_0);
+				result = Util_create_output_file(mic_dir_path + mic_file_name, UTIL_ENCODER_0);
 				Log_log_add(log_num, result.string, result.code, false);
 				if(result.code != 0)
 				{
@@ -166,11 +166,15 @@ void Mic_record_thread(void* arg)
 
 				log_num = Log_log_save(mic_record_thread_string, "Util_init_audio_encoder()...", 1234567890, false);
 				if(mic_format == "mp4")
-					result = Util_init_audio_encoder(AV_CODEC_ID_AAC, 32730, 32000, 128000, UTIL_AUDIO_ENCODER_0);
+				{
+					result = Util_init_audio_encoder(AV_CODEC_ID_AAC, 32730, 32000, 128000, UTIL_ENCODER_0);
+					if(result.code == 0)
+						result = Util_write_header(UTIL_ENCODER_0);
+				}
 				else if(mic_format == "mp2")
-					result = Util_init_audio_encoder(AV_CODEC_ID_MP2, 32730, 32000, 128000, UTIL_AUDIO_ENCODER_0);
+					result = Util_init_audio_encoder(AV_CODEC_ID_MP2, 32730, 32000, 128000, UTIL_ENCODER_0);
 				else
-					result = Util_init_audio_encoder(AV_CODEC_ID_AC3, 32730, 32000, 128000, UTIL_AUDIO_ENCODER_0);
+					result = Util_init_audio_encoder(AV_CODEC_ID_AC3, 32730, 32000, 128000, UTIL_ENCODER_0);
 
 				Log_log_add(log_num, result.string, result.code, false);
 				if(result.code != 0)
@@ -275,8 +279,8 @@ void Mic_record_thread(void* arg)
 				}
 			}
 
-			Util_exit_audio_encoder(UTIL_AUDIO_ENCODER_0);
-			Util_close_output_file(UTIL_AUDIO_ENCODER_0);
+			Util_exit_audio_encoder(UTIL_ENCODER_0);
+			Util_close_output_file(UTIL_ENCODER_0);
 			free(mic_buffer[0]);
 			free(mic_buffer[1]);
 			mic_buffer[0] = NULL;
