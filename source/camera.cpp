@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string>
 #include <algorithm>
+#include <malloc.h>
 #include "citro2d.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -15,6 +16,9 @@
 #include "types.hpp"
 #include "setting_menu.hpp"
 #include "camera.hpp"
+#include "util.hpp"
+
+extern "C" void memcpy_asm(u8*, u8*, int);
 
 /*For draw*/
 bool cam_need_reflesh = false;
@@ -40,6 +44,7 @@ bool cam_encode_thread_run = false;
 bool cam_parse_thread_run = false;
 bool cam_thread_suspend = false;
 bool cam_take_request = false;
+bool cam_take_video_request = false;
 bool cam_parse_request = false;
 bool cam_encode_request = false;
 bool cam_change_resolution_request = false;
@@ -50,10 +55,13 @@ bool cam_change_lens_correction_request = false;
 bool cam_change_camera_request = false;
 bool cam_change_exposure_request = false;
 bool cam_change_noise_filter_request = false;
+bool cam_encode_video_request = false;
 bool cam_button_selected[4];
-u8* cam_capture_buffer;
-u8* cam_capture_frame_buffer[4];
+u8* cam_capture_buffer = NULL;
+u8* cam_capture_frame_buffer[4] = {  NULL, NULL, NULL, NULL, };
+u8* cam_mic_buffer[2] = { NULL, NULL, };
 u32 cam_buffer_size = 0;
+int cam_mic_buffer_size = 0x40000;
 int cam_selected_menu_mode = 0;
 int cam_selected_jpg_quality = 95;
 int cam_current_img_num = 0;
@@ -403,6 +411,8 @@ void Cam_main(void)
 		{
 			if (key.p_a)
 				cam_take_request = true;
+			else if(key.p_b)
+				cam_take_video_request = !cam_take_video_request;
 			else if (key.p_touch && key.touch_x >= 40 && key.touch_x <= 279 && key.touch_y >= 85 && key.touch_y <= 104)
 			{
 				for (int i = 0; i < 3; i++)
@@ -645,6 +655,7 @@ void Cam_init(void)
 {
 	Log_log_save(cam_init_string , "Initializing...", 1234567890, FORCE_DEBUG);
 	bool failed = false;
+	bool new_3ds = false;
 	int log_num;
 	u8* fs_buffer;
 	u32 read_size;
@@ -652,7 +663,15 @@ void Cam_init(void)
 	Result_with_string result;
 	fs_buffer = (u8*)malloc(0x1000);
 
-	Draw_progress("[Cam] Initializing service...");
+	cam_mic_buffer[0] = (u8*)memalign(0x1000, cam_mic_buffer_size);
+	if (cam_mic_buffer[0] == NULL)
+	{
+		Err_set_error_message("Out of memory.", "Couldn't allocate memory.", cam_init_string, OUT_OF_MEMORY);
+		Err_set_error_show_flag(true);
+		failed = true;
+	}
+
+	Draw_progress("[Cam] Initializing camera...");
 	log_num = Log_log_save(cam_init_string , "camInit()...", 1234567890, FORCE_DEBUG);
 	result.code = camInit();
 	if (result.code == 0)
@@ -664,6 +683,26 @@ void Cam_init(void)
 		Err_set_error_show_flag(true);
 		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
 	}
+
+	Draw_progress("[Cam] Initializing mic...");
+	if (!failed)
+	{
+		log_num = Log_log_save(cam_init_string, "micInit()...", 1234567890, FORCE_DEBUG);
+		result.code = micInit(cam_mic_buffer[0], cam_mic_buffer_size);
+		if (result.code == 0)
+		{
+			MICU_SetAllowShellClosed(true);
+			Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
+		}
+		else
+		{
+			failed = true;
+			Err_set_error_message("micInit() failed.", "", cam_init_string, result.code);
+			Err_set_error_show_flag(true);
+			Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
+		}
+	}
+
 
 	Draw_progress("[Cam] Loading settings...");
 	memset(fs_buffer, 0x0, 0x1000);
@@ -772,12 +811,21 @@ void Cam_init(void)
 	Draw_progress("[Cam] Starting threads...");
 	if (!failed)
 	{
+		APT_CheckNew3DS(&new_3ds);
 		cam_capture_thread_run = true;
 		cam_encode_thread_run = true;
 		cam_parse_thread_run = true;
 		cam_capture_thread = threadCreate(Cam_capture_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, 0, false);
-		cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 1, false);
-		cam_parse_thread = threadCreate(Cam_parse_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 0, false);
+		if(new_3ds)
+		{
+			cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 2, false);
+			cam_parse_thread = threadCreate(Cam_parse_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 0, false);
+		}
+		else
+		{
+			cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 0, false);
+			cam_parse_thread = threadCreate(Cam_parse_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 1, false);
+		}
 	}
 	cam_display_img_num = -1;
 
@@ -850,8 +898,13 @@ void Cam_encode_thread(void* arg)
 	int log_num;
 	int file_size;
 	int stbi_result;
-	u8* cam_rgb888_buffer;
-	uint8_t* cam_png_buffer;
+	int fps_value = 0;
+	u8* cam_rgb888_buffer = NULL;
+	u8* rgb565_buffer = NULL;
+	u32 buffer_pos = 0;
+	u32 buffer_offset = 0;
+	u32 sample_size = 0;
+	uint8_t* cam_png_buffer = NULL;
 	std::string file_name = "";
 	std::string extension = "";
 	std::string dir_patch = "";
@@ -861,6 +914,7 @@ void Cam_encode_thread(void* arg)
 	File_save_to_file(".", NULL, 0, "/Line/dcim/", true);
 	File_save_to_file(".", NULL, 0, "/Line/dcim/JPG/", true);
 	File_save_to_file(".", NULL, 0, "/Line/dcim/PNG/", true);
+	File_save_to_file(".", NULL, 0, "/Line/dcim/MP4/", true);
 
 	while (cam_encode_thread_run)
 	{
@@ -951,6 +1005,140 @@ void Cam_encode_thread(void* arg)
 
 			cam_encode_request = false;
 		}
+		else if(cam_encode_video_request)
+		{
+			if(cam_request_resolution_mode == 0 || cam_request_resolution_mode == 1)
+				fps_value = 5;
+			else if(cam_request_resolution_mode == 2 || cam_request_resolution_mode == 3)
+				fps_value = 10;
+			else if(cam_request_resolution_mode == 5)
+				fps_value = 15;
+			else if(cam_request_resolution_mode == 6)
+				fps_value = 20;
+			else if(cam_request_resolution_mode == 7 || cam_request_resolution_mode == 8)
+				fps_value = 30;
+
+			aptSetSleepAllowed(false);
+			cam_mic_buffer[1] = (u8*)malloc(cam_mic_buffer_size);
+			if (cam_mic_buffer[1] == NULL)
+			{
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_encode_thread_string, OUT_OF_MEMORY);
+				Err_set_error_show_flag(true);
+				Log_log_save(cam_encode_thread_string, "[Error] Out of memory.", OUT_OF_MEMORY, false);
+				cam_take_video_request = false;
+			}
+			else
+			{
+				memset(cam_mic_buffer[1], 0x0, cam_mic_buffer_size);
+				sample_size = micGetSampleDataSize();
+				buffer_offset = 0;
+				buffer_pos = 0;
+			}
+
+			log_num = Log_log_save(cam_encode_thread_string, "Util_create_output_file()...", result.code, false);
+			result = Util_create_output_file("/test.mp4", UTIL_ENCODER_1);
+			Log_log_add(log_num, result.string + result.error_description, result.code, false);
+
+			if(result.code == 0)
+			{
+				log_num = Log_log_save(cam_encode_thread_string, "Util_init_video_encoder()...", result.code, false);
+				result = Util_init_video_encoder(AV_CODEC_ID_MPEG4, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), fps_value, UTIL_ENCODER_1);
+				Log_log_add(log_num, result.string + result.error_description, result.code, false);
+			}
+			else
+				cam_take_video_request = false;
+
+			if(result.code == 0)
+			{
+				/*log_num = Log_log_save(cam_encode_thread_string, "Util_init_audio_encoder()...", 1234567890, false);
+				result = Util_init_audio_encoder(AV_CODEC_ID_AAC, 32730, 32000, 128000, UTIL_ENCODER_1);
+				Log_log_add(log_num, result.string + result.error_description, result.code, false);*/
+			}
+			else
+				cam_take_video_request = false;
+
+			if(result.code == 0)
+			{
+				Log_log_save(cam_encode_thread_string, "Util_write_header()...", result.code, false);
+				result = Util_write_header(UTIL_ENCODER_1);
+				Log_log_add(log_num, result.string + result.error_description, result.code, false);
+			}
+			else
+				cam_take_video_request = false;
+
+			if(result.code == 0)
+			{
+				rgb565_buffer = (u8*)malloc(Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
+				if(rgb565_buffer == NULL)
+				{
+					Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_encode_thread_string, OUT_OF_MEMORY);
+					Err_set_error_show_flag(true);
+					cam_take_video_request = false;
+				}
+				else
+				{
+					log_num = Log_log_save(cam_encode_thread_string, "MICU_StartSampling()...", 1234567890, false);
+					result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_32730, 0, sample_size, true);
+					Log_log_add(log_num, "", result.code, false);
+					if(result.code != 0)
+					{
+						Err_set_error_show_flag(true);
+						Err_set_error_message("MICU_StartSampling() failed", "", cam_encode_thread_string, result.code);
+						cam_take_video_request = false;
+					}
+
+					while(cam_take_video_request)
+					{
+						if(cam_encode_video_request)
+						{
+							memcpy_asm(rgb565_buffer, cam_capture_buffer, Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
+							cam_encode_video_request = false;
+							
+							log_num = Log_log_save(cam_capture_thread_string, "Util_encode_video()...", 1234567890, false);
+							result = Util_encode_video(rgb565_buffer, UTIL_ENCODER_1);
+							Log_log_add(log_num, result.string + result.error_description, result.code, false);
+						}
+						else
+						{
+							usleep(1000);
+							if (buffer_pos != micGetLastSampleOffset())
+							{
+								if(buffer_pos > micGetLastSampleOffset())
+								{
+									/*log_num = Log_log_save(cam_encode_thread_string, "Util_encode_audio()...", 1234567890, false);
+									result = Util_encode_audio(buffer_offset, cam_mic_buffer[1], UTIL_ENCODER_1);
+									Log_log_add(log_num, result.string + result.error_description, result.code, false);*/
+									if(result.code != 0)
+										cam_take_video_request = false;
+
+									buffer_offset = 0;
+									buffer_pos = 0;
+								}
+								else
+								{
+									buffer_pos = micGetLastSampleOffset();
+									memcpy((void*)(cam_mic_buffer[1] + buffer_offset), (void*)(cam_mic_buffer[0] + buffer_offset), (buffer_pos - buffer_offset));
+									buffer_offset += (buffer_pos - buffer_offset);
+								}
+							}
+						}
+					}
+				}
+			}
+			log_num = Log_log_save(cam_encode_thread_string, "MICU_StopSampling()...", 1234567890, false);
+			result.code = MICU_StopSampling();
+			Log_log_add(log_num, "", result.code, false);
+
+			free(rgb565_buffer);
+			free(cam_mic_buffer[1]);
+			rgb565_buffer = NULL;
+			cam_mic_buffer[1] = NULL;
+			Util_close_output_file(UTIL_ENCODER_1);
+			Util_exit_video_encoder(UTIL_ENCODER_1);
+			//Util_exit_audio_encoder(UTIL_ENCODER_1);
+			aptSetSleepAllowed(true);
+			cam_encode_video_request = false;
+		}
 		else
 			usleep(ACTIVE_THREAD_SLEEP_TIME);
 
@@ -966,8 +1154,12 @@ void Cam_capture_thread(void* arg)
 	Log_log_save(cam_capture_thread_string, "Thread started.", 1234567890, false);
 	bool out_left = false;
 	int log_num;
+	int fps_value = 10;
 	int buffer_num[2] = { 2, 3, };
+	float time = 0;
 	Result_with_string result;
+	TickCounter stopwatch;
+	osTickCounterStart(&stopwatch);
 
 	while (cam_capture_thread_run)
 	{
@@ -999,6 +1191,71 @@ void Cam_capture_thread(void* arg)
 			}
 			cam_take_request = false;
 			cam_encode_request = true;
+		}
+		else if (cam_take_video_request)
+		{
+			if(cam_request_resolution_mode == 0 || cam_request_resolution_mode == 1)
+				fps_value = 5;
+			else if(cam_request_resolution_mode == 2 || cam_request_resolution_mode == 3)
+				fps_value = 10;
+			else if(cam_request_resolution_mode == 5)
+				fps_value = 15;
+			else if(cam_request_resolution_mode == 6)
+				fps_value = 20;
+			else if(cam_request_resolution_mode == 7 || cam_request_resolution_mode == 8)
+				fps_value = 30;
+
+			osTickCounterUpdate(&stopwatch);
+			while(cam_take_video_request)
+			{				
+				log_num = Log_log_save(cam_capture_thread_string , "Cam_take_picture()...", 1234567890, false);
+				cam_capture_buffer = (u8*)malloc(Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
+				if (cam_capture_buffer == NULL)
+				{
+					Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_capture_thread_string, OUT_OF_MEMORY);
+					Log_log_add(log_num, Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, false);
+					Err_set_error_show_flag(true);
+				}
+				else
+				{
+					if (cam_camera_mode == 1)
+						out_left = true;
+					else
+						out_left = false;
+
+					result = Cam_take_picture(cam_capture_buffer, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2), out_left, cam_shutter_sound_mode);
+					Log_log_add(log_num, result.string, result.code, false);
+					if (result.code != 0 && result.code != 0x9401BFE)
+					{
+						Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
+						Err_set_error_show_flag(true);
+					}
+					else if(result.code == 0)
+					{
+						osTickCounterUpdate(&stopwatch);
+						time = osTickCounterRead(&stopwatch);
+						if(time < 1000.0 / fps_value)
+							usleep(((1000.0 / fps_value) - time) * 1000);
+
+						cam_encode_video_request = true;
+
+						memcpy_asm(cam_capture_frame_buffer[buffer_num[cam_current_img_num]], cam_capture_buffer, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2));
+						//update preview
+						if (cam_current_img_num == 0)
+							cam_current_img_num = 1;
+						else
+							cam_current_img_num = 0;
+
+						cam_fps++;
+						cam_parse_request = true;
+
+						while(cam_encode_video_request)
+							usleep(500);
+					}
+				}
+				free(cam_capture_buffer);
+				cam_capture_buffer = NULL;
+			}
 		}
 		else if (cam_change_resolution_request || cam_change_fps_request || cam_change_contrast_request || cam_change_white_balance_request
 			|| cam_change_lens_correction_request || cam_change_camera_request || cam_change_exposure_request || cam_change_noise_filter_request)
@@ -1153,17 +1410,21 @@ void Cam_parse_thread(void* arg)
 
 				if (cam_current_img_num == 0)
 				{
-					GX_TextureCopy((u32*)cam_capture_frame_buffer[3], 0, (u32*)cam_capture_frame_buffer[0], 0, (u32)(width * height * 2), 0x8);
-					GSPGPU_FlushDataCache(cam_capture_frame_buffer[3], (width * height * 2));
-					GSPGPU_InvalidateDataCache(cam_capture_frame_buffer[0], (width * height * 2));
-//					memcpy(cam_capture_frame_buffer[0], cam_capture_frame_buffer[3], (width * height * 2));
+					//unstable!
+					//GX_TextureCopy((u32*)cam_capture_frame_buffer[3], 0, (u32*)cam_capture_frame_buffer[0], 0, (u32)(width * height * 2), 0x8);
+					//GSPGPU_FlushDataCache(cam_capture_frame_buffer[3], (width * height * 2));
+					//GSPGPU_InvalidateDataCache(cam_capture_frame_buffer[0], (width * height * 2));
+
+					memcpy_asm(cam_capture_frame_buffer[0], cam_capture_frame_buffer[3], (width * height * 2));
 				}
 				else
 				{
-					GX_TextureCopy((u32*)cam_capture_frame_buffer[2], 0, (u32*)cam_capture_frame_buffer[1], 0, (u32)(width * height * 2), 0x8);
-					GSPGPU_FlushDataCache(cam_capture_frame_buffer[2], (width * height * 2));
-					GSPGPU_InvalidateDataCache(cam_capture_frame_buffer[1], (width * height * 2));
-//					memcpy(cam_capture_frame_buffer[1], cam_capture_frame_buffer[2], (width * height * 2));
+					//unstable!
+					//GX_TextureCopy((u32*)cam_capture_frame_buffer[2], 0, (u32*)cam_capture_frame_buffer[1], 0, (u32)(width * height * 2), 0x8);
+					//GSPGPU_FlushDataCache(cam_capture_frame_buffer[2], (width * height * 2));
+					//GSPGPU_InvalidateDataCache(cam_capture_frame_buffer[1], (width * height * 2));
+
+					memcpy_asm(cam_capture_frame_buffer[1], cam_capture_frame_buffer[2], (width * height * 2));
 				}
 				gspWaitForPPF();
 

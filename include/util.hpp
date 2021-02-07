@@ -1,7 +1,7 @@
 #pragma once
 
-#define UTIL_AUDIO_ENCODER_0 0
-#define UTIL_AUDIO_ENCODER_1 1
+#define UTIL_ENCODER_0 0
+#define UTIL_ENCODER_1 1
 
 #define UTIL_DECODER_0 0
 #define UTIL_DECODER_1 1
@@ -12,13 +12,21 @@ extern "C" {
 
 Result_with_string Util_create_output_file(std::string file_name, int session);
 
-void Util_close_output_file(int session);
-
 Result_with_string Util_init_audio_encoder(AVCodecID id, int original_samplerate, int encode_samplerate, int bitrate, int session);
+
+Result_with_string Util_init_video_encoder(AVCodecID id, int width, int height, int fps, int session);
+
+Result_with_string Util_write_header(int session);
 
 Result_with_string Util_encode_audio(int size, u8* raw_data, int session);
 
+Result_with_string Util_encode_video(u8* raw_data, int session);
+
+void Util_close_output_file(int session);
+
 void Util_exit_audio_encoder(int session);
+
+void Util_exit_video_encoder(int session);
 
 Result_with_string Util_open_file(std::string file_path, bool* has_audio, bool* has_video, int session);
 

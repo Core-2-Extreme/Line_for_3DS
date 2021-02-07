@@ -8,6 +8,7 @@
 #include "log.hpp"
 
 extern "C" {
+#include <libswscale/swscale.h>
 #include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
 #include "libavformat/avformat.h"
@@ -15,15 +16,28 @@ extern "C" {
 
 extern "C" void memcpy_asm(u8*, u8*, int);
 
+//Encoder
 int util_audio_pos[2] = { 0, 0, };
+int util_audio_increase_pts[2] = { 0, 0, };
 AVPacket* util_audio_encoder_packet[2] = { NULL, NULL, };
 AVFrame* util_audio_encoder_raw_data[2] = { NULL, NULL, };
 AVCodecContext* util_audio_encoder_context[2] = { NULL, NULL, };
 AVCodec* util_audio_encoder_codec[2] = { NULL, NULL, };
 SwrContext* util_audio_encoder_swr_context[2] = { NULL, NULL, };
-AVFormatContext* util_audio_encoder_format_context = NULL;
-AVStream* util_audio_encoder_stream = NULL;
+AVStream* util_audio_encoder_stream[2] = { NULL, NULL, };
 
+int util_video_pos[2] = { 0, 0, };
+int util_video_increase_pts[2] = { 0, 0, };
+AVPacket* util_video_encoder_packet[2] = { NULL, NULL, };
+AVFrame* util_video_encoder_raw_data[2] = { NULL, NULL, };
+AVCodecContext* util_video_encoder_context[2] = { NULL, NULL, };
+AVCodec* util_video_encoder_codec[2] = { NULL, NULL, };
+SwsContext* util_video_encoder_sws_context[2] = { NULL, NULL, };
+AVStream* util_video_encoder_stream[2] = { NULL, NULL, };
+
+AVFormatContext* util_encoder_format_context = NULL;
+
+//Decoder
 bool util_video_decoder_lock[2][3] = { { false, false, false, }, { false, false, false, } };
 int util_video_decoder_buffer_num[2] = { 0, 0, };
 int util_video_decoder_ready_buffer_num[2] = { 0, 0, };
@@ -41,28 +55,30 @@ AVFrame* util_audio_decoder_raw_data[2] = { NULL, NULL, };
 AVCodecContext* util_audio_decoder_context[2] = { NULL, NULL, };
 AVCodec* util_audio_decoder_codec[2] = { NULL, NULL, };
 SwrContext* util_audio_decoder_swr_context[2] = { NULL, NULL, };
+
 AVFormatContext* util_decoder_format_context[2] = { NULL, NULL, };
+
 
 Result_with_string Util_create_output_file(std::string file_name, int session)
 {
 	Result_with_string result;
 	int ffmpeg_result = 0;
 
-	util_audio_encoder_format_context = avformat_alloc_context();
-	if(!util_audio_encoder_format_context)
+	util_encoder_format_context = avformat_alloc_context();
+	if(!util_encoder_format_context)
 	{
 		result.error_description = "avformat_alloc_context() failed";
 		goto fail;
 	}
 
-	util_audio_encoder_format_context->oformat = av_guess_format(NULL, file_name.c_str(), NULL);
-	if(!util_audio_encoder_format_context->oformat)
+	util_encoder_format_context->oformat = av_guess_format(NULL, file_name.c_str(), NULL);
+	if(!util_encoder_format_context->oformat)
 	{
 		result.error_description = "av_guess_format() failed";
 		goto fail;
 	}
 
-	ffmpeg_result = avio_open(&util_audio_encoder_format_context->pb, file_name.c_str(), AVIO_FLAG_READ_WRITE);
+	ffmpeg_result = avio_open(&util_encoder_format_context->pb, file_name.c_str(), AVIO_FLAG_READ_WRITE);
 	if(ffmpeg_result != 0)
 	{
 		result.error_description = "avio_open() failed " + std::to_string(ffmpeg_result);
@@ -75,8 +91,8 @@ Result_with_string Util_create_output_file(std::string file_name, int session)
 
 	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
 	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
-	avio_close(util_audio_encoder_format_context->pb);
-	avformat_free_context(util_audio_encoder_format_context);
+	avio_close(util_encoder_format_context->pb);
+	avformat_free_context(util_encoder_format_context);
 	return result;
 }
 
@@ -115,7 +131,7 @@ Result_with_string Util_init_audio_encoder(AVCodecID id, int original_samplerate
 	util_audio_encoder_context[session]->time_base = (AVRational){ 1, encode_samplerate };
 	if(id == AV_CODEC_ID_AAC)
 		util_audio_encoder_context[session]->profile = FF_PROFILE_AAC_LOW;
-	
+
 	ffmpeg_result = avcodec_open2(util_audio_encoder_context[session], util_audio_encoder_codec[session], NULL);
 	if(ffmpeg_result != 0)
 	{
@@ -123,6 +139,7 @@ Result_with_string Util_init_audio_encoder(AVCodecID id, int original_samplerate
 		goto fail;
 	}
 	
+	util_audio_increase_pts[session] = util_audio_encoder_context[session]->frame_size / av_get_bytes_per_sample(util_audio_encoder_context[session]->sample_fmt);
 	util_audio_encoder_packet[session] = av_packet_alloc();
 	util_audio_encoder_raw_data[session] = av_frame_alloc();
 	if(!util_audio_encoder_raw_data[session] || !util_audio_encoder_packet)
@@ -160,27 +177,20 @@ Result_with_string Util_init_audio_encoder(AVCodecID id, int original_samplerate
 		goto fail;
 	}
 
-	util_audio_encoder_stream = avformat_new_stream(util_audio_encoder_format_context, util_audio_encoder_codec[session]);
-	if(!util_audio_encoder_stream)
+	util_audio_encoder_stream[session] = avformat_new_stream(util_encoder_format_context, util_audio_encoder_codec[session]);
+	if(!util_audio_encoder_stream[session])
 	{
 		result.error_description = "avformat_new_stream() failed";
 		goto fail;
 	}
 
-	if (util_audio_encoder_format_context->oformat->flags & AVFMT_GLOBALHEADER)
-		util_audio_encoder_format_context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+	if (util_encoder_format_context->oformat->flags & AVFMT_GLOBALHEADER)
+		util_encoder_format_context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
-	ffmpeg_result = avcodec_parameters_from_context(util_audio_encoder_stream->codecpar, util_audio_encoder_context[session]);
+	ffmpeg_result = avcodec_parameters_from_context(util_audio_encoder_stream[session]->codecpar, util_audio_encoder_context[session]);
 	if(ffmpeg_result != 0)
 	{
 		result.error_description = "avcodec_parameters_from_context() failed";
-		goto fail;
-	}
-
-	ffmpeg_result = avformat_write_header(util_audio_encoder_format_context, NULL);
-	if(ffmpeg_result != 0)
-	{
-		result.error_description = "avformat_write_header() failed";
 		goto fail;
 	}
 
@@ -190,6 +200,117 @@ Result_with_string Util_init_audio_encoder(AVCodecID id, int original_samplerate
 	Util_exit_audio_encoder(session);
 	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
 	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
+	return result;
+}
+
+Result_with_string Util_init_video_encoder(AVCodecID id, int width, int height, int fps, int session)
+{
+	int ffmpeg_result = 0;
+	Result_with_string result;
+
+	util_video_pos[session] = 0;
+	util_video_encoder_codec[session] = avcodec_find_encoder(id);
+	if(!util_video_encoder_codec[session])
+	{
+		result.error_description = "avcodec_find_encoder() failed";
+		goto fail;
+	}
+
+	util_video_encoder_context[session] = avcodec_alloc_context3(util_video_encoder_codec[session]);
+	if(!util_video_encoder_context[session])
+	{
+		result.error_description = "avcodec_alloc_context3() failed";
+		goto fail;
+	}
+	
+	util_video_encoder_context[session]->bit_rate = 100000;
+	util_video_encoder_context[session]->width = width;
+	util_video_encoder_context[session]->height = height;
+	util_video_encoder_context[session]->time_base = (AVRational){ 1, fps };
+	util_video_encoder_context[session]->pix_fmt = AV_PIX_FMT_YUV420P;
+	/*util_video_encoder_context[session]->qmin = 1;
+	util_video_encoder_context[session]->qmax = 1;
+	util_video_encoder_context[session]->i_quant_factor = 0.1;
+	util_video_encoder_context[session]->qcompress = 0.1;*/
+	//util_video_encoder_context[session]->flags |= AV_CODEC_FLAG_QSCALE;
+	//util_video_encoder_context[session]->global_quality = FF_QP2LAMBDA * 2;
+
+	ffmpeg_result = avcodec_open2(util_video_encoder_context[session], util_video_encoder_codec[session], NULL);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avcodec_open2() failed " + std::to_string(ffmpeg_result);
+		goto fail;
+	}
+	
+	util_video_increase_pts[session] = 90000 / fps;
+
+	util_video_encoder_packet[session] = av_packet_alloc();
+	util_video_encoder_raw_data[session] = av_frame_alloc();
+	if(!util_video_encoder_raw_data[session] || !util_video_encoder_packet[session])
+	{
+		result.error_description = "av_packet_alloc() / av_frame_alloc() failed";
+		goto fail;
+	}
+	
+	util_video_encoder_raw_data[session]->format = util_video_encoder_context[session]->pix_fmt;
+	util_video_encoder_raw_data[session]->width = util_video_encoder_context[session]->width;
+	util_video_encoder_raw_data[session]->height = util_video_encoder_context[session]->height;
+	ffmpeg_result = av_frame_get_buffer(util_video_encoder_raw_data[session], 0);
+	if(ffmpeg_result < 0)
+	{
+		result.error_description = "av_image_alloc() failed " + std::to_string(ffmpeg_result);
+		goto fail;
+	}
+
+	av_frame_make_writable(util_video_encoder_raw_data[session]);
+
+	util_video_encoder_stream[session] = avformat_new_stream(util_encoder_format_context, util_video_encoder_codec[session]);
+	if(!util_video_encoder_stream[session])
+	{
+		result.error_description = "avformat_new_stream() failed";
+		goto fail;
+	}
+	
+	if (util_encoder_format_context->oformat->flags & AVFMT_GLOBALHEADER)
+		util_encoder_format_context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+
+	ffmpeg_result = avcodec_parameters_from_context(util_video_encoder_stream[session]->codecpar, util_video_encoder_context[session]);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avcodec_parameters_from_context() failed";
+		goto fail;
+	}
+
+	util_video_encoder_sws_context[session] = sws_getContext(util_video_encoder_context[session]->width, util_video_encoder_context[session]->height, AV_PIX_FMT_RGB565LE,
+	util_video_encoder_context[session]->width, util_video_encoder_context[session]->height, util_video_encoder_context[session]->pix_fmt, 0, 0, 0, 0);
+	if(!util_video_encoder_sws_context[session])
+	{
+		result.error_description = "sws_getContext() failed";
+		goto fail;
+	}
+
+	return result;
+
+	fail:
+	Util_exit_video_encoder(session);
+	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
+	return result;
+}
+
+Result_with_string Util_write_header(int session)
+{
+	int ffmpeg_result = 0;
+	Result_with_string result;
+
+	ffmpeg_result = avformat_write_header(util_encoder_format_context, NULL);
+	if(ffmpeg_result != 0)
+	{
+		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+		result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
+		result.error_description = "avformat_write_header() failed";
+	}
+
 	return result;
 }
 
@@ -216,9 +337,10 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 	while(true)
 	{
 		memcpy(util_audio_encoder_raw_data[session]->data[0], swr_out_cache[0] + encode_offset, one_frame_size);
+		//set pts
 		util_audio_encoder_raw_data[session]->pts = util_audio_pos[session];
-		util_audio_pos[session] += one_frame_size / bytes_per_sample;
-		
+		util_audio_pos[session] += util_audio_increase_pts[session];
+
 		ffmpeg_result = avcodec_send_frame(util_audio_encoder_context[session], util_audio_encoder_raw_data[session]);
 		if(ffmpeg_result != 0)
 		{
@@ -229,7 +351,8 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 		ffmpeg_result = avcodec_receive_packet(util_audio_encoder_context[session], util_audio_encoder_packet[session]);
 		if(ffmpeg_result == 0)
 		{
-			ffmpeg_result = av_interleaved_write_frame(util_audio_encoder_format_context, util_audio_encoder_packet[session]);
+			util_audio_encoder_packet[session]->stream_index = 1;
+			ffmpeg_result = av_interleaved_write_frame(util_encoder_format_context, util_audio_encoder_packet[session]);
 			if(ffmpeg_result != 0)
 			{
 				result.error_description = "av_interleaved_write_frame() failed " + std::to_string(ffmpeg_result);
@@ -266,11 +389,59 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 	return result;
 }
 
+Result_with_string Util_encode_video(u8* raw_data, int session)
+{
+	int ffmpeg_result = 0;
+	int width = util_video_encoder_raw_data[session]->width;
+	int height = util_video_encoder_raw_data[session]->height;
+	int rgb565_line_size[4] = { 0, 0, 0, 0, };
+	u8* rgb565[4] = { NULL, NULL, NULL, NULL, };
+	Result_with_string result;
+
+	rgb565[0] = raw_data;
+	rgb565_line_size[0] = width*2;
+	sws_scale(util_video_encoder_sws_context[session], rgb565, rgb565_line_size, 0, height, util_video_encoder_raw_data[session]->data, util_video_encoder_raw_data[session]->linesize);
+
+	//set pts
+	util_video_encoder_raw_data[session]->pts = util_video_pos[session];
+	util_video_pos[session] += util_video_increase_pts[session];
+	
+	ffmpeg_result = avcodec_send_frame(util_video_encoder_context[session], util_video_encoder_raw_data[session]);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avcodec_send_frame() failed " + std::to_string(ffmpeg_result);
+		goto fail;
+	}
+
+	ffmpeg_result = avcodec_receive_packet(util_video_encoder_context[session], util_video_encoder_packet[session]);
+	if(ffmpeg_result == 0)
+	{
+		util_video_encoder_packet[session]->stream_index = 0;
+
+		ffmpeg_result = av_interleaved_write_frame(util_encoder_format_context, util_video_encoder_packet[session]);
+		if(ffmpeg_result != 0)
+		{
+			result.error_description = "av_interleaved_write_frame() failed " + std::to_string(ffmpeg_result);
+			goto fail;
+		}
+		av_packet_unref(util_video_encoder_packet[session]);
+	}
+
+	return result;
+
+	fail:
+
+	av_packet_unref(util_video_encoder_packet[session]);	
+	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
+	return result;
+}
+
 void Util_close_output_file(int session)
 {
-	av_write_trailer(util_audio_encoder_format_context);
-	avio_close(util_audio_encoder_format_context->pb);
-	avformat_free_context(util_audio_encoder_format_context);
+	av_write_trailer(util_encoder_format_context);
+	avio_close(util_encoder_format_context->pb);
+	avformat_free_context(util_encoder_format_context);
 }
 
 void Util_exit_audio_encoder(int session)
@@ -279,6 +450,14 @@ void Util_exit_audio_encoder(int session)
 	av_packet_free(&util_audio_encoder_packet[session]);
 	av_frame_free(&util_audio_encoder_raw_data[session]);
 	swr_free(&util_audio_encoder_swr_context[session]);	
+}
+
+void Util_exit_video_encoder(int session)
+{
+	avcodec_free_context(&util_video_encoder_context[session]);
+	av_packet_free(&util_video_encoder_packet[session]);
+	av_frame_free(&util_video_encoder_raw_data[session]);
+	sws_freeContext(util_video_encoder_sws_context[session]);
 }
 
 Result_with_string Util_open_file(std::string file_path, bool* has_audio, bool* has_video, int session)
