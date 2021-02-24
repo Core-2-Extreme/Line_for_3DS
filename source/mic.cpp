@@ -39,7 +39,7 @@ int mic_buffer_num = 0;
 double mic_record_time = 0.0;
 std::string mic_msg[MIC_NUM_OF_MSG];
 std::string mic_format = "mp4";
-std::string mic_ver = "v1.1.0";
+std::string mic_ver = "v1.1.1";
 std::string mic_record_thread_string = "Mic/Record thread";
 std::string mic_encode_thread_string = "Mic/Encode thread";
 std::string mic_init_string = "Mic/Init";
@@ -119,11 +119,12 @@ void Mic_record_thread(void* arg)
 	int buffer_num = 0;
 	int log_num;
 	int count = 0;
-	u32 buffer_pos = 0;
-	u32 buffer_offset = 0;
+	float time = 0;
 	u32 sample_size = 0;
+	TickCounter stopwatch;
 	Result_with_string result;
 
+	osTickCounterStart(&stopwatch);
 	File_save_to_file(".", NULL, 0, "/Line/sound/", true);
 
 	while (mic_thread_run)
@@ -146,8 +147,6 @@ void Mic_record_thread(void* arg)
 				mic_dir_path = "/Line/sound/" + Menu_query_time(1) + "/";
 				mic_file_name = Menu_query_time(2) + "." + mic_format;
 				mic_record_time = 0;
-				buffer_offset = 0;
-				buffer_pos = 0;
 				buffer_num = 0;
 				count = 0;
 				sample_size = micGetSampleDataSize();
@@ -185,7 +184,7 @@ void Mic_record_thread(void* arg)
 				}
 
 				log_num = Log_log_save(mic_record_thread_string, "MICU_StartSampling()...", 1234567890, false);
-				result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_32730, 0, sample_size, true);
+				result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_32730, 0, sample_size, false);
 				Log_log_add(log_num, "", result.code, false);
 				if(result.code != 0)
 				{
@@ -194,6 +193,7 @@ void Mic_record_thread(void* arg)
 					mic_stop_record_request = true;
 				}
 
+				osTickCounterUpdate(&stopwatch);
 				while (true)
 				{
 					usleep(10000);
@@ -205,31 +205,35 @@ void Mic_record_thread(void* arg)
 					else
 						count++;
 
-					if (buffer_pos != micGetLastSampleOffset())
+					if(micGetLastSampleOffset() > mic_buffer_size - 1024)
 					{
-						if(buffer_pos > micGetLastSampleOffset())
-						{
-							while(mic_encoding)
-								usleep(100000);
-	
-							mic_buffer_num = buffer_num;
-							mic_buffer_offset[buffer_num] = buffer_offset;
-							mic_encode_request = true;
-	
-							buffer_pos = 0;
-							buffer_offset = 0;
-							if(buffer_num == 0)
-								buffer_num = 1;
-							else
-								buffer_num = 0;
-						}
+						memcpy(mic_buffer[buffer_num], mic_buffer[2], mic_buffer_size - 1024);
+						while(mic_encoding)
+							usleep(100000);
+
+						log_num = Log_log_save(mic_record_thread_string, "MICU_StopSampling()...", 1234567890, false);
+						result.code = MICU_StopSampling();
+						Log_log_add(log_num, "", result.code, false);
+						log_num = Log_log_save(mic_record_thread_string, "MICU_StartSampling()...", 1234567890, false);
+						result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_32730, 0, sample_size, false);
+						Log_log_add(log_num, "", result.code, false);
+						if(result.code != 0)
+							mic_stop_record_request = true;
+
+						mic_buffer_num = buffer_num;
+						mic_buffer_offset[buffer_num] = mic_buffer_size - 1024;
+						mic_encode_request = true;
+
+						if(buffer_num == 0)
+							buffer_num = 1;
 						else
-						{
-							buffer_pos = micGetLastSampleOffset();
-							memcpy((void*)(mic_buffer[buffer_num] + buffer_offset), (void*)(mic_buffer[2] + buffer_offset), (buffer_pos - buffer_offset));
-							mic_record_time += (buffer_pos - buffer_offset);
-							buffer_offset += (buffer_pos - buffer_offset);
-						}
+							buffer_num = 0;
+					}
+					else
+					{
+						osTickCounterUpdate(&stopwatch);
+						time = osTickCounterRead(&stopwatch);
+						mic_record_time += time;
 					}
 
 					if (mic_stop_record_request)
@@ -242,7 +246,7 @@ void Mic_record_thread(void* arg)
 							usleep(100000);
 
 						mic_buffer_num = buffer_num;
-						mic_buffer_offset[buffer_num] = buffer_offset;
+						mic_buffer_offset[buffer_num] = micGetLastSampleOffset();
 						mic_encode_request = true;
 
 						do
@@ -402,7 +406,7 @@ void Mic_init(void)
 	if (!failed)
 	{
 		mic_thread_run = true;
-		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 1, false);
+		mic_record_thread = threadCreate(Mic_record_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 0, false);
 		mic_encode_thread = threadCreate(Mic_encode_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
 	}
 
@@ -473,7 +477,7 @@ void Mic_main(void)
 			Draw(mic_msg[i], 0, (draw_x + 2.5), draw_y + 20.0, 0.425, 0.425, text_red, text_green, text_blue, text_alpha);
 			draw_x += 60.0;
 		}
-		Draw(Sem_convert_seconds_to_time((double)mic_record_time / (32730 * 2.0)), 0, 102.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		Draw(Sem_convert_seconds_to_time((double)mic_record_time / 1000), 0, 102.5, 105.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		if(mic_start_record_request)
 			Draw("format(Y) " + mic_format, 0, 102.5, 125.0, 0.5, 0.5, text_red, text_green, text_blue, 0.25);
 		else
