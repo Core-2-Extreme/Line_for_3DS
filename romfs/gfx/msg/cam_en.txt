@@ -30,3 +30,7 @@ camera</26>
 <27>In camera</27>
 <28>File will be saved to
 sdmc:/Line/dcim/</28>
+<29>Recording...
+B to stop</29>
+<30>Muxing...</30>
+<31>Take a picture(A) Take a video(B)</31>

@@ -39,9 +39,7 @@ int cam_pre_encode_format_mode = 1;
 
 bool cam_main_run = false;
 bool cam_already_init = false;
-bool cam_capture_thread_run = false;
-bool cam_encode_thread_run = false;
-bool cam_parse_thread_run = false;
+bool cam_thread_run = false;
 bool cam_thread_suspend = false;
 bool cam_take_request = false;
 bool cam_take_video_request = false;
@@ -55,13 +53,17 @@ bool cam_change_lens_correction_request = false;
 bool cam_change_camera_request = false;
 bool cam_change_exposure_request = false;
 bool cam_change_noise_filter_request = false;
-bool cam_encode_video_request = false;
+bool cam_encode_audio_request = false;
+bool cam_encoding_audio = false;
+bool cam_muxing = false;
+bool cam_copying_image = false;
 bool cam_button_selected[4];
+u8* cam_encode_buffer = NULL;
 u8* cam_capture_buffer = NULL;
 u8* cam_capture_frame_buffer[4] = {  NULL, NULL, NULL, NULL, };
 u8* cam_mic_buffer[2] = { NULL, NULL, };
 u32 cam_buffer_size = 0;
-int cam_mic_buffer_size = 0x40000;
+int cam_mic_buffer_size = 0x80000;
 int cam_selected_menu_mode = 0;
 int cam_selected_jpg_quality = 95;
 int cam_current_img_num = 0;
@@ -95,11 +97,12 @@ std::string cam_framelate_list[15];
 std::string cam_format_name_list[2];
 std::string cam_capture_thread_string = "Cam/Capture thread";
 std::string cam_encode_thread_string = "Cam/Encode thread";
+std::string cam_encode_1_thread_string = "Cam/Encode 1 thread";
 std::string cam_parse_thread_string = "Cam/Parse thread";
 std::string cam_init_string = "Cam/Init";
 std::string cam_exit_string = "Cam/Exit";
-std::string cam_ver = "v1.0.4";
-Thread cam_capture_thread, cam_encode_thread, cam_parse_thread;
+std::string cam_ver = "v1.1.0";
+Thread cam_capture_thread, cam_encode_thread, cam_encode_1_thread, cam_parse_thread;
 C2D_Image cam_capture_image[4];
 
 void Cam_main(void)
@@ -370,15 +373,24 @@ void Cam_main(void)
 		for (int i = 0; i < 4; i++)
 			Draw(cam_msg[i + 21], 0, 40.0 + (i * 60.0), 110.0, 0.35, 0.35, text_red, text_green, text_blue, text_alpha);
 
-		if (cam_encode_request)
+		if (cam_encode_request || cam_take_video_request || cam_muxing)
 		{
 			Draw_texture(Square_image, aqua_tint, 0, 40.0, 80.0, 240.0, 50.0);
 
-			if (Sem_query_lang() == "jp")
-				Draw(cam_format_name_list[cam_encode_format_mode] + cam_msg[19] + cam_msg[20], 0, 52.5, 100.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
-			else
-				Draw(cam_msg[19] + cam_format_name_list[cam_encode_format_mode] + cam_msg[20], 0, 52.5, 100.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			if(cam_encode_request)
+			{
+				if (Sem_query_lang() == "jp")
+					Draw(cam_format_name_list[cam_encode_format_mode] + cam_msg[19] + cam_msg[20], 0, 52.5, 100.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+				else
+					Draw(cam_msg[19] + cam_format_name_list[cam_encode_format_mode] + cam_msg[20], 0, 52.5, 100.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			}
+			else if(cam_take_video_request)
+				Draw(cam_msg[29], 0, 52.5, 100.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+			else if(cam_muxing)
+				Draw(cam_msg[30], 0, 52.5, 100.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
 		}
+		Draw(cam_msg[31], 0, 52.5, 200.0, 0.5, 0.5, text_red, text_green, text_blue, text_alpha);
+		
 		Draw_bot_ui();
 		Draw_touch_pos();
 
@@ -407,12 +419,12 @@ void Cam_main(void)
 	{
 		if (key.p_start || (key.p_touch && key.touch_x >= 110 && key.touch_x <= 230 && key.touch_y >= 220 && key.touch_y <= 240))
 			Cam_suspend();
-		else if (!cam_encode_request)
+		else if(key.p_b)
+			cam_take_video_request = !cam_take_video_request;
+		else if (!cam_encode_request && !cam_take_video_request && !cam_muxing)
 		{
 			if (key.p_a)
 				cam_take_request = true;
-			else if(key.p_b)
-				cam_take_video_request = !cam_take_video_request;
 			else if (key.p_touch && key.touch_x >= 40 && key.touch_x <= 279 && key.touch_y >= 85 && key.touch_y <= 104)
 			{
 				for (int i = 0; i < 3; i++)
@@ -651,6 +663,694 @@ Result_with_string Cam_load_msg(std::string lang)
 	return result;
 }
 
+void Cam_encode_thread(void* arg)
+{
+	Log_log_save(cam_encode_thread_string, "Thread started.", 1234567890, false);
+	int log_num;
+	int file_size;
+	int stbi_result;
+	int fps_value = 10;
+	float time = 0;
+	u8* cam_rgb888_buffer = NULL;
+	u8* rgb565_buffer = NULL;
+	uint8_t* cam_png_buffer = NULL;
+	std::string file_name = "";
+	std::string extension = "";
+	std::string dir_path = "";
+	std::string cache_dir_path = "";
+	TickCounter stopwatch;
+	Result_with_string result;
+	osTickCounterStart(&stopwatch);
+
+	//create directory
+	File_save_to_file(".", NULL, 0, "/Line/dcim/", true);
+	File_save_to_file(".", NULL, 0, "/Line/dcim/jpg/", true);
+	File_save_to_file(".", NULL, 0, "/Line/dcim/png/", true);
+	File_save_to_file(".", NULL, 0, "/Line/dcim/mp4/", true);
+	File_save_to_file(".", NULL, 0, "/Line/dcim/cache/", true);
+
+	while (cam_thread_run)
+	{
+		if (cam_encode_request)
+		{
+			file_name = Menu_query_time(2) + "_";
+			if(cam_encode_format_mode == 0)
+			{
+				extension = ".png";
+				dir_path = "/Line/dcim/PNG/" + Menu_query_time(1) + "/";
+			}
+			else if(cam_encode_format_mode == 1)
+			{
+				extension = ".jpg";
+				dir_path = "/Line/dcim/JPG/" + Menu_query_time(1) + "/";
+			}
+
+			for(int i = 0; i < 10; i++)
+			{
+				result = File_check_file_exist(file_name + std::to_string(i) + extension, dir_path);
+				if(result.code != 0)
+				{
+					file_name = file_name + std::to_string(i) + extension;
+					break;
+				}
+			}
+
+			cam_rgb888_buffer = (uint8_t*)malloc((Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 3));
+
+			memset(cam_rgb888_buffer, 0x0, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 3));
+			cam_png_buffer = (uint8_t*)malloc(0x80000);
+			memset(cam_png_buffer, 0x0, 0x80000);
+			if (cam_png_buffer == NULL)
+			{
+				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_encode_thread_string, OUT_OF_MEMORY);
+				Log_log_save(cam_encode_thread_string, Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, false);
+				Err_set_error_show_flag(true);
+			}
+			else if (cam_capture_buffer != NULL)
+			{
+				Util_init_yuv422_rgb565_converter(Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), UTIL_CONVERTER_1);
+				Util_convert_yuv422_rgb565(cam_capture_buffer, cam_capture_buffer, UTIL_CONVERTER_1);
+				Util_exit_yuv422_rgb565_converter(UTIL_CONVERTER_1);
+
+				Draw_rgb565_to_abgr888_rgb888(cam_capture_buffer, cam_rgb888_buffer, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), true);
+				free(cam_capture_buffer);
+				cam_capture_buffer = NULL;
+
+				if (cam_encode_format_mode == 0)
+				{
+					log_num = Log_log_save(cam_encode_thread_string, "stbi_write_png_to_mem()...", 1234567890, false);
+					cam_png_buffer = stbi_write_png_to_mem((const unsigned char*)cam_rgb888_buffer, 0, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), 3, &file_size);
+					Log_log_add(log_num, "size : " + std::to_string(file_size / 1024) + "KB. ", 1234567890, false);
+					if (cam_png_buffer != NULL)
+					{
+						log_num = Log_log_save(cam_encode_thread_string, "File_save_to_file()...", 1234567890, false);
+						result = File_save_to_file(file_name, (u8*)cam_png_buffer, file_size, dir_path, true);
+						Log_log_add(log_num, result.string, result.code, false);
+					}
+				}
+				else if (cam_encode_format_mode == 1)
+				{
+					log_num = Log_log_save(cam_encode_thread_string, "stbi_write_jpg_to_mem()...", 1234567890, false);
+					stbi_result = stbi_write_jpg_to_mem((void*)cam_png_buffer, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), 3, (const void*)cam_rgb888_buffer, cam_selected_jpg_quality, &file_size);
+					Log_log_add(log_num, "size : " + std::to_string(file_size / 1024) + "KB. ", 1234567890, false);
+					if (stbi_result != 0)
+					{
+						log_num = Log_log_save(cam_encode_thread_string, "File_save_to_file()...", 1234567890, false);
+						result = File_save_to_file(file_name, (u8*)cam_png_buffer, file_size, dir_path, true);
+						Log_log_add(log_num, result.string, result.code, false);
+					}
+				}
+
+				free(cam_png_buffer);
+				cam_png_buffer = NULL;
+			}
+			free(cam_rgb888_buffer);
+			cam_rgb888_buffer = NULL;
+			cam_encode_request = false;
+		}
+		else if(cam_take_video_request)
+		{
+			if(cam_request_resolution_mode == 0)
+				fps_value = 5;
+			else if(cam_request_resolution_mode == 1)
+				fps_value = 10;
+			else if(cam_request_resolution_mode == 2 || cam_request_resolution_mode == 3)
+				fps_value = 15;
+			else if(cam_request_resolution_mode == 5)
+				fps_value = 20;
+			else if(cam_request_resolution_mode == 6)
+				fps_value = 24;
+			else if(cam_request_resolution_mode == 7 || cam_request_resolution_mode == 8)
+				fps_value = 30;
+
+			file_name = Menu_query_time(2);
+			extension = ".mp4";
+			cache_dir_path = "/Line/dcim/cache/" + Menu_query_time(1) + "/";
+			dir_path = "/Line/dcim/mp4/" + Menu_query_time(1) + "/";
+			File_save_to_file(".", NULL, 0, cache_dir_path, true);
+			File_save_to_file(".", NULL, 0, dir_path, true);
+			aptSetSleepAllowed(false);
+
+			log_num = Log_log_save(cam_encode_thread_string, "Util_create_output_file()...", 1234567890, false);
+			result = Util_create_output_file(cache_dir_path + file_name + extension, UTIL_ENCODER_1);
+			Log_log_add(log_num, result.string + result.error_description, result.code, false);
+
+			if(result.code == 0)
+			{
+				log_num = Log_log_save(cam_encode_thread_string, "Util_init_video_encoder()...", 1234567890, false);
+				result = Util_init_video_encoder(AV_CODEC_ID_MPEG4, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), fps_value, UTIL_ENCODER_1);
+				Log_log_add(log_num, result.string + result.error_description, result.code, false);
+			}
+			else
+				cam_take_video_request = false;
+
+			if(result.code == 0)
+			{
+				log_num = Log_log_save(cam_encode_thread_string, "Util_create_output_file()...", 1234567890, false);
+				result = Util_create_output_file(cache_dir_path + file_name + "_" + extension, UTIL_ENCODER_2);
+				Log_log_add(log_num, result.string + result.error_description, result.code, false);
+			}
+			else
+				cam_take_video_request = false;
+
+			if(result.code == 0)
+			{
+				log_num = Log_log_save(cam_encode_thread_string, "Util_init_audio_encoder()...", 1234567890, false);
+				result = Util_init_audio_encoder(AV_CODEC_ID_AAC, 32730, 32000, 128000, UTIL_ENCODER_2);
+				Log_log_add(log_num, result.string + result.error_description, result.code, false);
+			}
+			else
+				cam_take_video_request = false;
+
+			if(result.code == 0)
+			{
+				log_num = Log_log_save(cam_encode_thread_string, "Util_write_header()...", 1234567890, false);
+				result = Util_write_header(UTIL_ENCODER_1);
+				Log_log_add(log_num, result.string + result.error_description, result.code, false);
+			}
+			else
+				cam_take_video_request = false;
+
+			if(result.code == 0)
+			{
+				log_num = Log_log_save(cam_encode_thread_string, "Util_write_header()...", 1234567890, false);
+				result = Util_write_header(UTIL_ENCODER_2);
+				Log_log_add(log_num, result.string + result.error_description, result.code, false);
+			}
+			else
+				cam_take_video_request = false;
+
+			if(result.code == 0)
+			{
+				rgb565_buffer = (u8*)malloc(Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
+				if(rgb565_buffer == NULL)
+				{
+					Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_encode_thread_string, OUT_OF_MEMORY);
+					Err_set_error_show_flag(true);
+					cam_take_video_request = false;
+				}
+				else
+				{
+					cam_encode_audio_request = true;
+					osTickCounterUpdate(&stopwatch);
+					while(cam_take_video_request)
+					{
+						while(cam_copying_image)
+							usleep(1000);
+						memcpy_asm(rgb565_buffer, cam_encode_buffer, Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
+
+						osTickCounterUpdate(&stopwatch);
+						time = osTickCounterRead(&stopwatch);
+						if(time < 1000.0 / fps_value)
+							usleep(((1000.0 / fps_value) - time) * 1000);
+						
+						log_num = Log_log_save(cam_encode_thread_string, "Util_encode_video()...", 1234567890, false);
+						result = Util_encode_video(rgb565_buffer, UTIL_ENCODER_1);
+						Log_log_add(log_num, result.string + result.error_description, result.code, false);
+					}
+				}
+			}
+
+			free(rgb565_buffer);
+			rgb565_buffer = NULL;
+			cam_muxing = true;
+			cam_take_video_request = false;
+			cam_encode_audio_request = false;
+			while(cam_encoding_audio)
+				usleep(50000);
+						
+			Util_close_output_file(UTIL_ENCODER_1);
+			Util_close_output_file(UTIL_ENCODER_2);
+			Util_exit_video_encoder(UTIL_ENCODER_1);
+			Util_exit_audio_encoder(UTIL_ENCODER_2);
+
+			log_num = Log_log_save(cam_encode_thread_string, "Util_open_muxer_audio_file()...", 1234567890, false);
+			result = Util_open_muxer_audio_file(cache_dir_path + file_name + "_" + extension, UTIL_MUXER_0);
+			Log_log_add(log_num, result.string + result.error_description, result.code, false);
+
+			if(result.code == 0)
+			{
+				log_num = Log_log_save(cam_encode_thread_string, "Util_open_muxer_video_file()...", 1234567890, false);
+				result = Util_open_muxer_video_file(cache_dir_path + file_name + extension, UTIL_MUXER_0);
+				Log_log_add(log_num, result.string + result.error_description, result.code, false);
+			}
+
+			if(result.code == 0)
+			{
+				log_num = Log_log_save(cam_encode_thread_string, "Util_mux_file()...", 1234567890, false);
+				result = Util_mux_file(dir_path + file_name + extension, UTIL_MUXER_0);
+				Log_log_add(log_num, result.string + result.error_description, result.code, false);
+			}
+
+			Util_close_muxer_audio_file(UTIL_MUXER_0);
+			Util_close_muxer_video_file(UTIL_MUXER_0);
+
+			log_num = Log_log_save(cam_encode_thread_string, "File_delete_file()...", 1234567890, false);
+			File_delete_file(file_name + "_" + extension, cache_dir_path);
+			Log_log_add(log_num, result.string, result.code, false);
+
+			log_num = Log_log_save(cam_encode_thread_string, "File_delete_file()...", 1234567890, false);
+			File_delete_file(file_name + extension, cache_dir_path);
+			Log_log_add(log_num, result.string, result.code, false);
+			cam_muxing = false;
+			
+			aptSetSleepAllowed(true);
+		}
+		else
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
+
+		while (cam_thread_suspend)
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
+	}
+	Log_log_save(cam_encode_thread_string, "Thread exit.", 1234567890, false);
+	threadExit(0);
+}
+
+void Cam_encode_1_thread(void* arg)
+{
+	Log_log_save(cam_encode_1_thread_string, "Thread started.", 1234567890, false);
+	int log_num;
+	u32 sample_size = 0;
+	u32 buffer_pos = 0;
+	Result_with_string result;
+
+	while (cam_thread_run)
+	{
+		if(cam_encode_audio_request)
+		{
+			cam_encoding_audio = true;
+			cam_mic_buffer[1] = (u8*)malloc(cam_mic_buffer_size);
+			if (cam_mic_buffer[1] == NULL)
+			{
+				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_encode_1_thread_string, OUT_OF_MEMORY);
+				Err_set_error_show_flag(true);
+				Log_log_save(cam_encode_1_thread_string, "[Error] Out of memory.", OUT_OF_MEMORY, false);
+				cam_take_video_request = false;
+			}
+			else
+			{
+				memset(cam_mic_buffer[1], 0x0, cam_mic_buffer_size);
+				sample_size = micGetSampleDataSize();
+			}
+
+			if(result.code == 0)
+			{
+				log_num = Log_log_save(cam_encode_1_thread_string, "MICU_StartSampling()...", 1234567890, false);
+				result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_32730, 0, sample_size, false);
+				Log_log_add(log_num, "", result.code, false);
+				if(result.code != 0)
+				{
+					Err_set_error_show_flag(true);
+					Err_set_error_message("MICU_StartSampling() failed", "", cam_encode_1_thread_string, result.code);
+					cam_take_video_request = false;
+				}
+
+				while(cam_encode_audio_request)
+				{
+					usleep(1000);
+					if((int)micGetLastSampleOffset() > cam_mic_buffer_size - 1024)
+					{
+						buffer_pos = micGetLastSampleOffset();
+						memcpy(cam_mic_buffer[1], cam_mic_buffer[0], buffer_pos);
+
+						log_num = Log_log_save(cam_encode_1_thread_string, "MICU_StopSampling()...", 1234567890, false);
+						result.code = MICU_StopSampling();
+						Log_log_add(log_num, "", result.code, false);
+						log_num = Log_log_save(cam_encode_1_thread_string, "MICU_StartSampling()...", 1234567890, false);
+						result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_32730, 0, sample_size, false);
+						Log_log_add(log_num, "", result.code, false);
+						if(result.code != 0)
+							cam_take_video_request = false;
+
+						log_num = Log_log_save(cam_encode_1_thread_string, "Util_encode_audio()...", 1234567890, false);
+						result = Util_encode_audio(buffer_pos, cam_mic_buffer[1], UTIL_ENCODER_2);
+						Log_log_add(log_num, result.string + result.error_description, result.code, false);
+						if(result.code != 0)
+							cam_take_video_request = false;
+					}
+				}
+			}
+			buffer_pos = micGetLastSampleOffset();
+
+			log_num = Log_log_save(cam_encode_1_thread_string, "MICU_StopSampling()...", 1234567890, false);
+			result.code = MICU_StopSampling();
+			Log_log_add(log_num, "", result.code, false);
+
+			memcpy(cam_mic_buffer[1], cam_mic_buffer[0], buffer_pos);
+			log_num = Log_log_save(cam_encode_1_thread_string, "Util_encode_audio()...", 1234567890, false);
+			result = Util_encode_audio(buffer_pos, cam_mic_buffer[1], UTIL_ENCODER_2);
+			Log_log_add(log_num, result.string + result.error_description, result.code, false);
+
+			free(cam_mic_buffer[1]);
+			cam_mic_buffer[1] = NULL;
+
+			cam_encode_audio_request = false;
+			cam_encoding_audio = false;
+		}
+		else
+			usleep(ACTIVE_THREAD_SLEEP_TIME);
+
+		while (cam_thread_suspend)
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
+	}
+	Log_log_save(cam_encode_1_thread_string, "Thread exit.", 1234567890, false);
+	threadExit(0);
+}
+
+void Cam_capture_thread(void* arg)
+{
+	Log_log_save(cam_capture_thread_string, "Thread started.", 1234567890, false);
+	bool out_left = false;
+	int log_num;
+	int buffer_num[2] = { 2, 3, };
+	Result_with_string result;
+
+	while (cam_thread_run)
+	{
+		if (cam_take_request && !cam_encode_request)
+		{
+			log_num = Log_log_save(cam_capture_thread_string , "Cam_take_picture()...", 1234567890, false);
+			cam_capture_buffer = (u8*)malloc(Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
+			if (cam_capture_buffer == NULL)
+			{
+				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_capture_thread_string, OUT_OF_MEMORY);
+				Log_log_add(log_num, Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, false);
+				Err_set_error_show_flag(true);
+			}
+			else
+			{
+				if (cam_camera_mode == 1)
+					out_left = true;
+				else
+					out_left = false;
+
+				result = Cam_take_picture(cam_capture_buffer, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2), out_left, cam_shutter_sound_mode);
+
+				Log_log_add(log_num, result.string, result.code, false);
+				if (result.code != 0 && result.code != 0x9401BFE)
+				{
+					Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
+					Err_set_error_show_flag(true);
+				}
+			}
+			cam_take_request = false;
+			cam_encode_request = true;
+		}
+		else if (cam_take_video_request)
+		{		
+			cam_capture_buffer = (u8*)malloc(Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
+			cam_encode_buffer = (u8*)malloc(Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
+			if (cam_capture_buffer == NULL || cam_encode_buffer == NULL)
+			{
+				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_capture_thread_string, OUT_OF_MEMORY);
+				Err_set_error_show_flag(true);
+			}
+			else
+			{
+				while(cam_take_video_request)
+				{
+					if (cam_camera_mode == 1)
+						out_left = true;
+					else
+						out_left = false;
+
+					log_num = Log_log_save(cam_capture_thread_string , "Cam_take_picture()...", 1234567890, false);
+					result = Cam_take_picture(cam_capture_buffer, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2), out_left, cam_shutter_sound_mode);
+					Log_log_add(log_num, result.string, result.code, false);
+					if (result.code != 0 && result.code != 0x9401BFE)
+					{
+						Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
+						Err_set_error_show_flag(true);
+					}
+					else if(result.code == 0)
+					{
+						cam_copying_image = true;
+						memcpy_asm(cam_encode_buffer, cam_capture_buffer, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2));
+						cam_copying_image = false;
+
+						memcpy_asm(cam_capture_frame_buffer[buffer_num[cam_current_img_num]], cam_capture_buffer, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2));
+						//update preview
+						if (cam_current_img_num == 0)
+							cam_current_img_num = 1;
+						else
+							cam_current_img_num = 0;
+
+						cam_fps++;
+						cam_parse_request = true;
+					}
+				}
+			}
+
+			while(cam_muxing)
+				usleep(50000);
+
+			free(cam_capture_buffer);
+			free(cam_encode_buffer);
+			cam_capture_buffer = NULL;
+			cam_encode_buffer = NULL;
+		}
+		else if (cam_change_resolution_request || cam_change_fps_request || cam_change_contrast_request || cam_change_white_balance_request
+			|| cam_change_lens_correction_request || cam_change_camera_request || cam_change_exposure_request || cam_change_noise_filter_request)
+		{
+			if (cam_change_resolution_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_size()...", 1234567890, false);
+				result = Cam_set_capture_size(Cam_convert_to_resolution(cam_request_resolution_mode, true), Cam_convert_to_resolution(cam_request_resolution_mode, false), &cam_buffer_size);
+			}
+			else if (cam_change_fps_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_fps()...", 1234567890, false);
+				result = Cam_set_capture_fps(cam_request_fps_mode);
+			}
+			else if (cam_change_contrast_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "CAMU_SetContrast()...", 1234567890, false);
+				result = Cam_set_capture_contrast(cam_request_contrast_mode);
+			}
+			else if (cam_change_white_balance_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_white_balance()...", 1234567890, false);
+				result = Cam_set_capture_white_balance(cam_request_white_balance_mode);
+			}
+			else if (cam_change_lens_correction_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_lens_correction()...", 1234567890, false);
+				result = Cam_set_capture_lens_correction(cam_request_lens_correction_mode);
+			}
+			else if (cam_change_camera_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_camera()...", 1234567890, false);
+				result = Cam_set_capture_camera(cam_request_camera_mode, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), &cam_buffer_size);
+			}
+			else if (cam_change_exposure_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_exposure()...", 1234567890, false);
+				result = Cam_set_capture_exposure(cam_request_exposure_mode);
+			}
+			else if (cam_change_noise_filter_request)
+			{
+				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_noise_filter()...", 1234567890, false);
+				result = Cam_set_capture_noise_filter(cam_request_noise_filter_mode);
+			}
+			else
+				log_num = 0;
+
+			Log_log_add(log_num, result.string, result.code, false);
+
+			if (result.code != 0)
+			{
+				cam_request_resolution_mode = cam_resolution_mode;
+				Err_set_error_message(result.string, result.error_description, cam_capture_thread_string, result.code);
+				Err_set_error_show_flag(true);
+			}
+			else
+			{
+				if (cam_change_resolution_request)
+				{
+					cam_display_img_num = -1;
+					cam_resolution_mode = cam_request_resolution_mode;
+				}
+				else if (cam_change_fps_request)
+					cam_fps_mode = cam_request_fps_mode;
+				else if (cam_change_contrast_request)
+					cam_contrast_mode = cam_request_contrast_mode;
+				else if (cam_change_white_balance_request)
+					cam_white_balance_mode = cam_request_white_balance_mode;
+				else if (cam_change_lens_correction_request)
+					cam_lens_correction_mode = cam_request_lens_correction_mode;
+				else if (cam_change_camera_request)
+					cam_camera_mode = cam_request_camera_mode;
+				else if (cam_change_exposure_request)
+					cam_exposure_mode = cam_request_exposure_mode;
+				else if (cam_change_noise_filter_request)
+					cam_noise_filter_mode = cam_request_noise_filter_mode;
+			}
+
+			if (cam_change_resolution_request)
+				cam_change_resolution_request = false;
+			else if (cam_change_fps_request)
+				cam_change_fps_request = false;
+			else if (cam_change_contrast_request)
+				cam_change_contrast_request = false;
+			else if (cam_change_white_balance_request)
+				cam_change_white_balance_request = false;
+			else if (cam_change_lens_correction_request)
+				cam_change_lens_correction_request = false;
+			else if (cam_change_camera_request)
+				cam_change_camera_request = false;
+			else if (cam_change_exposure_request)
+				cam_change_exposure_request = false;
+			else if (cam_change_noise_filter_request)
+				cam_change_noise_filter_request = false;
+		}
+		else
+		{
+			if (cam_camera_mode == 1)
+				out_left = true;
+			else
+				out_left = false;
+
+			result = Cam_take_picture(cam_capture_frame_buffer[buffer_num[cam_current_img_num]], (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2), out_left, false);
+			if (result.code == 0)
+			{
+				if (cam_current_img_num == 0)
+					cam_current_img_num = 1;
+				else
+					cam_current_img_num = 0;
+
+				cam_fps++;
+				cam_parse_request = true;
+			}
+			else
+			{
+				Log_log_save(cam_capture_thread_string, result.string, result.code, false);
+				usleep(100);
+			}
+		}
+
+		while (cam_thread_suspend)
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
+	}
+
+	result.code = CAMU_Activate(SELECT_NONE);
+
+	Log_log_save(cam_capture_thread_string, "Thread exit.", 1234567890, false);
+	threadExit(0);
+}
+
+void Cam_parse_thread(void* arg)
+{
+	Log_log_save(cam_parse_thread_string, "Thread started.", 1234567890, false);
+	int previous_num = 0;
+	int processing_num[2] = { 0, 2, };
+	int tex_size = 512;
+	int width = 0;
+	int height = 0;
+	u8* raw_buffer = NULL;
+	Result_with_string result;
+
+	raw_buffer = (u8*)malloc(640 * 480 * 2);
+	if(!raw_buffer)
+	{
+		Err_set_error_message("Out of memory.", "Couldn't allocate memory.", cam_parse_thread_string, OUT_OF_MEMORY);
+		Err_set_error_show_flag(true);
+		cam_thread_run = false;
+	}
+
+	while (cam_thread_run)
+	{
+		if (cam_parse_request)
+		{
+			cam_parse_request = false;
+
+			if (previous_num!= cam_current_img_num)
+			{
+				previous_num = cam_current_img_num;
+				width = Cam_convert_to_resolution(cam_resolution_mode, true);
+				height = Cam_convert_to_resolution(cam_resolution_mode, false);
+
+				Util_init_yuv422_rgb565_converter(width, height, UTIL_CONVERTER_0);
+				if (cam_current_img_num == 0)
+				{
+					//unstable!
+					//GX_TextureCopy((u32*)cam_capture_frame_buffer[3], 0, (u32*)cam_capture_frame_buffer[0], 0, (u32)(width * height * 2), 0x8);
+					//GSPGPU_FlushDataCache(cam_capture_frame_buffer[3], (width * height * 2));
+					//GSPGPU_InvalidateDataCache(cam_capture_frame_buffer[0], (width * height * 2));
+
+					memcpy_asm(raw_buffer, cam_capture_frame_buffer[3], (width * height * 2));
+					Util_convert_yuv422_rgb565(raw_buffer, cam_capture_frame_buffer[0], UTIL_CONVERTER_0);
+				}
+				else
+				{
+					//unstable!
+					//GX_TextureCopy((u32*)cam_capture_frame_buffer[2], 0, (u32*)cam_capture_frame_buffer[1], 0, (u32)(width * height * 2), 0x8);
+					//GSPGPU_FlushDataCache(cam_capture_frame_buffer[2], (width * height * 2));
+					//GSPGPU_InvalidateDataCache(cam_capture_frame_buffer[1], (width * height * 2));
+
+					memcpy_asm(raw_buffer, cam_capture_frame_buffer[2], (width * height * 2));
+					Util_convert_yuv422_rgb565(raw_buffer, cam_capture_frame_buffer[1], UTIL_CONVERTER_0);
+				}
+				//gspWaitForPPF();
+				Util_exit_yuv422_rgb565_converter(UTIL_CONVERTER_0);
+
+				if (cam_current_img_num == 0)
+				{
+					processing_num[0] = 0;
+					processing_num[1] = 0;
+				}
+				else
+				{
+					processing_num[0] = 1;
+					processing_num[1] = 2;
+				}
+
+				for (int i = 0; i < 2; i++)
+				{
+					linearFree(cam_capture_image[processing_num[1] + i].tex->data);
+					cam_capture_image[processing_num[1] + i].tex->data = NULL;
+				}
+
+				if(cam_resolution_mode >= 0 && cam_resolution_mode <= 5)
+					tex_size = 512;
+				else if(cam_resolution_mode >= 6)
+					tex_size = 256;
+
+				result = Draw_create_texture(cam_capture_image[processing_num[1]].tex, (Tex3DS_SubTexture*)cam_capture_image[processing_num[1]].subtex, cam_capture_frame_buffer[processing_num[0]], (width * height * 2), width, height, 2, 0, 0, tex_size, tex_size, GPU_RGB565);
+				if(cam_resolution_mode == 0)
+					result = Draw_create_texture(cam_capture_image[processing_num[1] + 1].tex, (Tex3DS_SubTexture*)cam_capture_image[processing_num[1] + 1].subtex, cam_capture_frame_buffer[processing_num[0]], (width * height * 2), width, height, 2, 512, 0, 128, 512, GPU_RGB565);
+	
+				if(cam_resolution_mode != 0 && cam_resolution_mode != 1)
+					C3D_TexSetFilter(cam_capture_image[processing_num[1]].tex, GPU_NEAREST, GPU_NEAREST);
+
+
+				if (result.code == 0)
+				{
+					if (cam_current_img_num == 0)
+						cam_display_img_num = 1;
+					else
+						cam_display_img_num = 0;
+				}
+				else if(result.code != WRONG_PARSING_POS)
+				{
+					Err_set_error_message(result.string, result.error_description, cam_parse_thread_string, result.code);
+					Err_set_error_show_flag(true);
+					usleep(1000000);
+				}
+			}
+		}
+		else
+			usleep(3000);
+
+		while (cam_thread_suspend)
+			usleep(INACTIVE_THREAD_SLEEP_TIME);
+	}
+	
+	free(raw_buffer);
+	raw_buffer = NULL;
+	Log_log_save(cam_parse_thread_string, "Thread exit.", 1234567890, false);
+	threadExit(0);
+}
+
 void Cam_init(void)
 {
 	Log_log_save(cam_init_string , "Initializing...", 1234567890, FORCE_DEBUG);
@@ -812,18 +1512,18 @@ void Cam_init(void)
 	if (!failed)
 	{
 		APT_CheckNew3DS(&new_3ds);
-		cam_capture_thread_run = true;
-		cam_encode_thread_run = true;
-		cam_parse_thread_run = true;
+		cam_thread_run = true;
 		cam_capture_thread = threadCreate(Cam_capture_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, 0, false);
 		if(new_3ds)
 		{
 			cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 2, false);
+			cam_encode_1_thread = threadCreate(Cam_encode_1_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
 			cam_parse_thread = threadCreate(Cam_parse_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 0, false);
 		}
 		else
 		{
-			cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 0, false);
+			cam_encode_1_thread = threadCreate(Cam_encode_1_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
+			cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
 			cam_parse_thread = threadCreate(Cam_parse_thread, (void*)(""), STACKSIZE, PRIORITY_HIGH, 1, false);
 		}
 	}
@@ -848,9 +1548,7 @@ void Cam_exit(void)
 	Draw_progress("[Cam] Exiting...");
 	cam_already_init = false;
 	cam_thread_suspend = false;
-	cam_capture_thread_run = false;
-	cam_encode_thread_run = false;
-	cam_parse_thread_run = false;
+	cam_thread_run = false;
 
 	log_num = Log_log_save(cam_exit_string, "File_save_to_file()...", 1234567890, FORCE_DEBUG);
 	result = File_save_to_file("Cam_setting.txt", (u8*)data.c_str(), data.length(), "/Line/", true);
@@ -858,7 +1556,7 @@ void Cam_exit(void)
 
 	for (int i = 0; i < 3; i++)
 	{
-		log_num = Log_log_save(cam_exit_string, "threadJoin()" + std::to_string(i) + "/2...", 1234567890, FORCE_DEBUG);
+		log_num = Log_log_save(cam_exit_string, "threadJoin()" + std::to_string(i) + "/3...", 1234567890, FORCE_DEBUG);
 
 		if (i == 0)
 			result.code = threadJoin(cam_encode_thread, time_out);
@@ -866,7 +1564,9 @@ void Cam_exit(void)
 			result.code = threadJoin(cam_parse_thread, time_out);
 		else if (i == 2)
 			result.code = threadJoin(cam_capture_thread, time_out);
-
+		else if (i == 3)
+			result.code = threadJoin(cam_encode_1_thread, time_out);
+		
 		if (result.code == 0)
 			Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
 		else
@@ -876,6 +1576,7 @@ void Cam_exit(void)
 	threadFree(cam_encode_thread);
 	threadFree(cam_parse_thread);
 	threadFree(cam_capture_thread);
+	threadFree(cam_encode_1_thread);
 
 	camExit();
 
@@ -890,598 +1591,6 @@ void Cam_exit(void)
 		cam_capture_image[i].tex = NULL;
 		cam_capture_image[i].subtex = NULL;
 	}
-}
-
-void Cam_encode_thread(void* arg)
-{
-	Log_log_save(cam_encode_thread_string, "Thread started.", 1234567890, false);
-	int log_num;
-	int file_size;
-	int stbi_result;
-	int fps_value = 0;
-	u8* cam_rgb888_buffer = NULL;
-	u8* rgb565_buffer = NULL;
-	u32 buffer_pos = 0;
-	u32 buffer_offset = 0;
-	u32 sample_size = 0;
-	uint8_t* cam_png_buffer = NULL;
-	std::string file_name = "";
-	std::string extension = "";
-	std::string dir_patch = "";
-	Result_with_string result;
-
-	//create directory
-	File_save_to_file(".", NULL, 0, "/Line/dcim/", true);
-	File_save_to_file(".", NULL, 0, "/Line/dcim/JPG/", true);
-	File_save_to_file(".", NULL, 0, "/Line/dcim/PNG/", true);
-	File_save_to_file(".", NULL, 0, "/Line/dcim/MP4/", true);
-
-	while (cam_encode_thread_run)
-	{
-		if (cam_encode_request)
-		{
-			log_num = Log_log_save(cam_encode_thread_string, "APT_SetAppCpuTimeLimit()...", 1234567890, FORCE_DEBUG);
-			result.code = APT_SetAppCpuTimeLimit(80);
-			if (result.code == 0)
-				Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
-			else
-				Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-
-			file_name = Menu_query_time(2) + "_";
-			if(cam_encode_format_mode == 0)
-			{
-				extension = ".png";
-				dir_patch = "/Line/dcim/PNG/" + Menu_query_time(1) + "/";
-			}
-			else if(cam_encode_format_mode == 1)
-			{
-				extension = ".jpg";
-				dir_patch = "/Line/dcim/JPG/" + Menu_query_time(1) + "/";
-			}
-
-			for(int i = 0; i < 100; i++)
-			{
-				result = File_check_file_exist(file_name + std::to_string(i) + extension, dir_patch);
-				if(result.code != 0)
-				{
-					file_name = file_name + std::to_string(i) + extension;
-					break;
-				}
-			}
-
-			cam_rgb888_buffer = (uint8_t*)malloc((Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 3));
-
-			memset(cam_rgb888_buffer, 0x0, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 3));
-			cam_png_buffer = (uint8_t*)malloc(0x80000);
-			memset(cam_png_buffer, 0x0, 0x80000);
-			if (cam_png_buffer == NULL)
-			{
-				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_encode_thread_string, OUT_OF_MEMORY);
-				Log_log_save(cam_encode_thread_string, Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, false);
-				Err_set_error_show_flag(true);
-			}
-			else if (cam_capture_buffer != NULL)
-			{
-				Draw_rgb565_to_abgr888_rgb888(cam_capture_buffer, cam_rgb888_buffer, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), true);
-				free(cam_capture_buffer);
-				cam_capture_buffer = NULL;
-
-				if (cam_encode_format_mode == 0)
-				{
-					log_num = Log_log_save(cam_encode_thread_string, "stbi_write_png_to_mem()...", 1234567890, false);
-					cam_png_buffer = stbi_write_png_to_mem((const unsigned char*)cam_rgb888_buffer, 0, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), 3, &file_size);
-					Log_log_add(log_num, "size : " + std::to_string(file_size / 1024) + "KB. ", 1234567890, false);
-					if (cam_png_buffer != NULL)
-					{
-						log_num = Log_log_save(cam_encode_thread_string, "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file(file_name, (u8*)cam_png_buffer, file_size, dir_patch, true);
-						Log_log_add(log_num, result.string, result.code, false);
-					}
-				}
-				else if (cam_encode_format_mode == 1)
-				{
-					log_num = Log_log_save(cam_encode_thread_string, "stbi_write_jpg_to_mem()...", 1234567890, false);
-					stbi_result = stbi_write_jpg_to_mem((void*)cam_png_buffer, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), 3, (const void*)cam_rgb888_buffer, cam_selected_jpg_quality, &file_size);
-					Log_log_add(log_num, "size : " + std::to_string(file_size / 1024) + "KB. ", 1234567890, false);
-					if (stbi_result != 0)
-					{
-						log_num = Log_log_save(cam_encode_thread_string, "File_save_to_file()...", 1234567890, false);
-						result = File_save_to_file(file_name, (u8*)cam_png_buffer, file_size, dir_patch, true);
-						Log_log_add(log_num, result.string, result.code, false);
-					}
-				}
-
-				free(cam_png_buffer);
-				cam_png_buffer = NULL;
-			}
-			free(cam_rgb888_buffer);
-			cam_rgb888_buffer = NULL;
-			log_num = Log_log_save(cam_encode_thread_string, "APT_SetAppCpuTimeLimit()...", 1234567890, FORCE_DEBUG);
-			result.code = APT_SetAppCpuTimeLimit(30);
-			if (result.code == 0)
-				Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
-			else
-				Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-
-			cam_encode_request = false;
-		}
-		else if(cam_encode_video_request)
-		{
-			if(cam_request_resolution_mode == 0 || cam_request_resolution_mode == 1)
-				fps_value = 5;
-			else if(cam_request_resolution_mode == 2 || cam_request_resolution_mode == 3)
-				fps_value = 10;
-			else if(cam_request_resolution_mode == 5)
-				fps_value = 15;
-			else if(cam_request_resolution_mode == 6)
-				fps_value = 20;
-			else if(cam_request_resolution_mode == 7 || cam_request_resolution_mode == 8)
-				fps_value = 30;
-
-			aptSetSleepAllowed(false);
-			cam_mic_buffer[1] = (u8*)malloc(cam_mic_buffer_size);
-			if (cam_mic_buffer[1] == NULL)
-			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", cam_encode_thread_string, OUT_OF_MEMORY);
-				Err_set_error_show_flag(true);
-				Log_log_save(cam_encode_thread_string, "[Error] Out of memory.", OUT_OF_MEMORY, false);
-				cam_take_video_request = false;
-			}
-			else
-			{
-				memset(cam_mic_buffer[1], 0x0, cam_mic_buffer_size);
-				sample_size = micGetSampleDataSize();
-				buffer_offset = 0;
-				buffer_pos = 0;
-			}
-
-			log_num = Log_log_save(cam_encode_thread_string, "Util_create_output_file()...", result.code, false);
-			result = Util_create_output_file("/test.mp4", UTIL_ENCODER_1);
-			Log_log_add(log_num, result.string + result.error_description, result.code, false);
-
-			if(result.code == 0)
-			{
-				log_num = Log_log_save(cam_encode_thread_string, "Util_init_video_encoder()...", result.code, false);
-				result = Util_init_video_encoder(AV_CODEC_ID_MPEG4, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), fps_value, UTIL_ENCODER_1);
-				Log_log_add(log_num, result.string + result.error_description, result.code, false);
-			}
-			else
-				cam_take_video_request = false;
-
-			if(result.code == 0)
-			{
-				/*log_num = Log_log_save(cam_encode_thread_string, "Util_init_audio_encoder()...", 1234567890, false);
-				result = Util_init_audio_encoder(AV_CODEC_ID_AAC, 32730, 32000, 128000, UTIL_ENCODER_1);
-				Log_log_add(log_num, result.string + result.error_description, result.code, false);*/
-			}
-			else
-				cam_take_video_request = false;
-
-			if(result.code == 0)
-			{
-				Log_log_save(cam_encode_thread_string, "Util_write_header()...", result.code, false);
-				result = Util_write_header(UTIL_ENCODER_1);
-				Log_log_add(log_num, result.string + result.error_description, result.code, false);
-			}
-			else
-				cam_take_video_request = false;
-
-			if(result.code == 0)
-			{
-				rgb565_buffer = (u8*)malloc(Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
-				if(rgb565_buffer == NULL)
-				{
-					Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_encode_thread_string, OUT_OF_MEMORY);
-					Err_set_error_show_flag(true);
-					cam_take_video_request = false;
-				}
-				else
-				{
-					log_num = Log_log_save(cam_encode_thread_string, "MICU_StartSampling()...", 1234567890, false);
-					result.code = MICU_StartSampling(MICU_ENCODING_PCM16_SIGNED, MICU_SAMPLE_RATE_32730, 0, sample_size, true);
-					Log_log_add(log_num, "", result.code, false);
-					if(result.code != 0)
-					{
-						Err_set_error_show_flag(true);
-						Err_set_error_message("MICU_StartSampling() failed", "", cam_encode_thread_string, result.code);
-						cam_take_video_request = false;
-					}
-
-					while(cam_take_video_request)
-					{
-						if(cam_encode_video_request)
-						{
-							memcpy_asm(rgb565_buffer, cam_capture_buffer, Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
-							cam_encode_video_request = false;
-							
-							log_num = Log_log_save(cam_capture_thread_string, "Util_encode_video()...", 1234567890, false);
-							result = Util_encode_video(rgb565_buffer, UTIL_ENCODER_1);
-							Log_log_add(log_num, result.string + result.error_description, result.code, false);
-						}
-						else
-						{
-							usleep(1000);
-							if (buffer_pos != micGetLastSampleOffset())
-							{
-								if(buffer_pos > micGetLastSampleOffset())
-								{
-									/*log_num = Log_log_save(cam_encode_thread_string, "Util_encode_audio()...", 1234567890, false);
-									result = Util_encode_audio(buffer_offset, cam_mic_buffer[1], UTIL_ENCODER_1);
-									Log_log_add(log_num, result.string + result.error_description, result.code, false);*/
-									if(result.code != 0)
-										cam_take_video_request = false;
-
-									buffer_offset = 0;
-									buffer_pos = 0;
-								}
-								else
-								{
-									buffer_pos = micGetLastSampleOffset();
-									memcpy((void*)(cam_mic_buffer[1] + buffer_offset), (void*)(cam_mic_buffer[0] + buffer_offset), (buffer_pos - buffer_offset));
-									buffer_offset += (buffer_pos - buffer_offset);
-								}
-							}
-						}
-					}
-				}
-			}
-			log_num = Log_log_save(cam_encode_thread_string, "MICU_StopSampling()...", 1234567890, false);
-			result.code = MICU_StopSampling();
-			Log_log_add(log_num, "", result.code, false);
-
-			free(rgb565_buffer);
-			free(cam_mic_buffer[1]);
-			rgb565_buffer = NULL;
-			cam_mic_buffer[1] = NULL;
-			Util_close_output_file(UTIL_ENCODER_1);
-			Util_exit_video_encoder(UTIL_ENCODER_1);
-			//Util_exit_audio_encoder(UTIL_ENCODER_1);
-			aptSetSleepAllowed(true);
-			cam_encode_video_request = false;
-		}
-		else
-			usleep(ACTIVE_THREAD_SLEEP_TIME);
-
-		while (cam_thread_suspend)
-			usleep(INACTIVE_THREAD_SLEEP_TIME);
-	}
-	Log_log_save(cam_encode_thread_string, "Thread exit.", 1234567890, false);
-	threadExit(0);
-}
-
-void Cam_capture_thread(void* arg)
-{
-	Log_log_save(cam_capture_thread_string, "Thread started.", 1234567890, false);
-	bool out_left = false;
-	int log_num;
-	int fps_value = 10;
-	int buffer_num[2] = { 2, 3, };
-	float time = 0;
-	Result_with_string result;
-	TickCounter stopwatch;
-	osTickCounterStart(&stopwatch);
-
-	while (cam_capture_thread_run)
-	{
-		if (cam_take_request && !cam_encode_request)
-		{
-			log_num = Log_log_save(cam_capture_thread_string , "Cam_take_picture()...", 1234567890, false);
-			cam_capture_buffer = (u8*)malloc(Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
-			if (cam_capture_buffer == NULL)
-			{
-				Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_capture_thread_string, OUT_OF_MEMORY);
-				Log_log_add(log_num, Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, false);
-				Err_set_error_show_flag(true);
-			}
-			else
-			{
-				if (cam_camera_mode == 1)
-					out_left = true;
-				else
-					out_left = false;
-
-				result = Cam_take_picture(cam_capture_buffer, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2), out_left, cam_shutter_sound_mode);
-
-				Log_log_add(log_num, result.string, result.code, false);
-				if (result.code != 0 && result.code != 0x9401BFE)
-				{
-					Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
-					Err_set_error_show_flag(true);
-				}
-			}
-			cam_take_request = false;
-			cam_encode_request = true;
-		}
-		else if (cam_take_video_request)
-		{
-			if(cam_request_resolution_mode == 0 || cam_request_resolution_mode == 1)
-				fps_value = 5;
-			else if(cam_request_resolution_mode == 2 || cam_request_resolution_mode == 3)
-				fps_value = 10;
-			else if(cam_request_resolution_mode == 5)
-				fps_value = 15;
-			else if(cam_request_resolution_mode == 6)
-				fps_value = 20;
-			else if(cam_request_resolution_mode == 7 || cam_request_resolution_mode == 8)
-				fps_value = 30;
-
-			osTickCounterUpdate(&stopwatch);
-			while(cam_take_video_request)
-			{				
-				log_num = Log_log_save(cam_capture_thread_string , "Cam_take_picture()...", 1234567890, false);
-				cam_capture_buffer = (u8*)malloc(Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2);
-				if (cam_capture_buffer == NULL)
-				{
-					Err_set_error_message(Err_query_template_summary(OUT_OF_MEMORY), Err_query_template_detail(OUT_OF_MEMORY), cam_capture_thread_string, OUT_OF_MEMORY);
-					Log_log_add(log_num, Err_query_template_summary(OUT_OF_MEMORY), OUT_OF_MEMORY, false);
-					Err_set_error_show_flag(true);
-				}
-				else
-				{
-					if (cam_camera_mode == 1)
-						out_left = true;
-					else
-						out_left = false;
-
-					result = Cam_take_picture(cam_capture_buffer, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2), out_left, cam_shutter_sound_mode);
-					Log_log_add(log_num, result.string, result.code, false);
-					if (result.code != 0 && result.code != 0x9401BFE)
-					{
-						Err_set_error_message(result.string, result.error_description, cam_capture_thread_string , result.code);
-						Err_set_error_show_flag(true);
-					}
-					else if(result.code == 0)
-					{
-						osTickCounterUpdate(&stopwatch);
-						time = osTickCounterRead(&stopwatch);
-						if(time < 1000.0 / fps_value)
-							usleep(((1000.0 / fps_value) - time) * 1000);
-
-						cam_encode_video_request = true;
-
-						memcpy_asm(cam_capture_frame_buffer[buffer_num[cam_current_img_num]], cam_capture_buffer, (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2));
-						//update preview
-						if (cam_current_img_num == 0)
-							cam_current_img_num = 1;
-						else
-							cam_current_img_num = 0;
-
-						cam_fps++;
-						cam_parse_request = true;
-
-						while(cam_encode_video_request)
-							usleep(500);
-					}
-				}
-				free(cam_capture_buffer);
-				cam_capture_buffer = NULL;
-			}
-		}
-		else if (cam_change_resolution_request || cam_change_fps_request || cam_change_contrast_request || cam_change_white_balance_request
-			|| cam_change_lens_correction_request || cam_change_camera_request || cam_change_exposure_request || cam_change_noise_filter_request)
-		{
-			if (cam_change_resolution_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_size()...", 1234567890, false);
-				result = Cam_set_capture_size(Cam_convert_to_resolution(cam_request_resolution_mode, true), Cam_convert_to_resolution(cam_request_resolution_mode, false), &cam_buffer_size);
-			}
-			else if (cam_change_fps_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_fps()...", 1234567890, false);
-				result = Cam_set_capture_fps(cam_request_fps_mode);
-			}
-			else if (cam_change_contrast_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "CAMU_SetContrast()...", 1234567890, false);
-				result = Cam_set_capture_contrast(cam_request_contrast_mode);
-			}
-			else if (cam_change_white_balance_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_white_balance()...", 1234567890, false);
-				result = Cam_set_capture_white_balance(cam_request_white_balance_mode);
-			}
-			else if (cam_change_lens_correction_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_lens_correction()...", 1234567890, false);
-				result = Cam_set_capture_lens_correction(cam_request_lens_correction_mode);
-			}
-			else if (cam_change_camera_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_camera()...", 1234567890, false);
-				result = Cam_set_capture_camera(cam_request_camera_mode, Cam_convert_to_resolution(cam_resolution_mode, true), Cam_convert_to_resolution(cam_resolution_mode, false), &cam_buffer_size);
-			}
-			else if (cam_change_exposure_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_exposure()...", 1234567890, false);
-				result = Cam_set_capture_exposure(cam_request_exposure_mode);
-			}
-			else if (cam_change_noise_filter_request)
-			{
-				log_num = Log_log_save(cam_capture_thread_string, "Cam_set_capture_noise_filter()...", 1234567890, false);
-				result = Cam_set_capture_noise_filter(cam_request_noise_filter_mode);
-			}
-			else
-				log_num = 0;
-
-			Log_log_add(log_num, result.string, result.code, false);
-
-			if (result.code != 0)
-			{
-				cam_request_resolution_mode = cam_resolution_mode;
-				Err_set_error_message(result.string, result.error_description, cam_capture_thread_string, result.code);
-				Err_set_error_show_flag(true);
-			}
-			else
-			{
-				if (cam_change_resolution_request)
-				{
-					cam_display_img_num = -1;
-					cam_resolution_mode = cam_request_resolution_mode;
-				}
-				else if (cam_change_fps_request)
-					cam_fps_mode = cam_request_fps_mode;
-				else if (cam_change_contrast_request)
-					cam_contrast_mode = cam_request_contrast_mode;
-				else if (cam_change_white_balance_request)
-					cam_white_balance_mode = cam_request_white_balance_mode;
-				else if (cam_change_lens_correction_request)
-					cam_lens_correction_mode = cam_request_lens_correction_mode;
-				else if (cam_change_camera_request)
-					cam_camera_mode = cam_request_camera_mode;
-				else if (cam_change_exposure_request)
-					cam_exposure_mode = cam_request_exposure_mode;
-				else if (cam_change_noise_filter_request)
-					cam_noise_filter_mode = cam_request_noise_filter_mode;
-			}
-
-			if (cam_change_resolution_request)
-				cam_change_resolution_request = false;
-			else if (cam_change_fps_request)
-				cam_change_fps_request = false;
-			else if (cam_change_contrast_request)
-				cam_change_contrast_request = false;
-			else if (cam_change_white_balance_request)
-				cam_change_white_balance_request = false;
-			else if (cam_change_lens_correction_request)
-				cam_change_lens_correction_request = false;
-			else if (cam_change_camera_request)
-				cam_change_camera_request = false;
-			else if (cam_change_exposure_request)
-				cam_change_exposure_request = false;
-			else if (cam_change_noise_filter_request)
-				cam_change_noise_filter_request = false;
-		}
-		else
-		{
-			if (cam_camera_mode == 1)
-				out_left = true;
-			else
-				out_left = false;
-
-			result = Cam_take_picture(cam_capture_frame_buffer[buffer_num[cam_current_img_num]], (Cam_convert_to_resolution(cam_resolution_mode, true) * Cam_convert_to_resolution(cam_resolution_mode, false) * 2), out_left, false);
-			if (result.code == 0)
-			{
-				if (cam_current_img_num == 0)
-					cam_current_img_num = 1;
-				else
-					cam_current_img_num = 0;
-
-				cam_fps++;
-				cam_parse_request = true;
-			}
-			else
-			{
-				Log_log_save(cam_capture_thread_string, result.string, result.code, false);
-				usleep(100);
-			}
-		}
-
-		while (cam_thread_suspend)
-			usleep(INACTIVE_THREAD_SLEEP_TIME);
-	}
-
-	result.code = CAMU_Activate(SELECT_NONE);
-
-	Log_log_save(cam_capture_thread_string, "Thread exit.", 1234567890, false);
-	threadExit(0);
-}
-
-void Cam_parse_thread(void* arg)
-{
-	Log_log_save(cam_parse_thread_string, "Thread started.", 1234567890, false);
-	int previous_num = 0;
-	int processing_num[2] = { 0, 2, };
-	int tex_size = 512;
-	int width = 0;
-	int height = 0;
-	Result_with_string result;
-
-	while (cam_parse_thread_run)
-	{
-		if (cam_parse_request)
-		{
-			cam_parse_request = false;
-
-			if (previous_num!= cam_current_img_num)
-			{
-				previous_num = cam_current_img_num;
-				width = Cam_convert_to_resolution(cam_resolution_mode, true);
-				height = Cam_convert_to_resolution(cam_resolution_mode, false);
-
-				if (cam_current_img_num == 0)
-				{
-					//unstable!
-					//GX_TextureCopy((u32*)cam_capture_frame_buffer[3], 0, (u32*)cam_capture_frame_buffer[0], 0, (u32)(width * height * 2), 0x8);
-					//GSPGPU_FlushDataCache(cam_capture_frame_buffer[3], (width * height * 2));
-					//GSPGPU_InvalidateDataCache(cam_capture_frame_buffer[0], (width * height * 2));
-
-					memcpy_asm(cam_capture_frame_buffer[0], cam_capture_frame_buffer[3], (width * height * 2));
-				}
-				else
-				{
-					//unstable!
-					//GX_TextureCopy((u32*)cam_capture_frame_buffer[2], 0, (u32*)cam_capture_frame_buffer[1], 0, (u32)(width * height * 2), 0x8);
-					//GSPGPU_FlushDataCache(cam_capture_frame_buffer[2], (width * height * 2));
-					//GSPGPU_InvalidateDataCache(cam_capture_frame_buffer[1], (width * height * 2));
-
-					memcpy_asm(cam_capture_frame_buffer[1], cam_capture_frame_buffer[2], (width * height * 2));
-				}
-				gspWaitForPPF();
-
-				if (cam_current_img_num == 0)
-				{
-					processing_num[0] = 0;
-					processing_num[1] = 0;
-				}
-				else
-				{
-					processing_num[0] = 1;
-					processing_num[1] = 2;
-				}
-
-				for (int i = 0; i < 2; i++)
-				{
-					linearFree(cam_capture_image[processing_num[1] + i].tex->data);
-					cam_capture_image[processing_num[1] + i].tex->data = NULL;
-				}
-
-				if(cam_resolution_mode >= 0 && cam_resolution_mode <= 5)
-					tex_size = 512;
-				else if(cam_resolution_mode >= 6)
-					tex_size = 256;
-
-				result = Draw_create_texture(cam_capture_image[processing_num[1]].tex, (Tex3DS_SubTexture*)cam_capture_image[processing_num[1]].subtex, cam_capture_frame_buffer[processing_num[0]], (width * height * 2), width, height, 2, 0, 0, tex_size, tex_size, GPU_RGB565);
-				if(cam_resolution_mode == 0)
-					result = Draw_create_texture(cam_capture_image[processing_num[1] + 1].tex, (Tex3DS_SubTexture*)cam_capture_image[processing_num[1] + 1].subtex, cam_capture_frame_buffer[processing_num[0]], (width * height * 2), width, height, 2, 512, 0, 128, 512, GPU_RGB565);
-	
-				if(cam_resolution_mode != 0 && cam_resolution_mode != 1)
-					C3D_TexSetFilter(cam_capture_image[processing_num[1]].tex, GPU_NEAREST, GPU_NEAREST);
-
-
-				if (result.code == 0)
-				{
-					if (cam_current_img_num == 0)
-						cam_display_img_num = 1;
-					else
-						cam_display_img_num = 0;
-				}
-				else if(result.code != WRONG_PARSING_POS)
-				{
-					Err_set_error_message(result.string, result.error_description, cam_parse_thread_string, result.code);
-					Err_set_error_show_flag(true);
-					usleep(1000000);
-				}
-			}
-		}
-		else
-			usleep(3000);
-
-		while (cam_thread_suspend)
-			usleep(INACTIVE_THREAD_SLEEP_TIME);
-	}
-	
-	Log_log_save(cam_parse_thread_string, "Thread exit.", 1234567890, false);
-	threadExit(0);
 }
 
 bool Cam_query_init_flag(void)
@@ -1951,7 +2060,7 @@ Result_with_string Cam_cam_init(int camera_moide, int resolution_mode, int noise
 	Result_with_string result;
 	bool failed = false;
 
-	result.code = CAMU_SetOutputFormat(SELECT_ALL, OUTPUT_RGB_565, CONTEXT_BOTH);
+	result.code = CAMU_SetOutputFormat(SELECT_ALL, OUTPUT_YUV_422, CONTEXT_BOTH);
 	if (result.code != 0)
 		failed = true;
 

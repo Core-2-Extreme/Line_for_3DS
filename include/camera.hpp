@@ -1,6 +1,6 @@
 #pragma once
 
-#define CAM_NUM_OF_MSG 29
+#define CAM_NUM_OF_MSG 32
 #define CAM_NUM_OF_OPTION_MSG 52
 
 #define CAM_MENU_RESOLUTION 0
@@ -18,12 +18,6 @@ void Cam_main(void);
 void Cam_init(void);
 
 void Cam_exit(void);
-
-void Cam_encode_thread(void* arg);
-
-void Cam_capture_thread(void* arg);
-
-void Cam_parse_thread(void* arg);
 
 bool Cam_query_init_flag(void);
 
