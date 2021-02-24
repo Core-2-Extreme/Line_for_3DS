@@ -11,33 +11,41 @@ extern "C" {
 #include <libswscale/swscale.h>
 #include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
-#include "libavformat/avformat.h"
+#include <libavformat/avformat.h>
 }
 
 extern "C" void memcpy_asm(u8*, u8*, int);
 
 //Encoder
-int util_audio_pos[2] = { 0, 0, };
-int util_audio_increase_pts[2] = { 0, 0, };
-AVPacket* util_audio_encoder_packet[2] = { NULL, NULL, };
-AVFrame* util_audio_encoder_raw_data[2] = { NULL, NULL, };
-AVCodecContext* util_audio_encoder_context[2] = { NULL, NULL, };
-AVCodec* util_audio_encoder_codec[2] = { NULL, NULL, };
-SwrContext* util_audio_encoder_swr_context[2] = { NULL, NULL, };
-AVStream* util_audio_encoder_stream[2] = { NULL, NULL, };
+int util_audio_pos[3] = { 0, 0, 0, };
+int util_audio_increase_pts[3] = { 0, 0, 0, };
+AVPacket* util_audio_encoder_packet[3] = { NULL, NULL, NULL, };
+AVFrame* util_audio_encoder_raw_data[3] = { NULL, NULL, NULL, };
+AVCodecContext* util_audio_encoder_context[3] = { NULL, NULL, NULL, };
+AVCodec* util_audio_encoder_codec[3] = { NULL, NULL, NULL, };
+SwrContext* util_audio_encoder_swr_context[3] = { NULL, NULL, NULL, };
+AVStream* util_audio_encoder_stream[3] = { NULL, NULL, NULL, };
 
-int util_video_pos[2] = { 0, 0, };
-int util_video_increase_pts[2] = { 0, 0, };
-AVPacket* util_video_encoder_packet[2] = { NULL, NULL, };
-AVFrame* util_video_encoder_raw_data[2] = { NULL, NULL, };
-AVCodecContext* util_video_encoder_context[2] = { NULL, NULL, };
-AVCodec* util_video_encoder_codec[2] = { NULL, NULL, };
-SwsContext* util_video_encoder_sws_context[2] = { NULL, NULL, };
-AVStream* util_video_encoder_stream[2] = { NULL, NULL, };
+int util_video_pos[3] = { 0, 0, 0, };
+int util_video_increase_pts[3] = { 0, 0, 0, };
+AVPacket* util_video_encoder_packet[3] = { NULL, NULL, NULL, };
+AVFrame* util_video_encoder_raw_data[3] = { NULL, NULL, NULL, };
+AVCodecContext* util_video_encoder_context[3] = { NULL, NULL, NULL, };
+AVCodec* util_video_encoder_codec[3] = { NULL, NULL, NULL, };
+SwsContext* util_video_encoder_sws_context[3] = { NULL, NULL, NULL, };
+AVStream* util_video_encoder_stream[3] = { NULL, NULL, NULL, };
 
-AVFormatContext* util_encoder_format_context = NULL;
+AVFormatContext* util_encoder_format_context[3] = { NULL, NULL, NULL, };
 
 //Decoder
+int util_audio_decoder_stream_num[2] = { -1, -1, };
+AVPacket* util_audio_decoder_packet[2] = { NULL, NULL, };
+AVPacket* util_audio_decoder_cache_packet[2] = { NULL, NULL, };
+AVFrame* util_audio_decoder_raw_data[2] = { NULL, NULL, };
+AVCodecContext* util_audio_decoder_context[2] = { NULL, NULL, };
+AVCodec* util_audio_decoder_codec[2] = { NULL, NULL, };
+SwrContext* util_audio_decoder_swr_context[2] = { NULL, NULL, };
+
 bool util_video_decoder_lock[2][3] = { { false, false, false, }, { false, false, false, } };
 int util_video_decoder_buffer_num[2] = { 0, 0, };
 int util_video_decoder_ready_buffer_num[2] = { 0, 0, };
@@ -48,37 +56,50 @@ AVFrame* util_video_decoder_raw_data[2][3] = { { NULL, NULL, NULL, }, { NULL, NU
 AVCodecContext* util_video_decoder_context[2] = { NULL, NULL, };
 AVCodec* util_video_decoder_codec[2] = { NULL, NULL, };
 
-int util_audio_decoder_stream_num[2] = { -1, -1, };
-AVPacket* util_audio_decoder_packet[2] = { NULL, NULL, };
-AVPacket* util_audio_decoder_cache_packet[2] = { NULL, NULL, };
-AVFrame* util_audio_decoder_raw_data[2] = { NULL, NULL, };
-AVCodecContext* util_audio_decoder_context[2] = { NULL, NULL, };
-AVCodec* util_audio_decoder_codec[2] = { NULL, NULL, };
-SwrContext* util_audio_decoder_swr_context[2] = { NULL, NULL, };
-
 AVFormatContext* util_decoder_format_context[2] = { NULL, NULL, };
 
+//Muxer
+int util_audio_muxer_stream_num[2] = { -1, -1, };
+AVPacket* util_audio_muxer_packet[2] = { NULL, NULL, };
+AVFormatContext* util_audio_muxer_format_context[2] = { NULL, NULL, };
+AVCodecContext* util_audio_muxer_context[2] = { NULL, NULL, };
+AVCodec* util_audio_muxer_codec[2] = { NULL, NULL, };
+AVStream* util_audio_muxer_format_stream[2] = { NULL, NULL, };
+
+int util_video_muxer_stream_num[2] = { -1, -1, };
+AVPacket* util_video_muxer_packet[2] = { NULL, NULL, };
+AVFormatContext* util_video_muxer_format_context[2] = { NULL, NULL, };
+AVCodecContext* util_video_muxer_context[2] = { NULL, NULL, };
+AVCodec* util_video_muxer_codec[2] = { NULL, NULL, };
+AVStream* util_video_muxer_format_stream[2] = { NULL, NULL, };
+
+AVFormatContext* util_muxer_format_context[2] = { NULL, NULL, };
+
+//Converter
+int util_yuv422_rgb565_width[2] = { 0, 0, };
+int util_yuv422_rgb565_height[2] = { 0, 0, };
+SwsContext* util_yuv422_rgb565_converter_sws_context[2] = { NULL, NULL, };
 
 Result_with_string Util_create_output_file(std::string file_name, int session)
 {
 	Result_with_string result;
 	int ffmpeg_result = 0;
 
-	util_encoder_format_context = avformat_alloc_context();
-	if(!util_encoder_format_context)
+	util_encoder_format_context[session] = avformat_alloc_context();
+	if(!util_encoder_format_context[session])
 	{
 		result.error_description = "avformat_alloc_context() failed";
 		goto fail;
 	}
 
-	util_encoder_format_context->oformat = av_guess_format(NULL, file_name.c_str(), NULL);
-	if(!util_encoder_format_context->oformat)
+	util_encoder_format_context[session]->oformat = av_guess_format(NULL, file_name.c_str(), NULL);
+	if(!util_encoder_format_context[session]->oformat)
 	{
 		result.error_description = "av_guess_format() failed";
 		goto fail;
 	}
 
-	ffmpeg_result = avio_open(&util_encoder_format_context->pb, file_name.c_str(), AVIO_FLAG_READ_WRITE);
+	ffmpeg_result = avio_open(&util_encoder_format_context[session]->pb, file_name.c_str(), AVIO_FLAG_READ_WRITE);
 	if(ffmpeg_result != 0)
 	{
 		result.error_description = "avio_open() failed " + std::to_string(ffmpeg_result);
@@ -91,8 +112,8 @@ Result_with_string Util_create_output_file(std::string file_name, int session)
 
 	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
 	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
-	avio_close(util_encoder_format_context->pb);
-	avformat_free_context(util_encoder_format_context);
+	avio_close(util_encoder_format_context[session]->pb);
+	avformat_free_context(util_encoder_format_context[session]);
 	return result;
 }
 
@@ -139,7 +160,7 @@ Result_with_string Util_init_audio_encoder(AVCodecID id, int original_samplerate
 		goto fail;
 	}
 	
-	util_audio_increase_pts[session] = util_audio_encoder_context[session]->frame_size / av_get_bytes_per_sample(util_audio_encoder_context[session]->sample_fmt);
+	util_audio_increase_pts[session] = util_audio_encoder_context[session]->frame_size;
 	util_audio_encoder_packet[session] = av_packet_alloc();
 	util_audio_encoder_raw_data[session] = av_frame_alloc();
 	if(!util_audio_encoder_raw_data[session] || !util_audio_encoder_packet)
@@ -177,15 +198,15 @@ Result_with_string Util_init_audio_encoder(AVCodecID id, int original_samplerate
 		goto fail;
 	}
 
-	util_audio_encoder_stream[session] = avformat_new_stream(util_encoder_format_context, util_audio_encoder_codec[session]);
+	util_audio_encoder_stream[session] = avformat_new_stream(util_encoder_format_context[session], util_audio_encoder_codec[session]);
 	if(!util_audio_encoder_stream[session])
 	{
 		result.error_description = "avformat_new_stream() failed";
 		goto fail;
 	}
 
-	if (util_encoder_format_context->oformat->flags & AVFMT_GLOBALHEADER)
-		util_encoder_format_context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+	if (util_encoder_format_context[session]->oformat->flags & AVFMT_GLOBALHEADER)
+		util_encoder_format_context[session]->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
 	ffmpeg_result = avcodec_parameters_from_context(util_audio_encoder_stream[session]->codecpar, util_audio_encoder_context[session]);
 	if(ffmpeg_result != 0)
@@ -228,13 +249,16 @@ Result_with_string Util_init_video_encoder(AVCodecID id, int width, int height, 
 	util_video_encoder_context[session]->height = height;
 	util_video_encoder_context[session]->time_base = (AVRational){ 1, fps };
 	util_video_encoder_context[session]->pix_fmt = AV_PIX_FMT_YUV420P;
-	/*util_video_encoder_context[session]->qmin = 1;
+	util_video_encoder_context[session]->gop_size = 30;
+	//util_video_encoder_context[session]->flags2 = AV_CODEC_FLAG2_FAST;
+	/*util_video_encoder_context[session]->flags |= AV_CODEC_FLAG_QSCALE;
+	util_video_encoder_context[session]->global_quality = 31;
+	util_video_encoder_context[session]->qmin = 1;
 	util_video_encoder_context[session]->qmax = 1;
 	util_video_encoder_context[session]->i_quant_factor = 0.1;
-	util_video_encoder_context[session]->qcompress = 0.1;*/
-	//util_video_encoder_context[session]->flags |= AV_CODEC_FLAG_QSCALE;
-	//util_video_encoder_context[session]->global_quality = FF_QP2LAMBDA * 2;
-
+	util_video_encoder_context[session]->qcompress = 0.1;
+	*/
+	
 	ffmpeg_result = avcodec_open2(util_video_encoder_context[session], util_video_encoder_codec[session], NULL);
 	if(ffmpeg_result != 0)
 	{
@@ -264,15 +288,15 @@ Result_with_string Util_init_video_encoder(AVCodecID id, int width, int height, 
 
 	av_frame_make_writable(util_video_encoder_raw_data[session]);
 
-	util_video_encoder_stream[session] = avformat_new_stream(util_encoder_format_context, util_video_encoder_codec[session]);
+	util_video_encoder_stream[session] = avformat_new_stream(util_encoder_format_context[session], util_video_encoder_codec[session]);
 	if(!util_video_encoder_stream[session])
 	{
 		result.error_description = "avformat_new_stream() failed";
 		goto fail;
 	}
 	
-	if (util_encoder_format_context->oformat->flags & AVFMT_GLOBALHEADER)
-		util_encoder_format_context->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+	if (util_encoder_format_context[session]->oformat->flags & AVFMT_GLOBALHEADER)
+		util_encoder_format_context[session]->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
 	ffmpeg_result = avcodec_parameters_from_context(util_video_encoder_stream[session]->codecpar, util_video_encoder_context[session]);
 	if(ffmpeg_result != 0)
@@ -281,7 +305,7 @@ Result_with_string Util_init_video_encoder(AVCodecID id, int width, int height, 
 		goto fail;
 	}
 
-	util_video_encoder_sws_context[session] = sws_getContext(util_video_encoder_context[session]->width, util_video_encoder_context[session]->height, AV_PIX_FMT_RGB565LE,
+	util_video_encoder_sws_context[session] = sws_getContext(util_video_encoder_context[session]->width, util_video_encoder_context[session]->height, AV_PIX_FMT_YUYV422,
 	util_video_encoder_context[session]->width, util_video_encoder_context[session]->height, util_video_encoder_context[session]->pix_fmt, 0, 0, 0, 0);
 	if(!util_video_encoder_sws_context[session])
 	{
@@ -303,7 +327,7 @@ Result_with_string Util_write_header(int session)
 	int ffmpeg_result = 0;
 	Result_with_string result;
 
-	ffmpeg_result = avformat_write_header(util_encoder_format_context, NULL);
+	ffmpeg_result = avformat_write_header(util_encoder_format_context[session], NULL);
 	if(ffmpeg_result != 0)
 	{
 		result.code = FFMPEG_RETURNED_NOT_SUCCESS;
@@ -331,7 +355,7 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 		goto fail_;
 
 	out_samples = swr_convert(util_audio_encoder_swr_context[session], (uint8_t**)swr_out_cache, size, (const uint8_t**)swr_in_cache, size);
-	out_samples /= 2;
+	out_samples = out_samples / 2;
 	out_samples *= bytes_per_sample;
 
 	while(true)
@@ -351,15 +375,17 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 		ffmpeg_result = avcodec_receive_packet(util_audio_encoder_context[session], util_audio_encoder_packet[session]);
 		if(ffmpeg_result == 0)
 		{
-			util_audio_encoder_packet[session]->stream_index = 1;
-			ffmpeg_result = av_interleaved_write_frame(util_encoder_format_context, util_audio_encoder_packet[session]);
+			util_audio_encoder_packet[session]->stream_index = 0;
+			ffmpeg_result = av_interleaved_write_frame(util_encoder_format_context[session], util_audio_encoder_packet[session]);
+			av_packet_unref(util_audio_encoder_packet[session]);
 			if(ffmpeg_result != 0)
 			{
 				result.error_description = "av_interleaved_write_frame() failed " + std::to_string(ffmpeg_result);
 				goto fail;
 			}
-			av_packet_unref(util_audio_encoder_packet[session]);
 		}
+		else
+			av_packet_unref(util_audio_encoder_packet[session]);
 
 		out_samples -= one_frame_size;
 		encode_offset += one_frame_size;
@@ -373,7 +399,6 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 
 	fail:
 
-	av_packet_unref(util_audio_encoder_packet[session]);	
 	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
 	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
 	return result;
@@ -382,7 +407,6 @@ Result_with_string Util_encode_audio(int size, u8* raw_data, int session)
 
 	free(swr_out_cache[0]);
 	swr_out_cache[0] = NULL;
-	av_packet_unref(util_audio_encoder_packet[session]);	
 	result.code = OUT_OF_MEMORY;
 	result.string = Err_query_template_summary(OUT_OF_MEMORY);
 	result.error_description = Err_query_template_detail(OUT_OF_MEMORY);
@@ -394,13 +418,13 @@ Result_with_string Util_encode_video(u8* raw_data, int session)
 	int ffmpeg_result = 0;
 	int width = util_video_encoder_raw_data[session]->width;
 	int height = util_video_encoder_raw_data[session]->height;
-	int rgb565_line_size[4] = { 0, 0, 0, 0, };
-	u8* rgb565[4] = { NULL, NULL, NULL, NULL, };
+	int input_line_size[4] = { 0, 0, 0, 0, };
+	u8* input[4] = { NULL, NULL, NULL, NULL, };
 	Result_with_string result;
 
-	rgb565[0] = raw_data;
-	rgb565_line_size[0] = width*2;
-	sws_scale(util_video_encoder_sws_context[session], rgb565, rgb565_line_size, 0, height, util_video_encoder_raw_data[session]->data, util_video_encoder_raw_data[session]->linesize);
+	input[0] = raw_data;
+	input_line_size[0] = width*2;
+	sws_scale(util_video_encoder_sws_context[session], input, input_line_size, 0, height, util_video_encoder_raw_data[session]->data, util_video_encoder_raw_data[session]->linesize);
 
 	//set pts
 	util_video_encoder_raw_data[session]->pts = util_video_pos[session];
@@ -417,21 +441,21 @@ Result_with_string Util_encode_video(u8* raw_data, int session)
 	if(ffmpeg_result == 0)
 	{
 		util_video_encoder_packet[session]->stream_index = 0;
-
-		ffmpeg_result = av_interleaved_write_frame(util_encoder_format_context, util_video_encoder_packet[session]);
+		ffmpeg_result = av_interleaved_write_frame(util_encoder_format_context[session], util_video_encoder_packet[session]);
+		av_packet_unref(util_video_encoder_packet[session]);
 		if(ffmpeg_result != 0)
 		{
 			result.error_description = "av_interleaved_write_frame() failed " + std::to_string(ffmpeg_result);
 			goto fail;
 		}
-		av_packet_unref(util_video_encoder_packet[session]);
 	}
+	else
+		av_packet_unref(util_video_encoder_packet[session]);
 
 	return result;
 
 	fail:
 
-	av_packet_unref(util_video_encoder_packet[session]);	
 	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
 	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
 	return result;
@@ -439,9 +463,9 @@ Result_with_string Util_encode_video(u8* raw_data, int session)
 
 void Util_close_output_file(int session)
 {
-	av_write_trailer(util_encoder_format_context);
-	avio_close(util_encoder_format_context->pb);
-	avformat_free_context(util_encoder_format_context);
+	av_write_trailer(util_encoder_format_context[session]);
+	avio_close(util_encoder_format_context[session]->pb);
+	avformat_free_context(util_encoder_format_context[session]);
 }
 
 void Util_exit_audio_encoder(int session)
@@ -545,7 +569,6 @@ Result_with_string Util_init_audio_decoder(int session)
 		goto fail;
 	}
 
-	//Log_log_save("", av_get_sample_fmt_name(util_audio_decoder_context[session]->sample_fmt), 1234567890, false);
 	util_audio_decoder_swr_context[session] = swr_alloc();
 	swr_alloc_set_opts(util_audio_decoder_swr_context[session], av_get_default_channel_layout(util_audio_decoder_context[session]->channels), AV_SAMPLE_FMT_S16, util_audio_decoder_context[session]->sample_rate,
 		av_get_default_channel_layout(util_audio_decoder_context[session]->channels), util_audio_decoder_context[session]->sample_fmt, util_audio_decoder_context[session]->sample_rate, 0, NULL);
@@ -671,7 +694,6 @@ Result_with_string Util_read_packet(AVMediaType* type, int session)
 			result.error_description = "av_packet_ref() failed" + std::to_string(ffmpeg_result);
 			goto fail;
 		}
-
 		*type = AVMEDIA_TYPE_AUDIO;
 	}
 	else if(cache_packet->stream_index == util_video_decoder_stream_num[session])//video packet
@@ -690,7 +712,6 @@ Result_with_string Util_read_packet(AVMediaType* type, int session)
 			result.error_description = "av_packet_ref() failed" + std::to_string(ffmpeg_result);
 			goto fail;
 		}
-
 		*type = AVMEDIA_TYPE_VIDEO;
 	}
 
@@ -967,4 +988,317 @@ void Util_exit_video_decoder(int session)
 	av_frame_free(&util_video_decoder_raw_data[session][0]);
 	av_frame_free(&util_video_decoder_raw_data[session][1]);
 	av_frame_free(&util_video_decoder_raw_data[session][2]);
+}
+
+Result_with_string Util_mux_file(std::string file_name, int session)
+{
+	Result_with_string result;
+	int ffmpeg_result = 0;
+
+	util_muxer_format_context[session] = avformat_alloc_context();
+	if(!util_muxer_format_context[session])
+	{
+		result.error_description = "avformat_alloc_context() failed";
+		goto fail;
+	}
+
+	util_muxer_format_context[session]->oformat = av_guess_format(NULL, file_name.c_str(), NULL);
+	if(!util_muxer_format_context[session]->oformat)
+	{
+		result.error_description = "av_guess_format() failed";
+		goto fail;
+	}
+
+	ffmpeg_result = avio_open(&util_muxer_format_context[session]->pb, file_name.c_str(), AVIO_FLAG_READ_WRITE);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avio_open() failed " + std::to_string(ffmpeg_result);
+		goto fail;
+	}
+
+	//setup for audio
+	util_audio_muxer_codec[session] = avcodec_find_encoder(util_audio_muxer_format_context[session]->streams[util_audio_muxer_stream_num[session]]->codecpar->codec_id);
+	if(!util_audio_muxer_codec[session])
+	{
+		result.error_description = "avcodec_find_encoder() failed";
+		goto fail;
+	}
+	
+	util_audio_muxer_context[session] = avcodec_alloc_context3(util_audio_muxer_codec[session]);
+	if(!util_audio_muxer_context[session])
+	{
+		result.error_description = "avcodec_alloc_context3() failed";
+		goto fail;
+	}
+
+	ffmpeg_result = avcodec_parameters_to_context(util_audio_muxer_context[session], util_audio_muxer_format_context[session]->streams[util_audio_muxer_stream_num[session]]->codecpar);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avcodec_parameters_to_context() failed " + std::to_string(ffmpeg_result);
+		goto fail;
+	}
+
+	util_audio_muxer_format_stream[session] = avformat_new_stream(util_muxer_format_context[session], NULL);
+	if(!util_audio_muxer_format_stream[session])
+	{
+		result.error_description = "avformat_new_stream() failed";
+		goto fail;
+	}
+
+	ffmpeg_result = avcodec_parameters_from_context(util_audio_muxer_format_stream[session]->codecpar, util_audio_muxer_context[session]);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avcodec_parameters_from_context() failed";
+		goto fail;
+	}
+
+	//setup for video
+	util_video_muxer_codec[session] = avcodec_find_encoder(util_video_muxer_format_context[session]->streams[util_video_muxer_stream_num[session]]->codecpar->codec_id);
+	if(!util_video_muxer_codec[session])
+	{
+		result.error_description = "avcodec_find_encoder() failed";
+		goto fail;
+	}
+
+	util_video_muxer_context[session] = avcodec_alloc_context3(util_video_muxer_codec[session]);
+	if(!util_video_muxer_context[session])
+	{
+		result.error_description = "avcodec_alloc_context3() failed";
+		goto fail;
+	}
+
+	ffmpeg_result = avcodec_parameters_to_context(util_video_muxer_context[session], util_video_muxer_format_context[session]->streams[util_video_muxer_stream_num[session]]->codecpar);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avcodec_parameters_to_context() failed " + std::to_string(ffmpeg_result);
+		goto fail;
+	}
+
+	util_video_muxer_format_stream[session] = avformat_new_stream(util_muxer_format_context[session], NULL);
+	if(!util_video_muxer_format_stream[session])
+	{
+		result.error_description = "avformat_new_stream() failed";
+		goto fail;
+	}
+
+	ffmpeg_result = avcodec_parameters_from_context(util_video_muxer_format_stream[session]->codecpar, util_video_muxer_context[session]);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avcodec_parameters_from_context() failed";
+		goto fail;
+	}
+
+	if (util_muxer_format_context[session]->oformat->flags & AVFMT_GLOBALHEADER)
+		util_muxer_format_context[session]->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+
+	ffmpeg_result = avformat_write_header(util_muxer_format_context[session], NULL);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avformat_write_header() failed";
+		goto fail;
+	}
+	
+	util_audio_muxer_packet[session] = av_packet_alloc();
+	if(!util_audio_muxer_packet[session])
+	{
+		result.error_description = "av_packet_alloc() failed";
+		goto fail;
+	}
+
+	while(true)//mux audio
+	{
+		ffmpeg_result = av_read_frame(util_audio_muxer_format_context[session], util_audio_muxer_packet[session]);
+		if(ffmpeg_result != 0)
+			break;
+		
+		if(util_audio_muxer_stream_num[session] == util_audio_muxer_packet[session]->stream_index)
+		{
+			util_audio_muxer_packet[session]->stream_index = 0;
+			ffmpeg_result = av_interleaved_write_frame(util_muxer_format_context[session], util_audio_muxer_packet[session]);
+			if(ffmpeg_result != 0)
+			{
+				result.error_description = "av_interleaved_write_frame() failed " + std::to_string(ffmpeg_result);
+				goto fail;
+			}
+		}
+	}
+	av_packet_free(&util_audio_muxer_packet[session]);
+
+	util_video_muxer_packet[session] = av_packet_alloc();
+	if(!util_video_muxer_packet[session])
+	{
+		result.error_description = "av_packet_alloc() failed";
+		goto fail;
+	}
+
+	while(true)//mux video
+	{
+		ffmpeg_result = av_read_frame(util_video_muxer_format_context[session], util_video_muxer_packet[session]);
+		if(ffmpeg_result != 0)
+			break;
+		
+		if(util_video_muxer_stream_num[session] == util_video_muxer_packet[session]->stream_index)
+		{
+			util_video_muxer_packet[session]->stream_index = 1;
+			ffmpeg_result = av_interleaved_write_frame(util_muxer_format_context[session], util_video_muxer_packet[session]);
+			if(ffmpeg_result != 0)
+			{
+				result.error_description = "av_interleaved_write_frame() failed " + std::to_string(ffmpeg_result);
+				goto fail;
+			}
+		}
+	}
+	av_packet_free(&util_video_muxer_packet[session]);
+
+	av_write_trailer(util_muxer_format_context[session]);
+	avio_close(util_muxer_format_context[session]->pb);
+	avformat_free_context(util_muxer_format_context[session]);
+
+	return result;
+
+	fail:
+
+	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
+	avio_close(util_muxer_format_context[session]->pb);
+	avformat_free_context(util_muxer_format_context[session]);
+	return result;
+}
+
+Result_with_string Util_open_muxer_audio_file(std::string file_path, int session)
+{
+	int ffmpeg_result = 0;
+	Result_with_string result;
+
+	util_audio_muxer_format_context[session] = avformat_alloc_context();
+	ffmpeg_result = avformat_open_input(&util_audio_muxer_format_context[session], file_path.c_str(), NULL, NULL);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avformat_open_input() failed " + std::to_string(ffmpeg_result);
+		goto fail;
+	}
+
+	ffmpeg_result = avformat_find_stream_info(util_audio_muxer_format_context[session], NULL);
+	if(util_audio_muxer_format_context[session] == NULL)
+	{
+		result.error_description = "avformat_find_stream_info() failed " + std::to_string(ffmpeg_result);
+		goto fail;
+	}
+
+	util_audio_muxer_stream_num[session] = -1;
+	for(int i = 0; i < (int)util_audio_muxer_format_context[session]->nb_streams; i++)
+	{
+		if(util_audio_muxer_format_context[session]->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+			util_audio_muxer_stream_num[session] = i;
+	}
+
+	if(util_audio_muxer_stream_num[session] == -1)
+	{
+		result.error_description = "No audio data";
+		goto fail;
+	}
+	return result;
+
+	fail:
+
+	Util_close_muxer_audio_file(session);
+	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
+	return result;
+}
+
+Result_with_string Util_open_muxer_video_file(std::string file_path, int session)
+{
+	int ffmpeg_result = 0;
+	Result_with_string result;
+
+	util_video_muxer_format_context[session] = avformat_alloc_context();
+	ffmpeg_result = avformat_open_input(&util_video_muxer_format_context[session], file_path.c_str(), NULL, NULL);
+	if(ffmpeg_result != 0)
+	{
+		result.error_description = "avformat_open_input() failed " + std::to_string(ffmpeg_result);
+		goto fail;
+	}
+
+	ffmpeg_result = avformat_find_stream_info(util_video_muxer_format_context[session], NULL);
+	if(util_video_muxer_format_context[session] == NULL)
+	{
+		result.error_description = "avformat_find_stream_info() failed " + std::to_string(ffmpeg_result);
+		goto fail;
+	}
+
+	util_video_muxer_stream_num[session] = -1;
+	for(int i = 0; i < (int)util_video_muxer_format_context[session]->nb_streams; i++)
+	{
+		if(util_video_muxer_format_context[session]->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+			util_video_muxer_stream_num[session] = i;
+	}
+
+	if(util_video_muxer_stream_num[session] == -1)
+	{
+		result.error_description = "No video data";
+		goto fail;
+	}
+	return result;
+
+	fail:
+
+	Util_close_muxer_video_file(session);
+	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
+	return result;
+}
+
+void Util_close_muxer_audio_file(int session)
+{
+	avformat_close_input(&util_audio_muxer_format_context[session]);
+}
+
+void Util_close_muxer_video_file(int session)
+{
+	avformat_close_input(&util_video_muxer_format_context[session]);
+}
+
+Result_with_string Util_init_yuv422_rgb565_converter(int width, int height, int session)
+{
+	Result_with_string result;
+
+	util_yuv422_rgb565_width[session] = width;
+	util_yuv422_rgb565_height[session] = height;
+	util_yuv422_rgb565_converter_sws_context[session] = sws_getContext(width, height, AV_PIX_FMT_YUYV422,
+	width, height, AV_PIX_FMT_RGB565LE, 0, 0, 0, 0);
+	if(!util_yuv422_rgb565_converter_sws_context[session])
+	{
+		result.error_description = "sws_getContext() failed";
+		goto fail;
+	}
+
+	return result;
+
+	fail:
+	Util_exit_yuv422_rgb565_converter(session);
+	result.code = FFMPEG_RETURNED_NOT_SUCCESS;
+	result.string = Err_query_template_summary(FFMPEG_RETURNED_NOT_SUCCESS);
+	return result;
+}
+
+void Util_convert_yuv422_rgb565(u8* yuv422_raw, u8* rgb565_raw, int session)
+{
+	int src_line_size[4] = { 0, 0, 0, 0, };
+	int dst_line_size[4] = { 0, 0, 0, 0, };
+	u8* src_data[4] = { NULL, NULL, NULL, NULL, };
+	u8* dst_data[4] = { NULL, NULL, NULL, NULL, };
+
+	src_data[0] = yuv422_raw;
+	src_line_size[0] = util_yuv422_rgb565_width[session] * 2;
+	dst_data[0] = rgb565_raw;
+	dst_line_size[0] = util_yuv422_rgb565_width[session] * 2;
+	
+	sws_scale(util_yuv422_rgb565_converter_sws_context[session], src_data, src_line_size, 0, 
+	util_yuv422_rgb565_height[session], dst_data, dst_line_size);
+}
+
+void Util_exit_yuv422_rgb565_converter(int session)
+{
+	sws_freeContext(util_yuv422_rgb565_converter_sws_context[session]);
 }

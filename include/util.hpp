@@ -2,9 +2,16 @@
 
 #define UTIL_ENCODER_0 0
 #define UTIL_ENCODER_1 1
+#define UTIL_ENCODER_2 2
 
 #define UTIL_DECODER_0 0
 #define UTIL_DECODER_1 1
+
+#define UTIL_MUXER_0 0
+#define UTIL_MUXER_1 1
+
+#define UTIL_CONVERTER_0 0
+#define UTIL_CONVERTER_1 1
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -61,3 +68,19 @@ void Util_close_file(int session);
 void Util_exit_audio_decoder(int session);
 
 void Util_exit_video_decoder(int session);
+
+Result_with_string Util_mux_file(std::string file_name, int session);
+
+Result_with_string Util_open_muxer_audio_file(std::string file_path, int session);
+
+Result_with_string Util_open_muxer_video_file(std::string file_path, int session);
+
+void Util_close_muxer_audio_file(int session);
+
+void Util_close_muxer_video_file(int session);
+
+Result_with_string Util_init_yuv422_rgb565_converter(int width, int height, int session);
+
+void Util_convert_yuv422_rgb565(u8* yuv422_raw, u8* rgb565_raw, int session);
+
+void Util_exit_yuv422_rgb565_converter(int session);
