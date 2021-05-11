@@ -57,5 +57,5 @@ https://developers.line.biz/media/messaging-api/sticker_list.pdf
 ### *2 Google drive URL will be sent(not embed).
 
 ## How to setup and use
-Please view gbatemp or video
+Please view gbatemp
 # [GBAtemp](https://gbatemp.net/threads/line-for-3ds.539530)
