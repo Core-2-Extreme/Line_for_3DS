@@ -59,4 +59,3 @@ https://developers.line.biz/media/messaging-api/sticker_list.pdf
 ## How to setup and use
 Please view gbatemp or video
 # [GBAtemp](https://gbatemp.net/threads/line-for-3ds.539530)
-[![Video](https://img.youtube.com/vi/1T90ZQxDnOc/0.jpg)](https://www.youtube.com/watch?v=1T90ZQxDnOc)
