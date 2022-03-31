@@ -33,11 +33,10 @@ include $(DEVKITARM)/3ds_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source library/base64 library/openmp3
+SOURCES		:=	source source/system source/system/util source/system/draw library/base64
 DATA		:=	data
-INCLUDES	:=	include library library/ffmpeg/include
+INCLUDES	:=	include library library/ffmpeg/include library/libctru/include
 GRAPHICS	:=	gfx
-#GFXBUILD	:=	$(BUILD)
 ROMFS		:=	romfs
 GFXBUILD	:=	$(ROMFS)/gfx
 #---------------------------------------------------------------------------------
@@ -52,36 +51,32 @@ BANNER_AUDIO				:= resource/banner.wav
 BANNER_IMAGE				:= resource/banner.png
 ICON        				:= resource/icon.png
 RSF_PATH				:= resource/app.rsf
-RSF_PATH_64				:= resource/app_64.rsf
-RSF_PATH_80				:= resource/app_80.rsf
-RSF_PATH_124			:= resource/app_124.rsf
-RSF_PATH_178			:= resource/app_178.rsf
+
 
 #---------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-march=armv6k -mfloat-abi=hard -mtune=mpcore -mtp=cp15 -mfpu=vfpv2
+ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
-CFLAGS	:= -Wall -O3 -mword-relocations \
+CFLAGS	:= -Wall -O2 -g -mword-relocations \
 		-fomit-frame-pointer -ffunction-sections \
 		$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM11 -D_3DS
+CFLAGS	+=	$(INCLUDE) -D__3DS__
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 
 ASFLAGS	:= $(ARCH)
-LDFLAGS	=	-specs=3dsx.specs $(ARCH) -Wl,-Map,$(notdir $*.map)
+LDFLAGS	=	-specs=3dsx.specs $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,--wrap,malloc,--wrap,realloc,--wrap,free,--wrap,_free_r,--wrap,memalign
 
-LIBS	:= -lswresample -lswscale -lavformat -lavcodec -lavutil -lcitro2d -lcitro3d -lctru -lm
+LIBS	:= -lswresample -lavformat -lswscale -lavcodec -lavutil -lcitro2d -lcitro3d -lctru -lm -lx264 -lmp3lame -ldav1d
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:= $(CTRULIB)
-THIRDLIBDIRS := library/ffmpeg/lib
+LIBDIRS := library/ffmpeg/lib library/libctru/lib library/x264/lib library/mp3lame/lib library/dav1d/lib
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
@@ -150,8 +145,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
 			-I$(CURDIR)/$(BUILD)
 
-export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
-export LIBPATHS	+=	$(foreach dir,$(THIRDLIBDIRS),-L$(CURDIR)/$(dir))
+export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(CURDIR)/$(dir))
 
 export _3DSXDEPS	:=	$(if $(NO_SMDH),,$(OUTPUT).smdh)
 
@@ -182,24 +176,11 @@ endif
 MAKEROM      ?= makerom
 MAKEROM_ARGS := -elf "$(OUTPUT).elf" -rsf "$(RSF_PATH)" -banner "$(BUILD)/banner.bnr" -icon "$(BUILD)/icon.icn" -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(PRODUCT_CODE)" -DAPP_UNIQUE_ID="$(UNIQUE_ID)"
 
-MAKEROM_ARGS_64 := -elf "$(OUTPUT).elf" -rsf "$(RSF_PATH_64)" -banner "$(BUILD)/banner.bnr" -icon "$(BUILD)/icon.icn" -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(PRODUCT_CODE)" -DAPP_UNIQUE_ID="$(UNIQUE_ID)"
-MAKEROM_ARGS_80 := -elf "$(OUTPUT).elf" -rsf "$(RSF_PATH_80)" -banner "$(BUILD)/banner.bnr" -icon "$(BUILD)/icon.icn" -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(PRODUCT_CODE)" -DAPP_UNIQUE_ID="$(UNIQUE_ID)"
-MAKEROM_ARGS_124 := -elf "$(OUTPUT).elf" -rsf "$(RSF_PATH_124)" -banner "$(BUILD)/banner.bnr" -icon "$(BUILD)/icon.icn" -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(PRODUCT_CODE)" -DAPP_UNIQUE_ID="$(UNIQUE_ID)"
-MAKEROM_ARGS_178 := -elf "$(OUTPUT).elf" -rsf "$(RSF_PATH_178)" -banner "$(BUILD)/banner.bnr" -icon "$(BUILD)/icon.icn" -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(PRODUCT_CODE)" -DAPP_UNIQUE_ID="$(UNIQUE_ID)"
-
 ifneq ($(strip $(LOGO)),)
 	MAKEROM_ARGS	+=	 -logo "$(LOGO)"
-	MAKEROM_ARGS_64 	+=	 -logo "$(LOGO)"
-	MAKEROM_ARGS_80 	+=	 -logo "$(LOGO)"
-	MAKEROM_ARGS_124	+=	 -logo "$(LOGO)"
-	MAKEROM_ARGS_178	+=	 -logo "$(LOGO)"
 endif
 ifneq ($(strip $(ROMFS)),)
 	MAKEROM_ARGS	+=	 -DAPP_ROMFS="$(ROMFS)"
-	MAKEROM_ARGS_64 	+=	 -DAPP_ROMFS="$(ROMFS)"
-	MAKEROM_ARGS_80 	+=	 -DAPP_ROMFS="$(ROMFS)"
-	MAKEROM_ARGS_124	+=	 -DAPP_ROMFS="$(ROMFS)"
-	MAKEROM_ARGS_178	+=	 -DAPP_ROMFS="$(ROMFS)"
 endif
 
 BANNERTOOL   ?= bannertool
@@ -242,19 +223,9 @@ $(DEPSDIR):
 endif
 
 #---------------------------------------------------------------------------------
-
-all_cias:
-	@$(BANNERTOOL) makebanner $(BANNER_IMAGE_ARG) $(BANNER_IMAGE) $(BANNER_AUDIO_ARG) $(BANNER_AUDIO) -o $(BUILD)/banner.bnr
-	@$(BANNERTOOL) makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)" -p $(APP_AUTHOR) -i $(APP_ICON) -o $(BUILD)/icon.icn
-	@$(MAKEROM) -f cia -o $(OUTPUT)_64mb.cia -target t -exefslogo $(MAKEROM_ARGS_64) -ver $(APP_VER)
-	@$(MAKEROM) -f cia -o $(OUTPUT)_80mb.cia -target t -exefslogo $(MAKEROM_ARGS_80) -ver $(APP_VER)
-	@$(MAKEROM) -f cia -o $(OUTPUT)_124mb.cia -target t -exefslogo $(MAKEROM_ARGS_124) -ver $(APP_VER)
-	@$(MAKEROM) -f cia -o $(OUTPUT)_178mb.cia -target t -exefslogo $(MAKEROM_ARGS_178) -ver $(APP_VER)
-
-#---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(TARGET).cia $(GFXBUILD)
+	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(TARGET).cia
 
 #---------------------------------------------------------------------------------
 $(GFXBUILD)/%.t3x	$(BUILD)/%.h	:	%.t3s

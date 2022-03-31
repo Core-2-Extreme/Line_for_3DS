@@ -1,23 +1,4 @@
-﻿#include <3ds.h>
-#include <string>
-#include <unistd.h>
-
-#include "hid.hpp"
-#include "draw.hpp"
-#include "speedtest.hpp"
-#include "httpc.hpp"
-#include "error.hpp"
-#include "menu.hpp"
-#include "log.hpp"
-#include "types.hpp"
-#include "setting_menu.hpp"
-#include "file.hpp"
-
-/*For draw*/
-bool spt_need_reflesh = false;
-int spt_pre_data_size = 0;
-std::string spt_pre_text[16];
-/*---------------------------------------------*/
+﻿#include "system/headers.hpp"
 
 bool spt_already_init = false;
 bool spt_start_request = false;
@@ -26,19 +7,13 @@ bool spt_count_reset_request = false;
 bool spt_thread_run = false;
 bool spt_thread_suspend = false;
 bool spt_main_run = false;
-int spt_httpc_buffer_size = 0x700000;
 int spt_data_size = 0;
 int spt_total_dl_size = 0;
 double spt_total_dl_time = 0.0;
-std::string spt_msg[SPT_NUM_OF_MSG];
-std::string spt_text[16];
-std::string spt_spt_thread_string = "Spt/Spt thread";
-std::string spt_timer_thread_string = "Spt/Timer thread";
-std::string spt_init_string = "Spt/Init";
-std::string spt_exit_string = "Spt/Exit";
-std::string spt_ver = "v1.0.6";
-
-Thread spt_spt_thread, spt_timer_thread;
+std::string spt_msg[DEF_SPT_NUM_OF_MSG];
+std::string spt_status = "";
+Thread spt_init_thread, spt_exit_thread, spt_spt_thread, spt_timer_thread;
+Image_data spt_data_size_button[7], spt_start_dl_button;
 
 bool Spt_query_init_flag(void)
 {
@@ -50,50 +25,11 @@ bool Spt_query_running_flag(void)
 	return spt_main_run;
 }
 
-int Spt_query_buffer_size(int buffer_num)
-{
-	if (buffer_num == SPT_HTTPC_BUFFER)
-		return spt_httpc_buffer_size;
-	else
-		return -1;
-}
-
-void Spt_set_buffer_size(int buffer_num, int size)
-{
-	if(buffer_num == SPT_HTTPC_BUFFER)
-		spt_httpc_buffer_size = size;
-}
-
-void Spt_set_msg(int msg_num, std::string msg)
-{
-	if (msg_num >= 0 && msg_num < SPT_NUM_OF_MSG)
-		spt_msg[msg_num] = msg;
-}
-
-void Spt_reset_data(void)
-{
-	Spt_reset_draw_data();
-	spt_data_size = 0;
-	spt_total_dl_size = 0;
-	spt_total_dl_time = 0.0;
-}
-
-void Spt_reset_draw_data(void)
-{
-	for(int i = 0; i < 16; i++)
-	{
-		spt_text[i] = "";
-		spt_pre_text[i] = "";
-	}
-	spt_pre_data_size = -1;
-}
-
 void Spt_resume(void)
 {
-	Spt_reset_draw_data();
 	spt_thread_suspend = false;
 	spt_main_run = true;
-	spt_need_reflesh = true;
+	var_need_reflesh = true;
 	Menu_suspend();
 }
 
@@ -106,219 +42,15 @@ void Spt_suspend(void)
 
 Result_with_string Spt_load_msg(std::string lang)
 {
-	u8* fs_buffer = NULL;
-	u32 read_size;
-	std::string setting_data[128];
-	Result_with_string result;
-	fs_buffer = (u8*)malloc(0x2000);
-
-	result = File_load_from_rom("spt_" + lang + ".txt", fs_buffer, 0x2000, &read_size, "romfs:/gfx/msg/");
-	if (result.code != 0)
-	{
-		free(fs_buffer);
-		return result;
-	}
-
-	result = Sem_parse_file((char*)fs_buffer, SPT_NUM_OF_MSG, setting_data);
-	if (result.code != 0)
-	{
-		free(fs_buffer);
-		return result;
-	}
-
-	for (int k = 0; k < SPT_NUM_OF_MSG; k++)
-		Spt_set_msg(k, setting_data[k]);
-
-	free(fs_buffer);
-	return result;
-}
-
-void Spt_init(void)
-{
-	Log_log_save(spt_init_string, "Initializing...", 1234567890, FORCE_DEBUG);
-
-	Draw_progress("[Spt] Starting threads...");
-	spt_thread_run = true;
-	spt_spt_thread = threadCreate(Spt_spt_thread, (void*)(""), STACKSIZE, PRIORITY_NORMAL, 0, false);
-	spt_timer_thread = threadCreate(Spt_timer_thread, (void*)(""), STACKSIZE, PRIORITY_REALTIME, 1, false);
-
-	Spt_reset_data();
-	Spt_resume();
-	spt_already_init = true;
-	Log_log_save(spt_init_string, "Initialized.", 1234567890, FORCE_DEBUG);
-}
-
-void Spt_exit(void)
-{
-	Log_log_save(spt_exit_string, "Exiting...", 1234567890, FORCE_DEBUG);
-	u64 time_out = 10000000000;
-	int log_num;
-	Result_with_string result;
-
-	Draw_progress("[Spt] Exiting...");
-	spt_already_init = false;
-	spt_thread_run = false;
-	spt_thread_suspend = false;
-
-	log_num = Log_log_save(spt_exit_string, "threadJoin()0/1...", 1234567890, FORCE_DEBUG);
-	result.code = threadJoin(spt_spt_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
-	else
-		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-
-	log_num = Log_log_save(spt_exit_string, "threadJoin()1/1...", 1234567890, FORCE_DEBUG);
-	result.code = threadJoin(spt_timer_thread, time_out);
-	if (result.code == 0)
-		Log_log_add(log_num, Err_query_template_summary(0), result.code, FORCE_DEBUG);
-	else
-		Log_log_add(log_num, Err_query_template_summary(-1024), result.code, FORCE_DEBUG);
-
-	threadFree(spt_spt_thread);
-	threadFree(spt_timer_thread);
-
-	Log_log_save(spt_exit_string, "Exited.", 1234567890, FORCE_DEBUG);
-}
-
-void Spt_main(void)
-{
-	double size[3] = { 0.5, 0.5, 0.75, };
-	float r[2], g[2], b[2], a[2];
-	Hid_info key;
-
-	if (Sem_query_settings(SEM_NIGHT_MODE))
-	{
-		r[0] = 1.0;
-		g[0] = 1.0;
-		b[0] = 1.0;
-		a[0] = 0.75;
-	}
-	else
-	{
-		r[0] = 0.0;
-		g[0] = 0.0;
-		b[0] = 0.0;
-		a[0] = 1.0;
-	}
-
-	spt_text[0] = spt_msg[0] + std::to_string(spt_total_dl_size / (1024 * 1024)) + "MB(" + std::to_string(spt_total_dl_size / 1024) + "KB)";
-	spt_text[1] = spt_msg[1] + std::to_string(spt_total_dl_time).substr(0, std::to_string(spt_total_dl_time).length() - 3) + " ms";
-	if(spt_total_dl_time != 0.0)
-		spt_text[2] =  spt_msg[2] + std::to_string(((spt_total_dl_size / (spt_total_dl_time / 1000.0)) / (1024 * 1024)) * 8) + "Mbps";
-
-	for(int i = 0; i < 3; i++)
-	{
-		if(spt_pre_text[i] != spt_text[i])
-		{
-			spt_need_reflesh = true;
-			break;
-		}
-	}
-
-	if(spt_need_reflesh || spt_pre_data_size != spt_data_size)
-	{
-		for(int i = 0; i < 3; i++)
-			spt_pre_text[i] = spt_text[i];
-
-		spt_pre_data_size = spt_data_size;
-		spt_need_reflesh = true;
-	}
-
-	Hid_query_key_state(&key);
-	Log_main();
-	if(Draw_query_need_reflesh() || !Sem_query_settings(SEM_ECO_MODE))
-		spt_need_reflesh = true;
-
-	Hid_key_flag_reset();
-
-	if(spt_need_reflesh)
-	{
-		Draw_frame_ready();
-		if (Sem_query_settings(SEM_NIGHT_MODE))
-			Draw_screen_ready_to_draw(0, true, 2, 0.0, 0.0, 0.0);
-		else
-			Draw_screen_ready_to_draw(0, true, 2, 1.0, 1.0, 1.0);
-
-		for(int i = 0; i < 3; i++)
-			Draw(spt_text[i], 0, 0.0, 20.0 + (i * 20.0), size[i], size[i], 0.25, 0.0, 1.0, 1.0);
-
-		Draw_top_ui();
-
-		if (Sem_query_settings(SEM_NIGHT_MODE))
-			Draw_screen_ready_to_draw(1, true, 2, 0.0, 0.0, 0.0);
-		else
-			Draw_screen_ready_to_draw(1, true, 2, 1.0, 1.0, 1.0);
-
-		Draw(spt_ver, 0, 0.0, 0.0, 0.45, 0.45, 0.0, 1.0, 0.0, 1.0);
-		Draw(spt_msg[3], 0, 70.0, 10.0, 0.75, 0.75, 0.0, 0.0, 0.0, 1.0);
-		for (int i = 0; i < 7; i++)
-		{
-			Draw_texture(Square_image, yellow_tint, 0, 100.0, 40.0 + (i * 20.0), 130.0, 20.0);
-			if (spt_data_size == i)
-			{
-				r[1] = 1.0;
-				g[1] = 0.0;
-				b[1] = 0.5;
-			}
-			else
-			{
-				r[1] = 0.0;
-				g[1] = 1.0;
-				b[1] = 1.0;
-			}
-
-			if(spt_start_request && spt_data_size != i)
-				a[1] = 0.25;
-			else
-				a[1] = 1.0;
-
-			Draw(spt_msg[4 + i], 0, 125.0, 40.0 + (i * 20.0), 0.5, 0.5, r[1], g[1], b[1], a[1]);
-		}
-		Draw_texture(Square_image, weak_red_tint, 0, 150.0, 190.0 , 40.0, 20.0);
-		Draw(spt_msg[11], 0, 150.0, 190.0, 0.5, 0.5, r[0], g[0], b[0], a[0]);
-
-		Draw_bot_ui();
-		Draw_touch_pos();
-
-		Draw_apply_draw();
-		spt_need_reflesh = false;
-	}
-	else
-		gspWaitForVBlank();
-
-	if (Err_query_error_show_flag())
-	{
-		if (key.p_a || (key.p_touch && key.touch_x >= 150 && key.touch_x <= 169 && key.touch_y >= 150 && key.touch_y <= 169))
-			Err_set_error_show_flag(false);
-		else if(key.p_x || (key.p_touch && key.touch_x >= 200 && key.touch_x <= 239 && key.touch_y >= 150 && key.touch_y <= 169))
-			Err_save_error();
-	}
-	else
-	{
-		if (key.p_start || (key.p_touch && key.touch_x >= 110 && key.touch_x <= 230 && key.touch_y >= 220 && key.touch_y <= 240))
-			Spt_suspend();
-		else if (key.p_a || (key.p_touch && key.touch_x >= 150 && key.touch_x <= 189 && key.touch_y >= 190 && key.touch_y <= 209))
-			spt_start_request = true;
-		else if (key.p_touch)
-		{
-			for (int i = 0; i < 7; i++)
-			{
-				if (!spt_start_request && key.touch_x >= 100 && key.touch_x <= 230 && key.touch_y >= 40 + (i * 20) && key.touch_y <= 59 + (i * 20))
-				{
-					spt_data_size = i;
-					break;
-				}
-			}
-		}
-	}
+	return  Util_load_msg("spt_" + lang + ".txt", spt_msg, DEF_SPT_NUM_OF_MSG);
 }
 
 void Spt_timer_thread(void* arg)
 {
-	Log_log_save(spt_spt_thread_string, "Thread started.", 1234567890, false);
+	Util_log_save(DEF_SPT_TIMER_THREAD_STR, "Thread started.");
 
-	TickCounter timer;
-	osTickCounterStart(&timer);
+	TickCounter stop_watch;
+	osTickCounterStart(&stop_watch);
 
 	while (spt_thread_run)
 	{
@@ -327,37 +59,35 @@ void Spt_timer_thread(void* arg)
 			if(spt_count_reset_request)
 				break;
 
-			osTickCounterUpdate(&timer);
-			spt_total_dl_time += osTickCounterRead(&timer);
+			osTickCounterUpdate(&stop_watch);
+			spt_total_dl_time += osTickCounterRead(&stop_watch);
 			usleep(41500);
 		}
 
 		if (spt_count_reset_request)
 		{
-			osTickCounterUpdate(&timer);
-			spt_total_dl_time = 0.000001;
+			osTickCounterUpdate(&stop_watch);
 			spt_count_reset_request = false;
 		}
 		else
-			usleep(ACTIVE_THREAD_SLEEP_TIME);
+			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (spt_thread_suspend)
-			usleep(INACTIVE_THREAD_SLEEP_TIME);
+			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
-	Log_log_save(spt_spt_thread_string, "Thread exit.", 1234567890, false);
+	Util_log_save(DEF_SPT_TIMER_THREAD_STR, "Thread exit.");
 	threadExit(0);
 }
 
 void Spt_spt_thread(void* arg)
 {
-	Log_log_save(spt_spt_thread_string, "Thread started.", 1234567890, false);
+	Util_log_save(DEF_SPT_SPEEDTEST_THREAD_STR, "Thread started.");
 
 	u8* httpc_buffer = NULL;
 	u32 dl_size = 0;
-	u32 status_code = 0;
 	int log_num = 0;
 	std::string last_url;
-	std::string url[8] = { "http://v2.musen-lan.com/flash/test_001.swf", "http://v2.musen-lan.com/flash/test_002.swf", "http://v2.musen-lan.com/flash/test_004.swf", "http://v2.musen-lan.com/flash/test_008.swf", "http://v2.musen-lan.com/flash/test_016.swf", "http://v2.musen-lan.com/flash/test_032.swf", "http://v2.musen-lan.com/flash/test_064.swf", "http://v2.musen-lan.com/flash/test_128.swf" };
+	std::string url[8] = { "http://v3.musen-lan.com/flash/test_001.swf", "http://v3.musen-lan.com/flash/test_002.swf", "http://v3.musen-lan.com/flash/test_004.swf", "http://v3.musen-lan.com/flash/test_008.swf", "http://v3.musen-lan.com/flash/test_016.swf", "http://v3.musen-lan.com/flash/test_032.swf", "http://v3.musen-lan.com/flash/test_064.swf", "http://v3.musen-lan.com/flash/test_128.swf" };
 	Result_with_string result;
 
 	while (spt_thread_run)
@@ -365,48 +95,304 @@ void Spt_spt_thread(void* arg)
 		if (spt_start_request)
 		{
 			dl_size = 0;
-			status_code = 0;
 			spt_count_reset_request = true;
 			spt_total_dl_size = 0;
-			httpc_buffer = (u8*)malloc(spt_httpc_buffer_size);
+			spt_total_dl_time = 0;
 
-			if (httpc_buffer == NULL)
+			for (int i = 0; i <= 9; i++)
 			{
-				Err_set_error_message("[Error] Out of memory.", "Couldn't allocate memory.", spt_spt_thread_string, OUT_OF_MEMORY);
-				Err_set_error_show_flag(true);
-				Log_log_save(spt_spt_thread_string, "[Error] Out of memory. ", OUT_OF_MEMORY, false);
-			}
-			else
-			{
-				for (int i = 0; i <= 9; i++)
+				log_num = Util_log_save(DEF_SPT_SPEEDTEST_THREAD_STR, "Util_httpc_dl_data()...");
+				spt_count_request = true;
+				result = Util_httpc_dl_data(url[spt_data_size], &httpc_buffer, 0x700000, &dl_size, true, 5);
+				spt_count_request = false;
+
+				Util_log_add(log_num, result.string + result.error_description, result.code);
+
+				spt_total_dl_size += dl_size;
+				Util_safe_linear_free(httpc_buffer);
+				httpc_buffer = NULL;
+				if (result.code != 0)
 				{
-					log_num = Log_log_save(spt_spt_thread_string, "Httpc_dl_data()" + std::to_string(i) + "/9...", 1234567890, false);
-					spt_count_request = true;
-					result = Httpc_dl_data(url[spt_data_size], httpc_buffer, spt_httpc_buffer_size, &dl_size, &status_code, true, &last_url, false, 100, SPT_HTTP_PORT0);
-					spt_count_request = false;
-
-					Log_log_add(log_num, result.string, result.code, false);
-
-					spt_total_dl_size += dl_size;
-					if (result.code != 0)
-					{
-						Err_set_error_message(result.string, result.error_description, spt_spt_thread_string, result.code);
-						Err_set_error_show_flag(true);
-						break;
-					}
+					Util_err_set_error_message(result.string, result.error_description, DEF_SPT_SPEEDTEST_THREAD_STR, result.code);
+					Util_err_set_error_show_flag(true);
+					break;
 				}
 			}
 
-			free(httpc_buffer);
-			httpc_buffer = NULL;
 			spt_start_request = false;
 		}
 		else
-			usleep(ACTIVE_THREAD_SLEEP_TIME);
+			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (spt_thread_suspend)
-			usleep(INACTIVE_THREAD_SLEEP_TIME);
+			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
-	Log_log_save(spt_spt_thread_string, "Thread exit.", 1234567890, false);
+	Util_log_save(DEF_SPT_SPEEDTEST_THREAD_STR, "Thread exit.");
 	threadExit(0);
+}
+
+void Spt_init_thread(void* arg)
+{
+	Util_log_save(DEF_SPT_INIT_STR, "Thread started.");
+	Result_with_string result;
+
+	spt_status = "Starting threads...";
+	spt_thread_run = true;
+	spt_spt_thread = threadCreate(Spt_spt_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_NORMAL, 0, false);
+	spt_timer_thread = threadCreate(Spt_timer_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_REALTIME, 1, false);
+
+	spt_status += "\nInitializing variables...";
+	spt_data_size = 0;
+	spt_total_dl_size = 0;
+	spt_total_dl_time = 0.0;
+
+	for(int i = 0; i < 7; i++)
+		spt_data_size_button[i].c2d = var_square_image[0];
+	spt_start_dl_button.c2d = var_square_image[0];
+	spt_already_init = true;
+
+	for(int i = 0; i < 7; i++)
+		Util_add_watch(&spt_data_size_button[i].selected);
+	Util_add_watch(&spt_start_dl_button.selected);
+	Util_add_watch(&spt_data_size);
+	Util_add_watch(&spt_total_dl_size);
+	Util_add_watch(&spt_total_dl_time);
+
+	Util_log_save(DEF_SPT_INIT_STR, "Thread exit.");
+	threadExit(0);
+}
+
+void Spt_exit_thread(void* arg)
+{
+	Util_log_save(DEF_SPT_EXIT_STR, "Thread started.");
+
+	spt_thread_run = false;
+	spt_thread_suspend = false;
+
+	spt_status = "Exiting threads...";
+	Util_log_save(DEF_SPT_EXIT_STR, "threadJoin()...", threadJoin(spt_spt_thread, DEF_THREAD_WAIT_TIME));
+
+	spt_status += ".";
+	Util_log_save(DEF_SPT_EXIT_STR, "threadJoin()...", threadJoin(spt_timer_thread, DEF_THREAD_WAIT_TIME));
+
+	spt_status += "\nCleaning up...";
+	threadFree(spt_spt_thread);
+	threadFree(spt_timer_thread);
+
+	for(int i = 0; i < 7; i++)
+		Util_remove_watch(&spt_data_size_button[i].selected);
+	Util_remove_watch(&spt_start_dl_button.selected);
+	Util_remove_watch(&spt_data_size);
+	Util_remove_watch(&spt_total_dl_size);
+	Util_remove_watch(&spt_total_dl_time);
+
+	spt_already_init = false;
+	Util_log_save(DEF_SPT_EXIT_STR, "Thread exit.");
+	threadExit(0);
+}
+
+void Spt_init(bool draw)
+{
+	Util_log_save(DEF_SPT_INIT_STR, "Initializing...");
+	int color = DEF_DRAW_BLACK;
+	int back_color = DEF_DRAW_WHITE;
+
+	Util_add_watch(&spt_status);
+	spt_status = "";
+
+	if((var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_3DSXL) && var_core_2_available)
+		spt_init_thread = threadCreate(Spt_init_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_NORMAL, 2, false);
+	else
+	{
+		APT_SetAppCpuTimeLimit(80);
+		spt_init_thread = threadCreate(Spt_init_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_NORMAL, 1, false);
+	}
+
+	while(!spt_already_init)
+	{
+		if(draw)
+		{
+			if (var_night_mode)
+			{
+				color = DEF_DRAW_WHITE;
+				back_color = DEF_DRAW_BLACK;
+			}
+
+			if(Util_is_watch_changed() || var_need_reflesh || !var_eco_mode)
+			{
+				var_need_reflesh = false;
+				Draw_frame_ready();
+				Draw_screen_ready(0, back_color);
+				Draw_top_ui();
+				Draw(spt_status, 0, 20, 0.65, 0.65, color);
+
+				Draw_apply_draw();
+			}
+			else
+				gspWaitForVBlank();
+		}
+		else
+			usleep(20000);
+	}
+
+	if(!(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_3DSXL) || !var_core_2_available)
+		APT_SetAppCpuTimeLimit(10);
+
+	Util_log_save(DEF_SPT_EXIT_STR, "threadJoin()...", threadJoin(spt_init_thread, DEF_THREAD_WAIT_TIME));
+	threadFree(spt_init_thread);
+	Spt_resume();
+
+	Util_log_save(DEF_SPT_INIT_STR, "Initialized.");
+}
+
+void Spt_exit(bool draw)
+{
+	Util_log_save(DEF_SPT_EXIT_STR, "Exiting...");
+
+	int color = DEF_DRAW_BLACK;
+	int back_color = DEF_DRAW_WHITE;
+
+	spt_status = "";
+	spt_exit_thread = threadCreate(Spt_exit_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_NORMAL, 1, false);
+
+	while(spt_already_init)
+	{
+		if(draw)
+		{
+			if (var_night_mode)
+			{
+				color = DEF_DRAW_WHITE;
+				back_color = DEF_DRAW_BLACK;
+			}
+
+			if(Util_is_watch_changed() || var_need_reflesh || !var_eco_mode)
+			{
+				var_need_reflesh = false;
+				Draw_frame_ready();
+				Draw_screen_ready(0, back_color);
+				Draw_top_ui();
+				Draw(spt_status, 0, 20, 0.65, 0.65, color);
+
+				Draw_apply_draw();
+			}
+			else
+				gspWaitForVBlank();
+		}
+		else
+			usleep(20000);
+	}
+
+	Util_log_save(DEF_SPT_EXIT_STR, "threadJoin()...", threadJoin(spt_exit_thread, DEF_THREAD_WAIT_TIME));	
+	threadFree(spt_exit_thread);
+	Util_remove_watch(&spt_status);
+	var_need_reflesh = true;
+
+	Util_log_save(DEF_SPT_EXIT_STR, "Exited.");
+}
+
+void Spt_hid(Hid_info key)
+{
+	if(Util_err_query_error_show_flag())
+		Util_err_main(key);
+	else
+	{
+		if(Util_hid_is_pressed(key, *Draw_get_bot_ui_button()))
+		{
+			Draw_get_bot_ui_button()->selected = true;
+			var_need_reflesh = true;
+		}
+		else if (key.p_start || (Util_hid_is_released(key, *Draw_get_bot_ui_button()) && Draw_get_bot_ui_button()->selected))
+			Spt_suspend();
+		else if(Util_hid_is_pressed(key, spt_start_dl_button))
+			spt_start_dl_button.selected = true;
+		else if (key.p_a || (Util_hid_is_released(key, spt_start_dl_button) && spt_start_dl_button.selected))
+			spt_start_request = true;
+		else
+		{
+			for (int i = 0; i < 7; i++)
+			{
+				if(Util_hid_is_pressed(key, spt_data_size_button[i]))
+					spt_data_size_button[i].selected = true;
+				else if (!spt_start_request && Util_hid_is_released(key, spt_data_size_button[i]) && spt_data_size_button[i].selected)
+					spt_data_size = i;
+			}
+		}
+	}
+
+	if(!key.p_touch && !key.h_touch)
+	{
+		Draw_get_bot_ui_button()->selected = false;
+		for(int i = 0; i < 7; i++)
+			spt_data_size_button[i].selected = false;
+		spt_start_dl_button.selected = false;
+	}
+
+	if(Util_log_query_log_show_flag())
+		Util_log_main(key);
+}
+
+void Spt_main(void)
+{
+	int color = DEF_DRAW_BLACK;
+	int back_color = DEF_DRAW_WHITE;
+
+	if (var_night_mode)
+	{
+		color = DEF_DRAW_WHITE;
+		back_color = DEF_DRAW_BLACK;
+	}
+
+	if(Util_is_watch_changed() || var_need_reflesh || !var_eco_mode)
+	{
+		var_need_reflesh = false;
+		Draw_frame_ready();
+
+		if(var_turn_on_top_lcd)
+		{
+			Draw_screen_ready(0, back_color);
+
+			Draw(spt_msg[0] + std::to_string(spt_total_dl_size / (1024 * 1024)) + "MB(" + std::to_string(spt_total_dl_size / 1024) + "KB)", 0.0, 20.0, 0.5, 0.5, DEF_DRAW_BLUE);
+			Draw(spt_msg[1] + std::to_string(spt_total_dl_time).substr(0, std::to_string(spt_total_dl_time).length() - 3) + " ms", 0.0, 40.0, 0.5, 0.5, DEF_DRAW_BLUE);
+			Draw(spt_msg[2] + std::to_string(((spt_total_dl_size / (spt_total_dl_time / 1000.0)) / (1024 * 1024)) * 8) + "Mbps", 0.0, 60.0, 0.75, 0.75, DEF_DRAW_BLUE);
+
+			if(Util_log_query_log_show_flag())
+				Util_log_draw();
+
+			Draw_top_ui();
+
+			if(var_3d_mode)
+			{
+				Draw_screen_ready(2, back_color);
+
+				if(Util_log_query_log_show_flag())
+					Util_log_draw();
+
+				Draw_top_ui();
+			}
+		}
+		
+		if(var_turn_on_bottom_lcd)
+		{
+			Draw_screen_ready(1, back_color);
+
+			Draw(DEF_SPT_VER, 0, 0, 0.4, 0.4, DEF_DRAW_GREEN);
+			Draw(spt_msg[3], 70.0, 10.0, 0.75, 0.75, DEF_DRAW_RED);
+			for (int i = 0; i < 7; i++)
+			{
+				Draw(spt_msg[4 + i], 100, 40 + (i * 20), 0.5, 0.5, spt_data_size == i ? DEF_DRAW_BLUE : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
+				130, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &spt_data_size_button[i], spt_data_size_button[i].selected ? DEF_DRAW_YELLOW : DEF_DRAW_WEAK_YELLOW);
+			}
+			Draw(spt_msg[11], 130, 190, 0.5, 0.5, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 20,
+			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &spt_start_dl_button, spt_start_dl_button.selected ? DEF_DRAW_RED : DEF_DRAW_WEAK_RED);
+
+			Draw_bot_ui();
+
+			if(Util_err_query_error_show_flag())
+				Util_err_draw();
+		}
+
+		Draw_apply_draw();
+	}
+	else
+		gspWaitForVBlank();
 }
