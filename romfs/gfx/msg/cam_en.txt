@@ -17,15 +17,15 @@
 <16>ON</16>
 <17>OFF</17>
 <18>Shutter sound</18>
-<19>Encoding to </19>
+<19>Encoding...</19>
 <20>...</20>
 <21>Resolution</21>
 <22>Framerate</22>
 <23>Advanced(0)</23>
 <24>Advanced(1)</24>
-<25>Out right 
+<25>Out left 
 camera</25>
-<26>Out left 
+<26>Out right 
 camera</26>
 <27>In camera</27>
 <28>File will be saved to
@@ -33,4 +33,4 @@ sdmc:/Line/dcim/</28>
 <29>Recording...
 B to stop</29>
 <30>Muxing...</30>
-<31>Take a picture(A) Take a video(B)</31>
+<31>Take a picture(A)</31>

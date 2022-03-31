@@ -1,7 +1,6 @@
-﻿<0>Rendering(A)</0>
+﻿<0>Reload(A)</0>
 <1>Download(B)</1>
 <2>Select file(X)</2>
-<3>Adjust url(Y)</3>
+<3>Enter url(Y)</3>
 <4>Decrease size(L)</4>
 <5>Increase size(R)</5>
-<6>Select(A) Go back(B) Move(DPAD ↑,↓,→,←) Close(Y)</6>
