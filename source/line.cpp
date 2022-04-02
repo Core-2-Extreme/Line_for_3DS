@@ -88,7 +88,7 @@ int line_sticker_num_list[121] = { 0,
 };
 double line_msg_pos[4000];
 double line_saved_y[2];
-double line_text_x = 0.0;
+double line_text_x = 50.0;
 double line_text_y = 0.0;
 double line_text_size = 0.66;
 double line_text_interval = 35.0;
@@ -901,10 +901,10 @@ void Line_hid(Hid_info key)
 		}
 		if (key.h_c_left || key.h_c_right)
 		{
-			if (key.held_time > 240)
+			/*if (key.held_time > 240)
 				line_text_x -= (double)key.cpad_x * var_scroll_speed * 0.125;
 			else
-				line_text_x -= (double)key.cpad_x * var_scroll_speed * 0.0625;
+				line_text_x -= (double)key.cpad_x * var_scroll_speed * 0.0625;*/
 		}
 
 		if (line_scroll_bar_selected && key.h_touch)
@@ -919,17 +919,17 @@ void Line_hid(Hid_info key)
 			line_touch_y_move_left += key.touch_y_move;
 		}
 
-		line_text_x -= line_touch_x_move_left * var_scroll_speed;
+		//line_text_x -= line_touch_x_move_left * var_scroll_speed;
 		line_text_y -= line_touch_y_move_left * var_scroll_speed;
 
 		if (line_text_y > 0.0)
 			line_text_y = 0.0;
 		if (line_text_y < line_max_y)
 			line_text_y = line_max_y;
-		if (line_text_x > 40.0)
+		/*if (line_text_x > 40.0)
 			line_text_x = 40.0;
 		if (line_text_x < -500.0)
-			line_text_x = -500.0;
+			line_text_x = -500.0;*/
 	}
 
 	if(!key.p_touch && !key.h_touch)
@@ -1211,11 +1211,8 @@ void Line_log_thread(void* arg)
 	size_t id_start_pos;
 	size_t message_start_pos;
 	size_t message_next_pos;
-	size_t new_line_pos;
 	int data_size = 0;
-	int length_count = 0;
-	int cut_length = 60;
-	int text_length = 0;
+	int cut_length = 0;
 	int log_num = 0;
 	int index = 0;
 	int room_num = 0;
@@ -1223,9 +1220,13 @@ void Line_log_thread(void* arg)
 	int video_tracks = 0;
 	int subtitle_tracks = 0;
 	int num_of_loop = 0;
+	int check_length = 0;
+	int text_start_pos = 0;
 	bool failed = false;
 	bool sticker_msg = false;
-	char* parse_cache;
+	double x_size = 0;
+	double x_cache = 0;
+	double y_cache = 0;
 	std::string filename = "";
 	std::string last_url = ""; 
 	std::string content_cache = "";
@@ -1251,6 +1252,7 @@ void Line_log_thread(void* arg)
 	std::string file_type = "";
 	std::string encoded_data = "";
 	std::string response_string = "";
+	std::string one_string = "";
 	std::string out_data[6];
 	Result_with_string result;
 	
@@ -1411,12 +1413,9 @@ void Line_log_thread(void* arg)
 			sticker_start_pos = std::string::npos;
 			id_end_pos = std::string::npos;
 			id_start_pos = std::string::npos;
-			new_line_pos = std::string::npos;
 			line_num_of_msg = 0;
 			line_num_of_lines = 10;
-			length_count = 0;
-			cut_length = 60;
-			text_length = 0;
+			cut_length = 0;
 			failed = false;
 
 			image_message = line_msg[27];
@@ -1425,228 +1424,228 @@ void Line_log_thread(void* arg)
 			video_message = line_msg[54];
 			file_message = line_msg[55];
 
-			parse_cache = (char*)malloc(0x10000);
-			if (parse_cache == NULL)
+			for (int i = 0; i <= 3999; i++)
 			{
-				Util_err_set_error_message(DEF_ERR_OUT_OF_MEMORY_STR, "", DEF_LINE_LOG_THREAD_STR, DEF_ERR_OUT_OF_MEMORY);
+				line_msg_pos[i] = -1;
+				line_search_result_pos[i] = 0;
+				line_short_msg_pos_start[i] = 0;
+				line_short_msg_pos_end[i] = 0;
+				line_msg_log[i] = "";
+			}
+			for (int i = 0; i < 59999; i++)
+			{
+				line_short_msg_log[i] = "";
+				line_content[i] = "";
+			}
+
+			for (int i = 0; i <= 3999; i++)
+			{
+				message_start_pos = line_log_data.find(message_start, (message_start_pos + message_start.length()));
+				if (message_start_pos == std::string::npos)
+					break;
+
+				message_next_pos = line_log_data.find(message_start, (message_start_pos + message_start.length()));
+				if (message_next_pos == std::string::npos)
+					line_msg_log[i] = line_log_data.substr((message_start_pos + message_start.length()), line_log_data.length() - (message_start_pos + message_start.length()));
+				else
+					line_msg_log[i] = line_log_data.substr((message_start_pos + message_start.length()), message_next_pos - (message_start_pos + message_start.length()));
+
+				line_num_of_msg++;
+			}
+
+			for (int i = 0; i < line_num_of_msg; i++)
+			{
+				sticker_msg = false;
+				line_msg_pos[i] = -line_text_interval * line_num_of_lines;
+				line_short_msg_pos_start[i] = line_num_of_lines;
+
+				image_url_start_pos = line_msg_log[i].find(image_url_start);
+				image_url_end_pos = line_msg_log[i].find(image_url_end);
+				video_url_start_pos = line_msg_log[i].find(video_url_start);
+				video_url_end_pos = line_msg_log[i].find(video_url_end);
+				audio_url_start_pos = line_msg_log[i].find(audio_url_start);
+				audio_url_end_pos = line_msg_log[i].find(audio_url_end);
+				file_url_start_pos = line_msg_log[i].find(file_url_start);
+				file_url_end_pos = line_msg_log[i].find(file_url_end);
+				sticker_start_pos = line_msg_log[i].find(sticker_start);
+				sticker_end_pos = line_msg_log[i].find(sticker_end);
+				id_start_pos = line_msg_log[i].find(id_start);
+				id_end_pos = line_msg_log[i].find(id_end);
+				if (!(image_url_start_pos == std::string::npos || image_url_end_pos == std::string::npos))
+				{
+					line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((image_url_start_pos + image_url_start.length()), (image_url_end_pos - (image_url_start_pos + image_url_start.length()))) + "</url>";
+					line_content[line_num_of_lines + 1] += "<type>image</type>";
+
+					content_cache = line_msg_log[i].substr(0, image_url_start_pos);
+					content_cache += image_message;
+					content_cache += line_msg_log[i].substr(image_url_end_pos + image_url_end.length(), line_msg_log[i].length() - (image_url_end_pos + image_url_end.length()));
+					line_msg_log[i] = content_cache;
+				}
+				else if (!(video_url_start_pos == std::string::npos || video_url_end_pos == std::string::npos))
+				{
+					line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((video_url_start_pos + video_url_start.length()), (video_url_end_pos - (video_url_start_pos + video_url_start.length()))) + "</url>";
+					line_content[line_num_of_lines + 1] += "<type>video</type>";
+
+					content_cache = line_msg_log[i].substr(0, video_url_start_pos);
+					content_cache += video_message;
+					content_cache += line_msg_log[i].substr(video_url_end_pos + video_url_end.length(), line_msg_log[i].length() - (video_url_end_pos + video_url_end.length()));
+					line_msg_log[i] = content_cache;
+				}
+				else if (!(audio_url_start_pos == std::string::npos || audio_url_end_pos == std::string::npos))
+				{
+					line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((audio_url_start_pos + audio_url_start.length()), (audio_url_end_pos - (audio_url_start_pos + audio_url_start.length()))) + "</url>";
+					line_content[line_num_of_lines + 1] += "<type>audio</type>";
+
+					content_cache = line_msg_log[i].substr(0, audio_url_start_pos);
+					content_cache += audio_message;
+					content_cache += line_msg_log[i].substr(audio_url_end_pos + audio_url_end.length(), line_msg_log[i].length() - (audio_url_end_pos + audio_url_end.length()));
+					line_msg_log[i] = content_cache;
+				}
+				else if (!(file_url_start_pos == std::string::npos || file_url_end_pos == std::string::npos))
+				{
+					line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((file_url_start_pos + file_url_start.length()), (file_url_end_pos - (file_url_start_pos + file_url_start.length()))) + "</url>";
+					line_content[line_num_of_lines + 1] += "<type>file</type>";
+
+					content_cache = line_msg_log[i].substr(0, file_url_start_pos);
+					content_cache += file_message;
+					content_cache += line_msg_log[i].substr(file_url_end_pos + file_url_end.length(), line_msg_log[i].length() - (file_url_end_pos + file_url_end.length()));
+					line_msg_log[i] = content_cache;
+				}
+				else if (!(sticker_start_pos == std::string::npos || sticker_end_pos == std::string::npos))
+				{
+					sticker_msg = true;
+					line_content[line_num_of_lines + 2] = "<type>sticker</type>";
+					content_cache = line_msg_log[i].substr(sticker_start_pos + sticker_start.length(), sticker_end_pos - (sticker_start_pos + sticker_start.length()));
+					if (std::all_of(content_cache.cbegin(), content_cache.cend(), isdigit))
+						line_content[line_num_of_lines + 2] += "<num>" + std::to_string(Line_stickers_num_to_textures_num(std::stoi(content_cache))) + "</num>";
+					else
+						line_content[line_num_of_lines + 2] += "<num>0</num>";
+
+					content_cache = line_msg_log[i].substr(0, sticker_start_pos);
+					content_cache += line_msg_log[i].substr(sticker_end_pos + sticker_end.length(), line_msg_log[i].length() - (sticker_end_pos + sticker_end.length()));
+					line_msg_log[i] = content_cache;
+				}
+				else if (!(id_start_pos == std::string::npos || id_end_pos == std::string::npos))
+				{
+					line_content[line_num_of_lines + 1] = "<id>" + line_msg_log[i].substr((id_start_pos + id_start.length()), (id_end_pos - (id_start_pos + id_start.length()))) + "</id>";
+					line_content[line_num_of_lines + 1] += "<type>id</type>";
+
+					content_cache = line_msg_log[i].substr(0, id_start_pos);
+					content_cache += id_message + "\n" + line_msg_log[i].substr((id_start_pos + id_start.length()), (id_end_pos - (id_start_pos + id_start.length())));
+					content_cache += line_msg_log[i].substr(id_end_pos + id_end.length(), line_msg_log[i].length() - (id_end_pos + id_end.length()));
+					line_msg_log[i] = content_cache;
+				}
+
+				cut_length = 0;
+				text_start_pos = 0;
+
+				//Wrap text
+				while (true)
+				{
+					if (line_num_of_lines >= 59990)
+					{
+						failed = true;
+						break;
+					}
+
+					//If we reach end of text, just copy it
+					if(line_msg_log[i].length() < (uint)(text_start_pos + cut_length))
+					{
+						x_size = 0;
+						line_num_of_lines++;
+						line_short_msg_log[line_num_of_lines] = line_msg_log[i].substr(text_start_pos, cut_length);
+						break;					
+					}
+					else
+					{
+						check_length = mblen(&line_msg_log[i].c_str()[text_start_pos + cut_length], 4);
+						if (check_length >= 1)
+						{
+							one_string = line_msg_log[i].substr(text_start_pos + cut_length, check_length);
+							//If string is new line, go to next line
+							if(one_string == "\n")
+							{
+								x_size = 0;
+								cut_length += check_length;
+
+								line_num_of_lines++;
+								line_short_msg_log[line_num_of_lines] = line_msg_log[i].substr(text_start_pos, cut_length);
+								if(line_short_msg_log[line_num_of_lines].find("\n") != std::string::npos)
+									line_short_msg_log[line_num_of_lines].erase(line_short_msg_log[line_num_of_lines].find("\n"), 1);
+
+								text_start_pos = text_start_pos + cut_length;
+								cut_length = 0;
+							}
+							else
+							{
+								Draw_get_text_size(one_string, line_text_size, line_text_size, &x_cache, &y_cache);
+								//If total text width is more than 300px, go to next line
+								if(x_size + x_cache > 300)
+								{
+									x_size = 0;
+									line_num_of_lines++;
+									line_short_msg_log[line_num_of_lines] = line_msg_log[i].substr(text_start_pos, cut_length);
+
+									text_start_pos = text_start_pos + cut_length;
+									cut_length = check_length;
+									x_size += x_cache;
+								}
+								else
+								{
+									x_size += x_cache;
+									cut_length += check_length;
+								}
+							}
+						}
+						else
+							cut_length++;
+					}
+				}
+
+				if(sticker_msg)
+					line_num_of_lines += 3;
+				else
+					line_num_of_lines++;
+
+				line_short_msg_pos_end[i] = line_num_of_lines;
+				line_max_y = (-line_text_interval * line_num_of_lines) + 100;
+				line_text_y = line_max_y;
+			}
+
+			line_max_y = (-line_text_interval * line_num_of_lines) + 100;
+			line_text_y = line_max_y;
+
+			if (failed)
+			{
+				Util_err_set_error_message(DEF_ERR_OTHER_STR, "[Error] Too many messages ", DEF_LINE_LOG_THREAD_STR, DEF_ERR_OTHER);
 				Util_err_set_error_show_flag(true);
 			}
 			else
 			{
-				for (int i = 0; i <= 3999; i++)
-				{
-					line_msg_pos[i] = -1;
-					line_search_result_pos[i] = 0;
-					line_short_msg_pos_start[i] = 0;
-					line_short_msg_pos_end[i] = 0;
-					line_msg_log[i] = "";
-				}
-				for (int i = 0; i < 59999; i++)
-				{
-					line_short_msg_log[i] = "";
-					line_content[i] = "";
-				}
+				log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_file_load_from_file()...");
+				result = Util_file_load_from_file(line_ids[line_selected_room_num], DEF_MAIN_DIR + "to/", &buffer, 0x1000);
+				Util_log_add(log_num , result.string, result.code);
+				result = Util_parse_file((char*)buffer, 4, out_data);
+				free(buffer);
+				buffer = NULL;
 
-				for (int i = 0; i <= 3999; i++)
-				{
-					message_start_pos = line_log_data.find(message_start, (message_start_pos + message_start.length()));
-					if (message_start_pos == std::string::npos)
-						break;
+				line_msg_offset[line_selected_room_num] += line_unread_msg_num[line_selected_room_num];
+				line_unread_msg_num[line_selected_room_num] = 0;
+				out_data[0] = "<0>" + out_data[0] + "</0>"; //user/group name
+				out_data[1] = "<1>" + out_data[1] + "</1>"; //img url
+				out_data[2] = "<2>" + std::to_string(line_msg_offset[line_selected_room_num]) + "</2>"; //msg offset
+				out_data[3] = "<3>" + std::to_string(line_unread_msg_num[line_selected_room_num]) + "</3>"; //num of new msg
 
-					message_next_pos = line_log_data.find(message_start, (message_start_pos + message_start.length()));
-					if (message_next_pos == std::string::npos)
-						line_msg_log[i] = line_log_data.substr((message_start_pos + message_start.length()), line_log_data.length() - (message_start_pos + message_start.length()));
-					else
-						line_msg_log[i] = line_log_data.substr((message_start_pos + message_start.length()), message_next_pos - (message_start_pos + message_start.length()));
-
-					line_num_of_msg++;
-				}
-
-				for (int i = 0; i < line_num_of_msg; i++)
-				{
-					sticker_msg = false;
-					line_msg_pos[i] = -line_text_interval * line_num_of_lines;
-					line_short_msg_pos_start[i] = line_num_of_lines;
-
-					image_url_start_pos = line_msg_log[i].find(image_url_start);
-					image_url_end_pos = line_msg_log[i].find(image_url_end);
-					video_url_start_pos = line_msg_log[i].find(video_url_start);
-					video_url_end_pos = line_msg_log[i].find(video_url_end);
-					audio_url_start_pos = line_msg_log[i].find(audio_url_start);
-					audio_url_end_pos = line_msg_log[i].find(audio_url_end);
-					file_url_start_pos = line_msg_log[i].find(file_url_start);
-					file_url_end_pos = line_msg_log[i].find(file_url_end);
-					sticker_start_pos = line_msg_log[i].find(sticker_start);
-					sticker_end_pos = line_msg_log[i].find(sticker_end);
-					id_start_pos = line_msg_log[i].find(id_start);
-					id_end_pos = line_msg_log[i].find(id_end);
-					if (!(image_url_start_pos == std::string::npos || image_url_end_pos == std::string::npos))
-					{
-						line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((image_url_start_pos + image_url_start.length()), (image_url_end_pos - (image_url_start_pos + image_url_start.length()))) + "</url>";
-						line_content[line_num_of_lines + 1] += "<type>image</type>";
-
-						content_cache = line_msg_log[i].substr(0, image_url_start_pos);
-						content_cache += image_message;
-						content_cache += line_msg_log[i].substr(image_url_end_pos + image_url_end.length(), line_msg_log[i].length() - (image_url_end_pos + image_url_end.length()));
-						line_msg_log[i] = content_cache;
-					}
-					else if (!(video_url_start_pos == std::string::npos || video_url_end_pos == std::string::npos))
-					{
-						line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((video_url_start_pos + video_url_start.length()), (video_url_end_pos - (video_url_start_pos + video_url_start.length()))) + "</url>";
-						line_content[line_num_of_lines + 1] += "<type>video</type>";
-
-						content_cache = line_msg_log[i].substr(0, video_url_start_pos);
-						content_cache += video_message;
-						content_cache += line_msg_log[i].substr(video_url_end_pos + video_url_end.length(), line_msg_log[i].length() - (video_url_end_pos + video_url_end.length()));
-						line_msg_log[i] = content_cache;
-					}
-					else if (!(audio_url_start_pos == std::string::npos || audio_url_end_pos == std::string::npos))
-					{
-						line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((audio_url_start_pos + audio_url_start.length()), (audio_url_end_pos - (audio_url_start_pos + audio_url_start.length()))) + "</url>";
-						line_content[line_num_of_lines + 1] += "<type>audio</type>";
-
-						content_cache = line_msg_log[i].substr(0, audio_url_start_pos);
-						content_cache += audio_message;
-						content_cache += line_msg_log[i].substr(audio_url_end_pos + audio_url_end.length(), line_msg_log[i].length() - (audio_url_end_pos + audio_url_end.length()));
-						line_msg_log[i] = content_cache;
-					}
-					else if (!(file_url_start_pos == std::string::npos || file_url_end_pos == std::string::npos))
-					{
-						line_content[line_num_of_lines + 1] = "<url>" + line_msg_log[i].substr((file_url_start_pos + file_url_start.length()), (file_url_end_pos - (file_url_start_pos + file_url_start.length()))) + "</url>";
-						line_content[line_num_of_lines + 1] += "<type>file</type>";
-
-						content_cache = line_msg_log[i].substr(0, file_url_start_pos);
-						content_cache += file_message;
-						content_cache += line_msg_log[i].substr(file_url_end_pos + file_url_end.length(), line_msg_log[i].length() - (file_url_end_pos + file_url_end.length()));
-						line_msg_log[i] = content_cache;
-					}
-					else if (!(sticker_start_pos == std::string::npos || sticker_end_pos == std::string::npos))
-					{
-						sticker_msg = true;
-						line_content[line_num_of_lines + 2] = "<type>sticker</type>";
-						content_cache = line_msg_log[i].substr(sticker_start_pos + sticker_start.length(), sticker_end_pos - (sticker_start_pos + sticker_start.length()));
-						if (std::all_of(content_cache.cbegin(), content_cache.cend(), isdigit))
-							line_content[line_num_of_lines + 2] += "<num>" + std::to_string(Line_stickers_num_to_textures_num(std::stoi(content_cache))) + "</num>";
-						else
-							line_content[line_num_of_lines + 2] += "<num>0</num>";
-
-						content_cache = line_msg_log[i].substr(0, sticker_start_pos);
-						content_cache += line_msg_log[i].substr(sticker_end_pos + sticker_end.length(), line_msg_log[i].length() - (sticker_end_pos + sticker_end.length()));
-						line_msg_log[i] = content_cache;
-					}
-					else if (!(id_start_pos == std::string::npos || id_end_pos == std::string::npos))
-					{
-						line_content[line_num_of_lines + 1] = "<id>" + line_msg_log[i].substr((id_start_pos + id_start.length()), (id_end_pos - (id_start_pos + id_start.length()))) + "</id>";
-						line_content[line_num_of_lines + 1] += "<type>id</type>";
-
-						content_cache = line_msg_log[i].substr(0, id_start_pos);
-						content_cache += id_message + "\n" + line_msg_log[i].substr((id_start_pos + id_start.length()), (id_end_pos - (id_start_pos + id_start.length())));
-						content_cache += line_msg_log[i].substr(id_end_pos + id_end.length(), line_msg_log[i].length() - (id_end_pos + id_end.length()));
-						line_msg_log[i] = content_cache;
-					}
-
-					memset(parse_cache, 0x0, 0x10000);
-					strcpy(parse_cache, line_msg_log[i].c_str());
-					text_length = line_msg_log[i].length();
-
-					while (true)
-					{
-						if (line_num_of_lines >= 59990)
-						{
-							failed = true;
-							break;
-						}
-
-						if (length_count + cut_length >= text_length)
-						{
-							line_short_msg_log[59999] = line_msg_log[i].substr(length_count, cut_length);
-							new_line_pos = line_short_msg_log[59999].find_first_of("\u000a");
-							if (!(new_line_pos == std::string::npos))
-							{
-								cut_length = new_line_pos + 1;
-								line_num_of_lines++;
-								line_short_msg_log[line_num_of_lines] = line_msg_log[i].substr(length_count, cut_length);
-								length_count += cut_length;
-								cut_length = 60;
-							}
-							else
-							{
-								cut_length = text_length - length_count;
-								line_num_of_lines++;
-								line_short_msg_log[line_num_of_lines] = line_msg_log[i].substr(length_count, cut_length);
-								break;
-							}
-						}
-						else
-						{
-							int check_length = mblen(&parse_cache[length_count + cut_length], 4);
-							if (check_length >= 1)
-							{
-								line_short_msg_log[59999] = line_msg_log[i].substr(length_count, cut_length);
-								new_line_pos = line_short_msg_log[59999].find_first_of("\u000a");
-								if (!(new_line_pos == std::string::npos))
-									cut_length = new_line_pos + 1;
-
-								line_num_of_lines++;
-								line_short_msg_log[line_num_of_lines] = line_msg_log[i].substr(length_count, cut_length);
-								length_count += cut_length;
-								cut_length = 60;
-							}
-							else
-								cut_length++;
-						}
-					}
-
-					if(sticker_msg)
-						line_num_of_lines += 3;
-					else
-						line_num_of_lines++;
-
-					length_count = 0;
-					cut_length = 60;
-
-					line_short_msg_pos_end[i] = line_num_of_lines;
-					line_max_y = (-line_text_interval * line_num_of_lines) + 100;
-					line_text_y = line_max_y;
-				}
-
-				line_max_y = (-line_text_interval * line_num_of_lines) + 100;
-				line_text_y = line_max_y;
-
-				if (failed)
-				{
-					Util_err_set_error_message(DEF_ERR_OTHER_STR, "[Error] Too many messages ", DEF_LINE_LOG_THREAD_STR, DEF_ERR_OTHER);
-					Util_err_set_error_show_flag(true);
-				}
-				else
-				{
-					log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_file_load_from_file()...");
-					result = Util_file_load_from_file(line_ids[line_selected_room_num], DEF_MAIN_DIR + "to/", &buffer, 0x1000);
-					Util_log_add(log_num , result.string, result.code);
-					result = Util_parse_file((char*)buffer, 4, out_data);
-					free(buffer);
-					buffer = NULL;
-
-					line_msg_offset[line_selected_room_num] += line_unread_msg_num[line_selected_room_num];
-					line_unread_msg_num[line_selected_room_num] = 0;
-					out_data[0] = "<0>" + out_data[0] + "</0>"; //user/group name
-					out_data[1] = "<1>" + out_data[1] + "</1>"; //img url
-					out_data[2] = "<2>" + std::to_string(line_msg_offset[line_selected_room_num]) + "</2>"; //msg offset
-					out_data[3] = "<3>" + std::to_string(line_unread_msg_num[line_selected_room_num]) + "</3>"; //num of new msg
-
-					log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_file_save_to_file()...");
-					result = Util_file_save_to_file(line_ids[line_selected_room_num], DEF_MAIN_DIR + "to/", (u8*)(out_data[0] + out_data[1] + out_data[2] + out_data[3]).c_str(), (out_data[0] + out_data[1] + out_data[2] + out_data[3]).length(), true);
-					Util_log_add(log_num, result.string, result.code);
-				}
+				log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_file_save_to_file()...");
+				result = Util_file_save_to_file(line_ids[line_selected_room_num], DEF_MAIN_DIR + "to/", (u8*)(out_data[0] + out_data[1] + out_data[2] + out_data[3]).c_str(), (out_data[0] + out_data[1] + out_data[2] + out_data[3]).length(), true);
+				Util_log_add(log_num, result.string, result.code);
 			}
 
-			if(line_num_of_msg <= line_selected_highlight_num)
-				line_selected_highlight_num = 0;
+		if(line_num_of_msg <= line_selected_highlight_num)
+			line_selected_highlight_num = 0;
 
-			line_selected_search_highlight_num = 0;
-			free(parse_cache);
-			parse_cache = NULL;
-			line_parse_log_request = false;
+		line_selected_search_highlight_num = 0;
+		line_parse_log_request = false;
 		}
 		else if (line_send_request[0] || line_send_request[1] || line_send_request[2])
 		{
