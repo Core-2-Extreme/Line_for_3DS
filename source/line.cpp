@@ -254,40 +254,55 @@ void Line_hid(Hid_info key)
 		{
 			if (!line_solve_short_url_request)
 			{
-				if (key.p_touch && key.touch_x >= 305 && key.touch_x <= 320 && key.touch_y >= 15 && key.touch_y < 220)
-					line_scroll_bar_selected = true;
-				else if (key.p_touch && key.touch_y <= 169)
-					line_scroll_mode = true;
-
 				if(!line_dl_log_no_parse_request && !line_dl_all_log_no_parse_request)
 				{
 					for (int i = 0; i < 128; i++)
 					{
-						if(key.touch_y <= 164 && key.touch_y >= line_text_y + (i * 35) && key.touch_y <= 29 + line_text_y + (i * 35))
+						if(Util_hid_is_pressed(key, line_room_button[i]))
 						{
-							if(Util_hid_is_pressed(key, line_room_button[i]))
-								line_room_button[i].selected = true;
-							else if (Util_hid_is_released(key, line_room_button[i]) && line_room_button[i].selected)
-							{
-								line_selected_room_num = i;
-								line_select_chat_room_request = false;
-								line_saved_y[0] = line_text_y;
-								line_text_y = line_saved_y[1];
-								line_load_log_request = true;
-								line_scroll_mode = false;
-								break;
-							}
-							if(Util_hid_is_pressed(key, line_room_update_button[i]))
-								line_room_update_button[i].selected = true;
-							else if (Util_hid_is_released(key, line_room_update_button[i]) && line_room_update_button[i].selected)
-							{
-								line_selected_room_num = i;
-								line_dl_log_no_parse_request = true;
-								line_scroll_mode = false;
-								break;
-							}
+							line_scroll_mode = false;
+							line_room_button[i].selected = true;
+							hit = true;
+							break;
+						}
+						else if (Util_hid_is_released(key, line_room_button[i]) && line_room_button[i].selected)
+						{
+							line_selected_room_num = i;
+							line_select_chat_room_request = false;
+							line_saved_y[0] = line_text_y;
+							line_text_y = line_saved_y[1];
+							line_load_log_request = true;
+							line_scroll_mode = false;
+							break;
+						}
+						else if (!Util_hid_is_held(key, line_room_button[i]) && line_room_button[i].selected)
+						{
+							line_room_button[i].selected = false;
+							line_scroll_mode = true;
+							break;
+						}
+						else if(Util_hid_is_pressed(key, line_room_update_button[i]))
+						{
+							line_scroll_mode = false;
+							line_room_update_button[i].selected = true;
+							hit = true;
+							break;
+						}
+						else if (Util_hid_is_released(key, line_room_update_button[i]) && line_room_update_button[i].selected)
+						{
+							line_selected_room_num = i;
+							line_dl_log_no_parse_request = true;
+							line_scroll_mode = false;
+							break;
+						}
+						else if (!Util_hid_is_held(key, line_room_update_button[i]) && line_room_update_button[i].selected)
+						{
+							line_room_update_button[i].selected = false;
+							line_scroll_mode = true;
+							break;
 						}
 					}
+
 					//if (hid_key_ZL_press)
 					//	Line_set_operation_flag(LINE_DL_ALL_LOG_NO_PARSE_REQUEST, true);
 					if(Util_hid_is_pressed(key, line_add_new_id_button))
@@ -335,522 +350,544 @@ void Line_hid(Hid_info key)
 							usleep(20000);
 					}
 				}
+
+				if (!hit && key.p_touch && key.touch_x >= 305 && key.touch_x <= 320 && key.touch_y >= 15 && key.touch_y < 220)
+					line_scroll_bar_selected = true;
+				else if (!hit && key.p_touch && key.touch_y <= 169)
+					line_scroll_mode = true;
 			}
 		}
 		else
 		{
-				if (line_send_check[0] || line_send_check[1] || line_send_check[2] || line_delete_id_check_request)
+			if (line_send_check[0] || line_send_check[1] || line_send_check[2] || line_delete_id_check_request)
+			{
+				if(Util_hid_is_pressed(key, line_yes_button))
+					line_yes_button.selected = true;
+				else if (key.p_a || (Util_hid_is_released(key, line_yes_button) && line_yes_button.selected))
 				{
-					if(Util_hid_is_pressed(key, line_yes_button))
-						line_yes_button.selected = true;
-					else if (key.p_a || (Util_hid_is_released(key, line_yes_button) && line_yes_button.selected))
+					if (line_send_check[0])
 					{
-						if (line_send_check[0])
-						{
-							line_send_request[0] = true;
-							line_send_check[0] = false;
-						}
-						else if (line_send_check[1])
-						{
-							line_send_request[1] = true;
-							line_send_check[1] = false;
-						}
-						else if (line_send_check[2])
-						{
-							line_send_request[2] = true;
-							line_send_check[2] = false;
-						}
-						else if (line_delete_id_check_request && !line_dl_log_request && !line_parse_log_request && !line_auto_update && !line_load_log_request)
-						{
-							line_saved_y[1] = line_text_y;
-							line_text_y = line_saved_y[0];
-							line_delete_id_request = true;
-							line_delete_id_check_request = false;
-							Line_reset_msg();
-						}
+						line_send_request[0] = true;
+						line_send_check[0] = false;
 					}
-					else if(Util_hid_is_pressed(key, line_no_button))
-						line_no_button.selected = true;
-					else if (key.p_b || (Util_hid_is_released(key, line_no_button) && line_no_button.selected))
+					else if (line_send_check[1])
 					{
-						if (line_send_check[0])
-							line_send_check[0] = false;
-						else if (line_send_check[1])
-							line_send_check[1] = false;
-						else if (line_send_check[2])
-							line_send_check[2] = false;
-						else if(line_delete_id_check_request)
-							line_delete_id_check_request = false;
+						line_send_request[1] = true;
+						line_send_check[1] = false;
 					}
-					else if(Util_hid_is_pressed(key, line_edit_msg_button) && line_send_check[0])
-						line_edit_msg_button.selected = true;
-					else if ((key.p_x || (Util_hid_is_released(key, line_edit_msg_button) && line_edit_msg_button.selected)) && line_send_check[0])
+					else if (line_send_check[2])
+					{
+						line_send_request[2] = true;
+						line_send_check[2] = false;
+					}
+					else if (line_delete_id_check_request && !line_dl_log_request && !line_parse_log_request && !line_auto_update && !line_load_log_request)
+					{
+						line_saved_y[1] = line_text_y;
+						line_text_y = line_saved_y[0];
+						line_delete_id_request = true;
+						line_delete_id_check_request = false;
+						Line_reset_msg();
+					}
+				}
+				else if(Util_hid_is_pressed(key, line_no_button))
+					line_no_button.selected = true;
+				else if (key.p_b || (Util_hid_is_released(key, line_no_button) && line_no_button.selected))
+				{
+					if (line_send_check[0])
+						line_send_check[0] = false;
+					else if (line_send_check[1])
+						line_send_check[1] = false;
+					else if (line_send_check[2])
+						line_send_check[2] = false;
+					else if(line_delete_id_check_request)
+						line_delete_id_check_request = false;
+				}
+				else if(Util_hid_is_pressed(key, line_edit_msg_button) && line_send_check[0])
+					line_edit_msg_button.selected = true;
+				else if ((key.p_x || (Util_hid_is_released(key, line_edit_msg_button) && line_edit_msg_button.selected)) && line_send_check[0])
+				{
+					line_type_msg_request = true;
+					line_send_check[0] = false;
+					while(line_type_msg_request)
+						usleep(20000);
+				}
+				else if(Util_hid_is_pressed(key, line_view_image_button) && line_send_check[2])
+					line_view_image_button.selected = true;
+				else if ((key.p_x || (Util_hid_is_released(key, line_view_image_button) && line_view_image_button.selected)) && line_send_check[2])
+				{
+					Imv_set_load_file(line_send_file_name, line_send_file_dir);
+					Line_suspend();
+					if(!Imv_query_init_flag())
+						Imv_init(false);
+					else
+						Imv_resume();
+				}
+			}
+			else if (line_select_sticker_request)
+			{
+				if (key.p_b || (key.p_touch && key.touch_x >= 290 && key.touch_x <= 309 && key.touch_y > 120 && key.touch_y < 139))
+				{
+					hit = true;
+					line_select_sticker_request = false;
+				}
+
+				for (int i = 0; i < 10; i++)
+				{
+					if (key.p_touch && key.touch_x >= 10 + (i * 30) && key.touch_x <= 39 + (i * 30) && key.touch_y > 140 && key.touch_y < 149)
+						line_selected_sticker_tab_num = i;
+				}
+
+				for (int i = 0; i < 7; i++)
+				{
+					if (key.p_touch && key.touch_x >= 20 + (i * 50) && key.touch_x <= 49 + (i * 50) && key.touch_y > 150 && key.touch_y < 179)
+					{
+						line_selected_sticker_num = (line_selected_sticker_tab_num * 12) + (i + 1);
+						line_send_check[1] = true;
+						line_select_sticker_request = false;
+					}
+					else if (key.p_touch && key.touch_x >= 20 + (i * 50) && key.touch_x <= 49 + (i * 50) && key.touch_y > 190 && key.touch_y < 219)
+					{
+						line_selected_sticker_num = (line_selected_sticker_tab_num * 12) + (i + 7);
+						line_send_check[1] = true;
+						line_select_sticker_request = false;
+					}
+				}
+			}
+			else
+			{
+				if(Util_hid_is_pressed(key, line_menu_button[0]))
+					line_menu_button[0].selected = true;
+				else if (Util_hid_is_released(key, line_menu_button[0]) && line_menu_button[0].selected)
+					line_selected_menu_mode = DEF_LINE_MENU_SEND;
+				else if(Util_hid_is_pressed(key, line_menu_button[1]))
+					line_menu_button[1].selected = true;
+				else if (Util_hid_is_released(key, line_menu_button[1]) && line_menu_button[1].selected)
+					line_selected_menu_mode = DEF_LINE_MENU_RECEIVE;
+				else if(Util_hid_is_pressed(key, line_menu_button[2]))
+					line_menu_button[2].selected = true;
+				else if (Util_hid_is_released(key, line_menu_button[2]) && line_menu_button[2].selected)
+					line_selected_menu_mode = DEF_LINE_MENU_COPY;
+				else if(Util_hid_is_pressed(key, line_menu_button[3]))
+					line_menu_button[3].selected = true;
+				else if (Util_hid_is_released(key, line_menu_button[3]) && line_menu_button[3].selected)
+					line_selected_menu_mode = DEF_LINE_MENU_SETTINGS;
+				else if(Util_hid_is_pressed(key, line_menu_button[4]))
+					line_menu_button[4].selected = true;
+				else if (Util_hid_is_released(key, line_menu_button[4]) && line_menu_button[4].selected)
+					line_selected_menu_mode = DEF_LINE_MENU_SEARCH;
+				else if(Util_hid_is_pressed(key, line_menu_button[5]))
+					line_menu_button[5].selected = true;
+				else if (Util_hid_is_released(key, line_menu_button[5]) && line_menu_button[5].selected)
+					line_selected_menu_mode = DEF_LINE_MENU_ADVANCED;
+				else if(Util_hid_is_pressed(key, line_back_button) && !line_dl_log_request && !line_parse_log_request && !line_auto_update &&
+				!line_load_log_request && !line_send_request[0] && !line_send_request[1] && !line_send_request[2])
+					line_back_button.selected = true;
+				else if (Util_hid_is_released(key, line_back_button) && line_back_button.selected && !line_dl_log_request && !line_parse_log_request && !line_auto_update &&
+				!line_load_log_request && !line_send_request[0] && !line_send_request[1] && !line_send_request[2])
+				{
+					line_saved_y[1] = line_text_y;
+					Line_reset_msg();
+					line_text_y = line_saved_y[0];
+					line_select_chat_room_request = true;
+				}
+				else if (line_selected_menu_mode == DEF_LINE_MENU_SEND && line_send_success)
+				{
+					if(Util_hid_is_pressed(key, line_send_success_button))
+						line_send_success_button.selected = true;
+					else if (key.p_a || (Util_hid_is_released(key, line_send_success_button) && line_send_success_button.selected))
+						line_send_success = false;
+				}
+				else if (line_selected_menu_mode == DEF_LINE_MENU_SEND && !line_sending_msg)
+				{
+					if(Util_hid_is_pressed(key, line_send_msg_button))
+						line_send_msg_button.selected = true;
+					else if (key.p_a || (Util_hid_is_released(key, line_send_msg_button) && line_send_msg_button.selected))
 					{
 						line_type_msg_request = true;
-						line_send_check[0] = false;
 						while(line_type_msg_request)
 							usleep(20000);
 					}
-					else if(Util_hid_is_pressed(key, line_view_image_button) && line_send_check[2])
-						line_view_image_button.selected = true;
-					else if ((key.p_x || (Util_hid_is_released(key, line_view_image_button) && line_view_image_button.selected)) && line_send_check[2])
+					else if(Util_hid_is_pressed(key, line_send_sticker_button))
+						line_send_sticker_button.selected = true;
+					else if (key.p_y || (Util_hid_is_released(key, line_send_sticker_button) && line_send_sticker_button.selected))
+						line_select_sticker_request = true;
+					else if(Util_hid_is_pressed(key, line_send_file_button))
+						line_send_file_button.selected = true;
+					else if (key.p_x || (Util_hid_is_released(key, line_send_file_button) && line_send_file_button.selected))
 					{
-						Imv_set_load_file(line_send_file_name, line_send_file_dir);
-						Line_suspend();
-						if(!Imv_query_init_flag())
-							Imv_init(false);
+						Util_expl_set_callback(Line_set_send_file);
+						Util_expl_set_cancel_callback(Line_cancel_select_file);
+						Util_expl_set_show_flag(true);
+					}
+				}
+				else if (line_selected_menu_mode == DEF_LINE_MENU_RECEIVE)
+				{
+					if(Util_hid_is_pressed(key, line_dl_logs_button))
+						line_dl_logs_button.selected = true;
+					else if (key.p_b || (Util_hid_is_released(key, line_dl_logs_button) && line_dl_logs_button.selected))
+						line_dl_log_request = true;
+					else if(Util_hid_is_pressed(key, line_auto_update_button))
+						line_auto_update_button.selected = true;
+					else if (key.p_x || (Util_hid_is_released(key, line_auto_update_button) && line_auto_update_button.selected))
+						line_auto_update = !line_auto_update;
+					else if(Util_hid_is_pressed(key, line_max_logs_bar) && !line_dl_log_request && !line_auto_update && !line_sending_msg)
+						line_max_logs_bar.selected = true;
+					else if (key.h_touch && line_max_logs_bar.selected)
+					{
+						if(key.touch_x <= 99)
+							pos_x = 100;
+						else if(key.touch_x >= 300)
+							pos_x = 299;
 						else
-							Imv_resume();
+							pos_x = key.touch_x;
+
+						line_num_of_logs = (pos_x - 99) * 20;
 					}
 				}
-				else if (line_select_sticker_request)
+				else if (line_selected_menu_mode == DEF_LINE_MENU_COPY)
 				{
-					if (key.p_b || (key.p_touch && key.touch_x >= 290 && key.touch_x <= 309 && key.touch_y > 120 && key.touch_y < 139))
+					if(Util_hid_is_pressed(key, line_copy_button))
+						line_copy_button.selected = true;
+					else if (key.p_x || (Util_hid_is_released(key, line_copy_button) && line_copy_button.selected))
+						var_clipboard = line_msg_log[line_selected_highlight_num];
+					else if(Util_hid_is_pressed(key, line_copy_select_down_button))
+						line_copy_select_down_button.selected = true;
+					else if(key.h_d_down || (Util_hid_is_held(key, line_copy_select_down_button) && line_copy_select_down_button.selected))
 					{
-						hit = true;
-						line_select_sticker_request = false;
-					}
-
-					for (int i = 0; i < 10; i++)
-					{
-						if (key.p_touch && key.touch_x >= 10 + (i * 30) && key.touch_x <= 39 + (i * 30) && key.touch_y > 140 && key.touch_y < 149)
-							line_selected_sticker_tab_num = i;
-					}
-
-					for (int i = 0; i < 7; i++)
-					{
-						if (key.p_touch && key.touch_x >= 20 + (i * 50) && key.touch_x <= 49 + (i * 50) && key.touch_y > 150 && key.touch_y < 179)
+						if(line_cool_time > 0)
+							line_cool_time--;
+						else if(line_num_of_msg - 1 >= line_selected_highlight_num + 1)
 						{
-							line_selected_sticker_num = (line_selected_sticker_tab_num * 12) + (i + 1);
-							line_send_check[1] = true;
-							line_select_sticker_request = false;
-						}
-						else if (key.p_touch && key.touch_x >= 20 + (i * 50) && key.touch_x <= 49 + (i * 50) && key.touch_y > 190 && key.touch_y < 219)
-						{
-							line_selected_sticker_num = (line_selected_sticker_tab_num * 12) + (i + 7);
-							line_send_check[1] = true;
-							line_select_sticker_request = false;
-						}
-					}
-				}
-				else
-				{
-					if(Util_hid_is_pressed(key, line_menu_button[0]))
-						line_menu_button[0].selected = true;
-					else if (Util_hid_is_released(key, line_menu_button[0]) && line_menu_button[0].selected)
-						line_selected_menu_mode = DEF_LINE_MENU_SEND;
-					else if(Util_hid_is_pressed(key, line_menu_button[1]))
-						line_menu_button[1].selected = true;
-					else if (Util_hid_is_released(key, line_menu_button[1]) && line_menu_button[1].selected)
-						line_selected_menu_mode = DEF_LINE_MENU_RECEIVE;
-					else if(Util_hid_is_pressed(key, line_menu_button[2]))
-						line_menu_button[2].selected = true;
-					else if (Util_hid_is_released(key, line_menu_button[2]) && line_menu_button[2].selected)
-						line_selected_menu_mode = DEF_LINE_MENU_COPY;
-					else if(Util_hid_is_pressed(key, line_menu_button[3]))
-						line_menu_button[3].selected = true;
-					else if (Util_hid_is_released(key, line_menu_button[3]) && line_menu_button[3].selected)
-						line_selected_menu_mode = DEF_LINE_MENU_SETTINGS;
-					else if(Util_hid_is_pressed(key, line_menu_button[4]))
-						line_menu_button[4].selected = true;
-					else if (Util_hid_is_released(key, line_menu_button[4]) && line_menu_button[4].selected)
-						line_selected_menu_mode = DEF_LINE_MENU_SEARCH;
-					else if(Util_hid_is_pressed(key, line_menu_button[5]))
-						line_menu_button[5].selected = true;
-					else if (Util_hid_is_released(key, line_menu_button[5]) && line_menu_button[5].selected)
-						line_selected_menu_mode = DEF_LINE_MENU_ADVANCED;
-					else if(Util_hid_is_pressed(key, line_back_button) && !line_dl_log_request && !line_parse_log_request && !line_auto_update &&
-					!line_load_log_request && !line_send_request[0] && !line_send_request[1] && !line_send_request[2])
-						line_back_button.selected = true;
-					else if (Util_hid_is_released(key, line_back_button) && line_back_button.selected && !line_dl_log_request && !line_parse_log_request && !line_auto_update &&
-					!line_load_log_request && !line_send_request[0] && !line_send_request[1] && !line_send_request[2])
-					{
-						line_saved_y[1] = line_text_y;
-						Line_reset_msg();
-						line_text_y = line_saved_y[0];
-						line_select_chat_room_request = true;
-					}
-					else if (line_selected_menu_mode == DEF_LINE_MENU_SEND && line_send_success)
-					{
-						if(Util_hid_is_pressed(key, line_send_success_button))
-							line_send_success_button.selected = true;
-						else if (key.p_a || (Util_hid_is_released(key, line_send_success_button) && line_send_success_button.selected))
-							line_send_success = false;
-					}
-					else if (line_selected_menu_mode == DEF_LINE_MENU_SEND && !line_sending_msg)
-					{
-						if(Util_hid_is_pressed(key, line_send_msg_button))
-							line_send_msg_button.selected = true;
-						else if (key.p_a || (Util_hid_is_released(key, line_send_msg_button) && line_send_msg_button.selected))
-						{
-							line_type_msg_request = true;
-							while(line_type_msg_request)
-								usleep(20000);
-						}
-						else if(Util_hid_is_pressed(key, line_send_sticker_button))
-							line_send_sticker_button.selected = true;
-						else if (key.p_y || (Util_hid_is_released(key, line_send_sticker_button) && line_send_sticker_button.selected))
-							line_select_sticker_request = true;
-						else if(Util_hid_is_pressed(key, line_send_file_button))
-							line_send_file_button.selected = true;
-						else if (key.p_x || (Util_hid_is_released(key, line_send_file_button) && line_send_file_button.selected))
-						{
-							Util_expl_set_callback(Line_set_send_file);
-							Util_expl_set_cancel_callback(Line_cancel_select_file);
-							Util_expl_set_show_flag(true);
-						}
-					}
-					else if (line_selected_menu_mode == DEF_LINE_MENU_RECEIVE)
-					{
-						if(Util_hid_is_pressed(key, line_dl_logs_button))
-							line_dl_logs_button.selected = true;
-						else if (key.p_b || (Util_hid_is_released(key, line_dl_logs_button) && line_dl_logs_button.selected))
-							line_dl_log_request = true;
-						else if(Util_hid_is_pressed(key, line_auto_update_button))
-							line_auto_update_button.selected = true;
-						else if (key.p_x || (Util_hid_is_released(key, line_auto_update_button) && line_auto_update_button.selected))
-							line_auto_update = !line_auto_update;
-						else if(Util_hid_is_pressed(key, line_max_logs_bar) && !line_dl_log_request && !line_auto_update && !line_sending_msg)
-							line_max_logs_bar.selected = true;
-						else if (key.h_touch && line_max_logs_bar.selected)
-						{
-							if(key.touch_x <= 99)
-								pos_x = 100;
-							else if(key.touch_x >= 300)
-								pos_x = 299;
+							line_selected_highlight_num++;
+							if(key.held_time > 150)
+								line_cool_time = 1;
 							else
-								pos_x = key.touch_x;
-
-							line_num_of_logs = (pos_x - 99) * 20;
+								line_cool_time = 20;
 						}
+						line_text_y = line_msg_pos[line_selected_highlight_num];
 					}
-					else if (line_selected_menu_mode == DEF_LINE_MENU_COPY)
+					else if(Util_hid_is_pressed(key, line_copy_select_up_button))
+						line_copy_select_up_button.selected = true;
+					else if(key.h_d_up || (Util_hid_is_held(key, line_copy_select_up_button) && line_copy_select_up_button.selected))
 					{
-						if(Util_hid_is_pressed(key, line_copy_button))
-							line_copy_button.selected = true;
-						else if (key.p_x || (Util_hid_is_released(key, line_copy_button) && line_copy_button.selected))
-							var_clipboard = line_msg_log[line_selected_highlight_num];
-						else if(Util_hid_is_pressed(key, line_copy_select_down_button))
-							line_copy_select_down_button.selected = true;
-						else if(key.h_d_down || (Util_hid_is_held(key, line_copy_select_down_button) && line_copy_select_down_button.selected))
+						if(line_cool_time > 0)
+							line_cool_time--;
+						else if(line_selected_highlight_num - 1 >= 0)
 						{
-							if(line_cool_time > 0)
-								line_cool_time--;
-							else if(line_num_of_msg - 1 >= line_selected_highlight_num + 1)
-							{
-								line_selected_highlight_num++;
-								if(key.held_time > 150)
-									line_cool_time = 1;
-								else
-									line_cool_time = 20;
-							}
-							line_text_y = line_msg_pos[line_selected_highlight_num];
+							line_selected_highlight_num--;
+							if(key.held_time > 150)
+								line_cool_time = 1;
+							else
+								line_cool_time = 20;
 						}
-						else if(Util_hid_is_pressed(key, line_copy_select_up_button))
-							line_copy_select_up_button.selected = true;
-						else if(key.h_d_up || (Util_hid_is_held(key, line_copy_select_up_button) && line_copy_select_up_button.selected))
+						line_text_y = line_msg_pos[line_selected_highlight_num];
+					}
+				}
+				else if (line_selected_menu_mode == DEF_LINE_MENU_SETTINGS)
+				{
+					if (Util_hid_is_pressed(key, line_increase_interval_button))
+						line_increase_interval_button.selected = true;
+					else if (Util_hid_is_pressed(key, line_decrease_interval_button))
+						line_decrease_interval_button.selected = true;
+					else if (Util_hid_is_pressed(key, line_decrease_size_button))
+						line_decrease_size_button.selected = true;
+					else if (Util_hid_is_pressed(key, line_increase_size_button))
+						line_increase_size_button.selected = true;
+					else if ((key.h_d_up || (Util_hid_is_held(key, line_increase_interval_button) && line_increase_interval_button.selected)) && (line_text_interval + 0.5) < 250.0)
+						line_text_interval += 0.5;
+					else if ((key.h_d_down || (Util_hid_is_held(key, line_decrease_interval_button) && line_decrease_interval_button.selected)) && (line_text_interval - 0.5) > 10.0)
+						line_text_interval -= 0.5;
+					else if ((key.h_l || (Util_hid_is_held(key, line_decrease_size_button) && line_decrease_size_button.selected)) && (line_text_size - 0.003) > 0.25)
+						line_text_size -= 0.003;
+					else if ((key.h_r || (Util_hid_is_held(key, line_increase_size_button) && line_increase_size_button.selected)) && (line_text_size + 0.003) < 3.0)
+						line_text_size += 0.003;
+				}
+				else if (line_selected_menu_mode == DEF_LINE_MENU_SEARCH)
+				{
+					if (Util_hid_is_pressed(key, line_search_button))
+						line_search_button.selected = true;
+					else if (key.p_a || (Util_hid_is_released(key, line_search_button) && line_search_button.selected))
+					{
+						line_search_request = true;
+						while(line_search_request)
+							usleep(20000);
+					}
+					else if (Util_hid_is_pressed(key, line_search_select_down_button))
+						line_search_select_down_button.selected = true;
+					else if((key.h_d_down || (Util_hid_is_held(key, line_search_select_down_button) && line_search_select_down_button.selected)) && line_found >= line_selected_search_highlight_num + 1)
+					{
+						if(line_cool_time > 0)
+							line_cool_time--;
+						else
 						{
-							if(line_cool_time > 0)
-								line_cool_time--;
-							else if(line_selected_highlight_num - 1 >= 0)
-							{
-								line_selected_highlight_num--;
-								if(key.held_time > 150)
-									line_cool_time = 1;
-								else
-									line_cool_time = 20;
-							}
+							line_selected_search_highlight_num++;
+
+							if(key.held_time > 150)
+								line_cool_time = 1;
+							else
+								line_cool_time = 20;
+
+							line_selected_highlight_num = line_search_result_pos[line_selected_search_highlight_num];
 							line_text_y = line_msg_pos[line_selected_highlight_num];
 						}
 					}
-					else if (line_selected_menu_mode == DEF_LINE_MENU_SETTINGS)
+					else if (Util_hid_is_pressed(key, line_search_select_up_button))
+						line_search_select_up_button.selected = true;
+					else if((key.h_d_up || (Util_hid_is_held(key, line_search_select_up_button) && line_search_select_up_button.selected)) && line_selected_search_highlight_num - 1 >= 0)
 					{
-						if (Util_hid_is_pressed(key, line_increase_interval_button))
-							line_increase_interval_button.selected = true;
-						else if (Util_hid_is_pressed(key, line_decrease_interval_button))
-							line_decrease_interval_button.selected = true;
-						else if (Util_hid_is_pressed(key, line_decrease_size_button))
-							line_decrease_size_button.selected = true;
-						else if (Util_hid_is_pressed(key, line_increase_size_button))
-							line_increase_size_button.selected = true;
-						else if ((key.h_d_up || (Util_hid_is_held(key, line_increase_interval_button) && line_increase_interval_button.selected)) && (line_text_interval + 0.5) < 250.0)
-							line_text_interval += 0.5;
-						else if ((key.h_d_down || (Util_hid_is_held(key, line_decrease_interval_button) && line_decrease_interval_button.selected)) && (line_text_interval - 0.5) > 10.0)
-							line_text_interval -= 0.5;
-						else if ((key.h_l || (Util_hid_is_held(key, line_decrease_size_button) && line_decrease_size_button.selected)) && (line_text_size - 0.003) > 0.25)
-							line_text_size -= 0.003;
-						else if ((key.h_r || (Util_hid_is_held(key, line_increase_size_button) && line_increase_size_button.selected)) && (line_text_size + 0.003) < 3.0)
-							line_text_size += 0.003;
-					}
-					else if (line_selected_menu_mode == DEF_LINE_MENU_SEARCH)
-					{
-						if (Util_hid_is_pressed(key, line_search_button))
-							line_search_button.selected = true;
-						else if (key.p_a || (Util_hid_is_released(key, line_search_button) && line_search_button.selected))
-						{
-							line_search_request = true;
-							while(line_search_request)
-								usleep(20000);
-						}
-						else if (Util_hid_is_pressed(key, line_search_select_down_button))
-							line_search_select_down_button.selected = true;
-						else if((key.h_d_down || (Util_hid_is_held(key, line_search_select_down_button) && line_search_select_down_button.selected)) && line_found >= line_selected_search_highlight_num + 1)
-						{
-							if(line_cool_time > 0)
-								line_cool_time--;
-							else
-							{
-								line_selected_search_highlight_num++;
-
-								if(key.held_time > 150)
-									line_cool_time = 1;
-								else
-									line_cool_time = 20;
-
-								line_selected_highlight_num = line_search_result_pos[line_selected_search_highlight_num];
-								line_text_y = line_msg_pos[line_selected_highlight_num];
-							}
-						}
-						else if (Util_hid_is_pressed(key, line_search_select_up_button))
-							line_search_select_up_button.selected = true;
-						else if((key.h_d_up || (Util_hid_is_held(key, line_search_select_up_button) && line_search_select_up_button.selected)) && line_selected_search_highlight_num - 1 >= 0)
-						{
-							if(line_cool_time > 0)
-								line_cool_time--;
-							else
-							{
-								line_selected_search_highlight_num--;
-
-								if(key.held_time > 150)
-									line_cool_time = 1;
-								else
-									line_cool_time = 20;
-
-								line_selected_highlight_num = line_search_result_pos[line_selected_search_highlight_num];
-								line_text_y = line_msg_pos[line_selected_highlight_num];
-							}
-						}
-					}
-					else if (line_selected_menu_mode == DEF_LINE_MENU_ADVANCED)
-					{
-						if(Util_hid_is_pressed(key, line_delete_room_button))
-							line_delete_room_button.selected = true;
-						else if (((key.p_l && key.h_r) || (key.h_l && key.p_r)) || (Util_hid_is_released(key, line_delete_room_button) && line_delete_room_button.selected))
-							line_delete_id_check_request = true;
-					}
-				}
-
-				if (!hit && key.p_touch && key.touch_x >= 305 && key.touch_x <= 320 && key.touch_y >= 15 && key.touch_y < 220)
-					line_scroll_bar_selected = true;
-				else if (!hit && (key.p_touch || key.r_touch) && key.touch_y >= 0 && key.touch_y < 140)
-				{
-					for (int i = 1, content_index = 0; i <= 59999; i++)
-					{
-						if (i > line_num_of_lines || (line_text_y + line_text_interval * i) - 240 >= 130)
-							break;
-						else if (line_text_y + line_text_interval * i <= -1000)
-						{
-							if ((line_text_y + line_text_interval * (i + 100)) <= 10)
-								i += 100;
-						}
-						else if ((line_text_y + line_text_interval * i) - 240 <= -10)
-						{
-						}
+						if(line_cool_time > 0)
+							line_cool_time--;
 						else
 						{
-							cut_pos[0] = line_content[i].find("<type>image</type>");
-							cut_pos[1] = line_content[i].find("<type>id</type>");
-							cut_pos[2] = line_content[i].find("<type>video</type>");
-							cut_pos[3] = line_content[i].find("<type>audio</type>");
-							cut_pos[4] = line_content[i].find("<type>file</type>");
+							line_selected_search_highlight_num--;
 
-							if(cut_pos[0] != std::string::npos || cut_pos[1] != std::string::npos || cut_pos[2] != std::string::npos || cut_pos[3] != std::string::npos || cut_pos[4] != std::string::npos)
+							if(key.held_time > 150)
+								line_cool_time = 1;
+							else
+								line_cool_time = 20;
+
+							line_selected_highlight_num = line_search_result_pos[line_selected_search_highlight_num];
+							line_text_y = line_msg_pos[line_selected_highlight_num];
+						}
+					}
+				}
+				else if (line_selected_menu_mode == DEF_LINE_MENU_ADVANCED)
+				{
+					if(Util_hid_is_pressed(key, line_delete_room_button))
+						line_delete_room_button.selected = true;
+					else if (((key.p_l && key.h_r) || (key.h_l && key.p_r)) || (Util_hid_is_released(key, line_delete_room_button) && line_delete_room_button.selected))
+						line_delete_id_check_request = true;
+				}
+			}
+
+			if (!hit && key.p_touch && key.touch_x >= 305 && key.touch_x <= 320 && key.touch_y >= 15 && key.touch_y < 220)
+				line_scroll_bar_selected = true;
+			else if (!hit && (key.p_touch || key.r_touch || key.h_touch) && key.touch_y >= 0 && key.touch_y < 140)
+			{
+				for (int i = 1, content_index = 0; i <= 59999; i++)
+				{
+					if (i > line_num_of_lines || (line_text_y + line_text_interval * i) - 240 >= 130)
+						break;
+					else if (line_text_y + line_text_interval * i <= -1000)
+					{
+						if ((line_text_y + line_text_interval * (i + 100)) <= 10)
+							i += 100;
+					}
+					else if ((line_text_y + line_text_interval * i) - 240 <= -10)
+					{
+					}
+					else
+					{
+						cut_pos[0] = line_content[i].find("<type>image</type>");
+						cut_pos[1] = line_content[i].find("<type>id</type>");
+						cut_pos[2] = line_content[i].find("<type>video</type>");
+						cut_pos[3] = line_content[i].find("<type>audio</type>");
+						cut_pos[4] = line_content[i].find("<type>file</type>");
+
+						if(cut_pos[0] != std::string::npos || cut_pos[1] != std::string::npos || cut_pos[2] != std::string::npos || cut_pos[3] != std::string::npos || cut_pos[4] != std::string::npos)
+						{
+							if(Util_hid_is_pressed(key, line_content_button[content_index]))
 							{
-								if(Util_hid_is_pressed(key, line_content_button[content_index]))
-									line_content_button[content_index].selected = true;
-								//jump to imv
-								else if (cut_pos[0] != std::string::npos && Util_hid_is_released(key, line_content_button[content_index]) && line_content_button[content_index].selected)
+								line_scroll_mode = false;
+								hit = true;
+								line_content_button[content_index].selected = true;
+							}
+							//jump to imv
+							else if (cut_pos[0] != std::string::npos && Util_hid_is_released(key, line_content_button[content_index]) && line_content_button[content_index].selected)
+							{
+								hit = true;
+								result.code = -1;
+								cut_pos[0] = line_content[i].find("&id=");
+								cut_pos[1] = line_content[i].find("om/d/");
+								if (!(cut_pos[0] == std::string::npos && cut_pos[1] == std::string::npos))
 								{
-									hit = true;
-									result.code = -1;
-									cut_pos[0] = line_content[i].find("&id=");
-									cut_pos[1] = line_content[i].find("om/d/");
-									if (!(cut_pos[0] == std::string::npos && cut_pos[1] == std::string::npos))
-									{
-										cache_string = "";
-										if (!(cut_pos[0] == std::string::npos))
-											cache_string = line_content[i].substr(cut_pos[0] + 4);
-										else if (!(cut_pos[1] == std::string::npos))
-											cache_string = line_content[i].substr(cut_pos[1] + 5);
-
-										if (cache_string.length() > 33)
-											cache_string = cache_string.substr(0, 33);
-
-										cache_string += ".jpg";
-										result = Util_file_check_file_exist(cache_string, DEF_MAIN_DIR + "images/");
-									}
-
-									if (result.code == 0)
-										Imv_set_load_file(cache_string, DEF_MAIN_DIR + "images/");
-									else
-									{
-										cut_pos[0] = line_content[i].find("<url>");
-										cut_pos[1] = line_content[i].find("</url>");
-										if (cut_pos[0] == std::string::npos || cut_pos[1] == std::string::npos)
-											Imv_set_url("");
-										else
-											Imv_set_url(line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5)));
-									}
-									Line_suspend();
-									if(!Imv_query_init_flag())
-										Imv_init(false);
-									else
-										Imv_resume();
-								}
-								//jump to mup or vid
-								else if ((cut_pos[2] != std::string::npos || cut_pos[3] != std::string::npos)
-								&& Util_hid_is_released(key, line_content_button[content_index]) && line_content_button[content_index].selected)
-								{
-									if(!(cut_pos[2] == std::string::npos))
-										video = true;
-									else if(!(cut_pos[3] == std::string::npos))
-										audio = true;
-
-									hit = true;
-									result.code = -1;
-									cut_pos[0] = line_content[i].find("&id=");
+									cache_string = "";
 									if (!(cut_pos[0] == std::string::npos))
-									{
-										cache_string = "";
-										if (!(cut_pos[0] == std::string::npos))
-											cache_string = line_content[i].substr(cut_pos[0] + 4);
+										cache_string = line_content[i].substr(cut_pos[0] + 4);
+									else if (!(cut_pos[1] == std::string::npos))
+										cache_string = line_content[i].substr(cut_pos[1] + 5);
 
-										if (cache_string.length() > 33)
-											cache_string = cache_string.substr(0, 33);
+									if (cache_string.length() > 33)
+										cache_string = cache_string.substr(0, 33);
 
-										if(video)
-										{
-											dir = DEF_MAIN_DIR + "videos/";
-											cache_string += ".mp4";
-										}
-										else if(audio)
-										{
-											dir = DEF_MAIN_DIR + "audio/";
-											cache_string += ".m4a";
-										}
+									cache_string += ".jpg";
+									result = Util_file_check_file_exist(cache_string, DEF_MAIN_DIR + "images/");
+								}
 
-										result = Util_file_check_file_exist(cache_string, dir);
-									}
-
-									if (result.code == 0)
-									{
-										if(video)
-										{
-											Vid_set_load_file(cache_string, dir);
-										}
-										else if(audio)
-											Mup_set_load_file(cache_string, dir);
-									}
+								if (result.code == 0)
+									Imv_set_load_file(cache_string, DEF_MAIN_DIR + "images/");
+								else
+								{
+									cut_pos[0] = line_content[i].find("<url>");
+									cut_pos[1] = line_content[i].find("</url>");
+									if (cut_pos[0] == std::string::npos || cut_pos[1] == std::string::npos)
+										Imv_set_url("");
 									else
-									{
-										cut_pos[0] = line_content[i].find("<url>");
-										cut_pos[1] = line_content[i].find("</url>");
-										if (cut_pos[0] == std::string::npos || cut_pos[1] == std::string::npos)
-										{
-											if(video)
-											{
-												Vid_set_url("");
-											}
-											else if(audio)
-												Mup_set_url("");
-										}
-										else
-										{
-											if(video)
-												Vid_set_url(line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5)));
-											else if(audio)
-												Mup_set_url(line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5)));
-										}
-									}
-									Line_suspend();
+										Imv_set_url(line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5)));
+								}
+								Line_suspend();
+								if(!Imv_query_init_flag())
+									Imv_init(false);
+								else
+									Imv_resume();
+
+								break;
+							}
+							//jump to mup or vid
+							else if ((cut_pos[2] != std::string::npos || cut_pos[3] != std::string::npos)
+							&& Util_hid_is_released(key, line_content_button[content_index]) && line_content_button[content_index].selected)
+							{
+								if(!(cut_pos[2] == std::string::npos))
+									video = true;
+								else if(!(cut_pos[3] == std::string::npos))
+									audio = true;
+
+								hit = true;
+								result.code = -1;
+								cut_pos[0] = line_content[i].find("&id=");
+								if (!(cut_pos[0] == std::string::npos))
+								{
+									cache_string = "";
+									if (!(cut_pos[0] == std::string::npos))
+										cache_string = line_content[i].substr(cut_pos[0] + 4);
+
+									if (cache_string.length() > 33)
+										cache_string = cache_string.substr(0, 33);
+
 									if(video)
 									{
-										if(!Vid_query_init_flag())
-											Vid_init(false);
-										else
-											Vid_resume();
+										dir = DEF_MAIN_DIR + "videos/";
+										cache_string += ".mp4";
 									}
 									else if(audio)
 									{
-										if(!Mup_query_init_flag())
-											Mup_init(false);
-										else
-											Mup_resume();
+										dir = DEF_MAIN_DIR + "audio/";
+										cache_string += ".m4a";
 									}
+
+									result = Util_file_check_file_exist(cache_string, dir);
 								}
-								else if (cut_pos[4] != std::string::npos && Util_hid_is_released(key, line_content_button[content_index]) && line_content_button[content_index].selected)
+
+								if (result.code == 0)
 								{
-									hit = true;
-									result.code = -1;
-									cut_pos[0] = line_content[i].find("&id=");
-									cut_pos[1] = line_content[i].find("om/d/");
-									if (!(cut_pos[0] == std::string::npos && cut_pos[1] == std::string::npos))
+									if(video)
 									{
-										cache_string = "";
-										if (!(cut_pos[0] == std::string::npos))
-											cache_string = line_content[i].substr(cut_pos[0] + 4);
-										else if (!(cut_pos[1] == std::string::npos))
-											cache_string = line_content[i].substr(cut_pos[1] + 5);
-
-										if (cache_string.length() > 33)
-											cache_string = cache_string.substr(0, 33);
-
-										result = Util_file_check_file_exist(cache_string, DEF_MAIN_DIR + "contents/");
+										Vid_set_load_file(cache_string, dir);
 									}
-
-									if (result.code != 0)
-									{
-										cut_pos[0] = line_content[i].find("<url>");
-										cut_pos[1] = line_content[i].find("</url>");
-										if (cut_pos[0] == std::string::npos || cut_pos[1] == std::string::npos)
-											line_url = "";
-										else
-											line_url = line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5));
-
-										line_dl_content_request = true;
-									}
+									else if(audio)
+										Mup_set_load_file(cache_string, dir);
 								}
-								//add id
-								else if (cut_pos[1] != std::string::npos && Util_hid_is_released(key, line_content_button[content_index]) && line_content_button[content_index].selected 
-								&& !line_dl_log_request && !line_parse_log_request && !line_auto_update && !line_load_log_request)
+								else
 								{
-									hit = true;
-									cut_pos[0] = line_content[i].find("<id>");
-									cut_pos[1] = line_content[i].find("</id>");
+									cut_pos[0] = line_content[i].find("<url>");
+									cut_pos[1] = line_content[i].find("</url>");
 									if (cut_pos[0] == std::string::npos || cut_pos[1] == std::string::npos)
-										var_clipboard = "";
+									{
+										if(video)
+										{
+											Vid_set_url("");
+										}
+										else if(audio)
+											Mup_set_url("");
+									}
 									else
-										var_clipboard = line_content[i].substr((cut_pos[0] + 4), cut_pos[1] - (cut_pos[0] + 4));
-
-									line_saved_y[1] = line_text_y;
-									Line_reset_msg();
-									line_text_y = line_saved_y[0];
-									line_select_chat_room_request = true;
-									line_type_id_request = true;
-
-									while(line_type_id_request)
-										usleep(20000);
+									{
+										if(video)
+											Vid_set_url(line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5)));
+										else if(audio)
+											Mup_set_url(line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5)));
+									}
 								}
-								content_index++;
+								Line_suspend();
+								if(video)
+								{
+									if(!Vid_query_init_flag())
+										Vid_init(false);
+									else
+										Vid_resume();
+								}
+								else if(audio)
+								{
+									if(!Mup_query_init_flag())
+										Mup_init(false);
+									else
+										Mup_resume();
+								}
+								break;
 							}
+							else if (cut_pos[4] != std::string::npos && Util_hid_is_released(key, line_content_button[content_index]) && line_content_button[content_index].selected)
+							{
+								hit = true;
+								result.code = -1;
+								cut_pos[0] = line_content[i].find("&id=");
+								cut_pos[1] = line_content[i].find("om/d/");
+								if (!(cut_pos[0] == std::string::npos && cut_pos[1] == std::string::npos))
+								{
+									cache_string = "";
+									if (!(cut_pos[0] == std::string::npos))
+										cache_string = line_content[i].substr(cut_pos[0] + 4);
+									else if (!(cut_pos[1] == std::string::npos))
+										cache_string = line_content[i].substr(cut_pos[1] + 5);
+
+									if (cache_string.length() > 33)
+										cache_string = cache_string.substr(0, 33);
+
+									result = Util_file_check_file_exist(cache_string, DEF_MAIN_DIR + "contents/");
+								}
+
+								if (result.code != 0)
+								{
+									cut_pos[0] = line_content[i].find("<url>");
+									cut_pos[1] = line_content[i].find("</url>");
+									if (cut_pos[0] == std::string::npos || cut_pos[1] == std::string::npos)
+										line_url = "";
+									else
+										line_url = line_content[i].substr((cut_pos[0] + 5), cut_pos[1] - (cut_pos[0] + 5));
+
+									line_dl_content_request = true;
+								}
+								break;
+							}
+							//add id
+							else if (cut_pos[1] != std::string::npos && Util_hid_is_released(key, line_content_button[content_index]) && line_content_button[content_index].selected 
+							&& !line_dl_log_request && !line_parse_log_request && !line_auto_update && !line_load_log_request)
+							{
+								hit = true;
+								cut_pos[0] = line_content[i].find("<id>");
+								cut_pos[1] = line_content[i].find("</id>");
+								if (cut_pos[0] == std::string::npos || cut_pos[1] == std::string::npos)
+									var_clipboard = "";
+								else
+									var_clipboard = line_content[i].substr((cut_pos[0] + 4), cut_pos[1] - (cut_pos[0] + 4));
+
+								line_saved_y[1] = line_text_y;
+								Line_reset_msg();
+								line_text_y = line_saved_y[0];
+								line_select_chat_room_request = true;
+								line_type_id_request = true;
+
+								while(line_type_id_request)
+									usleep(20000);
+
+								break;
+							}
+							else if(!Util_hid_is_held(key, line_content_button[content_index]) && line_content_button[content_index].selected)
+							{
+								line_scroll_mode = true;
+								line_content_button[content_index].selected = false;
+								break;
+							}
+
+							content_index++;
 						}
 					}
 				}
+			}
 
-				if (!hit && key.p_touch && key.touch_y < 110)
-					line_scroll_mode = true;
-				else if (!hit && key.p_touch && key.touch_y < 140 && !(line_send_check[0] || line_send_check[1] || line_send_check[2] || line_delete_id_check_request))
-					line_scroll_mode = true;
+			if (!hit && key.p_touch && key.touch_y < 110)
+				line_scroll_mode = true;
+			else if (!hit && key.p_touch && key.touch_y < 140 && !(line_send_check[0] || line_send_check[1] || line_send_check[2] || line_delete_id_check_request))
+				line_scroll_mode = true;
 		}
 
 		if (key.h_c_down || key.h_c_up)
