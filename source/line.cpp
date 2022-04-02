@@ -1258,146 +1258,7 @@ void Line_log_thread(void* arg)
 	
 	while (line_thread_run)
 	{
-		if(line_dl_all_log_no_parse_request && line_ids[index] == "")
-		{
-			line_dl_all_log_no_parse_request = false;
-			index = 0;
-		}
-		else if (line_auto_update || line_dl_log_request || line_dl_log_no_parse_request || line_dl_all_log_no_parse_request)
-		{
-			line_dl_log_request = true;
-			failed = false;
-			dl_size = 0;
-			status_code = 0;
-			if(line_dl_all_log_no_parse_request)
-				line_selected_room_num = index;
-
-			line_dl_log_failed[line_selected_room_num] = false;
-			room_num = line_selected_room_num;
-			
-			log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_httpc_dl_data()...");
-			std::string cache = line_main_url + "?id=" + line_ids[room_num] + "&logs=" + std::to_string(line_num_of_logs) + "&script_auth=" + (line_script_auth = " " ? "" : line_script_auth) + "&gas_ver=" + std::to_string(DEF_LINE_GAS_VER);
-			result = Util_httpc_dl_data(cache, &buffer, 1024 * 1024 * 5, &dl_size, &status_code, true, 5);
-			Util_log_add(log_num, result.string + std::to_string(dl_size / 1024) + "KB (" + std::to_string(dl_size) + "B) ", result.code);
-
-			if (result.code == 0)
-			{
-				result = Util_parse_file((char*)buffer, 5, out_data);
-				if(result.code == 0 && out_data[4] == "Success")
-				{
-					line_log_data = out_data[0];
-					line_names[room_num] = out_data[1];
-					line_icon_url[room_num] = out_data[2];
-					line_unread_msg_num[room_num] = std::stoi(out_data[3]) - line_msg_offset[room_num];
-					out_data[1] = "<0>" + out_data[1] + "</0>"; //user/group name
-					out_data[2] = "<1>" + out_data[2] + "</1>"; //img url
-					out_data[3] = "<2>" + std::to_string(line_msg_offset[room_num]) + "</2>"; //msg offset
-					out_data[5] = "<3>" + std::to_string(line_unread_msg_num[room_num]) + "</3>"; //num of new msg
-
-					filename = line_ids[room_num].substr(0, 16);
-					log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_file_save_to_file()...");
-					result = Util_file_save_to_file(filename, DEF_MAIN_DIR, (u8*)out_data[0].c_str(), out_data[0].length(), true);
-					Util_log_add(log_num, result.string, result.code);
-
-					if (result.code != 0)
-						failed = true;
-
-					if (!failed)
-					{
-						log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_file_save_to_file()...");
-						result = Util_file_save_to_file(line_ids[room_num], DEF_MAIN_DIR + "to/", (u8*)(out_data[1] + out_data[2] + out_data[3] + out_data[5]).c_str(), (out_data[1] + out_data[2] + out_data[3] + out_data[5]).length(), true);
-						Util_log_add(log_num, result.string, result.code);
-						if (result.code != 0)
-							failed = true;
-					}
-
-					if(!line_dl_log_no_parse_request && !line_dl_all_log_no_parse_request)
-						line_parse_log_request = true;
-
-					if (result.code != 0)
-					{
-						Util_err_set_error_message(result.string, result.error_description, DEF_LINE_LOG_THREAD_STR, result.code);
-						Util_err_set_error_show_flag(true);
-					}
-
-					if (!failed)
-					{
-						log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Line_load_icon()...");
-						result = Line_load_icon(room_num);
-						Util_log_add(log_num, result.string, result.code);
-						if(result.code == 0)
-							line_icon_available[room_num] = true;
-					}
-				}
-				else
-				{
-					out_data[0] = (char*)buffer;
-					Util_err_set_error_message(DEF_ERR_GAS_RETURNED_NOT_SUCCESS_STR, out_data[0], DEF_LINE_LOG_THREAD_STR, DEF_ERR_GAS_RETURNED_NOT_SUCCESS);
-					Util_err_set_error_show_flag(true);
-					failed = true;
-					line_auto_update = false;
-				}
-			}
-			else
-			{
-				Util_err_set_error_message(result.string, result.error_description, DEF_LINE_LOG_THREAD_STR, result.code);
-				Util_err_set_error_show_flag(true);
-				failed = true;
-				line_auto_update = false;
-			}
-
-			for (int i = 0; i < 6; i++)
-			{
-				out_data[i] = "";
-				out_data[i].reserve(10);
-			}
-		
-			if(failed)
-				line_dl_log_failed[line_selected_room_num] = true;
-
-			free(buffer);
-			buffer = NULL;
-			line_dl_log_request = false;
-			if(line_dl_log_no_parse_request)
-				line_dl_log_no_parse_request = false;
-			else if(line_dl_all_log_no_parse_request)
-				index++;
-		}
-		else if (line_solve_short_url_request)
-		{
-			failed = false;
-			dl_size = 0;
-			status_code = 0;
-
-			log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_httpc_dl_data()...");
-			result = Util_httpc_dl_data(line_short_url, &buffer, 0x10000, &dl_size, true, 1, &last_url);
-			Util_log_add(log_num, result.string, result.code);
-			var_clipboard = last_url;
-			line_check_main_url_request = true;
-
-			if (result.code != 0)
-			{
-				Util_err_set_error_message(result.string, result.error_description, DEF_LINE_LOG_THREAD_STR, result.code);
-				Util_err_set_error_show_flag(true);
-			}
-
-			free(buffer);
-			buffer = NULL;
-			line_solve_short_url_request = false;
-		}
-		else if (line_load_log_request)
-		{
-			log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Line_load_from_log_sd()...");
-			result = Line_load_log_from_sd(line_ids[line_selected_room_num].substr(0, 16));
-			Util_log_add(log_num, result.string, result.code);
-			if (result.code != 0 && result.code != 0xC8804478 && result.code != 0xC92044FA)
-			{
-				Util_err_set_error_message(result.string, result.error_description, DEF_LINE_LOG_THREAD_STR, result.code);
-				Util_err_set_error_show_flag(true);
-			}
-			line_load_log_request = false;
-		}
-		else if (line_parse_log_request)
+		if (line_parse_log_request)
 		{
 			message_start_pos = std::string::npos;
 			message_next_pos = std::string::npos;
@@ -1850,6 +1711,145 @@ void Line_log_thread(void* arg)
 				line_send_request[1] = false;
 			else if (line_send_request[2])
 				line_send_request[2] = false;
+		}
+		else if(line_dl_all_log_no_parse_request && line_ids[index] == "")
+		{
+			line_dl_all_log_no_parse_request = false;
+			index = 0;
+		}
+		else if (line_auto_update || line_dl_log_request || line_dl_log_no_parse_request || line_dl_all_log_no_parse_request)
+		{
+			line_dl_log_request = true;
+			failed = false;
+			dl_size = 0;
+			status_code = 0;
+			if(line_dl_all_log_no_parse_request)
+				line_selected_room_num = index;
+
+			line_dl_log_failed[line_selected_room_num] = false;
+			room_num = line_selected_room_num;
+			
+			log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_httpc_dl_data()...");
+			std::string cache = line_main_url + "?id=" + line_ids[room_num] + "&logs=" + std::to_string(line_num_of_logs) + "&script_auth=" + (line_script_auth = " " ? "" : line_script_auth) + "&gas_ver=" + std::to_string(DEF_LINE_GAS_VER);
+			result = Util_httpc_dl_data(cache, &buffer, 1024 * 1024 * 5, &dl_size, &status_code, true, 5);
+			Util_log_add(log_num, result.string + std::to_string(dl_size / 1024) + "KB (" + std::to_string(dl_size) + "B) ", result.code);
+
+			if (result.code == 0)
+			{
+				result = Util_parse_file((char*)buffer, 5, out_data);
+				if(result.code == 0 && out_data[4] == "Success")
+				{
+					line_log_data = out_data[0];
+					line_names[room_num] = out_data[1];
+					line_icon_url[room_num] = out_data[2];
+					line_unread_msg_num[room_num] = atoi(out_data[3].c_str()) - line_msg_offset[room_num];
+					out_data[1] = "<0>" + out_data[1] + "</0>"; //user/group name
+					out_data[2] = "<1>" + out_data[2] + "</1>"; //img url
+					out_data[3] = "<2>" + std::to_string(line_msg_offset[room_num]) + "</2>"; //msg offset
+					out_data[5] = "<3>" + std::to_string(line_unread_msg_num[room_num]) + "</3>"; //num of new msg
+
+					filename = line_ids[room_num].substr(0, 16);
+					log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_file_save_to_file()...");
+					result = Util_file_save_to_file(filename, DEF_MAIN_DIR, (u8*)out_data[0].c_str(), out_data[0].length(), true);
+					Util_log_add(log_num, result.string, result.code);
+
+					if (result.code != 0)
+						failed = true;
+
+					if (!failed)
+					{
+						log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_file_save_to_file()...");
+						result = Util_file_save_to_file(line_ids[room_num], DEF_MAIN_DIR + "to/", (u8*)(out_data[1] + out_data[2] + out_data[3] + out_data[5]).c_str(), (out_data[1] + out_data[2] + out_data[3] + out_data[5]).length(), true);
+						Util_log_add(log_num, result.string, result.code);
+						if (result.code != 0)
+							failed = true;
+					}
+
+					if(!line_dl_log_no_parse_request && !line_dl_all_log_no_parse_request && line_unread_msg_num[room_num] > 0)
+						line_parse_log_request = true;
+
+					if (result.code != 0)
+					{
+						Util_err_set_error_message(result.string, result.error_description, DEF_LINE_LOG_THREAD_STR, result.code);
+						Util_err_set_error_show_flag(true);
+					}
+
+					if (!failed)
+					{
+						log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Line_load_icon()...");
+						result = Line_load_icon(room_num);
+						Util_log_add(log_num, result.string, result.code);
+						if(result.code == 0)
+							line_icon_available[room_num] = true;
+					}
+				}
+				else
+				{
+					out_data[0] = (char*)buffer;
+					Util_err_set_error_message(DEF_ERR_GAS_RETURNED_NOT_SUCCESS_STR, out_data[0], DEF_LINE_LOG_THREAD_STR, DEF_ERR_GAS_RETURNED_NOT_SUCCESS);
+					Util_err_set_error_show_flag(true);
+					failed = true;
+					line_auto_update = false;
+				}
+			}
+			else
+			{
+				Util_err_set_error_message(result.string, result.error_description, DEF_LINE_LOG_THREAD_STR, result.code);
+				Util_err_set_error_show_flag(true);
+				failed = true;
+				line_auto_update = false;
+			}
+
+			for (int i = 0; i < 6; i++)
+			{
+				out_data[i] = "";
+				out_data[i].reserve(10);
+			}
+		
+			if(failed)
+				line_dl_log_failed[line_selected_room_num] = true;
+
+			free(buffer);
+			buffer = NULL;
+			line_dl_log_request = false;
+			if(line_dl_log_no_parse_request)
+				line_dl_log_no_parse_request = false;
+			else if(line_dl_all_log_no_parse_request)
+				index++;
+		}
+		else if (line_solve_short_url_request)
+		{
+			failed = false;
+			dl_size = 0;
+			status_code = 0;
+
+			log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_httpc_dl_data()...");
+			result = Util_httpc_dl_data(line_short_url, &buffer, 0x10000, &dl_size, true, 1, &last_url);
+			Util_log_add(log_num, result.string, result.code);
+			var_clipboard = last_url;
+			line_check_main_url_request = true;
+
+			if (result.code != 0)
+			{
+				Util_err_set_error_message(result.string, result.error_description, DEF_LINE_LOG_THREAD_STR, result.code);
+				Util_err_set_error_show_flag(true);
+			}
+
+			free(buffer);
+			buffer = NULL;
+			line_solve_short_url_request = false;
+		}
+		else if (line_load_log_request)
+		{
+			log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Line_load_from_log_sd()...");
+			result = Line_load_log_from_sd(line_ids[line_selected_room_num].substr(0, 16));
+			Util_log_add(log_num, result.string, result.code);
+			if (result.code != 0 && result.code != 0xC8804478 && result.code != 0xC92044FA)
+			{
+				Util_err_set_error_message(result.string, result.error_description, DEF_LINE_LOG_THREAD_STR, result.code);
+				Util_err_set_error_show_flag(true);
+			}
+			line_load_log_request = false;
 		}
 		else
 			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
