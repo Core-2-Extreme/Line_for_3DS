@@ -2386,7 +2386,7 @@ void Line_main(void)
 						else if (line_content[i].find("<type>image</type>") != std::string::npos || line_content[i].find("<type>video</type>") != std::string::npos
 							|| line_content[i].find("<type>audio</type>") != std::string::npos || line_content[i].find("<type>id</type>") != std::string::npos || line_content[i].find("<type>file</type>") != std::string::npos)
 						{
-							Draw_texture(var_square_image[0], DEF_DRAW_WEAK_RED, line_text_x, (line_text_y + line_text_interval * i), 500, 20);
+							Draw_texture(var_square_image[0], DEF_DRAW_WEAK_RED, line_text_x, (line_text_y + line_text_interval * i), 300, 20);
 							if (line_content[i].find("<type>id</type>") != std::string::npos && (line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
 								color_cache = weak_color;
 						}
@@ -2520,7 +2520,7 @@ void Line_main(void)
 							|| line_content[i].find("<type>audio</type>") != std::string::npos || line_content[i].find("<type>id</type>") != std::string::npos || line_content[i].find("<type>file</type>") != std::string::npos)
 						{
 							Draw_texture(&line_content_button[content_index], line_content_button[content_index].selected ? DEF_DRAW_RED : DEF_DRAW_WEAK_RED,
-							line_text_x - 40, (line_text_y + line_text_interval * i) - 240, 500, 20);
+							line_text_x - 40, (line_text_y + line_text_interval * i) - 240, 300, 20);
 							content_index++;
 							if (line_content[i].find("<type>id</type>") != std::string::npos && (line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request))
 								color_cache = weak_color;
