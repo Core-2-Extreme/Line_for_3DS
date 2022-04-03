@@ -1,7 +1,7 @@
 #pragma once
 
 //settings
-#define DEF_MAIN_DIR (std::string)"/Line_dev/"
+#define DEF_MAIN_DIR (std::string)"/Line/"
 #define DEF_UPDATE_DIR_PREFIX (std::string)"/3ds/Line_ver_"
 #define DEF_UPDATE_FILE_PREFIX (std::string)"Line"
 #define DEF_CHECK_INTERNET_URL (std::string)"https://connectivitycheck.gstatic.com/generate_204"
