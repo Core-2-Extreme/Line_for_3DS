@@ -57,9 +57,7 @@ int line_selected_highlight_num = 0;
 int line_selected_search_highlight_num = 0;
 int line_total_data_size = 0;
 int line_sent_data_size = 0;
-int line_send_buffer_size = 0x300000;
-int line_step_max = 1;
-int line_current_step = 0;
+int line_uploaded_size = 0;
 int line_num_of_ids = 0;
 int line_post_and_dl_progress = 0;
 int line_num_of_msg = 0;
@@ -123,6 +121,17 @@ line_copy_select_down_button, line_copy_select_up_button, line_increase_interval
 line_search_button, line_search_select_down_button, line_search_select_up_button, line_delete_room_button, line_yes_button, line_no_button, line_view_image_button,
 line_edit_msg_button, line_content_button[16];
 Thread line_init_thread, line_exit_thread, line_log_thread, line_worker_thread;
+
+struct Line_upload_file_info
+{
+	bool first = true;
+	bool end = false;
+	int offset = 0;
+	std::string filename = "";
+	std::string dir = "";
+	std::string first_data = "";
+	std::string end_data = "";
+};
 
 bool Line_query_init_flag(void)
 {
@@ -1188,14 +1197,59 @@ void Line_worker_thread(void* arg)
 	threadExit(0);
 }
 
+int Line_upload_file_callback(void* out_buffer, int buffer_size, void* user_data)
+{
+	u8* read_buffer = NULL;
+	u32 actual_read_size = 0;
+	int read_size = 0;
+	std::string encoded_data = "";
+	Result_with_string result;
+	Line_upload_file_info* upload_info = (Line_upload_file_info*)user_data;
+
+	if(!user_data)
+		return -1;
+
+	if(upload_info->end)
+		return 0;
+
+	if(upload_info->first)
+	{
+		upload_info->first = false;
+		memcpy(out_buffer, upload_info->first_data.c_str(), upload_info->first_data.length());
+		return upload_info->first_data.length();
+	}
+
+	read_size = (int)(buffer_size * 0.73) - ((int)(buffer_size * 0.73) % 3);
+	result = Util_file_load_from_file_with_range(upload_info->filename, upload_info->dir, &read_buffer, read_size, upload_info->offset, &actual_read_size);
+
+	//IO error
+	if(result.code != 0)
+		return -1;
+
+	//EOF
+	if(actual_read_size == 0 && result.code == 0)
+	{
+		upload_info->end = true;
+		memcpy(out_buffer, upload_info->end_data.c_str(), upload_info->end_data.length());
+		return upload_info->end_data.length();
+	}
+
+	upload_info->offset += actual_read_size;
+
+	encoded_data = Util_encode_to_base64((char*)read_buffer, actual_read_size);
+	free(read_buffer);
+	read_buffer= NULL;
+
+	memcpy(out_buffer, encoded_data.c_str(), encoded_data.length());
+	return encoded_data.length();
+}
+
 void Line_log_thread(void* arg)
 {
 	Util_log_save(DEF_LINE_LOG_THREAD_STR, "Thread started.");
 	u8* buffer = NULL;
-	u8* send_file_buffer = NULL;
 	u32 dl_size = 0;
 	u32 status_code = 0;
-	u32 read_size = 0;
 	u64 file_size = 0;
 	size_t image_url_end_pos;
 	size_t image_url_start_pos;
@@ -1211,7 +1265,6 @@ void Line_log_thread(void* arg)
 	size_t id_start_pos;
 	size_t message_start_pos;
 	size_t message_next_pos;
-	int data_size = 0;
 	int cut_length = 0;
 	int log_num = 0;
 	int index = 0;
@@ -1219,11 +1272,11 @@ void Line_log_thread(void* arg)
 	int audio_tracks = 0;
 	int video_tracks = 0;
 	int subtitle_tracks = 0;
-	int num_of_loop = 0;
 	int check_length = 0;
 	int text_start_pos = 0;
 	bool failed = false;
 	bool sticker_msg = false;
+	bool send_file = false;
 	double x_size = 0;
 	double x_cache = 0;
 	double y_cache = 0;
@@ -1255,7 +1308,10 @@ void Line_log_thread(void* arg)
 	std::string one_string = "";
 	std::string out_data[6];
 	Result_with_string result;
+	Line_upload_file_info upload_file_info;
 	
+	Util_curl_init(1024 * 256);
+
 	while (line_thread_run)
 	{
 		if (line_parse_log_request)
@@ -1513,14 +1569,11 @@ void Line_log_thread(void* arg)
 			failed = false;
 			line_send_success = false;
 			line_sending_msg = true;
-			data_size = 0;
 			dl_size = 0;
 			file_size = 0;
-			read_size = 0;
-			line_step_max = 1;
-			line_current_step = 0;
 			line_total_data_size = 0;
 			line_sent_data_size = 0;
+			line_uploaded_size = 0;
 			file_type = "";
 			room_num = line_selected_room_num;
 
@@ -1555,79 +1608,35 @@ void Line_log_thread(void* arg)
 
 					Util_decoder_close_file(2);
 
-					num_of_loop = ((int)file_size / (1024 * 1024 + 2));
 					line_total_data_size = file_size * 1.34;
-					line_step_max = num_of_loop + 1;
+					send_file = true;
 
-					for (int i = 0; i <= num_of_loop; i++)
-					{
-						log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_file_load_from_file_with_range()...");
-						result = Util_file_load_from_file_with_range(line_send_file_name, line_send_file_dir, &send_file_buffer, (1024 * 1024 + 2), i * (1024 * 1024 + 2), &read_size);
-						Util_log_add(log_num, result.string, result.code);
-						if (result.code != 0)
-						{
-							failed = true;
-							break;
-						}
-
-						encoded_data = Util_encode_to_base64((char*)send_file_buffer, read_size);
-						data_size = encoded_data.length();
-						send_data.reserve(encoded_data.length() + 1024);
-						if (num_of_loop <= i)
-						{
-							send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data + "\",\"last\" : \"true\",\"auth\" : \"" + (line_script_auth == " " ? "" : line_script_auth) + "\",\"gas_ver\" : \"" + std::to_string(DEF_LINE_GAS_VER) + "\",\"logs\" : \"" + std::to_string(line_num_of_logs) + "\",\"data_type\" : \"" + file_type + "\" }";
-							break;
-						}
-						else
-							send_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"" + std::to_string(i) + "\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"" + encoded_data + "\",\"last\" : \"false\",\"auth\" : \"" + (line_script_auth == " " ? "" : line_script_auth) + "\",\"gas_ver\" : \"" + std::to_string(DEF_LINE_GAS_VER) + "\" }";
-
-						encoded_data = "";
-						encoded_data.reserve(1);
-						log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_httpc_post_and_dl_data()...");
-						result = Util_httpc_post_and_dl_data(line_main_url, (u8*)send_data.c_str(), send_data.length(), &buffer, 1024 * 128, &dl_size, true, 5);
-						Util_log_add(log_num, result.string, result.code);
-						line_current_step++;
-						send_data = "";
-						send_data.reserve(1);
-
-						if (result.code == 0)
-						{
-							response_string = (char*)buffer;
-							if (response_string == "Success")
-								line_sent_data_size += data_size;
-							else
-							{
-								Util_err_set_error_message(DEF_ERR_GAS_RETURNED_NOT_SUCCESS_STR, response_string, DEF_LINE_LOG_THREAD_STR, DEF_ERR_GAS_RETURNED_NOT_SUCCESS);
-								Util_err_set_error_show_flag(true);
-								failed = true;
-								break;
-							}
-						}
-						else
-						{
-							Util_err_set_error_message(result.string, result.error_description, DEF_LINE_LOG_THREAD_STR, result.code);
-							Util_err_set_error_show_flag(true);
-							failed = true;
-							break;
-						}
-
-						free(buffer);
-						free(send_file_buffer);
-						buffer = NULL;
-						send_file_buffer = NULL;
-					}
+					upload_file_info.first = true;
+					upload_file_info.end = false;
+					upload_file_info.filename = line_send_file_name;
+					upload_file_info.dir = line_send_file_dir;
+					upload_file_info.first_data = "{ \"type\": \"upload_content\",\"id\" : \"" + line_ids[line_selected_room_num] + "\",\"count\" : \"0\",\"name\" : \"" + line_send_file_name + "\",\"content_data\" : \"";
+					upload_file_info.end_data = "\",\"last\" : \"true\",\"auth\" : \"" + (line_script_auth == " " ? "" : line_script_auth) + "\",\"gas_ver\" : \"" + std::to_string(DEF_LINE_GAS_VER) + "\",\"logs\" : \"" + std::to_string(line_num_of_logs) + "\",\"data_type\" : \"" + file_type + "\" }";
+					upload_file_info.offset = 0;
 				}
 			}
 
 			if (!failed)
 			{
-				log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_httpc_post_and_dl_data()...");
-				result = Util_httpc_post_and_dl_data(line_main_url, (u8*)send_data.c_str(), send_data.length(), &buffer, 1024 * 1024 * 5, &dl_size, true, 5);
+				log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_curl_post_and_dl_data()...");
+				if(send_file)
+				{
+					result = Util_curl_post_and_dl_data(line_main_url, Line_upload_file_callback, (void*)&upload_file_info, &buffer, 1024 * 1024 * 5, (int*)&dl_size, &line_uploaded_size, true, 5);
+					send_file = false;
+				}
+				else
+					result = Util_curl_post_and_dl_data(line_main_url, (u8*)send_data.c_str(), send_data.length(), &buffer, 1024 * 1024 * 5, (int*)&dl_size, &line_uploaded_size, true, 5);
+
 				Util_log_add(log_num, result.string, result.code);
-				line_current_step++;
 				if (result.code == 0)
 				{
 					line_sent_data_size = line_total_data_size;
+					line_uploaded_size = 0;
 					response_string = (char*)buffer;
 					result = Util_parse_file(response_string, 5, out_data);
 					if (result.code == 0 && out_data[4] == "Success")
@@ -1857,6 +1866,7 @@ void Line_log_thread(void* arg)
 		while (line_thread_suspend)
 			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
+	Util_curl_exit();
 
 	Util_log_save(DEF_LINE_LOG_THREAD_STR, "Thread exit.");
 	threadExit(0);
@@ -2019,6 +2029,7 @@ void Line_init_thread(void* arg)
 	Util_add_watch(&line_selected_menu_mode);
 	Util_add_watch(&line_text_x);
 	Util_add_watch(&line_text_y);
+	Util_add_watch(&line_uploaded_size);
 
 	line_status += "\nLoading settings...";
 	log_num = Util_log_save(DEF_LINE_INIT_STR, "Util_file_load_from_file()...");
@@ -2154,6 +2165,7 @@ void Line_exit_thread(void* arg)
 	Util_remove_watch(&line_selected_menu_mode);
 	Util_remove_watch(&line_text_x);
 	Util_remove_watch(&line_text_y);
+	Util_remove_watch(&line_uploaded_size);
 
 	line_already_init = false;
 
@@ -2585,8 +2597,10 @@ void Line_main(void)
 				{
 					if (line_send_request[2])
 					{
-						Draw_texture(var_square_image[0], DEF_DRAW_YELLOW, 20, 205, (280.0 / line_step_max) * line_current_step, 13);
-						Draw(std::to_string(line_sent_data_size / 1024.0 / 1024.0).substr(0, 4) + "/" + std::to_string(line_total_data_size / 1024.0 / 1024.0).substr(0, 4) + "MB", 120, 205, 0.45, 0.45, color);
+						if(line_total_data_size != 0)
+							Draw_texture(var_square_image[0], DEF_DRAW_YELLOW, 20, 205, (280.0 / line_total_data_size) * (line_sent_data_size + line_uploaded_size), 13);
+
+						Draw(std::to_string((line_sent_data_size + line_uploaded_size) / 1024.0 / 1024.0).substr(0, 4) + "/" + std::to_string(line_total_data_size / 1024.0 / 1024.0).substr(0, 4) + "MB", 120, 205, 0.45, 0.45, color);
 					}
 
 					if (line_send_request[0])
