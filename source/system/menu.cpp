@@ -44,7 +44,8 @@ bool menu_exit_request[8] = { false, false, false, false, false, false, false, f
 int menu_icon_texture_num[9] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, };
 void (*menu_worker_thread_callbacks[DEF_MENU_NUM_OF_CALLBACKS])(void) = { NULL, };
 std::string menu_msg[DEF_MENU_NUM_OF_MSG];
-Thread menu_worker_thread, menu_hid_thread;
+Thread menu_worker_thread;
+LightLock menu_callback_mutex = 1;//Initially unlocked state.
 C2D_Image menu_icon_image[10];
 Image_data menu_sapp_button[8], menu_sapp_close_button[8], menu_sem_button;
 
@@ -54,9 +55,8 @@ Thread menu_check_connectivity_thread, menu_send_app_info_thread, menu_update_th
 
 #endif
 
-int Menu_check_free_ram(void);
 void Menu_get_system_info(void);
-void Menu_hid_thread(void* arg);
+void Menu_hid_callback(void);
 void Menu_worker_thread(void* arg);
 
 #if (DEF_ENABLE_CURL_API || DEF_ENABLE_HTTPC_API)
@@ -111,6 +111,9 @@ void Menu_init(void)
 	var_disabled_result.string = "";
 	var_disabled_result.error_description = DEF_ERR_DISABLED_STR;
 	var_disabled_result.code = DEF_ERR_DISABLED;
+
+	for(int i = 0; i < DEF_MENU_NUM_OF_CALLBACKS; i++)
+		menu_worker_thread_callbacks[i] = NULL;
 
 	result = Util_log_init();
 	Util_log_save(DEF_MENU_INIT_STR, "Util_log_init()...", result.code);
@@ -191,6 +194,9 @@ void Menu_init(void)
 	result = Util_hid_init();
 	Util_log_save(DEF_MENU_INIT_STR, "Util_hid_init()...", result.code);
 
+	result.code = Util_hid_add_callback(Menu_hid_callback);
+	Util_log_save(DEF_MENU_INIT_STR, "Util_hid_add_callback()...", result.code);
+
 	result = Util_expl_init();
 	Util_log_save(DEF_MENU_INIT_STR, "Util_expl_init()...", result.code);
 
@@ -210,8 +216,7 @@ void Menu_init(void)
 	Exfont_request_load_system_font();
 
 	menu_thread_run = true;
-	menu_worker_thread = threadCreate(Menu_worker_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_REALTIME, 1, false);
-	menu_hid_thread = threadCreate(Menu_hid_thread, (void*)(""), 1024 * 4, DEF_THREAD_PRIORITY_REALTIME, 0, false);
+	menu_worker_thread = threadCreate(Menu_worker_thread, (void*)(""), DEF_STACKSIZE * 2, DEF_THREAD_PRIORITY_ABOVE_NORMAL, 0, false);
 
 #if (DEF_ENABLE_CURL_API || DEF_ENABLE_HTTPC_API)
 	menu_check_connectivity_thread = threadCreate(Menu_check_connectivity_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_NORMAL, 1, false);
@@ -374,6 +379,7 @@ void Menu_exit(void)
 	for(int i = 0; i < 8; i++)
 		Draw_free_texture(menu_icon_texture_num[i]);
 
+	Util_hid_remove_callback(Menu_hid_callback);
 	Util_hid_exit();
 	Util_expl_exit();
 	Exfont_exit();
@@ -382,10 +388,8 @@ void Menu_exit(void)
 	Util_cpu_usage_monitor_exit();
 
 	Util_log_save(DEF_MENU_EXIT_STR, "threadJoin()...", threadJoin(menu_worker_thread, DEF_THREAD_WAIT_TIME));
-	Util_log_save(DEF_MENU_EXIT_STR, "threadJoin()...", threadJoin(menu_hid_thread, DEF_THREAD_WAIT_TIME));
 
 	threadFree(menu_worker_thread);
-	threadFree(menu_hid_thread);
 
 #if (DEF_ENABLE_CURL_API || DEF_ENABLE_HTTPC_API)
 	Util_log_save(DEF_MENU_EXIT_STR, "threadJoin()...", threadJoin(menu_check_connectivity_thread, DEF_THREAD_WAIT_TIME));
@@ -806,10 +810,8 @@ void Menu_main(void)
 		menu_main_run = true;
 }
 
-void Menu_hid_thread(void* arg)
+void Menu_hid_callback(void)
 {
-	Util_log_save(DEF_MENU_HID_THREAD_STR, "Thread started.");
-	u64 previous_ts = -1;
 	Hid_info key;
 
 	while (menu_thread_run)
@@ -1039,17 +1041,17 @@ void Menu_hid_thread(void* arg)
 							}
 						}
 
-						if(!key.p_touch && !key.h_touch)
-						{
-							for(int i = 0; i < 8; i++)
-							{
-								menu_sapp_button[i].selected = false;
-								menu_sapp_close_button[i].selected = false;
-							}
-							menu_sem_button.selected = false;
-							Draw_get_bot_ui_button()->selected = false;
-						}
+				if(!key.p_touch && !key.h_touch)
+				{
+					for(int i = 0; i < 8; i++)
+					{
+						menu_sapp_button[i].selected = false;
+						menu_sapp_close_button[i].selected = false;
 					}
+					menu_sem_button.selected = false;
+					Draw_get_bot_ui_button()->selected = false;
+				}
+			}
 
 					if(Util_log_query_log_show_flag())
 						Util_log_main(key);
@@ -1092,13 +1094,6 @@ void Menu_hid_thread(void* arg)
 
 			previous_ts = key.ts;
 		}
-
-		gspWaitForVBlank();
-	}
-
-	Util_log_save(DEF_MENU_HID_THREAD_STR, "Thread exit.");
-	threadExit(0);
-}
 
 void Menu_get_system_info(void)
 {
@@ -1335,6 +1330,17 @@ void Menu_worker_thread(void* arg)
 					Util_log_save(DEF_MENU_WORKER_THREAD_STR, "Util_cset_set_screen_brightness()..." + result.string + result.error_description, result.code);
 			}
 		}
+
+		LightLock_Lock(&menu_callback_mutex);
+
+		//Call callback functions.
+		for(int i = 0; i < DEF_MENU_NUM_OF_CALLBACKS; i++)
+		{
+			if(menu_worker_thread_callbacks[i])
+				menu_worker_thread_callbacks[i]();
+		}
+
+		LightLock_Unlock(&menu_callback_mutex);
 
 		gspWaitForVBlank();
 	}
