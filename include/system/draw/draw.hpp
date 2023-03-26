@@ -169,10 +169,10 @@ void Draw(std::string text, float x, float y, float text_size_x, float text_size
  * @param text_size_x (in) Font size for X direction.
  * @param text_size_y (in) Font size for Y direction.
  * @param abgr8888 (in) Font color.
- * @param x_align (in) DEF_DRAW_X_ALIGN_*.
- * @param y_align (in) DEF_DRAW_Y_ALIGN_*.
- * @param x_size (in) If align is not DEF_DRAW_X_ALIGN_LEFT, virtual box width (in px).
- * @param y_size (in) If align is not DEF_DRAW_Y_ALIGN_TOP, virtual box height (in px).
+ * @param x_align (in) Text align for x direction.
+ * @param y_align (in) Text align for y direction.
+ * @param x_size (in) If align is X_ALIGN_LEFT, this is ignored otherwise virtual box width (in px).
+ * @param y_size (in) If align is Y_ALIGN_TOP, this is ignored otherwise virtual box height (in px).
  * @warning Thread dangerous (untested)
  * @warning Call it from only drawing thread.
 */
@@ -188,11 +188,11 @@ float box_size_x, float box_size_y);
  * @param text_size_x (in) Font size for X direction.
  * @param text_size_y (in) Font size for Y direction.
  * @param abgr8888 (in) Font color.
- * @param x_align (in) DEF_DRAW_X_ALIGN_*.
- * @param y_align (in) DEF_DRAW_Y_ALIGN_*.
- * @param x_size (in) If align is not DEF_DRAW_X_ALIGN_LEFT, virtual box width (in px).
- * @param y_size (in) If align is not DEF_DRAW_Y_ALIGN_TOP, virtual box height (in px).
- * @param texture_position (in) Background texture position DEF_DRAW_BACKGROUND_*.
+ * @param x_align (in) Text align for x direction.
+ * @param y_align (in) Text align for y direction.
+ * @param x_size (in) If align is X_ALIGN_LEFT, this is ignored otherwise virtual box width (in px).
+ * @param y_size (in) If align is Y_ALIGN_TOP, this is ignored otherwise virtual box height (in px).
+ * @param texture_position (in) Background texture position.
  * @param background_image (in) C2D Texture data.
  * @param texture_abgr8888 (in) Texture color.
  * @warning Thread dangerous (untested)
@@ -210,11 +210,11 @@ float box_size_x, float box_size_y, int texture_position, C2D_Image background_i
  * @param text_size_x (in) Font size for X direction.
  * @param text_size_y (in) Font size for Y direction.
  * @param abgr8888 (in) Font color.
- * @param x_align (in) DEF_DRAW_X_ALIGN_*.
- * @param y_align (in) DEF_DRAW_Y_ALIGN_*.
- * @param x_size (in) If align is not DEF_DRAW_X_ALIGN_LEFT, virtual box width (in px).
- * @param y_size (in) If align is not DEF_DRAW_Y_ALIGN_TOP, virtual box height (in px).
- * @param texture_position (in) Background texture position DEF_DRAW_BACKGROUND_*.
+ * @param x_align (in) Text align for x direction.
+ * @param y_align (in) Text align for y direction.
+ * @param x_size (in) If align is X_ALIGN_LEFT, this is ignored otherwise virtual box width (in px).
+ * @param y_size (in) If align is Y_ALIGN_TOP, this is ignored otherwise virtual box height (in px).
+ * @param texture_position (in) Background texture position.
  * @param background_image (in&out) Image data.
  * @param texture_abgr8888 (in) Texture color.
  * @warning Thread dangerous (untested)
