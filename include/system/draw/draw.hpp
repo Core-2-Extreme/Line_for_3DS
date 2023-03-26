@@ -176,8 +176,8 @@ void Draw(std::string text, float x, float y, float text_size_x, float text_size
  * @warning Thread dangerous (untested)
  * @warning Call it from only drawing thread.
 */
-void Draw(std::string text, float x, float y, float text_size_x, float text_size_y, int abgr8888, int x_align, int y_align,
-float box_size_x, float box_size_y);
+void Draw(std::string text, float x, float y, float text_size_x, float text_size_y, int abgr8888, Text_align_x x_align,
+Text_align_y y_align, float box_size_x, float box_size_y);
 
 /**
  * @brief Draw text.
@@ -198,8 +198,8 @@ float box_size_x, float box_size_y);
  * @warning Thread dangerous (untested)
  * @warning Call it from only drawing thread.
 */
-void Draw(std::string text, float x, float y, float text_size_x, float text_size_y, int abgr8888, int x_align, int y_align,
-float box_size_x, float box_size_y, int texture_position, C2D_Image background_image, int texture_abgr8888);
+void Draw(std::string text, float x, float y, float text_size_x, float text_size_y, int abgr8888, Text_align_x x_align,
+Text_align_y y_align, float box_size_x, float box_size_y, Background texture_position, C2D_Image background_image, int texture_abgr8888);
 
 /**
  * @brief Draw text.
@@ -220,8 +220,8 @@ float box_size_x, float box_size_y, int texture_position, C2D_Image background_i
  * @warning Thread dangerous (untested)
  * @warning Call it from only drawing thread.
 */
-void Draw(std::string text, float x, float y, float text_size_x, float text_size_y, int abgr8888, int x_align, int y_align,
-float box_size_x, float box_size_y, int texture_position, Image_data* background_image, int texture_abgr8888);
+void Draw(std::string text, float x, float y, float text_size_x, float text_size_y, int abgr8888, Text_align_x x_align,
+Text_align_y y_align, float box_size_x, float box_size_y, Background texture_position, Image_data* background_image, int texture_abgr8888);
 
 /**
  * @brief Get free sheet index that can be used for Draw_load_texture().
@@ -422,12 +422,12 @@ void Draw_frame_ready(void);
 /**
  * @brief Ready screen and fill with abgr8888.
  * Do nothing if draw api is not initialized.
- * @param screen_num (in) Target screen (DEF_DRAW_SCREEN_*).
+ * @param screen_num (in) Target screen.
  * @param abgr8888 (in) Fill color.
  * @warning Thread dangerous (untested)
  * @warning Call it from only drawing thread.
 */
-void Draw_screen_ready(int screen_num, int abgr8888);
+void Draw_screen_ready(Screen screen, int abgr8888);
 
 /**
  * @brief Apply drawing.

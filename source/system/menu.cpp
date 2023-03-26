@@ -198,9 +198,9 @@ void Menu_init(void)
 
 	Util_log_save(DEF_MENU_INIT_STR, "Draw_init()...", Draw_init(is_800px, is_3d).code);
 	Draw_frame_ready();
-	Draw_screen_ready(0, DEF_DRAW_WHITE);
+	Draw_screen_ready(SCREEN_TOP_LEFT, DEF_DRAW_WHITE);
 	Draw_top_ui();
-	Draw_screen_ready(1, DEF_DRAW_WHITE);
+	Draw_screen_ready(SCREEN_BOTTOM, DEF_DRAW_WHITE);
 	Draw_bot_ui();
 	Draw_apply_draw();
 	Sem_draw_init();
@@ -550,16 +550,16 @@ void Menu_main(void)
 			}
 
 			Draw_frame_ready();
-			Draw_screen_ready(0, back_color);
+			Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 
 			if(menu_check_exit_request)
 			{
-				Draw(menu_msg[DEF_MENU_EXIST_MSG], 0, 105, 0.5, 0.5, color, DEF_DRAW_X_ALIGN_CENTER,
-					DEF_DRAW_Y_ALIGN_CENTER, 400, 20);
-				Draw(menu_msg[DEF_MENU_CONFIRM_MSG], 10, 140, 0.5, 0.5, DEF_DRAW_GREEN, DEF_DRAW_X_ALIGN_RIGHT,
-					DEF_DRAW_Y_ALIGN_CENTER, 190, 20);
-				Draw(menu_msg[DEF_MENU_CANCEL_MSG], 210, 140, 0.5, 0.5, DEF_DRAW_RED, DEF_DRAW_X_ALIGN_LEFT,
-					DEF_DRAW_Y_ALIGN_CENTER, 190, 20);
+				Draw(menu_msg[DEF_MENU_EXIST_MSG], 0, 105, 0.5, 0.5, color, X_ALIGN_CENTER,
+					Y_ALIGN_CENTER, 400, 20);
+				Draw(menu_msg[DEF_MENU_CONFIRM_MSG], 10, 140, 0.5, 0.5, DEF_DRAW_GREEN, X_ALIGN_RIGHT,
+					Y_ALIGN_CENTER, 190, 20);
+				Draw(menu_msg[DEF_MENU_CANCEL_MSG], 210, 140, 0.5, 0.5, DEF_DRAW_RED, X_ALIGN_LEFT,
+					Y_ALIGN_CENTER, 190, 20);
 			}
 			else if(menu_update_available)
 			{
@@ -575,7 +575,7 @@ void Menu_main(void)
 			if(var_monitor_cpu_usage)
 				Draw_cpu_usage_info();
 
-			Draw_screen_ready(1, back_color);
+			Draw_screen_ready(SCREEN_BOTTOM, back_color);
 
 			#ifdef DEF_ENABLE_LINE
 			Draw_texture(&menu_sapp_button[0], menu_sapp_button[0].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA, 0, 0, 60, 60);
