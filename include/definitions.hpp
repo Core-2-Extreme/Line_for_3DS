@@ -1,4 +1,5 @@
-#pragma once
+#ifndef DEFINITIONS_HPP
+#define DEFINITIONS_HPP
 
 //settings
 #define DEF_MAIN_DIR (std::string)"/Line/"

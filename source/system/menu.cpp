@@ -1,6 +1,22 @@
-﻿#include "system/headers.hpp"
+﻿#include "definitions.hpp"
+#include "system/types.hpp"
 
 #include "system/setting_menu.hpp"
+#include "system/variables.hpp"
+
+#include "system/draw/draw.hpp"
+#include "system/draw/external_font.hpp"
+
+#include "system/util/change_setting.hpp"
+#include "system/util/cpu_usage.hpp"
+#include "system/util/curl.hpp"
+#include "system/util/error.hpp"
+#include "system/util/explorer.hpp"
+#include "system/util/file.hpp"
+#include "system/util/hid.hpp"
+#include "system/util/httpc.hpp"
+#include "system/util/log.hpp"
+#include "system/util/util.hpp"
 
 #ifdef DEF_ENABLE_LINE
 #include "line.hpp"
@@ -33,6 +49,9 @@
 #ifdef DEF_ENABLE_VID
 #include "video_player.hpp"
 #endif
+
+//Include myself.
+#include "system/menu.hpp"
 
 bool menu_thread_run = false;
 bool menu_main_run = true;
@@ -1305,7 +1324,7 @@ void Menu_check_connectivity_thread(void* arg)
 				var_connect_test_succes = false;
 		}
 		else
-			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		count++;
 	}
