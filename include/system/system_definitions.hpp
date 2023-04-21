@@ -130,7 +130,7 @@
 #define DEF_SEM_AUTO_MSG 69
 
 //You need to enable DEF_ENABLE_SW_CONVERTER_API **and** DEF_ENABLE_VIDEO_AUDIO_ENCODER_API as well to use screen recorder
-#define DEF_SEM_ENABLE_SCREEN_RECORDER 0
+#define DEF_SEM_ENABLE_SCREEN_RECORDER 1
 //You need to enable DEF_ENABLE_HTTPC_API **or** DEF_ENABLE_CURL_API as well to use updater
 #define DEF_SEM_ENABLE_UPDATER 1
 
