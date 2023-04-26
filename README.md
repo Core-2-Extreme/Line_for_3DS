@@ -1,38 +1,18 @@
 # Line for 3DS
-
-## Contact
-* [Discord channel](https://discord.gg/EqK3Kpb)
-* [Discord](https://discordapp.com/channels/@me/693778961087463544)
-* [Twitter](https://twitter.com/nubesuko9300)
+![GitHub all releases](https://img.shields.io/github/downloads/Core-2-Extreme/Line_for_3DS/total?color=purple&style=flat-square)
+![GitHub commits since latest release (by SemVer)](https://img.shields.io/github/commits-since/Core-2-Extreme/Line_for_3DS/latest?color=orange&style=flat-square)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/Core-2-Extreme/Line_for_3DS?color=darkgreen&style=flat-square)
 
 ## Index
-* [Patch-note](https://github.com/Core-2-Extreme/Line_for_3DS#Patch-note)
+* [Patch note](https://github.com/Core-2-Extreme/Line_for_3DS#Patch-note)
 * [Summary](https://github.com/Core-2-Extreme/Line_for_3DS#summary)
-* [How-to-setup-and-use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
-
-## Patch note
-* 【App】 Ver 1.7.2
-* 【Line】 Fixed some bugs.
-* 【Vid】 Added debug infomation.
-* 【Vid】 Changed initial image size and position
-* 【App】 Some minor update to better user experience.
-* 
-* 【App】 Ver 1.7.1
-* 【Line】 Added- Supported download all files.
-* 【Mup/Vid】 Added- Additional formats  support(.ogg).
-* 【App】 Some minor update to better user experience.
-* 
-* 【App】 Ver 1.7.0
-* 【App】 Fixed- Fonts was improved.
-* 【App】 Added- Video player.
-* 【Line】 Added- Now, you can play audio and video sent by user.
-* 【Cam】 Fixed- Framerate was improved.
-* 【Mup】 Added- Additional formats (like aac) are supported.
-* 【App】 Some minor update to better user experience.
+* [How to setup and use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
+* [Build](https://github.com/Core-2-Extreme/Line_for_3DS#Build)
+* [Links](https://github.com/Core-2-Extreme/Line_for_3DS#Links)
 
 ## Summary
-![00000028](https://user-images.githubusercontent.com/45873899/85299815-b9bbfb80-b4e0-11ea-8ee1-7551cedd83d4.jpg)
-![00000002](https://user-images.githubusercontent.com/45873899/77538658-676c3e00-6ee3-11ea-8a9a-9c37ee7ba69b.png)
+<img src="https://user-images.githubusercontent.com/45873899/85299815-b9bbfb80-b4e0-11ea-8ee1-7551cedd83d4.jpg" width="400" height="480"> \
+<img src="https://user-images.githubusercontent.com/45873899/77538658-676c3e00-6ee3-11ea-8a9a-9c37ee7ba69b.png"> \
 [![Video](https://img.youtube.com/vi/4FMCwcwEEi8/0.jpg)](https://www.youtube.com/watch?v=4FMCwcwEEi8)
 
 * Send text ✅
@@ -57,5 +37,51 @@ https://developers.line.biz/media/messaging-api/sticker_list.pdf
 ### *2 Google drive URL will be sent(not embed).
 
 ## How to setup and use
-Please view gbatemp
-# [GBAtemp](https://gbatemp.net/threads/line-for-3ds.539530)
+Please follow the guide on [GBAtemp](https://gbatemp.net/threads/line-for-3ds.539530).
+
+## Build
+You need : 
+* [devkitpro](https://devkitpro.org/wiki/Getting_Started)
+
+If you want to build .cia, then you also need : 
+* [bannertool](https://github.com/Steveice10/bannertool/releases) and [makerom](https://github.com/3DSGuy/Project_CTR/releases) (Copy them in your path e.g. in `{devkitPro_install_dir}\tools\bin`).
+
+If you already have devkitpro, type `{devkitPro_install_dir}\devkitARM\bin\arm-none-eabi-gcc -v`. \
+You should see something like : 
+```
+.....
+.....
+.....
+Thread model: posix
+Supported LTO compression algorithms: zlib zstd
+gcc version 12.2.0 (devkitARM release 60)
+```
+Make sure you have release 60 or later. \
+If you have older devkitpro, update it or compilation will fail.
+
+* Clone this repository
+  * On windows run `build.bat`
+  * On other system, type `make` (`make -j` for faster build)
+
+## Links
+* [Discord channel](https://discord.gg/EqK3Kpb)
+
+## Patch note
+### Ver 1.7.2
+【Line】 Fixed some bugs. \
+【Vid】 Added debug infomation. \
+【Vid】 Changed initial image size and position \
+【App】 Some minor update to better user experience.
+
+### Ver 1.7.1
+【Line】 Added- Supported download all files. \
+【Mup/Vid】 Added- Additional formats support(.ogg). \
+【App】 Some minor update to better user experience.
+
+### Ver 1.7.0
+【App】 Fixed- Fonts was improved. \
+【App】 Added- Video player. \
+【Line】 Added- Now, you can play audio and video sent by user. \
+【Cam】 Fixed- Framerate was improved. \
+【Mup】 Added- Additional formats (like aac) are supported. \
+【App】 Some minor update to better user experience.
