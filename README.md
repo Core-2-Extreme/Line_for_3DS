@@ -4,11 +4,11 @@
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/Core-2-Extreme/Line_for_3DS?color=darkgreen&style=flat-square)
 
 ## Index
-* [Patch note](https://github.com/Core-2-Extreme/Line_for_3DS#Patch-note)
 * [Summary](https://github.com/Core-2-Extreme/Line_for_3DS#summary)
 * [How to setup and use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
 * [Build](https://github.com/Core-2-Extreme/Line_for_3DS#Build)
 * [Links](https://github.com/Core-2-Extreme/Line_for_3DS#Links)
+* [Patch note](https://github.com/Core-2-Extreme/Line_for_3DS#Patch-note)
 
 ## Summary
 <img src="https://user-images.githubusercontent.com/45873899/85299815-b9bbfb80-b4e0-11ea-8ee1-7551cedd83d4.jpg" width="400" height="480"> \
