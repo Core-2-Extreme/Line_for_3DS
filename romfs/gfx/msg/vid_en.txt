@@ -38,3 +38,5 @@
 <37>Disable video : </37>
 <38>Disable subtitle : </38>
 <39>Downloading...</39>
+<40>Restart playback threshold : %d</40>
+<41>Processing video...</41>

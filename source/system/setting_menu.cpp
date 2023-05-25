@@ -2012,10 +2012,10 @@ void Sem_worker_callback(void)
 				result = Menu_load_msg("en");
 				Util_log_save(DEF_SEM_WORKER_CALLBACK_STR, "Menu_load_msg()..." + result.string + result.error_description, result.code);
 			}
-
+			
 			#ifdef DEF_ENABLE_LINE
 			result = Line_load_msg(var_lang);
-			Util_log_save(DEF_SEM_WORKER_THREAD_STR, "Line_load_msg()..." + result.string + result.error_description, result.code);
+			Util_log_save(DEF_SEM_WORKER_CALLBACK_STR, "Line_load_msg()..." + result.string + result.error_description, result.code);
 			if (result.code != 0)
 			{
 				result = Line_load_msg("en");

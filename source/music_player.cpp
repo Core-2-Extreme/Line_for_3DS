@@ -1,5 +1,23 @@
-#include "system/headers.hpp"
+#include "definitions.hpp"
+#include "system/types.hpp"
 
+#include "system/menu.hpp"
+#include "system/variables.hpp"
+
+#include "system/draw/draw.hpp"
+
+#include "system/util/converter.hpp"
+#include "system/util/decoder.hpp"
+#include "system/util/error.hpp"
+#include "system/util/explorer.hpp"
+#include "system/util/hid.hpp"
+#include "system/util/httpc.hpp"
+#include "system/util/log.hpp"
+#include "system/util/speaker.hpp"
+#include "system/util/util.hpp"
+
+//Include myself.
+#include "music_player.hpp"
 
 bool mup_main_run = false;
 bool mup_thread_run = false;
@@ -205,10 +223,10 @@ void Mup_worker_thread(void* arg)
 			mup_dl_and_play_request = false;
 		}
 		else
-			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (mup_thread_suspend)
-			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	Util_log_save(DEF_MUP_WORKER_THREAD_STR, "Thread exit.");
@@ -224,9 +242,8 @@ void Mup_play_thread(void* arg)
 	int subtitle_tracks = 0;
 	int random_num = 0;
 	int file_index = 0;
-	int audio_size = 0;
+	int audio_samples = 0;
 	int log_num = 0;
-	int type = 0;
 	int packet_index = 0;
 	double pos = 0;
 	u8* sound_buffer = NULL;
@@ -234,6 +251,7 @@ void Mup_play_thread(void* arg)
 	std::string dir_name = "/";
 	Result_with_string result;
 	Audio_info audio_info;
+	Packet_type type = PACKET_TYPE_INVALID;
 
 	while (mup_thread_run)
 	{
@@ -252,7 +270,7 @@ void Mup_play_thread(void* arg)
 			//Reload
 			for(int i = 0; i < 10; i++)
 			{
-				usleep(100000);
+				Util_sleep(100000);
 				if(Util_expl_query_num_of_file() > 0)
 					break;
 			}
@@ -266,7 +284,7 @@ void Mup_play_thread(void* arg)
 					random_num = rand() % 2;
 					if(!(file_index < Util_expl_query_num_of_file()))
 						file_index = 0;
-					else if(random_num == 1 && Util_expl_query_type(file_index) == DEF_EXPL_TYPE_FILE)
+					else if(random_num == 1 && Util_expl_query_type(file_index) == FILE_TYPE_FILE)
 						break;
 					else
 						file_index++;
@@ -306,14 +324,14 @@ void Mup_play_thread(void* arg)
 
 					if(result.code == 0 || result.code == DEF_ERR_ALREADY_INITIALIZED)
 					{
-						Util_speaker_set_audio_info(1, audio_info.ch, audio_info.sample_rate);
+						Util_speaker_set_audio_info(1, (audio_info.ch > 2 ? 2 : audio_info.ch), audio_info.sample_rate);
 						while(true)
 						{
 							if(mup_pause_request)
 							{
 								Util_speaker_pause(1);
 								while(mup_pause_request && !mup_stop_request && !mup_change_music_request && !mup_seek_request)
-									usleep(50000);
+									Util_sleep(50000);
 
 								Util_speaker_resume(1);
 							}
@@ -323,7 +341,7 @@ void Mup_play_thread(void* arg)
 								if(mup_seek_request)
 								{
 									log_num = Util_log_save(DEF_MUP_PLAY_THREAD_STR, "Util_decoder_seek()... ");
-									result = Util_decoder_seek(mup_offset, DEF_DECODER_SEEK_FLAG_ANY, 1);
+									result = Util_decoder_seek(mup_offset, SEEK_FLAG_BACKWARD, 1);
 									Util_log_add(log_num, result.string, result.code);
 									Util_speaker_clear_buffer(1);
 									if(result.code == 0)
@@ -339,23 +357,46 @@ void Mup_play_thread(void* arg)
 							if(result.code == 0)
 							{
 								result = Util_decoder_parse_packet(&type, &packet_index, &key_frame, 1);
-								if(type == DEF_DECODER_PACKET_TYPE_AUDIO && packet_index == 0)
+								if(type == PACKET_TYPE_AUDIO && packet_index == 0)
 								{
 									result = Util_decoder_ready_audio_packet(packet_index, 1);
 									if(result.code == 0)
 									{
-										result = Util_audio_decoder_decode(&audio_size, &sound_buffer, &pos, packet_index, 1);
+										result = Util_audio_decoder_decode(&audio_samples, &sound_buffer, &pos, packet_index, 1);
 										if(result.code == 0)
 										{
+                                            Audio_converter_parameters converter_parameters;
+
 											mup_bar_pos = pos - (Util_speaker_get_available_buffer_size(1) / 2.0 / mup_audio_info.ch / mup_audio_info.sample_rate * 1000);
-											while(true)
-											{
-												result = Util_speaker_add_buffer(1, sound_buffer, audio_size);
-												if(result.code == 0 || mup_stop_request || mup_change_music_request || mup_seek_request)
-													break;
-												else
-													usleep(100000);
-											}
+
+                                            converter_parameters.source = sound_buffer;
+                                            converter_parameters.in_ch = audio_info.ch;
+                                            converter_parameters.in_sample_format = audio_info.sample_format;
+                                            converter_parameters.in_sample_rate = audio_info.sample_rate;
+                                            converter_parameters.in_samples = audio_samples;
+                                            converter_parameters.converted = NULL;
+                                            converter_parameters.out_ch = (converter_parameters.in_ch > 2 ? 2 : converter_parameters.in_ch);
+                                            converter_parameters.out_sample_format = SAMPLE_FORMAT_S16;
+                                            converter_parameters.out_sample_rate = converter_parameters.in_sample_rate;
+
+                                            result = Util_converter_convert_audio(&converter_parameters);
+
+                                            if(result.code == 0)
+                                            {
+                                                while(true)
+                                                {
+                                                    result = Util_speaker_add_buffer(1, converter_parameters.converted, (converter_parameters.out_samples * converter_parameters.out_ch * 2));
+                                                    if(result.code == 0 || mup_stop_request || mup_change_music_request || mup_seek_request)
+                                                        break;
+                                                    else
+                                                        Util_sleep(100000);
+                                                }
+                                            }
+                                            else
+                                                Util_log_save(DEF_MUP_PLAY_THREAD_STR, "Util_converter_convert_audio()..." + result.string + result.error_description, result.code);
+
+                                            free(converter_parameters.converted);
+                                            converter_parameters.converted = NULL;
 										}
 										else
 											Util_log_save(DEF_MUP_PLAY_THREAD_STR, "Util_decode_audio()..." + result.string + result.error_description, result.code);
@@ -366,11 +407,11 @@ void Mup_play_thread(void* arg)
 									else
 										Util_log_save(DEF_MUP_PLAY_THREAD_STR, "Util_decoder_ready_audio_packet()..." + result.string + result.error_description, result.code);
 								}
-								else if(type == DEF_DECODER_PACKET_TYPE_AUDIO)
+								else if(type == PACKET_TYPE_AUDIO)
 									Util_decoder_skip_audio_packet(packet_index, 1);
-								else if(type == DEF_DECODER_PACKET_TYPE_VIDEO)
+								else if(type == PACKET_TYPE_VIDEO)
 									Util_decoder_skip_video_packet(packet_index, 1);
-								else if(type == DEF_DECODER_PACKET_TYPE_SUBTITLE)
+								else if(type == PACKET_TYPE_SUBTITLE)
 									Util_decoder_skip_subtitle_packet(packet_index, 1);
 							}
 							else
@@ -384,7 +425,7 @@ void Mup_play_thread(void* arg)
 			while(!mup_stop_request && !mup_change_music_request && Util_speaker_get_available_buffer_num(1) > 0)
 			{
 				mup_bar_pos = (mup_audio_info.duration * 1000) - (Util_speaker_get_available_buffer_size(1) / 2.0 / mup_audio_info.ch / mup_audio_info.sample_rate * 1000);
-				usleep(100000);
+				Util_sleep(100000);
 			}
 
 			Util_speaker_clear_buffer(1);
@@ -393,10 +434,10 @@ void Mup_play_thread(void* arg)
 				mup_play_request = false;
 		}
 		else
-			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (mup_thread_suspend && !mup_loop_request && !mup_change_music_request)
-			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	Util_log_save(DEF_MUP_PLAY_THREAD_STR, "Thread exit.");
@@ -540,8 +581,11 @@ void Mup_init(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+                if(var_monitor_cpu_usage)
+                    Draw_cpu_usage_info();
+
 				Draw(mup_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -550,7 +594,7 @@ void Mup_init(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	if(!(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_N3DS) || !var_core_2_available)
@@ -587,8 +631,11 @@ void Mup_exit(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+                if(var_monitor_cpu_usage)
+                    Draw_cpu_usage_info();
+
 				Draw(mup_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -597,7 +644,7 @@ void Mup_exit(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	Util_log_save(DEF_MUP_EXIT_STR, "threadJoin()...", threadJoin(mup_exit_thread, DEF_THREAD_WAIT_TIME));	
@@ -627,7 +674,7 @@ void Mup_main(void)
 
 		if(var_turn_on_top_lcd)
 		{
-			Draw_screen_ready(0, back_color);
+			Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 
 			if(mup_dl_and_play_request)
 				Draw(mup_msg[20] + std::to_string(mup_dled_size / 1024.0 / 1024.0).substr(0, 4) + "MB", 0, 20, 0.5, 0.5, color);
@@ -643,20 +690,26 @@ void Mup_main(void)
 
 			Draw_top_ui();
 
-			if(var_3d_mode)
+            if(var_monitor_cpu_usage)
+                Draw_cpu_usage_info();
+
+			if(Draw_is_3d_mode())
 			{
-				Draw_screen_ready(2, back_color);
+				Draw_screen_ready(SCREEN_TOP_RIGHT, back_color);
 
 				if(Util_log_query_log_show_flag())
 					Util_log_draw();
 
 				Draw_top_ui();
+
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
 			}
 		}
 		
 		if(var_turn_on_bottom_lcd)
 		{
-			Draw_screen_ready(1, back_color);
+			Draw_screen_ready(SCREEN_BOTTOM, back_color);
 
 			if(mup_play_request && !mup_pause_request)
 				msg_num = 19;
@@ -666,12 +719,12 @@ void Mup_main(void)
 			Draw(DEF_MUP_VER, 0, 0, 0.4, 0.4, DEF_DRAW_GREEN);
 
 			//Play button
-			Draw(mup_msg[msg_num], 105, 60, 0.45, 0.45, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 50, 50,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &mup_play_button, mup_play_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(mup_msg[msg_num], 105, 60, 0.45, 0.45, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 50, 50,
+			BACKGROUND_ENTIRE_BOX, &mup_play_button, mup_play_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 			//Stop button
-			Draw(mup_msg[17], 165, 60, 0.45, 0.45, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 50, 50,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &mup_stop_button, mup_stop_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(mup_msg[17], 165, 60, 0.45, 0.45, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 50, 50,
+			BACKGROUND_ENTIRE_BOX, &mup_stop_button, mup_stop_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 			//Time bar
 			Draw(Util_convert_seconds_to_time(mup_bar_pos / 1000) + " / " + Util_convert_seconds_to_time(mup_audio_info.duration), 12.5, 105, 0.5, 0.5, color);
@@ -683,28 +736,28 @@ void Mup_main(void)
 			Draw(mup_msg[9], 12.5, 165, 0.5, 0.5, color);
 			for (int i = 0; i < 2; i++)
 			{
-				Draw(mup_msg[10 + i], 10 + (i * 50), 180, 0.5, 0.5, mup_loop_request != i ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-				40, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &mup_loop_button[i], mup_loop_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+				Draw(mup_msg[10 + i], 10 + (i * 50), 180, 0.5, 0.5, mup_loop_request != i ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+				40, 20, BACKGROUND_ENTIRE_BOX, &mup_loop_button[i], mup_loop_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 			}
 
 			//Allow sleep button
 			Draw(mup_msg[12], 122.5, 165, 0.5, 0.5, color);
 			for (int i = 0; i < 2; i++)
 			{
-				Draw(mup_msg[13 + i], 120 + (i * 50), 180, 0.4, 0.4, mup_allow_sleep != i ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-				40, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &mup_allow_sleep_button[i], mup_allow_sleep_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+				Draw(mup_msg[13 + i], 120 + (i * 50), 180, 0.4, 0.4, mup_allow_sleep != i ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+				40, 20, BACKGROUND_ENTIRE_BOX, &mup_allow_sleep_button[i], mup_allow_sleep_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 			}
 
 			//Select file button
-			Draw(mup_msg[15], 230, 180, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-			80, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &mup_select_file_button, mup_select_file_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(mup_msg[15], 230, 180, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+			80, 20, BACKGROUND_ENTIRE_BOX, &mup_select_file_button, mup_select_file_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 			//Shuffle button
 			Draw(mup_msg[18], 12.5, 135, 0.5, 0.5, color);
 			for (int i = 0; i < 2; i++)
 			{
-				Draw(mup_msg[10 + i], 10 + (i * 50), 150, 0.5, 0.5, mup_shuffle_request != i ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-				40, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &mup_shuffle_button[i], mup_shuffle_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+				Draw(mup_msg[10 + i], 10 + (i * 50), 150, 0.5, 0.5, mup_shuffle_request != i ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+				40, 20, BACKGROUND_ENTIRE_BOX, &mup_shuffle_button[i], mup_shuffle_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 			}
 
 			if(Util_expl_query_show_flag())

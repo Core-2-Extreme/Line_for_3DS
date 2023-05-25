@@ -1,4 +1,19 @@
-﻿#include "system/headers.hpp"
+﻿#include "definitions.hpp"
+#include "system/types.hpp"
+
+#include "system/menu.hpp"
+#include "system/variables.hpp"
+
+#include "system/draw/draw.hpp"
+
+#include "system/util/error.hpp"
+#include "system/util/hid.hpp"
+#include "system/util/httpc.hpp"
+#include "system/util/log.hpp"
+#include "system/util/util.hpp"
+
+//Include myself.
+#include "speedtest.hpp"
 
 bool spt_already_init = false;
 bool spt_start_request = false;
@@ -61,7 +76,7 @@ void Spt_timer_thread(void* arg)
 
 			osTickCounterUpdate(&stop_watch);
 			spt_total_dl_time += osTickCounterRead(&stop_watch);
-			usleep(41500);
+			Util_sleep(41500);
 		}
 
 		if (spt_count_reset_request)
@@ -70,10 +85,10 @@ void Spt_timer_thread(void* arg)
 			spt_count_reset_request = false;
 		}
 		else
-			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (spt_thread_suspend)
-			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Util_log_save(DEF_SPT_TIMER_THREAD_STR, "Thread exit.");
 	threadExit(0);
@@ -122,10 +137,10 @@ void Spt_spt_thread(void* arg)
 			spt_start_request = false;
 		}
 		else
-			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (spt_thread_suspend)
-			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Util_log_save(DEF_SPT_SPEEDTEST_THREAD_STR, "Thread exit.");
 	threadExit(0);
@@ -222,8 +237,11 @@ void Spt_init(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(spt_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -232,7 +250,7 @@ void Spt_init(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	if(!(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_N3DS) || !var_core_2_available)
@@ -269,8 +287,11 @@ void Spt_exit(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(spt_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -279,7 +300,7 @@ void Spt_exit(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	Util_log_save(DEF_SPT_EXIT_STR, "threadJoin()...", threadJoin(spt_exit_thread, DEF_THREAD_WAIT_TIME));	
@@ -349,7 +370,7 @@ void Spt_main(void)
 
 		if(var_turn_on_top_lcd)
 		{
-			Draw_screen_ready(0, back_color);
+			Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 
 			Draw(spt_msg[0] + std::to_string(spt_total_dl_size / (1024 * 1024)) + "MB(" + std::to_string(spt_total_dl_size / 1024) + "KB)", 0.0, 20.0, 0.5, 0.5, DEF_DRAW_BLUE);
 			Draw(spt_msg[1] + std::to_string(spt_total_dl_time).substr(0, std::to_string(spt_total_dl_time).length() - 3) + " ms", 0.0, 40.0, 0.5, 0.5, DEF_DRAW_BLUE);
@@ -360,30 +381,36 @@ void Spt_main(void)
 
 			Draw_top_ui();
 
-			if(var_3d_mode)
+            if(var_monitor_cpu_usage)
+                Draw_cpu_usage_info();
+
+			if(Draw_is_3d_mode())
 			{
-				Draw_screen_ready(2, back_color);
+				Draw_screen_ready(SCREEN_TOP_RIGHT, back_color);
 
 				if(Util_log_query_log_show_flag())
 					Util_log_draw();
 
 				Draw_top_ui();
+
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
 			}
 		}
 		
 		if(var_turn_on_bottom_lcd)
 		{
-			Draw_screen_ready(1, back_color);
+			Draw_screen_ready(SCREEN_BOTTOM, back_color);
 
 			Draw(DEF_SPT_VER, 0, 0, 0.4, 0.4, DEF_DRAW_GREEN);
 			Draw(spt_msg[3], 70.0, 10.0, 0.75, 0.75, DEF_DRAW_RED);
 			for (int i = 0; i < 7; i++)
 			{
-				Draw(spt_msg[4 + i], 100, 40 + (i * 20), 0.5, 0.5, spt_data_size == i ? DEF_DRAW_BLUE : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-				130, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &spt_data_size_button[i], spt_data_size_button[i].selected ? DEF_DRAW_YELLOW : DEF_DRAW_WEAK_YELLOW);
+				Draw(spt_msg[4 + i], 100, 40 + (i * 20), 0.5, 0.5, spt_data_size == i ? DEF_DRAW_BLUE : color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+				130, 20, BACKGROUND_ENTIRE_BOX, &spt_data_size_button[i], spt_data_size_button[i].selected ? DEF_DRAW_YELLOW : DEF_DRAW_WEAK_YELLOW);
 			}
-			Draw(spt_msg[11], 130, 190, 0.5, 0.5, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 20,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &spt_start_dl_button, spt_start_dl_button.selected ? DEF_DRAW_RED : DEF_DRAW_WEAK_RED);
+			Draw(spt_msg[11], 130, 190, 0.5, 0.5, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 20,
+			BACKGROUND_ENTIRE_BOX, &spt_start_dl_button, spt_start_dl_button.selected ? DEF_DRAW_RED : DEF_DRAW_WEAK_RED);
 
 			Draw_bot_ui();
 

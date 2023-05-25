@@ -1,4 +1,21 @@
-#include "system/headers.hpp"
+#include "definitions.hpp"
+#include "system/types.hpp"
+
+#include "system/menu.hpp"
+#include "system/variables.hpp"
+
+#include "system/draw/draw.hpp"
+
+#include "system/util/encoder.hpp"
+#include "system/util/error.hpp"
+#include "system/util/file.hpp"
+#include "system/util/hid.hpp"
+#include "system/util/log.hpp"
+#include "system/util/mic.hpp"
+#include "system/util/util.hpp"
+
+//Include myself.
+#include "mic_app.hpp"
 
 bool mic_main_run = false;
 bool mic_thread_run = false;
@@ -78,13 +95,13 @@ void Mic_record_thread(void* arg)
 			{
 				log = Util_log_save(DEF_MIC_RECORD_THREAD_STR, "Util_init_audio_encoder()...");
 				if(mic_format == ".mp4")
-					result = Util_audio_encoder_init(DEF_ENCODER_AUDIO_CODEC_AAC, 32728, 32000, 96000, 0);
+					result = Util_audio_encoder_init(AUDIO_CODEC_AAC, 32728, 32000, 96000, 0);
 				else if(mic_format == ".mp3")
-					result = Util_audio_encoder_init(DEF_ENCODER_AUDIO_CODEC_MP3, 32728, 32000, 96000, 0);
+					result = Util_audio_encoder_init(AUDIO_CODEC_MP3, 32728, 32000, 96000, 0);
 				else if(mic_format == ".mp2")
-					result = Util_audio_encoder_init(DEF_ENCODER_AUDIO_CODEC_MP2, 32728, 32000, 96000, 0);
+					result = Util_audio_encoder_init(AUDIO_CODEC_MP2, 32728, 32000, 96000, 0);
 				else if(mic_format == ".ac3")
-					result = Util_audio_encoder_init(DEF_ENCODER_AUDIO_CODEC_AC3, 32728, 32000, 96000, 0);
+					result = Util_audio_encoder_init(AUDIO_CODEC_AC3, 32728, 32000, 96000, 0);
 				Util_log_add(log, result.string, result.code);
 
 				if(result.code != 0)
@@ -112,7 +129,7 @@ void Mic_record_thread(void* arg)
 			if(!mic_stop_record_request)
 			{
 				log = Util_log_save(DEF_MIC_RECORD_THREAD_STR, "Util_mic_start_recording()...");
-				result = Util_mic_start_recording(32728);
+				result = Util_mic_start_recording(MIC_SAMPLE_RATE_32728HZ);
 				Util_log_add(log, result.string, result.code);
 				mic_record_start_time = osGetTime();
 				if(result.code != 0)
@@ -123,7 +140,7 @@ void Mic_record_thread(void* arg)
 			{
 				while (true)
 				{
-					usleep(100000);
+					Util_sleep(100000);
 					var_need_reflesh = true;
 
 					if(Util_mic_query_remaining_buffer_time() < 500 || mic_stop_record_request)
@@ -162,10 +179,10 @@ void Mic_record_thread(void* arg)
 			aptSetSleepAllowed(true);
 		}
 		else
-			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (mic_thread_suspend)
-			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Util_log_save(DEF_MIC_RECORD_THREAD_STR, "Thread exit.");
 	threadExit(0);
@@ -302,8 +319,11 @@ void Mic_init(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(mic_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -312,7 +332,7 @@ void Mic_init(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	if(!(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_N3DS) || !var_core_2_available)
@@ -349,8 +369,11 @@ void Mic_exit(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(mic_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -359,7 +382,7 @@ void Mic_exit(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	Util_log_save(DEF_MIC_EXIT_STR, "threadJoin()...", threadJoin(mic_exit_thread, DEF_THREAD_WAIT_TIME));	
@@ -390,27 +413,33 @@ void Mic_main(void)
 
 		if(var_turn_on_top_lcd)
 		{
-			Draw_screen_ready(0, back_color);
+			Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 
 			if(Util_log_query_log_show_flag())
 				Util_log_draw();
 
 			Draw_top_ui();
 
-			if(var_3d_mode)
+            if(var_monitor_cpu_usage)
+                Draw_cpu_usage_info();
+
+			if(Draw_is_3d_mode())
 			{
-				Draw_screen_ready(2, back_color);
+				Draw_screen_ready(SCREEN_TOP_RIGHT, back_color);
 
 				if(Util_log_query_log_show_flag())
 					Util_log_draw();
 
 				Draw_top_ui();
+
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
 			}
 		}
 		
 		if(var_turn_on_bottom_lcd)
 		{
-			Draw_screen_ready(1, back_color);
+			Draw_screen_ready(SCREEN_BOTTOM, back_color);
 
 			Draw(DEF_MIC_VER, 0, 0, 0.4, 0.4, DEF_DRAW_GREEN);
 			Draw(mic_msg[3], 75.0, 35.0, 0.4, 0.4, color);
@@ -418,11 +447,11 @@ void Mic_main(void)
 				Draw(mic_msg[2], 15.0, 75.0, 0.6, 0.6, DEF_DRAW_RED);
 
 			//Start recording button
-			Draw(mic_msg[0], 105, 60, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 50, 50,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &mic_start_record_button, mic_start_record_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(mic_msg[0], 105, 60, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 50, 50,
+			BACKGROUND_ENTIRE_BOX, &mic_start_record_button, mic_start_record_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 			//Stop recording button
-			Draw(mic_msg[1], 165, 60, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 50, 50,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &mic_stop_record_button, mic_stop_record_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(mic_msg[1], 165, 60, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 50, 50,
+			BACKGROUND_ENTIRE_BOX, &mic_stop_record_button, mic_stop_record_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 			if(mic_start_record_request)
 				Draw(Util_convert_seconds_to_time((osGetTime() - mic_record_start_time) / 1000.0), 102.5, 105.0, 0.5, 0.5, color);

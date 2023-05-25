@@ -1,8 +1,31 @@
-#include "system/headers.hpp"
+#include <algorithm>
+
+#include "definitions.hpp"
+#include "system/types.hpp"
+
+#include "system/menu.hpp"
+#include "system/variables.hpp"
+
+#include "system/draw/draw.hpp"
+
+#include "system/util/converter.hpp"
+#include "system/util/curl.hpp"
+#include "system/util/decoder.hpp"
+#include "system/util/error.hpp"
+#include "system/util/explorer.hpp"
+#include "system/util/file.hpp"
+#include "system/util/hid.hpp"
+#include "system/util/httpc.hpp"
+#include "system/util/log.hpp"
+#include "system/util/swkbd.hpp"
+#include "system/util/util.hpp"
 
 #include "image_viewer.hpp"
 #include "music_player.hpp"
 #include "video_player.hpp"
+
+//Include myself.
+#include "line.hpp"
 
 bool line_thread_suspend = false;
 bool line_already_init = false;
@@ -320,7 +343,7 @@ void Line_hid(Hid_info key)
 					{
 						line_type_id_request = true;
 						while(line_type_id_request)
-							usleep(20000);
+							Util_sleep(20000);
 					}
 					else if(Util_hid_is_pressed(key, line_change_main_url_short_button))
 						line_change_main_url_short_button.selected = true;
@@ -328,7 +351,7 @@ void Line_hid(Hid_info key)
 					{
 						line_type_short_url_request = true;
 						while(line_type_short_url_request)
-							usleep(20000);
+							Util_sleep(20000);
 					}
 					else if(Util_hid_is_pressed(key, line_change_main_url_button))
 						line_change_main_url_button.selected = true;
@@ -336,7 +359,7 @@ void Line_hid(Hid_info key)
 					{
 						line_type_main_url_request = true;
 						while(line_type_main_url_request)
-							usleep(20000);
+							Util_sleep(20000);
 					}
 					else if(Util_hid_is_pressed(key, line_hide_id_button))
 						line_hide_id_button.selected = true;
@@ -348,7 +371,7 @@ void Line_hid(Hid_info key)
 					{
 						line_type_app_ps_request = true;
 						while(line_type_app_ps_request)
-							usleep(20000);
+							Util_sleep(20000);
 					}
 					else if(Util_hid_is_pressed(key, line_change_gas_password_button))
 						line_change_gas_password_button.selected = true;
@@ -356,7 +379,7 @@ void Line_hid(Hid_info key)
 					{
 						line_type_script_ps_request = true;
 						while(line_type_script_ps_request)
-							usleep(20000);
+							Util_sleep(20000);
 					}
 				}
 
@@ -418,7 +441,7 @@ void Line_hid(Hid_info key)
 					line_type_msg_request = true;
 					line_send_check[0] = false;
 					while(line_type_msg_request)
-						usleep(20000);
+						Util_sleep(20000);
 				}
 				else if(Util_hid_is_pressed(key, line_view_image_button) && line_send_check[2])
 					line_view_image_button.selected = true;
@@ -514,7 +537,7 @@ void Line_hid(Hid_info key)
 					{
 						line_type_msg_request = true;
 						while(line_type_msg_request)
-							usleep(20000);
+							Util_sleep(20000);
 					}
 					else if(Util_hid_is_pressed(key, line_send_sticker_button))
 						line_send_sticker_button.selected = true;
@@ -619,7 +642,7 @@ void Line_hid(Hid_info key)
 					{
 						line_search_request = true;
 						while(line_search_request)
-							usleep(20000);
+							Util_sleep(20000);
 					}
 					else if (Util_hid_is_pressed(key, line_search_select_down_button))
 						line_search_select_down_button.selected = true;
@@ -876,7 +899,7 @@ void Line_hid(Hid_info key)
 								line_type_id_request = true;
 
 								while(line_type_id_request)
-									usleep(20000);
+									Util_sleep(20000);
 
 								break;
 							}
@@ -991,7 +1014,7 @@ void Line_hid(Hid_info key)
 Result_with_string Line_read_id(std::string dir_path)
 {
 	u8* buffer = NULL;
-	int type[128];
+	File_type type[128];
 	std::string data[4];
 	Result_with_string result;
 
@@ -1059,15 +1082,34 @@ Result_with_string Line_load_icon(int room_num)
 
 			if(result.code == 0)
 			{
-				result = Util_image_decoder_decode(DEF_MAIN_DIR + "images/" + filename, &raw_buffer, &image_width, &image_height, false);
+                Pixel_format pixel_format = PIXEL_FORMAT_INVALID;
+
+				result = Util_image_decoder_decode(DEF_MAIN_DIR + "images/" + filename, &raw_buffer, &image_width, &image_height, &pixel_format);
 				if(result.code == 0)
 				{
-					result = Draw_texture_init(&line_icon[room_num], 32, 32, DEF_DRAW_FORMAT_RGB888);
+					result = Draw_texture_init(&line_icon[room_num], 32, 32, PIXEL_FORMAT_RGB565LE);
 					if(result.code == 0)
 					{
-						Draw_set_texture_filter(&line_icon[room_num], true);
-						Util_converter_rgb888be_to_rgb888le(raw_buffer, image_width, image_height);
-						Draw_set_texture_data(&line_icon[room_num], raw_buffer, image_width, image_height, 32, 32, DEF_DRAW_FORMAT_RGB888);
+                        Color_converter_parameters converter_parameters;
+
+                        converter_parameters.source = raw_buffer;
+                        converter_parameters.in_color_format = pixel_format;
+                        converter_parameters.in_width = image_width;
+                        converter_parameters.in_height = image_height;
+                        converter_parameters.converted = NULL;
+                        converter_parameters.out_color_format = PIXEL_FORMAT_RGB565LE;
+                        converter_parameters.out_width = 32;
+                        converter_parameters.out_height = 32;
+
+                        result = Util_converter_convert_color(&converter_parameters);
+                        if(result.code == 0)
+                        {
+                            Draw_set_texture_filter(&line_icon[room_num], true);
+                            Draw_set_texture_data(&line_icon[room_num], converter_parameters.converted, converter_parameters.out_width, converter_parameters.out_height);
+                        }
+
+                        free(converter_parameters.converted);
+                        converter_parameters.converted = NULL;
 					}
 				}
 				free(raw_buffer);
@@ -1187,10 +1229,10 @@ void Line_worker_thread(void* arg)
 			line_dl_content_request = false;
 		}
 		else
-			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (line_thread_suspend)
-			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	Util_log_save(DEF_LINE_WORKER_THREAD_STR, "Thread exit.");
@@ -1309,8 +1351,6 @@ void Line_log_thread(void* arg)
 	std::string out_data[6];
 	Result_with_string result;
 	Line_upload_file_info upload_file_info;
-	
-	Util_curl_init(1024 * 256);
 
 	while (line_thread_run)
 	{
@@ -1861,10 +1901,10 @@ void Line_log_thread(void* arg)
 			line_load_log_request = false;
 		}
 		else
-			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (line_thread_suspend)
-			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Util_curl_exit();
 
@@ -1891,7 +1931,7 @@ void Line_init_thread(void* arg)
 	{
 		line_set_password_request = true;
 		while(line_set_password_request)
-			usleep(100000);
+			Util_sleep(100000);
 
 		line_auth_code == " ";
 	}
@@ -1907,7 +1947,7 @@ void Line_init_thread(void* arg)
 	{
 		line_type_password_request = true;
 		while(line_type_password_request)
-			usleep(100000);
+			Util_sleep(100000);
 	}
 
 	if (!line_auth_success)
@@ -1916,7 +1956,7 @@ void Line_init_thread(void* arg)
 		line_status += "\nAuth failed";
 		APT_HardwareResetAsync();
 		for(;;)
-			usleep(10000);
+			Util_sleep(10000);
 	}
 
 	line_status += "\nLoading settings...";
@@ -2207,8 +2247,11 @@ void Line_init(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(line_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -2217,7 +2260,7 @@ void Line_init(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 
 		if(line_set_password_request)
 		{
@@ -2299,8 +2342,11 @@ void Line_exit(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(line_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -2309,7 +2355,7 @@ void Line_exit(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	Util_log_save(DEF_LINE_EXIT_STR, "threadJoin()...", threadJoin(line_exit_thread, DEF_THREAD_WAIT_TIME));	
@@ -2329,7 +2375,6 @@ void Line_main(void)
 	int max_length = 512;
 	int num_of_words = 0;
 	int log_num = 0;
-	int button = 0;
 	u8 dummy = 0;
 	u32 feature = 0;
 	double pos_x = 0;
@@ -2349,6 +2394,7 @@ void Line_main(void)
 	SwkbdType type;
 	SwkbdValidInput valid_input;
 	Result_with_string result;
+	Keyboard_button button = KEYBOARD_BUTTON_NONE;
 
 	texture_size = line_text_size;
 
@@ -2366,7 +2412,7 @@ void Line_main(void)
 
 		if(var_turn_on_top_lcd)
 		{
-			Draw_screen_ready(0, back_color);
+			Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 
 			if(line_dl_content_request)
 				Draw(line_msg[56] + std::to_string(line_dled_content_size / 1024.0 / 1024.0).substr(0, 4) + "MB", 0, 20, 0.5, 0.5, color);
@@ -2416,20 +2462,26 @@ void Line_main(void)
 
 			Draw_top_ui();
 
-			if(var_3d_mode)
+            if(var_monitor_cpu_usage)
+                Draw_cpu_usage_info();
+
+			if(Draw_is_3d_mode())
 			{
-				Draw_screen_ready(2, back_color);
+				Draw_screen_ready(SCREEN_TOP_RIGHT, back_color);
 
 				if(Util_log_query_log_show_flag())
 					Util_log_draw();
 
 				Draw_top_ui();
+
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
 			}
 		}
-		
+
 		if(var_turn_on_bottom_lcd)
 		{
-			Draw_screen_ready(1, back_color);
+			Draw_screen_ready(SCREEN_BOTTOM, back_color);
 
 			if (line_select_chat_room_request)
 			{
@@ -2480,27 +2532,27 @@ void Line_main(void)
 				else
 				{
 					//Change main URL (short) button
-					Draw(line_msg[40], 20, 170, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_LEFT, DEF_DRAW_Y_ALIGN_CENTER, 130, 15, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+					Draw(line_msg[40], 20, 170, 0.375, 0.375, color, X_ALIGN_LEFT, Y_ALIGN_CENTER, 130, 15, BACKGROUND_ENTIRE_BOX,
 					&line_change_main_url_short_button, line_change_main_url_short_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Add new ID button
-					Draw(line_msg[18], 20, 190, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_LEFT, DEF_DRAW_Y_ALIGN_CENTER, 130, 15, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+					Draw(line_msg[18], 20, 190, 0.375, 0.375, color, X_ALIGN_LEFT, Y_ALIGN_CENTER, 130, 15, BACKGROUND_ENTIRE_BOX,
 					&line_add_new_id_button, line_add_new_id_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Change main URL button
-					Draw(line_msg[19], 20, 210, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_LEFT, DEF_DRAW_Y_ALIGN_CENTER, 130, 15, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+					Draw(line_msg[19], 20, 210, 0.375, 0.375, color, X_ALIGN_LEFT, Y_ALIGN_CENTER, 130, 15, BACKGROUND_ENTIRE_BOX,
 					&line_change_main_url_button, line_change_main_url_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Hide ID button
-					Draw(line_msg[41], 170, 170, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_LEFT, DEF_DRAW_Y_ALIGN_CENTER, 130, 15, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+					Draw(line_msg[41], 170, 170, 0.375, 0.375, color, X_ALIGN_LEFT, Y_ALIGN_CENTER, 130, 15, BACKGROUND_ENTIRE_BOX,
 					&line_hide_id_button, line_hide_id_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Change app password button
-					Draw(line_msg[22], 170, 190, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_LEFT, DEF_DRAW_Y_ALIGN_CENTER, 130, 15, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+					Draw(line_msg[22], 170, 190, 0.375, 0.375, color, X_ALIGN_LEFT, Y_ALIGN_CENTER, 130, 15, BACKGROUND_ENTIRE_BOX,
 					&line_change_app_password_button, line_change_app_password_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Change script password button
-					Draw(line_msg[23], 170, 210, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_LEFT, DEF_DRAW_Y_ALIGN_CENTER, 130, 15, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+					Draw(line_msg[23], 170, 210, 0.375, 0.375, color, X_ALIGN_LEFT, Y_ALIGN_CENTER, 130, 15, BACKGROUND_ENTIRE_BOX,
 					&line_change_gas_password_button, line_change_gas_password_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 				}
 			}
@@ -2568,29 +2620,29 @@ void Line_main(void)
 					color_cache = weak_color;
 
 				//Back button
-				Draw(line_msg[43], 260, 135, 0.45, 0.45, color_cache, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 40, 23,
-				DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_back_button, line_back_button.selected ? DEF_DRAW_YELLOW : DEF_DRAW_WEAK_YELLOW);
+				Draw(line_msg[43], 260, 135, 0.45, 0.45, color_cache, X_ALIGN_CENTER, Y_ALIGN_CENTER, 40, 23,
+				BACKGROUND_ENTIRE_BOX, &line_back_button, line_back_button.selected ? DEF_DRAW_YELLOW : DEF_DRAW_WEAK_YELLOW);
 
 				Draw(DEF_LINE_VER, 260, 155, 0.45, 0.45, DEF_DRAW_GREEN);
 				Draw_texture(var_square_image[0], DEF_DRAW_WEAK_AQUA, 10, 170, 300, 60);
 
 				//Menu buttons
-				Draw(line_msg[2], 10, 170, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 50, 10, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+				Draw(line_msg[2], 10, 170, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 50, 10, BACKGROUND_ENTIRE_BOX,
 				&line_menu_button[0], (line_menu_button[0].selected || line_selected_menu_mode == DEF_LINE_MENU_SEND) ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_YELLOW);
 
-				Draw(line_msg[35], 60, 170, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 50, 10, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+				Draw(line_msg[35], 60, 170, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 50, 10, BACKGROUND_ENTIRE_BOX,
 				&line_menu_button[1], (line_menu_button[1].selected || line_selected_menu_mode == DEF_LINE_MENU_RECEIVE) ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_RED);
 
-				Draw(line_msg[3], 110, 170, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 50, 10, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+				Draw(line_msg[3], 110, 170, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 50, 10, BACKGROUND_ENTIRE_BOX,
 				&line_menu_button[2], (line_menu_button[2].selected || line_selected_menu_mode == DEF_LINE_MENU_COPY) ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_YELLOW);
 
-				Draw(line_msg[4], 160, 170, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 50, 10, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+				Draw(line_msg[4], 160, 170, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 50, 10, BACKGROUND_ENTIRE_BOX,
 				&line_menu_button[3], (line_menu_button[3].selected || line_selected_menu_mode == DEF_LINE_MENU_SETTINGS) ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_RED);
 
-				Draw(line_msg[51], 210, 170, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 50, 10, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+				Draw(line_msg[51], 210, 170, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 50, 10, BACKGROUND_ENTIRE_BOX,
 				&line_menu_button[4], (line_menu_button[4].selected || line_selected_menu_mode == DEF_LINE_MENU_SEARCH) ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_YELLOW);
 
-				Draw(line_msg[5], 260, 170, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 50, 10, DEF_DRAW_BACKGROUND_ENTIRE_BOX,
+				Draw(line_msg[5], 260, 170, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 50, 10, BACKGROUND_ENTIRE_BOX,
 				&line_menu_button[5], (line_menu_button[5].selected || line_selected_menu_mode == DEF_LINE_MENU_ADVANCED) ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_RED);
 
 				if (line_selected_menu_mode == DEF_LINE_MENU_SEND && line_sending_msg)
@@ -2613,22 +2665,22 @@ void Line_main(void)
 				else if (line_selected_menu_mode == DEF_LINE_MENU_SEND && line_send_success)
 				{
 					//Send success button
-					Draw(line_msg[39], 20, 185, 0.45, 0.45, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 280, 13,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_send_success_button, line_send_success_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[39], 20, 185, 0.45, 0.45, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 280, 13,
+					BACKGROUND_ENTIRE_BOX, &line_send_success_button, line_send_success_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 				}
 				else if (line_selected_menu_mode == DEF_LINE_MENU_SEND)
 				{
 					//Send a message button
-					Draw(line_msg[6], 20, 185, 0.45, 0.45, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 280, 13,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_send_msg_button, line_send_msg_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[6], 20, 185, 0.45, 0.45, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 280, 13,
+					BACKGROUND_ENTIRE_BOX, &line_send_msg_button, line_send_msg_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Send a sticker button
-					Draw(line_msg[24], 20, 205, 0.45, 0.45, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 130, 13,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_send_sticker_button, line_send_sticker_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[24], 20, 205, 0.45, 0.45, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 130, 13,
+					BACKGROUND_ENTIRE_BOX, &line_send_sticker_button, line_send_sticker_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Send a file button
-					Draw(line_msg[34], 170, 205, 0.45, 0.45, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 130, 13,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_send_file_button, line_send_file_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[34], 170, 205, 0.45, 0.45, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 130, 13,
+					BACKGROUND_ENTIRE_BOX, &line_send_file_button, line_send_file_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 				}
 				else if (line_selected_menu_mode == DEF_LINE_MENU_RECEIVE)
 				{
@@ -2638,12 +2690,12 @@ void Line_main(void)
 						color_cache = color;
 
 					//Dl logs button
-					Draw(line_msg[7], 20, 185, 0.45, 0.45, color_cache, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 130, 13,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_dl_logs_button, line_dl_logs_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[7], 20, 185, 0.45, 0.45, color_cache, X_ALIGN_CENTER, Y_ALIGN_CENTER, 130, 13,
+					BACKGROUND_ENTIRE_BOX, &line_dl_logs_button, line_dl_logs_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Auto update button
-					Draw(line_msg[8 + line_auto_update], 170, 185, 0.45, 0.45, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 130, 13,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_auto_update_button, line_auto_update_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[8 + line_auto_update], 170, 185, 0.45, 0.45, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 130, 13,
+					BACKGROUND_ENTIRE_BOX, &line_auto_update_button, line_auto_update_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Max logs bar
 					Draw_texture(var_square_image[0], DEF_DRAW_WEAK_AQUA, 100, 210, 200, 5);
@@ -2655,56 +2707,56 @@ void Line_main(void)
 					Draw(std::to_string(line_selected_highlight_num) + "/" + std::to_string(line_num_of_msg - 1), 20, 190, 0.5, 0.5, color);
 
 					//Copy button
-					Draw(line_msg[11], 90, 185, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 30,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_copy_button, line_copy_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[11], 90, 185, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 30,
+					BACKGROUND_ENTIRE_BOX, &line_copy_button, line_copy_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Select down button
-					Draw(line_msg[12], 160, 185, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 30,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_copy_select_down_button, line_copy_select_down_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[12], 160, 185, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 30,
+					BACKGROUND_ENTIRE_BOX, &line_copy_select_down_button, line_copy_select_down_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Select up button
-					Draw(line_msg[13], 230, 185, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 30,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_copy_select_up_button, line_copy_select_up_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[13], 230, 185, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 30,
+					BACKGROUND_ENTIRE_BOX, &line_copy_select_up_button, line_copy_select_up_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 				}
 				else if (line_selected_menu_mode == DEF_LINE_MENU_SETTINGS)
 				{
 					//Increase font interval button
-					Draw(line_msg[14], 20, 185, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 30,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_increase_interval_button, line_increase_interval_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[14], 20, 185, 0.375, 0.375, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 30,
+					BACKGROUND_ENTIRE_BOX, &line_increase_interval_button, line_increase_interval_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Decrease font interval button
-					Draw(line_msg[15], 90, 185, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 30,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_decrease_interval_button, line_decrease_interval_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[15], 90, 185, 0.375, 0.375, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 30,
+					BACKGROUND_ENTIRE_BOX, &line_decrease_interval_button, line_decrease_interval_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Decrease font size button
-					Draw(line_msg[16], 170, 185, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 30,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_decrease_size_button, line_decrease_size_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[16], 170, 185, 0.375, 0.375, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 30,
+					BACKGROUND_ENTIRE_BOX, &line_decrease_size_button, line_decrease_size_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Increase font size button
-					Draw(line_msg[17], 240, 185, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 30,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_increase_size_button, line_increase_size_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[17], 240, 185, 0.375, 0.375, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 30,
+					BACKGROUND_ENTIRE_BOX, &line_increase_size_button, line_increase_size_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 				}
 				else if (line_selected_menu_mode == DEF_LINE_MENU_SEARCH)
 				{
 					Draw(std::to_string(line_selected_search_highlight_num) + "/" + std::to_string(line_found), 20, 190, 0.5, 0.5, color);
 
 					//Search button
-					Draw(line_msg[52], 90, 185, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 30,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_search_button, line_search_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[52], 90, 185, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 30,
+					BACKGROUND_ENTIRE_BOX, &line_search_button, line_search_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Select down button
-					Draw(line_msg[12], 160, 185, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 30,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_search_select_down_button, line_search_select_down_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[12], 160, 185, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 30,
+					BACKGROUND_ENTIRE_BOX, &line_search_select_down_button, line_search_select_down_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//Select up button
-					Draw(line_msg[13], 230, 185, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 30,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_search_select_up_button, line_search_select_up_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[13], 230, 185, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 30,
+					BACKGROUND_ENTIRE_BOX, &line_search_select_up_button, line_search_select_up_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 				}
 				else if (line_selected_menu_mode == DEF_LINE_MENU_ADVANCED)
 				{
 					//Delete room button
-					Draw(line_msg[44], 20, 185, 0.45, 0.45, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 280, 30,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_delete_room_button, line_delete_room_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[44], 20, 185, 0.45, 0.45, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 280, 30,
+					BACKGROUND_ENTIRE_BOX, &line_delete_room_button, line_delete_room_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 				}
 
 				if (line_send_check[0] || line_send_check[1] || line_send_check[2] || line_delete_id_check_request)
@@ -2717,24 +2769,24 @@ void Line_main(void)
 					Draw_texture(var_square_image[0], DEF_DRAW_BLUE, 10, 110, 300, 110);
 
 					//Yes button
-					Draw(line_msg[20], 30, 200, 0.45, 0.45, color_cache, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 70, 15,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_yes_button, line_yes_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[20], 30, 200, 0.45, 0.45, color_cache, X_ALIGN_CENTER, Y_ALIGN_CENTER, 70, 15,
+					BACKGROUND_ENTIRE_BOX, &line_yes_button, line_yes_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					//No button
-					Draw(line_msg[21], 120, 200, 0.45, 0.45, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 70, 15,
-					DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_no_button, line_no_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(line_msg[21], 120, 200, 0.45, 0.45, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 70, 15,
+					BACKGROUND_ENTIRE_BOX, &line_no_button, line_no_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 					if (line_send_check[0])
 					{
 						//Edit msg button
-						Draw(line_msg[47], 210, 200, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 70, 15,
-						DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_edit_msg_button, line_edit_msg_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+						Draw(line_msg[47], 210, 200, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 70, 15,
+						BACKGROUND_ENTIRE_BOX, &line_edit_msg_button, line_edit_msg_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 					}
 					else if (line_send_check[2])
 					{
 						//View image button
-						Draw(line_msg[32], 210, 200, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 70, 15,
-						DEF_DRAW_BACKGROUND_ENTIRE_BOX, &line_view_image_button, line_view_image_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+						Draw(line_msg[32], 210, 200, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 70, 15,
+						BACKGROUND_ENTIRE_BOX, &line_view_image_button, line_view_image_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 					}
 
 					Draw_texture(&line_icon[line_selected_room_num], 10, 110, 30, 30);
@@ -2908,7 +2960,7 @@ void Line_main(void)
 
 		Util_swkbd_launch(&swkbd_data, &button);
 		Util_swkbd_exit();
-		if (button == DEF_SWKBD_BUTTON_RIGHT)
+		if (button == KEYBOARD_BUTTON_NONE)
 		{
 			log_num = 0;
 			if (line_type_msg_request)

@@ -1,4 +1,22 @@
-#include "system/headers.hpp"
+#include "definitions.hpp"
+#include "system/types.hpp"
+
+#include "system/menu.hpp"
+#include "system/variables.hpp"
+
+#include "system/draw/draw.hpp"
+
+#include "system/util/camera.hpp"
+#include "system/util/converter.hpp"
+#include "system/util/encoder.hpp"
+#include "system/util/error.hpp"
+#include "system/util/file.hpp"
+#include "system/util/hid.hpp"
+#include "system/util/log.hpp"
+#include "system/util/util.hpp"
+
+//Include myself.
+#include "camera_app.hpp"
 
 extern "C" void memcpy_asm(u8*, u8*, int);
 
@@ -20,30 +38,30 @@ u8* cam_encode_buffer = NULL;
 int cam_selected_menu_mode = 0;
 int cam_selected_jpg_quality = 95;
 int cam_display_img_num = -1;
-int cam_resolution_mode = 2;
-int cam_request_resolution_mode = 2;
-int cam_exposure_mode = 0;
-int cam_request_exposure_mode = 0;
+Camera_resolution cam_resolution_mode = CAM_RES_400x240;
+Camera_resolution cam_request_resolution_mode = CAM_RES_400x240;
+Camera_exposure cam_exposure_mode = CAM_EXPOSURE_0;
+Camera_exposure cam_request_exposure_mode = CAM_EXPOSURE_0;
 int cam_noise_filter_mode = 1;
 int cam_request_noise_filter_mode = 1;
-int cam_fps_mode = 8;
-int cam_request_fps_mode = 8;
-int cam_contrast_mode = 5;
-int cam_request_contrast_mode = 5;
-int cam_white_balance_mode = 0;
-int cam_request_white_balance_mode = 0;
-int cam_lens_correction_mode = 0;
-int cam_request_lens_correction_mode = 0;
-int cam_camera_mode = 0;
-int cam_request_camera_mode = 0;
+Camera_framerate cam_fps_mode = CAM_FPS_30;
+Camera_framerate cam_request_fps_mode = CAM_FPS_30;
+Camera_contrast cam_contrast_mode = CAM_CONTRAST_06;
+Camera_contrast cam_request_contrast_mode = CAM_CONTRAST_06;
+Camera_white_balance cam_white_balance_mode = CAM_WHITE_BALANCE_AUTO;
+Camera_white_balance cam_request_white_balance_mode = CAM_WHITE_BALANCE_AUTO;
+Camera_lens_correction cam_lens_correction_mode = CAM_LENS_CORRECTION_OFF;
+Camera_lens_correction cam_request_lens_correction_mode = CAM_LENS_CORRECTION_OFF;
+Camera_port cam_camera_mode = CAM_PORT_OUT_LEFT;
+Camera_port cam_request_camera_mode = CAM_PORT_OUT_LEFT;
 int cam_shutter_sound_mode = 0;
 int cam_encode_format_mode = 1;
-int cam_width_list[9] = { 640, 512, 400, 352, 0, 320, 256, 176, 160, };
-int cam_height_list[9] = { 480, 384, 240, 288, 0, 240, 192, 144, 120, };
-int cam_fps_list[13] = { DEF_CAM_FPS_15, DEF_CAM_FPS_15_TO_5, DEF_CAM_FPS_15_TO_2,
-DEF_CAM_FPS_10, DEF_CAM_FPS_8_5, DEF_CAM_FPS_5, DEF_CAM_FPS_20, DEF_CAM_FPS_20_TO_5,
-DEF_CAM_FPS_30, DEF_CAM_FPS_30_TO_5, DEF_CAM_FPS_15_TO_10, DEF_CAM_FPS_20_TO_10, DEF_CAM_FPS_30_TO_10, };
-int cam_camera_list[3] = { DEF_CAM_OUT_LEFT, DEF_CAM_OUT_RIGHT, DEF_CAM_IN, };
+int cam_width_list[8] = { 640, 512, 400, 352, 320, 256, 176, 160, };
+int cam_height_list[8] = { 480, 384, 240, 288, 240, 192, 144, 120, };
+Camera_framerate cam_fps_list[13] = { CAM_FPS_15, CAM_FPS_15_TO_5, CAM_FPS_15_TO_2,
+CAM_FPS_10, CAM_FPS_8_5, CAM_FPS_5, CAM_FPS_20, CAM_FPS_20_TO_5,
+CAM_FPS_30, CAM_FPS_30_TO_5, CAM_FPS_15_TO_10, CAM_FPS_20_TO_10, CAM_FPS_30_TO_10, };
+Camera_port cam_camera_list[3] = { CAM_PORT_OUT_LEFT, CAM_PORT_OUT_RIGHT, CAM_PORT_IN, };
 std::string cam_status = "";
 std::string cam_msg[DEF_CAM_NUM_OF_MSG];
 std::string cam_resolution_list[9];
@@ -133,18 +151,14 @@ void Cam_hid(Hid_info key)
 						cam_resolution_button[i].selected = true;
 					else if(Util_hid_is_released(key, cam_resolution_button[i]) && cam_resolution_button[i].selected && i != cam_request_resolution_mode)
 					{
-						if (i == 4)
+						//Random.
+						if (i == 8)
 						{
-							random_num = 4;
 							srand(time(NULL));
-							while (random_num == 4)
-							{
-								random_num = rand() % 9;
-								usleep(10000);
-							}
-							i = random_num;
+							i = rand() % 8;
 						}
-						cam_request_resolution_mode = i;
+
+						cam_request_resolution_mode = (Camera_resolution)i;
 						cam_change_resolution_request = true;
 						break;
 					}
@@ -168,7 +182,7 @@ void Cam_hid(Hid_info key)
 									|| random_num == 6 || random_num == 8)
 								{
 									random_num = rand() % 13;
-									usleep(10000);
+									Util_sleep(10000);
 								}
 							}
 							else if(i == 14)
@@ -178,7 +192,7 @@ void Cam_hid(Hid_info key)
 									|| random_num == 10 || random_num == 11 || random_num == 12)
 								{
 									random_num = rand() % 13;
-									usleep(10000);
+									Util_sleep(10000);
 								}
 							}
 							i = random_num;
@@ -204,7 +218,7 @@ void Cam_hid(Hid_info key)
 
 					if(selected_num != cam_request_contrast_mode)
 					{
-						cam_request_contrast_mode = selected_num;
+						cam_request_contrast_mode = (Camera_contrast)selected_num;
 						cam_change_contrast_request = true;
 					}
 				}
@@ -221,7 +235,7 @@ void Cam_hid(Hid_info key)
 
 					if(selected_num != cam_request_white_balance_mode)
 					{
-						cam_request_white_balance_mode = selected_num;
+						cam_request_white_balance_mode = (Camera_white_balance)selected_num;
 						cam_change_white_balance_request = true;
 					}
 				}
@@ -238,7 +252,7 @@ void Cam_hid(Hid_info key)
 
 					if(selected_num != cam_request_lens_correction_mode)
 					{
-						cam_request_lens_correction_mode = selected_num;
+						cam_request_lens_correction_mode = (Camera_lens_correction)selected_num;
 						cam_change_lens_correction_request = true;
 					}
 				}
@@ -255,7 +269,7 @@ void Cam_hid(Hid_info key)
 
 					if(selected_num != cam_request_exposure_mode)
 					{
-						cam_request_exposure_mode = selected_num;
+						cam_request_exposure_mode = (Camera_exposure)selected_num;
 						cam_change_exposure_request = true;
 					}
 				}
@@ -352,7 +366,6 @@ void Cam_encode_thread(void* arg)
 	Util_log_save(DEF_CAM_ENCODE_THREAD_STR, "Thread started.");
 	int log_num = 0;
 	u8 dummy = 0;
-	u8* rgb888_buffer = NULL;
 	char date[128];
 	std::string file_name = "";
 	std::string extension = "";
@@ -371,6 +384,8 @@ void Cam_encode_thread(void* arg)
 	{
 		if (cam_encode_request)
 		{
+			Color_converter_parameters converter_parameters;
+
 			memset(date, 0, 128);
 			sprintf(date, "%02d_%02d_%02d_", var_hours, var_minutes, var_seconds);
 			file_name = date;
@@ -400,16 +415,28 @@ void Cam_encode_thread(void* arg)
 				}
 			}
 
-			log_num = Util_log_save(DEF_CAM_ENCODE_THREAD_STR, "Util_converter_rgb565le_to_rgb888le()...");
-			result = Util_converter_rgb565le_to_rgb888le(cam_encode_buffer, &rgb888_buffer, cam_width_list[cam_resolution_mode], cam_height_list[cam_resolution_mode]);
+			converter_parameters.source = cam_encode_buffer;
+			converter_parameters.in_color_format = PIXEL_FORMAT_RGB565LE;
+			converter_parameters.in_width = cam_width_list[cam_resolution_mode];
+			converter_parameters.in_height = cam_height_list[cam_resolution_mode];
+			converter_parameters.converted = NULL;
+			converter_parameters.out_color_format = PIXEL_FORMAT_BGR888;
+			converter_parameters.out_width = converter_parameters.in_width;
+			converter_parameters.out_height = converter_parameters.in_height;
+
+			log_num = Util_log_save(DEF_CAM_ENCODE_THREAD_STR, "Util_converter_convert_color()...");
+			result = Util_converter_convert_color(&converter_parameters);
 			Util_log_add(log_num, result.string + result.error_description, result.code);
 			if(result.code == 0)
 			{
 				log_num = Util_log_save(DEF_CAM_ENCODE_THREAD_STR, "Util_image_encoder_encode()...");
-				result = Util_image_encoder_encode(dir_path + file_name, rgb888_buffer, cam_width_list[cam_resolution_mode], cam_height_list[cam_resolution_mode],
-				cam_encode_format_mode == 0 ? DEF_ENCODER_IMAGE_CODEC_PNG : DEF_ENCODER_IMAGE_CODEC_JPG, cam_encode_format_mode == 0 ? 0 : cam_selected_jpg_quality);
+				result = Util_image_encoder_encode(dir_path + file_name, converter_parameters.converted, cam_width_list[cam_resolution_mode], cam_height_list[cam_resolution_mode],
+				cam_encode_format_mode == 0 ? IMAGE_CODEC_PNG : IMAGE_CODEC_JPG, cam_encode_format_mode == 0 ? 0 : cam_selected_jpg_quality);
 				Util_log_add(log_num, result.string + result.error_description, result.code);
 			}
+
+			free(converter_parameters.converted);
+			converter_parameters.converted = NULL;
 
 			if(result.code != 0)
 			{
@@ -420,10 +447,10 @@ void Cam_encode_thread(void* arg)
 			cam_encode_request = false;
 		}
 		else
-			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (cam_thread_suspend)
-			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Util_log_save(DEF_CAM_ENCODE_THREAD_STR, "Thread exit.");
 	threadExit(0);
@@ -468,7 +495,7 @@ void Cam_capture_thread(void* arg)
 			if (cam_change_resolution_request)
 			{
 				log_num = Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, "Util_cam_set_resolution()...");
-				result = Util_cam_set_resolution(cam_width_list[cam_request_resolution_mode], cam_height_list[cam_request_resolution_mode]);
+				result = Util_cam_set_resolution(cam_request_resolution_mode);
 			}
 			else if (cam_change_fps_request)
 			{
@@ -566,7 +593,7 @@ void Cam_capture_thread(void* arg)
 				else
 					buffer_num = 0;
 
-				result = Draw_set_texture_data(&cam_capture_image[buffer_num], capture_buffer, width, height, 1024, 512, DEF_DRAW_FORMAT_RGB565);
+				result = Draw_set_texture_data(&cam_capture_image[buffer_num], capture_buffer, width, height);
 
 				if (result.code == 0)
 				{
@@ -577,20 +604,20 @@ void Cam_capture_thread(void* arg)
 				{
 					Util_err_set_error_message(result.string, result.error_description, DEF_CAM_CAPTURE_THREAD_STR, result.code);
 					Util_err_set_error_show_flag(true);
-					usleep(1000000);
+					Util_sleep(1000000);
 				}
 			}
 			else
 			{
 				Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, result.string, result.code);
-				usleep(100);
+				Util_sleep(100);
 			}
 			free(capture_buffer);
 			capture_buffer = NULL;
 		}
 
 		while (cam_thread_suspend)
-			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	result.code = CAMU_Activate(SELECT_NONE);
@@ -617,13 +644,13 @@ void Cam_init_thread(void* arg)
 		result = Util_parse_file((char*)fs_buffer, 11, data);
 		if(result.code == 0)
 		{
-			cam_camera_mode = atoi(data[0].c_str());
-			cam_resolution_mode = atoi(data[1].c_str());
-			cam_fps_mode = atoi(data[2].c_str());
-			cam_contrast_mode = atoi(data[3].c_str());
-			cam_white_balance_mode = atoi(data[4].c_str());
-			cam_lens_correction_mode = atoi(data[5].c_str());
-			cam_exposure_mode = atoi(data[6].c_str());
+			cam_camera_mode = (Camera_port)atoi(data[0].c_str());
+			cam_resolution_mode = (Camera_resolution)atoi(data[1].c_str());
+			cam_fps_mode = (Camera_framerate)atoi(data[2].c_str());
+			cam_contrast_mode = (Camera_contrast)atoi(data[3].c_str());
+			cam_white_balance_mode = (Camera_white_balance)atoi(data[4].c_str());
+			cam_lens_correction_mode = (Camera_lens_correction)atoi(data[5].c_str());
+			cam_exposure_mode = (Camera_exposure)atoi(data[6].c_str());
 			cam_encode_format_mode= atoi(data[7].c_str());
 			cam_noise_filter_mode = atoi(data[8].c_str());
 			cam_selected_jpg_quality = atoi(data[9].c_str());
@@ -633,20 +660,21 @@ void Cam_init_thread(void* arg)
 	free(fs_buffer);
 	fs_buffer = NULL;
 
-	if(!(cam_camera_mode >= 0 && cam_camera_mode <= 2))
-		cam_camera_mode = 0;
-	if(!(cam_resolution_mode >= 0 && cam_resolution_mode <= 8) || cam_resolution_mode == 4)
-		cam_resolution_mode = 2;
-	if(!(cam_fps_mode >= 0 && cam_fps_mode <= 12))
-		cam_fps_mode = 8;
-	if(!(cam_contrast_mode >= 0 && cam_contrast_mode <= 10))
-		cam_contrast_mode = 5;
-	if(!(cam_white_balance_mode >= 0 && cam_white_balance_mode <= 5))
-		cam_white_balance_mode = 0;
-	if(!(cam_lens_correction_mode >= 0 && cam_lens_correction_mode <= 2))
-		cam_lens_correction_mode = 0;
-	if(!(cam_exposure_mode >= 0 && cam_exposure_mode <= 5))
-		cam_exposure_mode = 0;
+	//todo
+	if(cam_camera_mode <= CAM_PORT_INVALID || cam_camera_mode >= CAM_PORT_MAX)
+		cam_camera_mode = CAM_PORT_OUT_LEFT;
+	if(cam_resolution_mode <= CAM_RES_INVALID || cam_resolution_mode >= CAM_RES_MAX)
+		cam_resolution_mode = CAM_RES_400x240;
+	if(cam_fps_mode <= CAM_FPS_INVALID || cam_fps_mode >= CAM_FPS_MAX)
+		cam_fps_mode = CAM_FPS_30;
+	if(cam_contrast_mode <= CAM_CONTRAST_INVALID || cam_contrast_mode >= CAM_CONTRAST_MAX)
+		cam_contrast_mode = CAM_CONTRAST_06;
+	if(cam_white_balance_mode <= CAM_WHITE_BALANCE_INVALID || cam_white_balance_mode >= CAM_WHITE_BALANCE_MAX)
+		cam_white_balance_mode = CAM_WHITE_BALANCE_AUTO;
+	if(cam_lens_correction_mode <= CAM_LENS_CORRECTION_INVALID || cam_lens_correction_mode >= CAM_LENS_CORRECTION_MAX)
+		cam_lens_correction_mode = CAM_LENS_CORRECTION_OFF;
+	if(cam_exposure_mode <= CAM_EXPOSURE_INVALID || cam_exposure_mode >= CAM_EXPOSURE_MAX)
+		cam_exposure_mode = CAM_EXPOSURE_0;
 	if(!(cam_encode_format_mode >= 0 && cam_encode_format_mode <= 1))
 		cam_encode_format_mode = 1;
 	if(!(cam_noise_filter_mode >= 0 && cam_noise_filter_mode <= 1))
@@ -683,7 +711,7 @@ void Cam_init_thread(void* arg)
 
 	cam_status += "\nInitializing camera...";
 	log_num = Util_log_save(DEF_CAM_INIT_STR , "Util_cam_init()...");
-	result = Util_cam_init(DEF_CAM_OUT_RGB565);
+	result = Util_cam_init(PIXEL_FORMAT_RGB565LE);
 	Util_log_add(log_num, result.string + result.error_description, result.code);
 	if(result.code != 0)
 	{
@@ -693,7 +721,7 @@ void Cam_init_thread(void* arg)
 
 	cam_status += ".";
 	log_num = Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, "Util_cam_set_resolution()...");
-	result = Util_cam_set_resolution(cam_width_list[cam_request_resolution_mode], cam_height_list[cam_request_resolution_mode]);
+	result = Util_cam_set_resolution(cam_request_resolution_mode);
 	Util_log_add(log_num, result.string, result.code);
 
 	cam_status += ".";
@@ -734,7 +762,7 @@ void Cam_init_thread(void* arg)
 	cam_status += "\nInitializing variables...";
 	for (int i = 0; i < 2; i++)
 	{
-		result = Draw_texture_init(&cam_capture_image[i], 1024, 512, DEF_DRAW_FORMAT_RGB565);
+		result = Draw_texture_init(&cam_capture_image[i], 1024, 512, PIXEL_FORMAT_RGB565LE);
 		if(result.code != 0)
 		{
 			Util_err_set_error_message(result.string, result.error_description, DEF_CAM_INIT_STR, result.code);
@@ -899,8 +927,11 @@ void Cam_init(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(cam_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -909,7 +940,7 @@ void Cam_init(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	if(!(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_N3DS) || !var_core_2_available)
@@ -946,8 +977,11 @@ void Cam_exit(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(cam_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -956,7 +990,7 @@ void Cam_exit(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	Util_log_save(DEF_CAM_EXIT_STR, "threadJoin()...", threadJoin(cam_exit_thread, DEF_THREAD_WAIT_TIME));	
@@ -991,7 +1025,7 @@ void Cam_main(void)
 
 		if(var_turn_on_top_lcd)
 		{
-			Draw_screen_ready(0, back_color);
+			Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 
 			Draw_top_ui();
 			if (cam_display_img_num != -1)
@@ -1003,23 +1037,39 @@ void Cam_main(void)
 				else
 					Draw_texture(&cam_capture_image[image_num], 40, 0, 320, 240);
 			}
+
 			if(Util_log_query_log_show_flag())
 				Util_log_draw();
 
-			if(var_3d_mode)
+			if(var_monitor_cpu_usage)
+				Draw_cpu_usage_info();
+
+			if(Draw_is_3d_mode())
 			{
-				Draw_screen_ready(2, back_color);
+				Draw_screen_ready(SCREEN_TOP_RIGHT, back_color);
+
+				Draw_top_ui();
+				if (cam_display_img_num != -1)
+				{
+					//Camera image
+					image_num = cam_display_img_num;
+					if (cam_resolution_mode == 2)
+						Draw_texture(&cam_capture_image[image_num], 0, 0, 400, 240);
+					else
+						Draw_texture(&cam_capture_image[image_num], 40, 0, 320, 240);
+				}
 
 				if(Util_log_query_log_show_flag())
 					Util_log_draw();
 
-				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
 			}
 		}
 		
 		if(var_turn_on_bottom_lcd)
 		{
-			Draw_screen_ready(1, back_color);
+			Draw_screen_ready(SCREEN_BOTTOM, back_color);
 
 			Draw(DEF_CAM_VER, 0, 0, 0.4, 0.4, DEF_DRAW_GREEN);
 
@@ -1038,8 +1088,8 @@ void Cam_main(void)
 			for (int i = 0; i < 3; i++)
 			{
 				//Camera button
-				Draw(cam_msg[25 + i], 40 + (i * 85), 75, 0.4, 0.4, i == cam_camera_mode ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-				70, 30, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &cam_camera_button[i], cam_camera_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+				Draw(cam_msg[25 + i], 40 + (i * 85), 75, 0.4, 0.4, i == cam_camera_mode ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+				70, 30, BACKGROUND_ENTIRE_BOX, &cam_camera_button[i], cam_camera_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 			}
 
 			if (cam_selected_menu_mode == DEF_CAM_MENU_RESOLUTION)
@@ -1049,8 +1099,8 @@ void Cam_main(void)
 				for (int i = 0; i < 9; i++)
 				{
 					//Resolution button
-					Draw(cam_resolution_list[i], pos_x, pos_y, 0.4, 0.4, i == cam_resolution_mode ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-					60, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &cam_resolution_button[i], cam_resolution_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(cam_resolution_list[i], pos_x, pos_y, 0.4, 0.4, i == cam_resolution_mode ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+					60, 20, BACKGROUND_ENTIRE_BOX, &cam_resolution_button[i], cam_resolution_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 					if (pos_y + 30 > 180)
 					{
 						pos_x += 90;
@@ -1067,8 +1117,8 @@ void Cam_main(void)
 				for (int i = 0; i < 15; i++)
 				{
 					//Framerate button
-					Draw(cam_framelate_list[i], pos_x, pos_y, 0.4, 0.4, i == cam_fps_mode ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-					30, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &cam_fps_button[i], cam_fps_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+					Draw(cam_framelate_list[i], pos_x, pos_y, 0.4, 0.4, i == cam_fps_mode ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+					30, 20, BACKGROUND_ENTIRE_BOX, &cam_fps_button[i], cam_fps_button[i].selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 					if (pos_y + 30 > 180)
 					{
 						pos_x += 50;
@@ -1116,12 +1166,12 @@ void Cam_main(void)
 				Draw(cam_msg[11], 42.5, 120, 0.4, 0.4, color);
 
 				//PNG button
-				Draw(cam_msg[12], 40, 130, 0.4, 0.4, cam_encode_format_mode == 0 ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 40, 20,
-				DEF_DRAW_BACKGROUND_ENTIRE_BOX, &cam_png_button, cam_png_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+				Draw(cam_msg[12], 40, 130, 0.4, 0.4, cam_encode_format_mode == 0 ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 40, 20,
+				BACKGROUND_ENTIRE_BOX, &cam_png_button, cam_png_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 				//JPG button
-				Draw(cam_msg[13], 100, 130, 0.4, 0.4, cam_encode_format_mode == 1 ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 40, 20,
-				DEF_DRAW_BACKGROUND_ENTIRE_BOX, &cam_jpg_button, cam_jpg_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+				Draw(cam_msg[13], 100, 130, 0.4, 0.4, cam_encode_format_mode == 1 ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 40, 20,
+				BACKGROUND_ENTIRE_BOX, &cam_jpg_button, cam_jpg_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 				if(cam_encode_format_mode == 1)
 				{
@@ -1135,23 +1185,23 @@ void Cam_main(void)
 				Draw(cam_msg[15], 182.5, 120, 0.4, 0.4, color);
 
 				//ON
-				Draw(cam_msg[16], 180, 130, 0.4, 0.4, cam_noise_filter_mode ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-				40, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &cam_noise_filter_on_button, cam_noise_filter_on_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+				Draw(cam_msg[16], 180, 130, 0.4, 0.4, cam_noise_filter_mode ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+				40, 20, BACKGROUND_ENTIRE_BOX, &cam_noise_filter_on_button, cam_noise_filter_on_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 				//OFF
-				Draw(cam_msg[17], 240, 130, 0.4, 0.4, !cam_noise_filter_mode ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-				40, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &cam_noise_filter_off_button, cam_noise_filter_off_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+				Draw(cam_msg[17], 240, 130, 0.4, 0.4, !cam_noise_filter_mode ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+				40, 20, BACKGROUND_ENTIRE_BOX, &cam_noise_filter_off_button, cam_noise_filter_off_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 				//Shutter sound
 				Draw(cam_msg[18], 182.5, 150, 0.4, 0.4, color);
 
 				//ON
-				Draw(cam_msg[16], 180, 160, 0.4, 0.4, cam_shutter_sound_mode ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-				40, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &cam_shutter_sound_on_button, cam_shutter_sound_on_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+				Draw(cam_msg[16], 180, 160, 0.4, 0.4, cam_shutter_sound_mode ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+				40, 20, BACKGROUND_ENTIRE_BOX, &cam_shutter_sound_on_button, cam_shutter_sound_on_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 				//OFF
-				Draw(cam_msg[17], 240, 160, 0.4, 0.4, !cam_shutter_sound_mode ? DEF_DRAW_RED : color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER,
-				40, 20, DEF_DRAW_BACKGROUND_ENTIRE_BOX, &cam_shutter_sound_off_button, cam_shutter_sound_off_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+				Draw(cam_msg[17], 240, 160, 0.4, 0.4, !cam_shutter_sound_mode ? DEF_DRAW_RED : color, X_ALIGN_CENTER, Y_ALIGN_CENTER,
+				40, 20, BACKGROUND_ENTIRE_BOX, &cam_shutter_sound_off_button, cam_shutter_sound_off_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 			}
 			for (int i = 0; i < 4; i++)
 				Draw(cam_msg[i + 21], 40 + (i * 60), 110, 0.35, 0.35, color);
@@ -1164,7 +1214,7 @@ void Cam_main(void)
 					Draw(cam_msg[19], 52.5, 100, 0.5, 0.5, color);
 			}
 			//Controls
-			Draw(cam_msg[31], 0, 200, 0.5, 0.5, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 320, 20);
+			Draw(cam_msg[31], 0, 200, 0.5, 0.5, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 320, 20);
 
 			if(Util_err_query_error_show_flag())
 				Util_err_draw();

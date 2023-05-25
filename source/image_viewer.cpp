@@ -1,4 +1,23 @@
-﻿#include "system/headers.hpp"
+﻿#include "definitions.hpp"
+#include "system/types.hpp"
+
+#include "system/menu.hpp"
+#include "system/variables.hpp"
+
+#include "system/draw/draw.hpp"
+
+#include "system/util/converter.hpp"
+#include "system/util/decoder.hpp"
+#include "system/util/error.hpp"
+#include "system/util/explorer.hpp"
+#include "system/util/hid.hpp"
+#include "system/util/httpc.hpp"
+#include "system/util/log.hpp"
+#include "system/util/swkbd.hpp"
+#include "system/util/util.hpp"
+
+//Include myself.
+#include "image_viewer.hpp"
 
 bool imv_already_init = false;
 bool imv_main_run = false;
@@ -161,7 +180,7 @@ void Imv_hid(Hid_info key)
 		{
 			imv_type_request = true;
 			while(imv_type_request)
-				usleep(20000);
+				Util_sleep(20000);
 		}
 		else if (Util_hid_is_pressed(key, imv_decrease_size_button))
 			imv_decrease_size_button.selected = true;
@@ -252,6 +271,7 @@ void Imv_img_load_thread(void* arg)
 		}
 		else if (imv_img_load_request)
 		{
+			Pixel_format pixel_format = PIXEL_FORMAT_INVALID; 
 			for(int i = 0; i < 64; i++)
 			{
 				imv_enable[i] = false;
@@ -260,11 +280,13 @@ void Imv_img_load_thread(void* arg)
 			var_need_reflesh = true;
 
 			log_num = Util_log_save(DEF_IMV_LOAD_THREAD_STR, "Util_image_decoder_decode()...");
-			result = Util_image_decoder_decode(imv_img_load_dir_name + imv_img_load_filename, &raw_buffer, &width, &height, false);
+			result = Util_image_decoder_decode(imv_img_load_dir_name + imv_img_load_filename, &raw_buffer, &width, &height, &pixel_format);
 			Util_log_add(log_num, std::to_string(width) + "x" + std::to_string(height) + " " + result.string, result.code);
 
 			if (result.code == 0)
 			{
+				Color_converter_parameters converter_parameters;
+
 				if(width != 0 && height != 0)
 				{
 					//Fit to screen size
@@ -278,37 +300,55 @@ void Imv_img_load_thread(void* arg)
 					imv_width = width;
 					imv_height = height;
 				}
-				
-				log_num = Util_log_save(DEF_IMV_LOAD_THREAD_STR, "Util_converter_rgb888be_to_rgb888le()...");
-				result = Util_converter_rgb888be_to_rgb888le(raw_buffer, width, height);
+
+				converter_parameters.source = raw_buffer;
+				converter_parameters.in_width = width;
+				converter_parameters.in_height = height;
+				converter_parameters.in_color_format = pixel_format;
+				converter_parameters.converted = NULL;
+				converter_parameters.out_width = converter_parameters.in_width;
+				converter_parameters.out_height = converter_parameters.in_height;
+				if(pixel_format == PIXEL_FORMAT_RGBA8888 || pixel_format == PIXEL_FORMAT_GRAYALPHA88)
+					converter_parameters.out_color_format = PIXEL_FORMAT_ABGR8888;//Keep transparency.
+				else
+					converter_parameters.out_color_format = PIXEL_FORMAT_RGB565LE;
+
+				log_num = Util_log_save(DEF_IMV_LOAD_THREAD_STR, "Util_converter_convert_color()...");
+				result = Util_converter_convert_color(&converter_parameters);
 				Util_log_add(log_num, result.string, result.code);
 
-				//Set texture data
-				for (int i = 0; i < 8; i++)
+				if(result.code == 0)
 				{
-					if(i * 512 > height)
-						continue;
-
-					for (int k = 0; k < 8; k++)
+					//Set texture data
+					for (int i = 0; i < 8; i++)
 					{
-						if(k * 512 > width)
+						if(i * 512 > height)
 							continue;
 
-						log_num = Util_log_save(DEF_IMV_LOAD_THREAD_STR, "Draw_texture_init()...");
-						result = Draw_texture_init(&imv_image[k + (i * 8)], 512, 512, DEF_DRAW_FORMAT_RGB888);
-						Util_log_add(log_num, result.string, result.code);
-
-						if(result.code == 0)
+						for (int k = 0; k < 8; k++)
 						{
-							Draw_set_texture_filter(&imv_image[k + (i * 8)], true);
-							imv_enable[k + (i * 8)] = true;
-							log_num = Util_log_save(DEF_IMV_LOAD_THREAD_STR, "Draw_set_texture_data()...");
-							result = Draw_set_texture_data(&imv_image[k + (i * 8)], raw_buffer, width, height, (k * 512), (i * 512), 512, 512, DEF_DRAW_FORMAT_RGB888);
+							if(k * 512 > width)
+								continue;
+
+							log_num = Util_log_save(DEF_IMV_LOAD_THREAD_STR, "Draw_texture_init()...");
+							result = Draw_texture_init(&imv_image[k + (i * 8)], 512, 512, converter_parameters.out_color_format);
 							Util_log_add(log_num, result.string, result.code);
-							var_need_reflesh = true;
+
+							if(result.code == 0)
+							{
+								Draw_set_texture_filter(&imv_image[k + (i * 8)], true);
+								imv_enable[k + (i * 8)] = true;
+								log_num = Util_log_save(DEF_IMV_LOAD_THREAD_STR, "Draw_set_texture_data()...");
+								result = Draw_set_texture_data(&imv_image[k + (i * 8)], converter_parameters.converted, width, height, (k * 512), (i * 512));
+								Util_log_add(log_num, result.string, result.code);
+								var_need_reflesh = true;
+							}
 						}
 					}
 				}
+
+				free(converter_parameters.converted);
+				converter_parameters.converted = NULL;
 			}
 			free(raw_buffer);
 			raw_buffer = NULL;
@@ -322,10 +362,10 @@ void Imv_img_load_thread(void* arg)
 			imv_img_load_request = false;
 		}
 		else
-			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (imv_thread_suspend)
-			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
 
 	for(int i = 0; i < 64; i++)
@@ -448,8 +488,11 @@ void Imv_init(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(imv_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -458,7 +501,7 @@ void Imv_init(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	if(!(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_N3DS) || !var_core_2_available)
@@ -493,8 +536,11 @@ void Imv_exit(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(imv_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -503,7 +549,7 @@ void Imv_exit(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	Util_log_save(DEF_IMV_EXIT_STR, "threadJoin()...", threadJoin(imv_exit_thread, DEF_THREAD_WAIT_TIME));	
@@ -534,7 +580,7 @@ void Imv_main(void)
 
 		if(var_turn_on_top_lcd)
 		{
-			Draw_screen_ready(0, back_color);
+			Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 
 			Draw_top_ui();
 
@@ -559,20 +605,44 @@ void Imv_main(void)
 			if(Util_log_query_log_show_flag())
 				Util_log_draw();
 
-			if(var_3d_mode)
+			if(var_monitor_cpu_usage)
+				Draw_cpu_usage_info();
+
+			if(Draw_is_3d_mode())
 			{
-				Draw_screen_ready(2, back_color);
+				Draw_screen_ready(SCREEN_TOP_RIGHT, back_color);
+
+				Draw_top_ui();
+
+				//Draw image
+				for (int i = 0; i < 8; i++)
+				{
+					for (int k = 0; k < 8; k++)
+					{
+						if (imv_enable[k + (i * 8)])
+						{
+							Draw_texture(&imv_image[k + (i * 8)], (imv_img_pos_x + img_pos_x_offset), (imv_img_pos_y + img_pos_y_offset),
+							imv_image[k + (i * 8)].subtex->width * imv_img_zoom, imv_image[k + (i * 8)].subtex->height * imv_img_zoom);
+							img_pos_x_offset += imv_image[k + (i * 8)].subtex->width * imv_img_zoom;
+						}
+					}
+
+					img_pos_x_offset = 0;
+					if (imv_enable[i * 8])
+						img_pos_y_offset += imv_image[i * 8].subtex->height * imv_img_zoom;
+				}
 
 				if(Util_log_query_log_show_flag())
 					Util_log_draw();
 
-				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
 			}
 		}
 		
 		if(var_turn_on_bottom_lcd)
 		{
-			Draw_screen_ready(1, back_color);
+			Draw_screen_ready(SCREEN_BOTTOM, back_color);
 
 			Draw(DEF_IMV_VER, 0, 0, 0.4, 0.4, DEF_DRAW_GREEN);
 
@@ -599,28 +669,28 @@ void Imv_main(void)
 			Draw_texture(var_square_image[0], DEF_DRAW_WEAK_RED, 5, 170, 310, 55);
 
 			//Reload button
-			Draw(imv_msg[0], 10, 185, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 65, 13,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &imv_reload_button, imv_reload_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(imv_msg[0], 10, 185, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 65, 13,
+			BACKGROUND_ENTIRE_BOX, &imv_reload_button, imv_reload_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 			
 			//Download button
-			Draw(imv_msg[1], 10, 205, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 65, 13,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &imv_dl_button, imv_dl_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(imv_msg[1], 10, 205, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 65, 13,
+			BACKGROUND_ENTIRE_BOX, &imv_dl_button, imv_dl_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 			//Select file button
-			Draw(imv_msg[2], 80, 185, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 65, 13,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &imv_select_file_button, imv_select_file_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(imv_msg[2], 80, 185, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 65, 13,
+			BACKGROUND_ENTIRE_BOX, &imv_select_file_button, imv_select_file_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 			//Change URL button
-			Draw(imv_msg[3], 80, 205, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 65, 13,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &imv_change_url_button, imv_change_url_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(imv_msg[3], 80, 205, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 65, 13,
+			BACKGROUND_ENTIRE_BOX, &imv_change_url_button, imv_change_url_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 			//Decrease size button
-			Draw(imv_msg[4], 170, 185, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 140, 13,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &imv_decrease_size_button, imv_decrease_size_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(imv_msg[4], 170, 185, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 140, 13,
+			BACKGROUND_ENTIRE_BOX, &imv_decrease_size_button, imv_decrease_size_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 			
 			//Increase size button
-			Draw(imv_msg[5], 170, 205, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 140, 13,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &imv_increase_size_button, imv_increase_size_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(imv_msg[5], 170, 205, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 140, 13,
+			BACKGROUND_ENTIRE_BOX, &imv_increase_size_button, imv_increase_size_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 			if(Util_expl_query_show_flag())
 				Util_expl_draw();

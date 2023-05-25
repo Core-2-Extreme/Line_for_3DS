@@ -1,4 +1,20 @@
-﻿#include "system/headers.hpp"
+﻿#include "definitions.hpp"
+#include "system/types.hpp"
+
+#include "system/menu.hpp"
+#include "system/variables.hpp"
+
+#include "system/draw/draw.hpp"
+
+#include "system/util/error.hpp"
+#include "system/util/hid.hpp"
+#include "system/util/httpc.hpp"
+#include "system/util/log.hpp"
+#include "system/util/swkbd.hpp"
+#include "system/util/util.hpp"
+
+//Include myself.
+#include "google_translation.hpp"
 
 bool gtr_already_init = false;
 bool gtr_main_run = false;
@@ -94,10 +110,10 @@ void Gtr_tr_thread(void* arg)
 			gtr_tr_request = false;
 		}
 		else
-			usleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_ACTIVE_THREAD_SLEEP_TIME);
 
 		while (gtr_thread_suspend)
-			usleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
 	}
 	Util_log_save(DEF_GTR_TRANSLATION_THREAD_STR, "Thread exit.");
 	threadExit(0);
@@ -233,7 +249,7 @@ void Gtr_hid(Hid_info key)
 			{
 				gtr_type_request = true;
 				while(gtr_type_request)
-					usleep(20000);
+					Util_sleep(20000);
 			}
 			else if(Util_hid_is_pressed(key, gtr_copy_button))
 				gtr_copy_button.selected = true;
@@ -400,8 +416,11 @@ void Gtr_init(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(gtr_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -410,7 +429,7 @@ void Gtr_init(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	if(!(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_N3DS) || !var_core_2_available)
@@ -447,8 +466,11 @@ void Gtr_exit(bool draw)
 			{
 				var_need_reflesh = false;
 				Draw_frame_ready();
-				Draw_screen_ready(0, back_color);
+				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
+
 				Draw(gtr_status, 0, 20, 0.65, 0.65, color);
 
 				Draw_apply_draw();
@@ -457,7 +479,7 @@ void Gtr_exit(bool draw)
 				gspWaitForVBlank();
 		}
 		else
-			usleep(20000);
+			Util_sleep(20000);
 	}
 
 	Util_log_save(DEF_MIC_EXIT_STR, "threadJoin()...", threadJoin(gtr_exit_thread, DEF_THREAD_WAIT_TIME));	
@@ -486,7 +508,7 @@ void Gtr_main(void)
 
 		if(var_turn_on_top_lcd)
 		{
-			Draw_screen_ready(0, back_color);
+			Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 
 			Draw("Sorce : " + gtr_lang_list[gtr_source_lang_index], 0.0, 20.0, 0.6, 0.6, color);
 			Draw(gtr_input_text, gtr_text_pos_x, 50, 0.6, 0.6, color);
@@ -498,38 +520,44 @@ void Gtr_main(void)
 
 			Draw_top_ui();
 
-			if(var_3d_mode)
+            if(var_monitor_cpu_usage)
+                Draw_cpu_usage_info();
+
+			if(Draw_is_3d_mode())
 			{
-				Draw_screen_ready(2, back_color);
+				Draw_screen_ready(SCREEN_TOP_RIGHT, back_color);
 
 				if(Util_log_query_log_show_flag())
 					Util_log_draw();
 
 				Draw_top_ui();
+
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
 			}
 		}
 		
 		if(var_turn_on_bottom_lcd)
 		{
-			Draw_screen_ready(1, back_color);
+			Draw_screen_ready(SCREEN_BOTTOM, back_color);
 
 			Draw(DEF_GTR_VER, 0, 0, 0.4, 0.4, DEF_DRAW_GREEN);
 
 			for (int i = 0; i < 10; i++)
 				Draw(gtr_history[i], gtr_text_pos_x, 10.0 + (i * 17.5), 0.6, 0.6, i == gtr_selected_history_num ? 0xFF8000FF : 0xFF808000);
 
-			Draw(gtr_msg[4], 10, 190, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 75, 15,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &gtr_translate_button, gtr_translate_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
-			Draw(gtr_msg[5], 10, 210, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 75, 15,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &gtr_copy_button, gtr_copy_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
-			Draw(gtr_msg[6], 100, 190, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 75, 15,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &gtr_up_button, gtr_up_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
-			Draw(gtr_msg[7], 100, 210, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 75, 15,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &gtr_down_button, gtr_down_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
-			Draw(gtr_msg[8], 190, 190, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 120, 15,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &gtr_change_source_lang_button, gtr_change_source_lang_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
-			Draw(gtr_msg[9], 190, 210, 0.375, 0.375, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 120, 15,
-			DEF_DRAW_BACKGROUND_ENTIRE_BOX, &gtr_change_target_lang_button, gtr_change_target_lang_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(gtr_msg[4], 10, 190, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 75, 15,
+			BACKGROUND_ENTIRE_BOX, &gtr_translate_button, gtr_translate_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(gtr_msg[5], 10, 210, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 75, 15,
+			BACKGROUND_ENTIRE_BOX, &gtr_copy_button, gtr_copy_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(gtr_msg[6], 100, 190, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 75, 15,
+			BACKGROUND_ENTIRE_BOX, &gtr_up_button, gtr_up_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(gtr_msg[7], 100, 210, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 75, 15,
+			BACKGROUND_ENTIRE_BOX, &gtr_down_button, gtr_down_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(gtr_msg[8], 190, 190, 0.375, 0.375, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 120, 15,
+			BACKGROUND_ENTIRE_BOX, &gtr_change_source_lang_button, gtr_change_source_lang_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
+			Draw(gtr_msg[9], 190, 210, 0.375, 0.375, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 120, 15,
+			BACKGROUND_ENTIRE_BOX, &gtr_change_target_lang_button, gtr_change_target_lang_button.selected ? DEF_DRAW_AQUA : DEF_DRAW_WEAK_AQUA);
 
 			if (gtr_select_sorce_lang_request)
 			{

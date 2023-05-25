@@ -227,6 +227,9 @@ void Menu_init(void)
 	result = Util_httpc_init(DEF_HTTP_POST_BUFFER_SIZE);
 	Util_log_save(DEF_MENU_INIT_STR, "Util_httpc_init()...", result.code);
 
+	result = Util_curl_init(DEF_SOCKET_BUFFER_SIZE);
+	Util_log_save(DEF_MENU_INIT_STR, "Util_curl_init()...", result.code);
+
 	result = Util_hid_init();
 	Util_log_save(DEF_MENU_INIT_STR, "Util_hid_init()...", result.code);
 
@@ -445,9 +448,9 @@ void Menu_exit(void)
 		Util_remove_watch(&menu_sapp_close_button[i].selected);
 	}
 
-	Util_speaker_exit();
 	Util_log_exit();
 	Util_httpc_exit();
+	Util_curl_exit();
 
 	Util_safe_linear_alloc_exit();
 	fsExit();
@@ -603,7 +606,7 @@ void Menu_main(void)
 			Draw_texture(menu_icon_image[0], 0, 0, 60, 60);
 			#endif
 			#ifdef DEF_LINE_ENABLE_NAME
-			Draw(DEF_LINE_NAME, 0, 0, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 60);
+			Draw(DEF_LINE_NAME, 0, 0, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 60);
 			#endif
 
 			if(Line_query_init_flag())
@@ -619,7 +622,7 @@ void Menu_main(void)
 			Draw_texture(menu_icon_image[1], 80, 0, 60, 60);
 			#endif
 			#ifdef DEF_GTR_ENABLE_NAME
-			Draw(DEF_GTR_NAME, 80, 0, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 60);
+			Draw(DEF_GTR_NAME, 80, 0, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 60);
 			#endif
 
 			if(Gtr_query_init_flag())
@@ -635,7 +638,7 @@ void Menu_main(void)
 			Draw_texture(menu_icon_image[2], 160, 0, 60, 60);
 			#endif
 			#ifdef DEF_SPT_ENABLE_NAME
-			Draw(DEF_SPT_NAME, 160, 0, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 60);
+			Draw(DEF_SPT_NAME, 160, 0, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 60);
 			#endif
 
 			if(Spt_query_init_flag())
@@ -651,7 +654,7 @@ void Menu_main(void)
 			Draw_texture(menu_icon_image[3], 240, 0, 60, 60);
 			#endif
 			#ifdef DEF_IMV_ENABLE_NAME
-			Draw(DEF_IMV_NAME, 240, 0, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 60);
+			Draw(DEF_IMV_NAME, 240, 0, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 60);
 			#endif
 
 			if(Imv_query_init_flag())
@@ -667,7 +670,7 @@ void Menu_main(void)
 			Draw_texture(menu_icon_image[4], 0, 80, 60, 60);
 			#endif
 			#ifdef DEF_CAM_ENABLE_NAME
-			Draw(DEF_CAM_NAME, 0, 80, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 60);
+			Draw(DEF_CAM_NAME, 0, 80, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 60);
 			#endif
 
 			if(Cam_query_init_flag())
@@ -683,7 +686,7 @@ void Menu_main(void)
 			Draw_texture(menu_icon_image[5], 80, 80, 60, 60);
 			#endif
 			#ifdef DEF_MIC_ENABLE_NAME
-			Draw(DEF_MIC_NAME, 80, 80, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 60);
+			Draw(DEF_MIC_NAME, 80, 80, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 60);
 			#endif
 
 			if(Mic_query_init_flag())
@@ -699,7 +702,7 @@ void Menu_main(void)
 			Draw_texture(menu_icon_image[6], 160, 80, 60, 60);
 			#endif
 			#ifdef DEF_MUP_ENABLE_NAME
-			Draw(DEF_MUP_NAME, 160, 80, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 60);
+			Draw(DEF_MUP_NAME, 160, 80, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 60);
 			#endif
 
 			if(Mup_query_init_flag())
@@ -715,7 +718,7 @@ void Menu_main(void)
 			Draw_texture(menu_icon_image[7], 240, 80, 60, 60);
 			#endif
 			#ifdef DEF_VID_ENABLE_NAME
-			Draw(DEF_VID_NAME, 240, 80, 0.4, 0.4, color, DEF_DRAW_X_ALIGN_CENTER, DEF_DRAW_Y_ALIGN_CENTER, 60, 60);
+			Draw(DEF_VID_NAME, 240, 80, 0.4, 0.4, color, X_ALIGN_CENTER, Y_ALIGN_CENTER, 60, 60);
 			#endif
 
 			if(Vid_query_init_flag())
@@ -888,232 +891,228 @@ void Menu_hid_callback(void)
 {
 	Hid_info key;
 
-	while (menu_thread_run)
+	Util_hid_query_key_state(&key);
+	if(menu_main_run)
 	{
-		Util_hid_query_key_state(&key);
-		if (previous_ts != key.ts)
+		if(!aptShouldJumpToHome())
 		{
-			if(menu_main_run)
+			if (Util_err_query_error_show_flag())
+				Util_err_main(key);
+			else
 			{
-				if(!aptShouldJumpToHome())
+				if(menu_check_exit_request)
 				{
-					if (Util_err_query_error_show_flag())
-						Util_err_main(key);
-					else
+					if (key.p_a)
+						menu_must_exit = true;
+					else if (key.p_b)
+						menu_check_exit_request = false;
+				}
+				else
+				{
+					if(Util_hid_is_pressed(key, *Draw_get_bot_ui_button()))
+						Draw_get_bot_ui_button()->selected = true;
+					else if (key.p_start || (Util_hid_is_released(key, *Draw_get_bot_ui_button()) && Draw_get_bot_ui_button()->selected))
+						menu_check_exit_request = true;
+					else if (key.p_select)
+						Util_log_set_log_show_flag(!Util_log_query_log_show_flag());
+					#ifdef DEF_ENABLE_LINE
+					else if (Util_hid_is_pressed(key, menu_sapp_close_button[0]) && Line_query_init_flag())
+						menu_sapp_close_button[0].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_close_button[0]) && Line_query_init_flag() && menu_sapp_close_button[0].selected)
 					{
-						if(menu_check_exit_request)
+						menu_exit_request[0] = true;
+						while(menu_exit_request[0])
+							Util_sleep(20000);
+					}
+					else if (Util_hid_is_pressed(key, menu_sapp_button[0]))
+						menu_sapp_button[0].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_button[0]) && menu_sapp_button[0].selected)
+					{
+						if (!Line_query_init_flag())
 						{
-							if (key.p_a)
-								menu_must_exit = true;
-							else if (key.p_b)
-								menu_check_exit_request = false;
+							menu_init_request[0] = true;
+							while(menu_init_request[0])
+								Util_sleep(20000);
 						}
 						else
+							Line_resume();
+					}
+					#endif
+					#ifdef DEF_ENABLE_GTR
+					else if (Util_hid_is_pressed(key, menu_sapp_close_button[1]) && Gtr_query_init_flag())
+						menu_sapp_close_button[1].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_close_button[1]) && Gtr_query_init_flag() && menu_sapp_close_button[1].selected)
+					{
+						menu_exit_request[1] = true;
+						while(menu_exit_request[1])
+							Util_sleep(20000);
+					}
+					else if (Util_hid_is_pressed(key, menu_sapp_button[1]))
+						menu_sapp_button[1].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_button[1]) && menu_sapp_button[1].selected)
+					{
+						if (!Gtr_query_init_flag())
 						{
-							if(Util_hid_is_pressed(key, *Draw_get_bot_ui_button()))
-								Draw_get_bot_ui_button()->selected = true;
-							else if (key.p_start || (Util_hid_is_released(key, *Draw_get_bot_ui_button()) && Draw_get_bot_ui_button()->selected))
-								menu_check_exit_request = true;
-							else if (key.p_select)
-								Util_log_set_log_show_flag(!Util_log_query_log_show_flag());
-							#ifdef DEF_ENABLE_LINE
-							else if (Util_hid_is_pressed(key, menu_sapp_close_button[0]) && Line_query_init_flag())
-								menu_sapp_close_button[0].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_close_button[0]) && Line_query_init_flag() && menu_sapp_close_button[0].selected)
-							{
-								menu_exit_request[0] = true;
-								while(menu_exit_request[0])
-									usleep(20000);
-							}
-							else if (Util_hid_is_pressed(key, menu_sapp_button[0]))
-								menu_sapp_button[0].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_button[0]) && menu_sapp_button[0].selected)
-							{
-								if (!Line_query_init_flag())
-								{
-									menu_init_request[0] = true;
-									while(menu_init_request[0])
-										usleep(20000);
-								}
-								else
-									Line_resume();
-							}
-							#endif
-							#ifdef DEF_ENABLE_GTR
-							else if (Util_hid_is_pressed(key, menu_sapp_close_button[1]) && Gtr_query_init_flag())
-								menu_sapp_close_button[1].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_close_button[1]) && Gtr_query_init_flag() && menu_sapp_close_button[1].selected)
-							{
-								menu_exit_request[1] = true;
-								while(menu_exit_request[1])
-									usleep(20000);
-							}
-							else if (Util_hid_is_pressed(key, menu_sapp_button[1]))
-								menu_sapp_button[1].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_button[1]) && menu_sapp_button[1].selected)
-							{
-								if (!Gtr_query_init_flag())
-								{
-									menu_init_request[1] = true;
-									while(menu_init_request[1])
-										usleep(20000);
-								}
-								else
-									Gtr_resume();
-							}
-							#endif
-							#ifdef DEF_ENABLE_SPT
-							else if (Util_hid_is_pressed(key, menu_sapp_close_button[2]) && Spt_query_init_flag())
-								menu_sapp_close_button[2].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_close_button[2]) && Spt_query_init_flag() && menu_sapp_close_button[2].selected)
-							{
-								menu_exit_request[2] = true;
-								while(menu_exit_request[2])
-									usleep(20000);
-							}
-							else if (Util_hid_is_pressed(key, menu_sapp_button[2]))
-								menu_sapp_button[2].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_button[2]) && menu_sapp_button[2].selected)
-							{
-								if (!Spt_query_init_flag())
-								{
-									menu_init_request[2] = true;
-									while(menu_init_request[2])
-										usleep(20000);
-								}
-								else
-									Spt_resume();
-							}
-							#endif
-							#ifdef DEF_ENABLE_IMV
-							else if (Util_hid_is_pressed(key, menu_sapp_close_button[3]) && Imv_query_init_flag())
-								menu_sapp_close_button[3].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_close_button[3]) && Imv_query_init_flag() && menu_sapp_close_button[3].selected)
-							{
-								menu_exit_request[3] = true;
-								while(menu_exit_request[3])
-									usleep(20000);
-							}
-							else if (Util_hid_is_pressed(key, menu_sapp_button[3]))
-								menu_sapp_button[3].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_button[3]) && menu_sapp_button[3].selected)
-							{
-								if (!Imv_query_init_flag())
-								{
-									menu_init_request[3] = true;
-									while(menu_init_request[3])
-										usleep(20000);
-								}
-								else
-									Imv_resume();
-							}
-							#endif
-							#ifdef DEF_ENABLE_CAM
-							else if (Util_hid_is_pressed(key, menu_sapp_close_button[4]) && Cam_query_init_flag())
-								menu_sapp_close_button[4].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_close_button[4]) && Cam_query_init_flag() && menu_sapp_close_button[4].selected)
-							{
-								menu_exit_request[4] = true;
-								while(menu_exit_request[4])
-									usleep(20000);
-							}
-							else if (Util_hid_is_pressed(key, menu_sapp_button[4]))
-								menu_sapp_button[4].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_button[4]) && menu_sapp_button[4].selected)
-							{
-								if (!Cam_query_init_flag())
-								{
-									menu_init_request[4] = true;
-									while(menu_init_request[4])
-										usleep(20000);
-								}
-								else
-									Cam_resume();
-							}
-							#endif
-							#ifdef DEF_ENABLE_MIC
-							else if (Util_hid_is_pressed(key, menu_sapp_close_button[5]) && Mic_query_init_flag())
-								menu_sapp_close_button[5].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_close_button[5]) && Mic_query_init_flag() && menu_sapp_close_button[5].selected)
-							{
-								menu_exit_request[5] = true;
-								while(menu_exit_request[5])
-									usleep(20000);
-							}
-							else if (Util_hid_is_pressed(key, menu_sapp_button[5]))
-								menu_sapp_button[5].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_button[5]) && menu_sapp_button[5].selected)
-							{
-								if (!Mic_query_init_flag())
-								{
-									menu_init_request[5] = true;
-									while(menu_init_request[5])
-										usleep(20000);
-								}
-								else
-									Mic_resume();
-							}
-							#endif
-							#ifdef DEF_ENABLE_MUP
-							else if (Util_hid_is_pressed(key, menu_sapp_close_button[6]) && Mup_query_init_flag())
-								menu_sapp_close_button[6].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_close_button[6]) && Mup_query_init_flag() && menu_sapp_close_button[6].selected)
-							{
-								menu_exit_request[6] = true;
-								while(menu_exit_request[6])
-									usleep(20000);
-							}
-							else if (Util_hid_is_pressed(key, menu_sapp_button[6]))
-								menu_sapp_button[6].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_button[6]) && menu_sapp_button[6].selected)
-							{
-								if (!Mup_query_init_flag())
-								{
-									menu_init_request[6] = true;
-									while(menu_init_request[6])
-										usleep(20000);
-								}
-								else
-									Mup_resume();
-							}
-							#endif
-							#ifdef DEF_ENABLE_VID
-							else if (Util_hid_is_pressed(key, menu_sapp_close_button[7]) && Vid_query_init_flag())
-								menu_sapp_close_button[7].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_close_button[7]) && Vid_query_init_flag() && menu_sapp_close_button[7].selected)
-							{
-								menu_exit_request[7] = true;
-								while(menu_exit_request[7])
-									usleep(20000);
-							}
-							else if (Util_hid_is_pressed(key, menu_sapp_button[7]))
-								menu_sapp_button[7].selected = true;
-							else if (Util_hid_is_released(key, menu_sapp_button[7]) && menu_sapp_button[7].selected)
-							{
-								if (!Vid_query_init_flag())
-								{
-									menu_init_request[7] = true;
-									while(menu_init_request[7])
-										usleep(20000);
-								}
-								else
-									Vid_resume();
-							}
-							#endif
-							else if (Util_hid_is_pressed(key, menu_sem_button))
-								menu_sem_button.selected = true;
-							else if (Util_hid_is_released(key, menu_sem_button) && menu_sem_button.selected)
-							{
-								if (!Sem_query_init_flag())
-								{
-									menu_init_request[8] = true;
-									while(menu_init_request[8])
-										usleep(20000);
-								}
-								else
-									Sem_resume();
-							}
+							menu_init_request[1] = true;
+							while(menu_init_request[1])
+								Util_sleep(20000);
 						}
+						else
+							Gtr_resume();
+					}
+					#endif
+					#ifdef DEF_ENABLE_SPT
+					else if (Util_hid_is_pressed(key, menu_sapp_close_button[2]) && Spt_query_init_flag())
+						menu_sapp_close_button[2].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_close_button[2]) && Spt_query_init_flag() && menu_sapp_close_button[2].selected)
+					{
+						menu_exit_request[2] = true;
+						while(menu_exit_request[2])
+							Util_sleep(20000);
+					}
+					else if (Util_hid_is_pressed(key, menu_sapp_button[2]))
+						menu_sapp_button[2].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_button[2]) && menu_sapp_button[2].selected)
+					{
+						if (!Spt_query_init_flag())
+						{
+							menu_init_request[2] = true;
+							while(menu_init_request[2])
+								Util_sleep(20000);
+						}
+						else
+							Spt_resume();
+					}
+					#endif
+					#ifdef DEF_ENABLE_IMV
+					else if (Util_hid_is_pressed(key, menu_sapp_close_button[3]) && Imv_query_init_flag())
+						menu_sapp_close_button[3].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_close_button[3]) && Imv_query_init_flag() && menu_sapp_close_button[3].selected)
+					{
+						menu_exit_request[3] = true;
+						while(menu_exit_request[3])
+							Util_sleep(20000);
+					}
+					else if (Util_hid_is_pressed(key, menu_sapp_button[3]))
+						menu_sapp_button[3].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_button[3]) && menu_sapp_button[3].selected)
+					{
+						if (!Imv_query_init_flag())
+						{
+							menu_init_request[3] = true;
+							while(menu_init_request[3])
+								Util_sleep(20000);
+						}
+						else
+							Imv_resume();
+					}
+					#endif
+					#ifdef DEF_ENABLE_CAM
+					else if (Util_hid_is_pressed(key, menu_sapp_close_button[4]) && Cam_query_init_flag())
+						menu_sapp_close_button[4].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_close_button[4]) && Cam_query_init_flag() && menu_sapp_close_button[4].selected)
+					{
+						menu_exit_request[4] = true;
+						while(menu_exit_request[4])
+							Util_sleep(20000);
+					}
+					else if (Util_hid_is_pressed(key, menu_sapp_button[4]))
+						menu_sapp_button[4].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_button[4]) && menu_sapp_button[4].selected)
+					{
+						if (!Cam_query_init_flag())
+						{
+							menu_init_request[4] = true;
+							while(menu_init_request[4])
+								Util_sleep(20000);
+						}
+						else
+							Cam_resume();
+					}
+					#endif
+					#ifdef DEF_ENABLE_MIC
+					else if (Util_hid_is_pressed(key, menu_sapp_close_button[5]) && Mic_query_init_flag())
+						menu_sapp_close_button[5].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_close_button[5]) && Mic_query_init_flag() && menu_sapp_close_button[5].selected)
+					{
+						menu_exit_request[5] = true;
+						while(menu_exit_request[5])
+							Util_sleep(20000);
+					}
+					else if (Util_hid_is_pressed(key, menu_sapp_button[5]))
+						menu_sapp_button[5].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_button[5]) && menu_sapp_button[5].selected)
+					{
+						if (!Mic_query_init_flag())
+						{
+							menu_init_request[5] = true;
+							while(menu_init_request[5])
+								Util_sleep(20000);
+						}
+						else
+							Mic_resume();
+					}
+					#endif
+					#ifdef DEF_ENABLE_MUP
+					else if (Util_hid_is_pressed(key, menu_sapp_close_button[6]) && Mup_query_init_flag())
+						menu_sapp_close_button[6].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_close_button[6]) && Mup_query_init_flag() && menu_sapp_close_button[6].selected)
+					{
+						menu_exit_request[6] = true;
+						while(menu_exit_request[6])
+							Util_sleep(20000);
+					}
+					else if (Util_hid_is_pressed(key, menu_sapp_button[6]))
+						menu_sapp_button[6].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_button[6]) && menu_sapp_button[6].selected)
+					{
+						if (!Mup_query_init_flag())
+						{
+							menu_init_request[6] = true;
+							while(menu_init_request[6])
+								Util_sleep(20000);
+						}
+						else
+							Mup_resume();
+					}
+					#endif
+					#ifdef DEF_ENABLE_VID
+					else if (Util_hid_is_pressed(key, menu_sapp_close_button[7]) && Vid_query_init_flag())
+						menu_sapp_close_button[7].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_close_button[7]) && Vid_query_init_flag() && menu_sapp_close_button[7].selected)
+					{
+						menu_exit_request[7] = true;
+						while(menu_exit_request[7])
+							Util_sleep(20000);
+					}
+					else if (Util_hid_is_pressed(key, menu_sapp_button[7]))
+						menu_sapp_button[7].selected = true;
+					else if (Util_hid_is_released(key, menu_sapp_button[7]) && menu_sapp_button[7].selected)
+					{
+						if (!Vid_query_init_flag())
+						{
+							menu_init_request[7] = true;
+							while(menu_init_request[7])
+								Util_sleep(20000);
+						}
+						else
+							Vid_resume();
+					}
+					#endif
+					else if (Util_hid_is_pressed(key, menu_sem_button))
+						menu_sem_button.selected = true;
+					else if (Util_hid_is_released(key, menu_sem_button) && menu_sem_button.selected)
+					{
+						if (!Sem_query_init_flag())
+						{
+							menu_init_request[8] = true;
+							while(menu_init_request[8])
+								Util_sleep(20000);
+						}
+						else
+							Sem_resume();
+					}
+				}
 
 				if(!key.p_touch && !key.h_touch)
 				{
@@ -1127,48 +1126,44 @@ void Menu_hid_callback(void)
 				}
 			}
 
-					if(Util_log_query_log_show_flag())
-						Util_log_main(key);
-				}
-			}
-			#ifdef DEF_ENABLE_LINE
-			else if (Line_query_running_flag())
-				Line_hid(key);
-			#endif
-			#ifdef DEF_ENABLE_GTR
-			else if (Gtr_query_running_flag())
-				Gtr_hid(key);
-			#endif
-			#ifdef DEF_ENABLE_SPT
-			else if (Spt_query_running_flag())
-				Spt_hid(key);
-			#endif
-			#ifdef DEF_ENABLE_IMV
-			else if (Imv_query_running_flag())
-				Imv_hid(key);
-			#endif
-			#ifdef DEF_ENABLE_CAM
-			else if (Cam_query_running_flag())
-				Cam_hid(key);
-			#endif
-			#ifdef DEF_ENABLE_MIC
-			else if (Mic_query_running_flag())
-				Mic_hid(key);
-			#endif
-			#ifdef DEF_ENABLE_MUP
-			else if (Mup_query_running_flag())
-				Mup_hid(key);
-			#endif
-			#ifdef DEF_ENABLE_VID
-			else if (Vid_query_running_flag())
-				Vid_hid(key);
-			#endif
-			else if (Sem_query_running_flag())
-				Sem_hid(key);
-
-			previous_ts = key.ts;
+			if(Util_log_query_log_show_flag())
+				Util_log_main(key);
 		}
 	}
+	#ifdef DEF_ENABLE_LINE
+	else if (Line_query_running_flag())
+		Line_hid(key);
+	#endif
+	#ifdef DEF_ENABLE_GTR
+	else if (Gtr_query_running_flag())
+		Gtr_hid(key);
+	#endif
+	#ifdef DEF_ENABLE_SPT
+	else if (Spt_query_running_flag())
+		Spt_hid(key);
+	#endif
+	#ifdef DEF_ENABLE_IMV
+	else if (Imv_query_running_flag())
+		Imv_hid(key);
+	#endif
+	#ifdef DEF_ENABLE_CAM
+	else if (Cam_query_running_flag())
+		Cam_hid(key);
+	#endif
+	#ifdef DEF_ENABLE_MIC
+	else if (Mic_query_running_flag())
+		Mic_hid(key);
+	#endif
+	#ifdef DEF_ENABLE_MUP
+	else if (Mup_query_running_flag())
+		Mup_hid(key);
+	#endif
+	#ifdef DEF_ENABLE_VID
+	else if (Vid_query_running_flag())
+		Vid_hid(key);
+	#endif
+	else if (Sem_query_running_flag())
+		Sem_hid(key);
 }
 
 void Menu_get_system_info(void)
