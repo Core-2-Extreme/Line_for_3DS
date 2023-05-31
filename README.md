@@ -9,6 +9,7 @@
 * [Build](https://github.com/Core-2-Extreme/Line_for_3DS#Build)
 * [Links](https://github.com/Core-2-Extreme/Line_for_3DS#Links)
 * [Patch note](https://github.com/Core-2-Extreme/Line_for_3DS#Patch-note)
+* [License](https://github.com/Core-2-Extreme/Line_for_3DS#License)
 
 ## Summary
 <img src="https://user-images.githubusercontent.com/45873899/85299815-b9bbfb80-b4e0-11ea-8ee1-7551cedd83d4.jpg" width="400" height="480"> \
@@ -85,3 +86,23 @@ If you have older devkitpro, update it or compilation will fail.
 【Cam】 Fixed- Framerate was improved. \
 【Mup】 Added- Additional formats (like aac) are supported. \
 【App】 Some minor update to better user experience.
+
+## License
+This software is licensed as GNU General Public License v3.0.
+
+Third party libraries are licensed as :
+
+| Library | License |
+| ------- | ------- |
+| [Base64](https://github.com/ReneNyffenegger/cpp-base64/blob/master/LICENSE) | No specific license name               |
+| [citro2d](https://github.com/devkitPro/citro2d/blob/master/LICENSE)         | zlib License                           |
+| [citro3d](https://github.com/devkitPro/citro3d/blob/master/LICENSE)         | zlib License                           |
+| [curl](https://github.com/curl/curl/blob/master/COPYING)                    | No specific license name               |
+| [dav1d](https://github.com/videolan/dav1d/blob/master/COPYING)              | BSD 2-Clause                           |
+| [ffmpeg](https://github.com/FFmpeg/FFmpeg/blob/master/COPYING.GPLv2)        | GNU General Public License v2.0        |
+| [libctru](https://github.com/devkitPro/libctru#license)                     | zlib License                           |
+| [mbedtls](https://github.com/Mbed-TLS/mbedtls/blob/development/LICENSE)     | Apache License 2.0                     |
+| [mp3lame](https://github.com/gypified/libmp3lame/blob/master/COPYING)       | GNU Lesser General Public License v2.0 |
+| [stb_image](https://github.com/nothings/stb/blob/master/LICENSE)            | Public Domain                          |
+| [x264](https://github.com/mirror/x264/blob/master/COPYING)                  | GNU General Public License v2.0        |
+| [zlib](https://github.com/madler/zlib/blob/master/LICENSE)                  | zlib License                           |
