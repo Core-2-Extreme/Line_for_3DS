@@ -5,11 +5,11 @@
 
 ## Index
 * [Summary](https://github.com/Core-2-Extreme/Line_for_3DS#summary)
-* [How to setup and use](https://github.com/Core-2-Extreme/Line_for_3DS#How-to-setup-and-use)
-* [Build](https://github.com/Core-2-Extreme/Line_for_3DS#Build)
-* [Links](https://github.com/Core-2-Extreme/Line_for_3DS#Links)
-* [Patch note](https://github.com/Core-2-Extreme/Line_for_3DS#Patch-note)
-* [License](https://github.com/Core-2-Extreme/Line_for_3DS#License)
+* [How to setup and use](https://github.com/Core-2-Extreme/Line_for_3DS#how-to-setup-and-use)
+* [Build](https://github.com/Core-2-Extreme/Line_for_3DS#build)
+* [Links](https://github.com/Core-2-Extreme/Line_for_3DS#links)
+* [Patch note](https://github.com/Core-2-Extreme/Line_for_3DS#patch-note)
+* [License](https://github.com/Core-2-Extreme/Line_for_3DS#license)
 
 ## Summary
 <img src="https://user-images.githubusercontent.com/45873899/85299815-b9bbfb80-b4e0-11ea-8ee1-7551cedd83d4.jpg" width="400" height="480"> \
