@@ -70,7 +70,7 @@ bool vid_show_full_screen_msg = true;
 bool vid_too_big = false;
 bool vid_eof = false;
 bool vid_out_of_raw_buffer = false;
-bool vid_image_enabled[4][DEF_VID_BUFFERS][2];
+bool vid_image_enabled[4][DEF_VID_VIDEO_BUFFERS][2];
 bool vid_key_frame_list[320];
 double vid_time[2][320];
 double vid_copy_time[2] = { 0, 0, };
@@ -142,7 +142,7 @@ std::string vid_dir = "";
 std::string vid_audio_track_lang[DEF_DECODER_MAX_AUDIO_TRACKS];
 std::string vid_subtitle_track_lang[DEF_DECODER_MAX_SUBTITLE_TRACKS];
 std::string vid_msg[DEF_VID_NUM_OF_MSG];
-Image_data vid_image[4][DEF_VID_BUFFERS][2];
+Image_data vid_image[4][DEF_VID_VIDEO_BUFFERS][2];
 C2D_Image vid_banner[2];
 C2D_Image vid_control[2];
 Thread vid_init_thread, vid_exit_thread, vid_decode_thread, vid_decode_video_thread, vid_convert_thread, vid_read_packet_thread, vid_worker_thread;
@@ -157,7 +157,7 @@ vid_disable_video_button, vid_disable_subtitle_button, vid_restart_playback_thre
 Audio_info vid_audio_info;
 Video_info vid_video_info;
 Subtitle_info vid_subtitle_info;
-Subtitle_data vid_subtitle_data[DEF_DECODER_MAX_SUBTITLE_DATA];
+Subtitle_data vid_subtitle_data[DEF_VID_SUBTITLE_BUFFERS];
 Multi_thread_type vid_request_thread_mode = THREAD_TYPE_AUTO;
 
 void Vid_suspend(void);
@@ -406,7 +406,7 @@ void Vid_init_variable(void)
 	{
 		for(int i = 0; i < 4; i++)
 		{
-			for(int s = 0; s < DEF_VID_BUFFERS; s++)
+			for(int s = 0; s < DEF_VID_VIDEO_BUFFERS; s++)
 				vid_image_enabled[i][s][k] = false;
 		}
 	}
@@ -431,7 +431,7 @@ void Vid_init_variable(void)
 	vid_subtitle_index = 0;
 	vid_subtitle_info.format_name = "n/a";
 	vid_subtitle_info.track_lang = "n/a";
-	for(int i = 0; i < DEF_DECODER_MAX_SUBTITLE_DATA; i++)
+	for(int i = 0; i < DEF_VID_SUBTITLE_BUFFERS; i++)
 	{
 		vid_subtitle_data[i].text = "";
 		vid_subtitle_data[i].start_time = 0;
@@ -638,7 +638,7 @@ void Vid_hid(Hid_info key)
 					{
 						for(int i = 0; i < 4; i++)
 						{
-							for(int s = 0; s < DEF_VID_BUFFERS; s++)
+							for(int s = 0; s < DEF_VID_VIDEO_BUFFERS; s++)
 							{
 								if(vid_image_enabled[i][s][k])
 									Draw_set_texture_filter(&vid_image[i][s][k], vid_linear_filter);
@@ -1623,13 +1623,13 @@ void Vid_decode_thread(void* arg)
 				{
 					for(int k = 0; k < num_of_video_tracks; k++)
 					{
-						for(int s = 0; s < DEF_VID_BUFFERS; s++)
+						for(int s = 0; s < DEF_VID_VIDEO_BUFFERS; s++)
 						{
 							result = Draw_texture_init(&vid_image[0][s][k], 1024, 1024, PIXEL_FORMAT_RGB565LE);
 							if(result.code != 0)
 							{
 								k = num_of_video_tracks;
-								s = DEF_VID_BUFFERS;
+								s = DEF_VID_VIDEO_BUFFERS;
 								break;
 							}
 							else
@@ -1641,7 +1641,7 @@ void Vid_decode_thread(void* arg)
 								if(result.code != 0)
 								{
 									k = num_of_video_tracks;
-									s = DEF_VID_BUFFERS;
+									s = DEF_VID_VIDEO_BUFFERS;
 									break;
 								}
 								else
@@ -1654,7 +1654,7 @@ void Vid_decode_thread(void* arg)
 								if(result.code != 0)
 								{
 									k = num_of_video_tracks;
-									s = DEF_VID_BUFFERS;
+									s = DEF_VID_VIDEO_BUFFERS;
 									break;
 								}
 								else
@@ -1667,7 +1667,7 @@ void Vid_decode_thread(void* arg)
 								if(result.code != 0)
 								{
 									k = num_of_video_tracks;
-									s = DEF_VID_BUFFERS;
+									s = DEF_VID_VIDEO_BUFFERS;
 									break;
 								}
 								else
@@ -1688,7 +1688,7 @@ void Vid_decode_thread(void* arg)
 						{
 							for(int i = 0; i < 4; i++)
 							{
-								for(int s = 0; s < DEF_VID_BUFFERS; s++)
+								for(int s = 0; s < DEF_VID_VIDEO_BUFFERS; s++)
 								{
 									if(vid_image_enabled[i][s][k])
 									{
@@ -1926,7 +1926,7 @@ void Vid_decode_thread(void* arg)
 				if(!vid_select_subtitle_track_request && subtitle_track != vid_selected_subtitle_track)
 				{
 					subtitle_track = vid_selected_subtitle_track;
-					for(int i = 0; i < DEF_DECODER_MAX_SUBTITLE_DATA; i++)
+					for(int i = 0; i < DEF_VID_SUBTITLE_BUFFERS; i++)
 					{
 						vid_subtitle_data[i].text = "";
 						vid_subtitle_data[i].start_time = 0;
@@ -2143,7 +2143,7 @@ void Vid_decode_thread(void* arg)
 						result = Util_subtitle_decoder_decode(&vid_subtitle_data[vid_subtitle_index], packet_index, 0);
 						if(result.code == 0)
 						{
-							if(vid_subtitle_index + 1 >= DEF_DECODER_MAX_SUBTITLE_DATA)
+							if(vid_subtitle_index + 1 >= DEF_VID_SUBTITLE_BUFFERS)
 								vid_subtitle_index = 0;
 							else
 								vid_subtitle_index++;
@@ -2204,7 +2204,7 @@ void Vid_decode_thread(void* arg)
 			{
 				for(int i = 0; i < 4; i++)
 				{
-					for(int s = 0; s < DEF_VID_BUFFERS; s++)
+					for(int s = 0; s < DEF_VID_VIDEO_BUFFERS; s++)
 					{
 						if(vid_image_enabled[i][s][k])
 						{
@@ -2346,9 +2346,9 @@ void Vid_decode_video_thread(void* arg)
 
 								if(!vid_play_request || vid_change_video_request || vid_clear_raw_buffer_request[1])
 									break;
-								else if(result.code == DEF_ERR_MVD_TRY_AGAIN || result.code == DEF_ERR_MVD_TRY_AGAIN_NO_OUTPUT)
+								else if(result.code == DEF_ERR_DECODER_TRY_AGAIN || result.code == DEF_ERR_DECODER_TRY_AGAIN_NO_OUTPUT)
 								{
-									if(result.code == DEF_ERR_MVD_TRY_AGAIN)//Got a frame.
+									if(result.code == DEF_ERR_DECODER_TRY_AGAIN)//Got a frame.
 									{
 										vid_convert_request = true;
 										Vid_update_performance_graph(osTickCounterRead(&counter), key_frame, &skip);
@@ -2651,14 +2651,14 @@ void Vid_convert_thread(void* arg)
 
 							if(packet_index == 0)
 							{
-								if(image_num + 1 < DEF_VID_BUFFERS)
+								if(image_num + 1 < DEF_VID_VIDEO_BUFFERS)
 									vid_image_num++;
 								else
 									vid_image_num = 0;
 							}
 							else if(packet_index == 1)
 							{
-								if(image_num + 1 < DEF_VID_BUFFERS)
+								if(image_num + 1 < DEF_VID_VIDEO_BUFFERS)
 									vid_image_num_3d++;
 								else
 									vid_image_num_3d = 0;
@@ -3043,7 +3043,7 @@ void Vid_init_thread(void* arg)
 	for(int i = 0; i < DEF_DECODER_MAX_AUDIO_TRACKS; i++)
 		Util_add_watch(&vid_audio_track_button[i].selected);
 
-	for(int i = 0; i < DEF_DECODER_MAX_SUBTITLE_DATA; i++)
+	for(int i = 0; i < DEF_VID_SUBTITLE_BUFFERS; i++)
 		Util_add_watch(&vid_subtitle_track_button[i].selected);
 
 	for(int i = 0; i < 3; i++)
@@ -3296,7 +3296,7 @@ void Vid_exit_thread(void* arg)
 	for(int i = 0; i < DEF_DECODER_MAX_AUDIO_TRACKS; i++)
 		Util_remove_watch(&vid_audio_track_button[i].selected);
 
-	for(int i = 0; i < DEF_DECODER_MAX_SUBTITLE_DATA; i++)
+	for(int i = 0; i < DEF_VID_SUBTITLE_BUFFERS; i++)
 		Util_remove_watch(&vid_subtitle_track_button[i].selected);
 
 	for(int i = 0; i < 3; i++)
@@ -3444,12 +3444,12 @@ void Vid_main(void)
 	if(vid_image_num - 1 >= 0)
 		image_num = vid_image_num - 1;
 	else
-		image_num = DEF_VID_BUFFERS - 1;
+		image_num = DEF_VID_VIDEO_BUFFERS - 1;
 
 	if(vid_image_num_3d - 1 >= 0)
 		image_num_3d = vid_image_num_3d - 1;
 	else
-		image_num_3d = DEF_VID_BUFFERS - 1;
+		image_num_3d = DEF_VID_VIDEO_BUFFERS - 1;
 
 	Vid_control_full_screen();
 
@@ -3506,7 +3506,7 @@ void Vid_main(void)
 				if(vid_codec_width > 1024 && vid_codec_height > 1024)
 					Draw_texture(vid_image[3][image_num][0].c2d, (vid_video_x_offset + image_width[0]), (vid_video_y_offset + image_height[0]), image_width[3], image_height[3]);
 
-				for(int i = 0; i < DEF_DECODER_MAX_SUBTITLE_DATA; i++)//subtitle
+				for(int i = 0; i < DEF_VID_SUBTITLE_BUFFERS; i++)//subtitle
 				{
 					if(vid_current_pos - vid_frametime >= vid_subtitle_data[i].start_time && vid_current_pos - vid_frametime <= vid_subtitle_data[i].end_time)
 					{
@@ -3601,7 +3601,7 @@ void Vid_main(void)
 					if(vid_codec_width > 1024 && vid_codec_height > 1024)
 						Draw_texture(vid_image[3][image_num_3d][1].c2d, (vid_video_x_offset + image_width[0]), (vid_video_y_offset + image_height[0]), image_width[3], image_height[3]);
 
-					for(int i = 0; i < DEF_DECODER_MAX_SUBTITLE_DATA; i++)//subtitle
+					for(int i = 0; i < DEF_VID_SUBTITLE_BUFFERS; i++)//subtitle
 					{
 						if(vid_current_pos - vid_frametime >= vid_subtitle_data[i].start_time && vid_current_pos - vid_frametime <= vid_subtitle_data[i].end_time)
 						{
@@ -3671,7 +3671,7 @@ void Vid_main(void)
 					if(vid_codec_width > 1024 && vid_codec_height > 1024)
 						Draw_texture(vid_image[3][image_num][0].c2d, (vid_video_x_offset + image_width[0] - 40), (vid_video_y_offset + image_height[0] - 240), image_width[3], image_height[3]);
 
-					for(int i = 0; i < DEF_DECODER_MAX_SUBTITLE_DATA; i++)//subtitle
+					for(int i = 0; i < DEF_VID_SUBTITLE_BUFFERS; i++)//subtitle
 					{
 						if(vid_current_pos - vid_frametime >= vid_subtitle_data[i].start_time && vid_current_pos - vid_frametime <= vid_subtitle_data[i].end_time)
 						{
