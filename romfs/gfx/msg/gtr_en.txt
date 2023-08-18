@@ -1,4 +1,4 @@
-﻿<0>Select sorce language</0>
+<0>Select sorce language</0>
 <1>Select target language</1>
 <2>Select(A) Move(DPAD ↑,↓,→,←) Close(Y)</2>
 <3>Translating...</3>

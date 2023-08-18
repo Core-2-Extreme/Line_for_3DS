@@ -1,4 +1,4 @@
-﻿<0>Auto</0>
+<0>Auto</0>
 <1>Afrikaans</1>
 <2>Albanian(shqip)</2>
 <3>Amharic(አማርኛ)</3>

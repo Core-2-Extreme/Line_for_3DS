@@ -1,4 +1,4 @@
-﻿<0>Bit rate : </0>
+<0>Bit rate : </0>
 <1>Kbps</1>
 <2>Sample rate : </2>
 <3>Number of channels : </3>

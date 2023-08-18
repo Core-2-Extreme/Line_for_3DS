@@ -1,4 +1,4 @@
-﻿<0>Reload(A)</0>
+<0>Reload(A)</0>
 <1>Download(B)</1>
 <2>Select file(X)</2>
 <3>Enter url(Y)</3>

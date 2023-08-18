@@ -1,4 +1,4 @@
-﻿#include "definitions.hpp"
+#include "definitions.hpp"
 #include "system/types.hpp"
 
 #include "system/menu.hpp"
@@ -454,7 +454,7 @@ void Imv_exit_thread(void* arg)
 
 Result_with_string Imv_load_msg(std::string lang)
 {
-	return  Util_load_msg("imv_" + lang + ".txt", imv_msg, DEF_IMV_NUM_OF_MSG);
+	return Util_load_msg("imv_" + lang + ".txt", imv_msg, DEF_IMV_NUM_OF_MSG);
 }
 
 void Imv_init(bool draw)

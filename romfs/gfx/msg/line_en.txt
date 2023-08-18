@@ -1,4 +1,4 @@
-﻿<0> Message(s) found. (</0>
+<0> Message(s) found. (</0>
 <1> Line(s))</1>
 <2>Send</2>
 <3>Copy</3>

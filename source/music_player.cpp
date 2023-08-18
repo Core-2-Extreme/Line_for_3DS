@@ -365,38 +365,38 @@ void Mup_play_thread(void* arg)
 										result = Util_audio_decoder_decode(&audio_samples, &sound_buffer, &pos, packet_index, 1);
 										if(result.code == 0)
 										{
-                                            Audio_converter_parameters converter_parameters;
+											Audio_converter_parameters converter_parameters;
 
 											mup_bar_pos = pos - (Util_speaker_get_available_buffer_size(1) / 2.0 / mup_audio_info.ch / mup_audio_info.sample_rate * 1000);
 
-                                            converter_parameters.source = sound_buffer;
-                                            converter_parameters.in_ch = audio_info.ch;
-                                            converter_parameters.in_sample_format = audio_info.sample_format;
-                                            converter_parameters.in_sample_rate = audio_info.sample_rate;
-                                            converter_parameters.in_samples = audio_samples;
-                                            converter_parameters.converted = NULL;
-                                            converter_parameters.out_ch = (converter_parameters.in_ch > 2 ? 2 : converter_parameters.in_ch);
-                                            converter_parameters.out_sample_format = SAMPLE_FORMAT_S16;
-                                            converter_parameters.out_sample_rate = converter_parameters.in_sample_rate;
+											converter_parameters.source = sound_buffer;
+											converter_parameters.in_ch = audio_info.ch;
+											converter_parameters.in_sample_format = audio_info.sample_format;
+											converter_parameters.in_sample_rate = audio_info.sample_rate;
+											converter_parameters.in_samples = audio_samples;
+											converter_parameters.converted = NULL;
+											converter_parameters.out_ch = (converter_parameters.in_ch > 2 ? 2 : converter_parameters.in_ch);
+											converter_parameters.out_sample_format = SAMPLE_FORMAT_S16;
+											converter_parameters.out_sample_rate = converter_parameters.in_sample_rate;
 
-                                            result = Util_converter_convert_audio(&converter_parameters);
+											result = Util_converter_convert_audio(&converter_parameters);
 
-                                            if(result.code == 0)
-                                            {
-                                                while(true)
-                                                {
-                                                    result = Util_speaker_add_buffer(1, converter_parameters.converted, (converter_parameters.out_samples * converter_parameters.out_ch * 2));
-                                                    if(result.code == 0 || mup_stop_request || mup_change_music_request || mup_seek_request)
-                                                        break;
-                                                    else
-                                                        Util_sleep(100000);
-                                                }
-                                            }
-                                            else
-                                                Util_log_save(DEF_MUP_PLAY_THREAD_STR, "Util_converter_convert_audio()..." + result.string + result.error_description, result.code);
+											if(result.code == 0)
+											{
+												while(true)
+												{
+													result = Util_speaker_add_buffer(1, converter_parameters.converted, (converter_parameters.out_samples * converter_parameters.out_ch * 2));
+													if(result.code == 0 || mup_stop_request || mup_change_music_request || mup_seek_request)
+														break;
+													else
+														Util_sleep(100000);
+												}
+											}
+											else
+												Util_log_save(DEF_MUP_PLAY_THREAD_STR, "Util_converter_convert_audio()..." + result.string + result.error_description, result.code);
 
-                                            free(converter_parameters.converted);
-                                            converter_parameters.converted = NULL;
+											free(converter_parameters.converted);
+											converter_parameters.converted = NULL;
 										}
 										else
 											Util_log_save(DEF_MUP_PLAY_THREAD_STR, "Util_decode_audio()..." + result.string + result.error_description, result.code);
@@ -446,14 +446,14 @@ void Mup_play_thread(void* arg)
 
 Result_with_string Mup_load_msg(std::string lang)
 {
-	return  Util_load_msg("mup_" + lang + ".txt", mup_msg, DEF_MUP_NUM_OF_MSG);
+	return Util_load_msg("mup_" + lang + ".txt", mup_msg, DEF_MUP_NUM_OF_MSG);
 }
 
 void Mup_init_thread(void* arg)
 {
 	Util_log_save(DEF_MUP_INIT_STR, "Thread started.");
 	Result_with_string result;
-	
+
 	mup_status = "Starting threads...";
 	mup_thread_run = true;
 	mup_play_thread = threadCreate(Mup_play_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_HIGH, 0, false);
@@ -518,12 +518,12 @@ void Mup_exit_thread(void* arg)
 	mup_thread_run = false;
 
 	mup_status = "Exiting threads...";
-	Util_log_save(DEF_MUP_EXIT_STR, "threadJoin()...", threadJoin(mup_worker_thread, DEF_THREAD_WAIT_TIME));	
+	Util_log_save(DEF_MUP_EXIT_STR, "threadJoin()...", threadJoin(mup_worker_thread, DEF_THREAD_WAIT_TIME));
 
 	mup_status += ".";
-	Util_log_save(DEF_MUP_EXIT_STR, "threadJoin()...", threadJoin(mup_play_thread, DEF_THREAD_WAIT_TIME));	
+	Util_log_save(DEF_MUP_EXIT_STR, "threadJoin()...", threadJoin(mup_play_thread, DEF_THREAD_WAIT_TIME));
 
-	mup_status += "\nCleaning up...";	
+	mup_status += "\nCleaning up...";
 	threadFree(mup_worker_thread);
 	threadFree(mup_play_thread);
 
@@ -583,8 +583,8 @@ void Mup_init(bool draw)
 				Draw_frame_ready();
 				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
-                if(var_monitor_cpu_usage)
-                    Draw_cpu_usage_info();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
 
 				Draw(mup_status, 0, 20, 0.65, 0.65, color);
 
@@ -600,7 +600,7 @@ void Mup_init(bool draw)
 	if(!(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_N3DS) || !var_core_2_available)
 		APT_SetAppCpuTimeLimit(10);
 
-	Util_log_save(DEF_MUP_EXIT_STR, "threadJoin()...", threadJoin(mup_init_thread, DEF_THREAD_WAIT_TIME));	
+	Util_log_save(DEF_MUP_EXIT_STR, "threadJoin()...", threadJoin(mup_init_thread, DEF_THREAD_WAIT_TIME));
 	threadFree(mup_init_thread);
 	Mup_resume();
 
@@ -633,8 +633,8 @@ void Mup_exit(bool draw)
 				Draw_frame_ready();
 				Draw_screen_ready(SCREEN_TOP_LEFT, back_color);
 				Draw_top_ui();
-                if(var_monitor_cpu_usage)
-                    Draw_cpu_usage_info();
+				if(var_monitor_cpu_usage)
+					Draw_cpu_usage_info();
 
 				Draw(mup_status, 0, 20, 0.65, 0.65, color);
 
@@ -647,7 +647,7 @@ void Mup_exit(bool draw)
 			Util_sleep(20000);
 	}
 
-	Util_log_save(DEF_MUP_EXIT_STR, "threadJoin()...", threadJoin(mup_exit_thread, DEF_THREAD_WAIT_TIME));	
+	Util_log_save(DEF_MUP_EXIT_STR, "threadJoin()...", threadJoin(mup_exit_thread, DEF_THREAD_WAIT_TIME));
 	threadFree(mup_exit_thread);
 	Util_remove_watch(&mup_status);
 	var_need_reflesh = true;
@@ -690,8 +690,8 @@ void Mup_main(void)
 
 			Draw_top_ui();
 
-            if(var_monitor_cpu_usage)
-                Draw_cpu_usage_info();
+			if(var_monitor_cpu_usage)
+				Draw_cpu_usage_info();
 
 			if(Draw_is_3d_mode())
 			{
@@ -706,7 +706,7 @@ void Mup_main(void)
 					Draw_cpu_usage_info();
 			}
 		}
-		
+
 		if(var_turn_on_bottom_lcd)
 		{
 			Draw_screen_ready(SCREEN_BOTTOM, back_color);

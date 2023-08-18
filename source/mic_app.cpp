@@ -190,7 +190,7 @@ void Mic_record_thread(void* arg)
 
 Result_with_string Mic_load_msg(std::string lang)
 {
-	return  Util_load_msg("mic_" + lang + ".txt", mic_msg, DEF_MIC_NUM_OF_MSG);
+	return Util_load_msg("mic_" + lang + ".txt", mic_msg, DEF_MIC_NUM_OF_MSG);
 }
 
 void Mic_hid(Hid_info key)
@@ -283,7 +283,7 @@ void Mic_exit_thread(void* arg)
 	Util_remove_watch(&mic_stop_record_button.selected);
 
 	mic_already_init = false;
-	
+
 	Util_log_save(DEF_MIC_EXIT_STR, "Thread exit.");
 	threadExit(0);
 }
@@ -385,7 +385,7 @@ void Mic_exit(bool draw)
 			Util_sleep(20000);
 	}
 
-	Util_log_save(DEF_MIC_EXIT_STR, "threadJoin()...", threadJoin(mic_exit_thread, DEF_THREAD_WAIT_TIME));	
+	Util_log_save(DEF_MIC_EXIT_STR, "threadJoin()...", threadJoin(mic_exit_thread, DEF_THREAD_WAIT_TIME));
 	threadFree(mic_exit_thread);
 	Util_remove_watch(&mic_status);
 	var_need_reflesh = true;
@@ -420,8 +420,8 @@ void Mic_main(void)
 
 			Draw_top_ui();
 
-            if(var_monitor_cpu_usage)
-                Draw_cpu_usage_info();
+			if(var_monitor_cpu_usage)
+				Draw_cpu_usage_info();
 
 			if(Draw_is_3d_mode())
 			{
@@ -436,7 +436,7 @@ void Mic_main(void)
 					Draw_cpu_usage_info();
 			}
 		}
-		
+
 		if(var_turn_on_bottom_lcd)
 		{
 			Draw_screen_ready(SCREEN_BOTTOM, back_color);

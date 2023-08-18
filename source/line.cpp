@@ -213,7 +213,7 @@ void Line_reset_msg(void)
 
 Result_with_string Line_load_msg(std::string lang)
 {
-	return  Util_load_msg("line_" + lang + ".txt", line_msg, DEF_LINE_NUM_OF_MSG);
+	return Util_load_msg("line_" + lang + ".txt", line_msg, DEF_LINE_NUM_OF_MSG);
 }
 
 void Line_set_send_file(std::string filename, std::string dir_name)
@@ -881,7 +881,7 @@ void Line_hid(Hid_info key)
 								break;
 							}
 							//add id
-							else if (cut_pos[1] != std::string::npos && Util_hid_is_released(key, line_content_button[content_index]) && line_content_button[content_index].selected 
+							else if (cut_pos[1] != std::string::npos && Util_hid_is_released(key, line_content_button[content_index]) && line_content_button[content_index].selected
 							&& !line_dl_log_request && !line_parse_log_request && !line_auto_update && !line_load_log_request)
 							{
 								hit = true;
@@ -1082,7 +1082,7 @@ Result_with_string Line_load_icon(int room_num)
 
 			if(result.code == 0)
 			{
-                Pixel_format pixel_format = PIXEL_FORMAT_INVALID;
+				Pixel_format pixel_format = PIXEL_FORMAT_INVALID;
 
 				result = Util_image_decoder_decode(DEF_MAIN_DIR + "images/" + filename, &raw_buffer, &image_width, &image_height, &pixel_format);
 				if(result.code == 0)
@@ -1090,26 +1090,26 @@ Result_with_string Line_load_icon(int room_num)
 					result = Draw_texture_init(&line_icon[room_num], 32, 32, PIXEL_FORMAT_RGB565LE);
 					if(result.code == 0)
 					{
-                        Color_converter_parameters converter_parameters;
+						Color_converter_parameters converter_parameters;
 
-                        converter_parameters.source = raw_buffer;
-                        converter_parameters.in_color_format = pixel_format;
-                        converter_parameters.in_width = image_width;
-                        converter_parameters.in_height = image_height;
-                        converter_parameters.converted = NULL;
-                        converter_parameters.out_color_format = PIXEL_FORMAT_RGB565LE;
-                        converter_parameters.out_width = 32;
-                        converter_parameters.out_height = 32;
+						converter_parameters.source = raw_buffer;
+						converter_parameters.in_color_format = pixel_format;
+						converter_parameters.in_width = image_width;
+						converter_parameters.in_height = image_height;
+						converter_parameters.converted = NULL;
+						converter_parameters.out_color_format = PIXEL_FORMAT_RGB565LE;
+						converter_parameters.out_width = 32;
+						converter_parameters.out_height = 32;
 
-                        result = Util_converter_convert_color(&converter_parameters);
-                        if(result.code == 0)
-                        {
-                            Draw_set_texture_filter(&line_icon[room_num], true);
-                            Draw_set_texture_data(&line_icon[room_num], converter_parameters.converted, converter_parameters.out_width, converter_parameters.out_height);
-                        }
+						result = Util_converter_convert_color(&converter_parameters);
+						if(result.code == 0)
+						{
+							Draw_set_texture_filter(&line_icon[room_num], true);
+							Draw_set_texture_data(&line_icon[room_num], converter_parameters.converted, converter_parameters.out_width, converter_parameters.out_height);
+						}
 
-                        free(converter_parameters.converted);
-                        converter_parameters.converted = NULL;
+						free(converter_parameters.converted);
+						converter_parameters.converted = NULL;
 					}
 				}
 				free(raw_buffer);
@@ -1323,7 +1323,7 @@ void Line_log_thread(void* arg)
 	double x_cache = 0;
 	double y_cache = 0;
 	std::string filename = "";
-	std::string last_url = ""; 
+	std::string last_url = "";
 	std::string content_cache = "";
 	std::string image_url_start = "<image_url>";
 	std::string image_url_end = "</image_url>";
@@ -1511,7 +1511,7 @@ void Line_log_thread(void* arg)
 						x_size = 0;
 						line_num_of_lines++;
 						line_short_msg_log[line_num_of_lines] = line_msg_log[i].substr(text_start_pos, cut_length);
-						break;					
+						break;
 					}
 					else
 					{
@@ -1777,7 +1777,7 @@ void Line_log_thread(void* arg)
 
 			line_dl_log_failed[line_selected_room_num] = false;
 			room_num = line_selected_room_num;
-			
+
 			log_num = Util_log_save(DEF_LINE_LOG_THREAD_STR, "Util_httpc_dl_data()...");
 			std::string cache = line_main_url + "?id=" + line_ids[room_num] + "&logs=" + std::to_string(line_num_of_logs) + "&script_auth=" + (line_script_auth = " " ? "" : line_script_auth) + "&gas_ver=" + std::to_string(DEF_LINE_GAS_VER);
 			result = Util_httpc_dl_data(cache, &buffer, 1024 * 1024 * 5, &dl_size, &status_code, true, 5);
@@ -1854,7 +1854,7 @@ void Line_log_thread(void* arg)
 				out_data[i] = "";
 				out_data[i].reserve(10);
 			}
-		
+
 			if(failed)
 				line_dl_log_failed[line_selected_room_num] = true;
 
@@ -2130,7 +2130,7 @@ void Line_exit_thread(void* arg)
 {
 	Util_log_save(DEF_LINE_EXIT_STR, "Thread started.");
 	int log_num;
-	std::string data =  "<0>" + std::to_string(line_text_size) + "</0><1>" + std::to_string(line_text_interval) + "</1><2>" + std::to_string(line_num_of_logs) + "</2><3>" + std::to_string(line_hide_id) + "</3>";
+	std::string data = "<0>" + std::to_string(line_text_size) + "</0><1>" + std::to_string(line_text_interval) + "</1><2>" + std::to_string(line_num_of_logs) + "</2><3>" + std::to_string(line_hide_id) + "</3>";
 	Result_with_string result;
 
 	line_thread_suspend = false;
@@ -2147,7 +2147,7 @@ void Line_exit_thread(void* arg)
 	line_status += ".";
 	Util_log_save(DEF_LINE_EXIT_STR, "threadJoin()...", threadJoin(line_worker_thread, DEF_THREAD_WAIT_TIME));
 
-	line_status += "\nCleaning up...";	
+	line_status += "\nCleaning up...";
 	threadFree(line_log_thread);
 	threadFree(line_worker_thread);
 
@@ -2311,7 +2311,7 @@ void Line_init(bool draw)
 	if(!(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_N3DS) || !var_core_2_available)
 		APT_SetAppCpuTimeLimit(10);
 
-	Util_log_save(DEF_LINE_EXIT_STR, "threadJoin()...", threadJoin(line_init_thread, DEF_THREAD_WAIT_TIME));	
+	Util_log_save(DEF_LINE_EXIT_STR, "threadJoin()...", threadJoin(line_init_thread, DEF_THREAD_WAIT_TIME));
 	threadFree(line_init_thread);
 	Line_resume();
 
@@ -2358,7 +2358,7 @@ void Line_exit(bool draw)
 			Util_sleep(20000);
 	}
 
-	Util_log_save(DEF_LINE_EXIT_STR, "threadJoin()...", threadJoin(line_exit_thread, DEF_THREAD_WAIT_TIME));	
+	Util_log_save(DEF_LINE_EXIT_STR, "threadJoin()...", threadJoin(line_exit_thread, DEF_THREAD_WAIT_TIME));
 	threadFree(line_exit_thread);
 	Util_remove_watch(&line_status);
 	var_need_reflesh = true;
@@ -2462,8 +2462,8 @@ void Line_main(void)
 
 			Draw_top_ui();
 
-            if(var_monitor_cpu_usage)
-                Draw_cpu_usage_info();
+			if(var_monitor_cpu_usage)
+				Draw_cpu_usage_info();
 
 			if(Draw_is_3d_mode())
 			{
@@ -2614,7 +2614,7 @@ void Line_main(void)
 				Draw_texture(&line_icon[line_selected_room_num], 10, 135, 32, 32);
 				Draw(status, 45, 135, 0.35, 0.35, color);
 				Draw(line_names[line_selected_room_num], 45, 155, 0.475, 0.475, color);
-				
+
 				if((line_dl_log_request || line_parse_log_request || line_auto_update || line_load_log_request
 					|| line_send_request[0] || line_send_request[1] || line_send_request[2]))
 					color_cache = weak_color;

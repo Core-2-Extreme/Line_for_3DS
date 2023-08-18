@@ -358,7 +358,7 @@ void Cam_hid(Hid_info key)
 
 Result_with_string Cam_load_msg(std::string lang)
 {
-	return  Util_load_msg("cam_" + lang + ".txt", cam_msg, DEF_CAM_NUM_OF_MSG);
+	return Util_load_msg("cam_" + lang + ".txt", cam_msg, DEF_CAM_NUM_OF_MSG);
 }
 
 void Cam_encode_thread(void* arg)
@@ -820,7 +820,7 @@ void Cam_init_thread(void* arg)
 	cam_status += "\nStarting threads...";
 	cam_thread_run = true;
 	cam_capture_thread = threadCreate(Cam_capture_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_REALTIME, 0, false);
-	
+
 	if(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DS || var_model == CFG_MODEL_N3DSXL)
 		cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_HIGH, 2, false);
 	else
@@ -837,7 +837,7 @@ void Cam_exit_thread(void* arg)
 {
 	Util_log_save(DEF_CAM_EXIT_STR, "Thread started.");
 	int log_num;
-	std::string data =  "<0>" + std::to_string(cam_camera_mode) + "</0><1>" + std::to_string(cam_resolution_mode) + "</1><2>" + std::to_string(cam_fps_mode) + "</2>"
+	std::string data = "<0>" + std::to_string(cam_camera_mode) + "</0><1>" + std::to_string(cam_resolution_mode) + "</1><2>" + std::to_string(cam_fps_mode) + "</2>"
 	+ "<3>" + std::to_string(cam_contrast_mode) + "</3><4>" + std::to_string(cam_white_balance_mode) + "</4><5>" + std::to_string(cam_lens_correction_mode) + "</5>"
 	+ "<6>" + std::to_string(cam_exposure_mode) + "</6><7>" + std::to_string(cam_encode_format_mode) + "</7><8>" + std::to_string(cam_noise_filter_mode) + "</8>"
 	+ "<9>" + std::to_string(cam_selected_jpg_quality) + "</9><10>" + std::to_string(cam_shutter_sound_mode) + "</10>";
@@ -857,10 +857,10 @@ void Cam_exit_thread(void* arg)
 	cam_status += ".";
 	Util_log_save(DEF_CAM_EXIT_STR, "threadJoin()...", threadJoin(cam_capture_thread, DEF_THREAD_WAIT_TIME));
 
-	cam_status += "\nExiting camera...";	
+	cam_status += "\nExiting camera...";
 	Util_cam_exit();
 
-	cam_status += "\nCleaning up...";	
+	cam_status += "\nCleaning up...";
 	threadFree(cam_encode_thread);
 	threadFree(cam_capture_thread);
 
@@ -946,7 +946,7 @@ void Cam_init(bool draw)
 	if(!(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_N3DS) || !var_core_2_available)
 		APT_SetAppCpuTimeLimit(10);
 
-	Util_log_save(DEF_CAM_EXIT_STR, "threadJoin()...", threadJoin(cam_init_thread, DEF_THREAD_WAIT_TIME));	
+	Util_log_save(DEF_CAM_EXIT_STR, "threadJoin()...", threadJoin(cam_init_thread, DEF_THREAD_WAIT_TIME));
 	threadFree(cam_init_thread);
 	Cam_resume();
 
@@ -993,7 +993,7 @@ void Cam_exit(bool draw)
 			Util_sleep(20000);
 	}
 
-	Util_log_save(DEF_CAM_EXIT_STR, "threadJoin()...", threadJoin(cam_exit_thread, DEF_THREAD_WAIT_TIME));	
+	Util_log_save(DEF_CAM_EXIT_STR, "threadJoin()...", threadJoin(cam_exit_thread, DEF_THREAD_WAIT_TIME));
 	threadFree(cam_exit_thread);
 	Util_remove_watch(&cam_status);
 	var_need_reflesh = true;
@@ -1066,7 +1066,7 @@ void Cam_main(void)
 					Draw_cpu_usage_info();
 			}
 		}
-		
+
 		if(var_turn_on_bottom_lcd)
 		{
 			Draw_screen_ready(SCREEN_BOTTOM, back_color);

@@ -1,4 +1,4 @@
-﻿<0>Downloaded size : </0>
+<0>Downloaded size : </0>
 <1>Download time : </1>
 <2>Speed : </2>
 <3>Select test data size</3>

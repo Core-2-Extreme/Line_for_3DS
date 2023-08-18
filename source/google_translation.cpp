@@ -1,4 +1,4 @@
-﻿#include "definitions.hpp"
+#include "definitions.hpp"
 #include "system/types.hpp"
 
 #include "system/menu.hpp"
@@ -302,7 +302,7 @@ void Gtr_init_thread(void* arg)
 {
 	Util_log_save(DEF_GTR_INIT_STR, "Thread started.");
 	Result_with_string result;
-	
+
 	gtr_status = "Starting threads...";
 	gtr_tr_thread_run = true;
 	gtr_tr_thread = threadCreate(Gtr_tr_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_NORMAL, 0, false);
@@ -312,7 +312,7 @@ void Gtr_init_thread(void* arg)
 	Util_load_msg("gtr_short_lang_list.txt", gtr_lang_short_list, DEF_GTR_NUM_OF_LANG_LIST_MSG);
 	gtr_current_history_num = 9;
 	gtr_text_pos_x = 0.0;
-	
+
 	gtr_translate_button.c2d = var_square_image[0];
 	gtr_copy_button.c2d = var_square_image[0];
 	gtr_up_button.c2d = var_square_image[0];
@@ -335,7 +335,7 @@ void Gtr_init_thread(void* arg)
 	Util_add_watch(&gtr_selected_sorce_lang_num);
 	Util_add_watch(&gtr_target_lang_offset);
 	Util_add_watch(&gtr_selected_target_lang_num);
-	
+
 	gtr_already_init = true;
 
 	Util_log_save(DEF_GTR_INIT_STR, "Thread exit.");
@@ -352,7 +352,7 @@ void Gtr_exit_thread(void* arg)
 
 	gtr_status = "Exiting threads...";
 	Util_log_save(DEF_GTR_EXIT_STR, "threadJoin()...", threadJoin(gtr_tr_thread, DEF_THREAD_WAIT_TIME));
-	
+
 	gtr_status += "\nCleaning up...";
 	threadFree(gtr_tr_thread);
 
@@ -435,7 +435,7 @@ void Gtr_init(bool draw)
 	if(!(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DSXL || var_model == CFG_MODEL_N3DS) || !var_core_2_available)
 		APT_SetAppCpuTimeLimit(10);
 
-	Util_log_save(DEF_GTR_EXIT_STR, "threadJoin()...", threadJoin(gtr_init_thread, DEF_THREAD_WAIT_TIME));	
+	Util_log_save(DEF_GTR_EXIT_STR, "threadJoin()...", threadJoin(gtr_init_thread, DEF_THREAD_WAIT_TIME));
 	threadFree(gtr_init_thread);
 	Gtr_resume();
 
@@ -482,7 +482,7 @@ void Gtr_exit(bool draw)
 			Util_sleep(20000);
 	}
 
-	Util_log_save(DEF_MIC_EXIT_STR, "threadJoin()...", threadJoin(gtr_exit_thread, DEF_THREAD_WAIT_TIME));	
+	Util_log_save(DEF_MIC_EXIT_STR, "threadJoin()...", threadJoin(gtr_exit_thread, DEF_THREAD_WAIT_TIME));
 	threadFree(gtr_exit_thread);
 	Util_remove_watch(&gtr_status);
 	var_need_reflesh = true;
@@ -520,8 +520,8 @@ void Gtr_main(void)
 
 			Draw_top_ui();
 
-            if(var_monitor_cpu_usage)
-                Draw_cpu_usage_info();
+			if(var_monitor_cpu_usage)
+				Draw_cpu_usage_info();
 
 			if(Draw_is_3d_mode())
 			{
@@ -536,7 +536,7 @@ void Gtr_main(void)
 					Draw_cpu_usage_info();
 			}
 		}
-		
+
 		if(var_turn_on_bottom_lcd)
 		{
 			Draw_screen_ready(SCREEN_BOTTOM, back_color);
