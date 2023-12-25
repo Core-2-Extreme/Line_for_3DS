@@ -144,8 +144,7 @@ void Draw_set_texture_filter(Image_data* image, bool filter);
  * @param text_size_y (in) Font size for Y direction.
  * @param out_text_size_x (out) Text width (in px).
  * @param out_text_size_y (out) Text height (in px).
- * @warning Thread dangerous (untested)
- * @warning Call it from only drawing thread.
+ * @note Thread safe
 */
 void Draw_get_text_size(std::string text, float text_size_x, float text_size_y, double* out_text_size_x, double* out_text_size_y);
 

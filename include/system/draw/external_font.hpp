@@ -125,8 +125,7 @@ float texture_size_y, int abgr8888, float* out_width, float* out_height);
  * @param texture_size_y (in) Font size for Y direction.
  * @param out_width (out) Text width (in px).
  * @param out_height (out) Text height (in px).
- * @warning Thread dangerous (untested)
- * @warning Call it from only drawing thread.
+ * @note Thread safe
 */
 void Exfont_draw_get_text_size(std::string* in_part_string, int num_of_characters, float texture_size_x, float texture_size_y, float* out_width, float* out_height);
 
