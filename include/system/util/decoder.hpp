@@ -447,7 +447,7 @@ void Util_decoder_close_file(int session);
  * on failure DEF_ERR_*.
  * @warning Thread dangerous (untested)
 */
-Result_with_string Util_image_decoder_decode(std::string file_name, u8** raw_data, int* width, int* height, Pixel_format* format);
+Result_with_string Util_image_decoder_decode(std::string file_path, u8** raw_data, int* width, int* height, Pixel_format* format);
 
 /**
  * @brief Decode image file.
@@ -463,9 +463,19 @@ Result_with_string Util_image_decoder_decode(std::string file_name, u8** raw_dat
 */
 Result_with_string Util_image_decoder_decode(u8* compressed_data, int compressed_buffer_size, u8** raw_data, int* width, int* height, Pixel_format* format);
 
+/**
+ * @brief Check if image file is valid.
+ * @param file_path (in) File path.
+ * @return On success DEF_SUCCESS,
+ * on failure DEF_ERR_*.
+ * @warning Thread dangerous (untested)
+*/
+Result_with_string Util_image_decoder_check_file(std::string file_path);
+
 #else
 
 #define Util_image_decoder_decode(...) Util_return_result_with_string(var_disabled_result)
+#define Util_image_decoder_check_file(...) Util_return_result_with_string(var_disabled_result)
 
 #endif
 

@@ -1167,6 +1167,48 @@ static void *stbi__load_main(stbi__context *s, int *x, int *y, int *comp, int re
    return stbi__errpuc("unknown image type", "Image not of any known type, or corrupt");
 }
 
+static bool stbi__check_main(stbi__context *s)
+{
+   // test the formats with a very explicit header first (at least a FOURCC
+   // or distinctive magic number first)
+   #ifndef STBI_NO_PNG
+   if (stbi__png_test(s))  return true;
+   #endif
+   #ifndef STBI_NO_BMP
+   if (stbi__bmp_test(s))  return true;
+   #endif
+   #ifndef STBI_NO_GIF
+   if (stbi__gif_test(s))  return true;
+   #endif
+   #ifndef STBI_NO_PSD
+   if (stbi__psd_test(s))  return true;
+   #endif
+   #ifndef STBI_NO_PIC
+   if (stbi__pic_test(s))  return true;
+   #endif
+
+   // then the formats that can end up attempting to load with just 1 or 2
+   // bytes matching expectations; these are prone to false positives, so
+   // try them later
+   #ifndef STBI_NO_JPEG
+   if (stbi__jpeg_test(s)) return true;
+   #endif
+   #ifndef STBI_NO_PNM
+   if (stbi__pnm_test(s))  return true;
+   #endif
+
+   #ifndef STBI_NO_HDR
+   if (stbi__hdr_test(s))  return true;
+   #endif
+
+   #ifndef STBI_NO_TGA
+   // test tga last because it's a crappy test!
+   if (stbi__tga_test(s))  return true;
+   #endif
+
+   return false;
+}
+
 static stbi_uc *stbi__convert_16_to_8(stbi__uint16 *orig, int w, int h, int channels)
 {
    int i;
@@ -1349,6 +1391,24 @@ STBIDEF stbi_uc *stbi_load(char const *filename, int *x, int *y, int *comp, int 
    unsigned char *result;
    if (!f) return stbi__errpuc("can't fopen", "Unable to open file");
    result = stbi_load_from_file(f,x,y,comp,req_comp);
+   fclose(f);
+   return result;
+}
+
+STBIDEF bool stbi_check(char const *filename)
+{
+   FILE *f = stbi__fopen(filename, "rb");
+   stbi__context s;
+   bool result;
+
+   if (!f) return false;
+   stbi__start_file(&s,f);
+   result = stbi__check_main(&s);
+   if (result) {
+      // need to 'unget' all the characters in the IO buffer
+      fseek(f, - (int) (s.img_buffer_end - s.img_buffer), SEEK_CUR);
+   }
+
    fclose(f);
    return result;
 }

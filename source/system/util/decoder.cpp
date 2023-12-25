@@ -3093,4 +3093,22 @@ Result_with_string Util_image_decoder_decode(u8* compressed_data, int compressed
 	return result;
 }
 
+Result_with_string Util_image_decoder_check_file(std::string file_name)
+{
+	Result_with_string result;
+
+	if(!stbi_check(file_name.c_str()))
+	{
+		result.error_description = (std::string)"[Error] stbi_check() failed. " + stbi_failure_reason();
+		goto stbi_api_failed;
+	}
+
+	return result;
+
+	stbi_api_failed:
+	result.code = DEF_ERR_STB_IMG_RETURNED_NOT_SUCCESS;
+	result.string = DEF_ERR_STB_IMG_RETURNED_NOT_SUCCESS_STR;
+	return result;
+}
+
 #endif
