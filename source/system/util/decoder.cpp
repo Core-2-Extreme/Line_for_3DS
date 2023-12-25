@@ -56,7 +56,7 @@ AVFrame* util_video_decoder_raw_image[DEF_DECODER_MAX_SESSIONS][DEF_DECODER_MAX_
 AVCodecContext* util_video_decoder_context[DEF_DECODER_MAX_SESSIONS][DEF_DECODER_MAX_VIDEO_TRACKS];
 const AVCodec* util_video_decoder_codec[DEF_DECODER_MAX_SESSIONS][DEF_DECODER_MAX_VIDEO_TRACKS];
 
-bool util_mvd_video_decoder_init = false;
+bool util_mvd_video_decoder_init[DEF_DECODER_MAX_SESSIONS];
 bool util_mvd_video_decoder_changeable_buffer_size = false;
 bool util_mvd_video_decoder_first = false;
 bool util_mvd_video_decoder_should_skip_process_nal_unit = false;
@@ -499,6 +499,7 @@ void Util_decoder_init_variables(void)
 				util_video_decoder_raw_image[i][k][s] = NULL;
 		}
 
+		util_mvd_video_decoder_init[i] = false;
 		util_mvd_video_decoder_available_raw_image[i] = 0;
 		util_mvd_video_decoder_raw_image_ready_index[i] = 0;
 		util_mvd_video_decoder_raw_image_current_index[i] = 0;
@@ -522,7 +523,6 @@ void Util_decoder_init_variables(void)
 		}
 	}
 
-	util_mvd_video_decoder_init = false;
 	util_mvd_video_decoder_changeable_buffer_size = false;
 	util_mvd_video_decoder_first = false;
 	util_mvd_video_decoder_should_skip_process_nal_unit = false;
@@ -884,8 +884,12 @@ Result_with_string Util_mvd_video_decoder_init(int session)
 	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0])
 		goto not_inited;
 
-	if(util_mvd_video_decoder_init)
-		goto already_inited;
+	//MVD can only be opened 1 session at a time.
+	for(int i = 0; i < DEF_DECODER_MAX_SESSIONS; i++)
+	{
+		if(util_mvd_video_decoder_init[i])
+			goto already_inited;
+	}
 
 	width = util_video_decoder_context[session][0]->width;
 	height = util_video_decoder_context[session][0]->height;
@@ -925,7 +929,7 @@ Result_with_string Util_mvd_video_decoder_init(int session)
 	util_mvd_video_decoder_max_raw_image[session] = DEF_DECODER_MAX_RAW_IMAGE;
 	util_mvd_video_decoder_first = true;
 	util_mvd_video_decoder_changeable_buffer_size = true;
-	util_mvd_video_decoder_init = true;
+	util_mvd_video_decoder_init[session] = true;
 	return result;
 
 	invalid_arg:
@@ -1685,7 +1689,7 @@ void Util_mvd_video_decoder_set_raw_image_buffer_size(int max_num_of_buffer, int
 	if(session < 0 || session >= DEF_DECODER_MAX_SESSIONS || max_num_of_buffer < 3 || max_num_of_buffer > DEF_DECODER_MAX_RAW_IMAGE)
 		return;
 
-	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init
+	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init[session]
 	|| !util_mvd_video_decoder_changeable_buffer_size)
 		return;
 
@@ -1714,7 +1718,7 @@ int Util_mvd_video_decoder_get_raw_image_buffer_size(int session)
 	if(session < 0 || session >= DEF_DECODER_MAX_SESSIONS)
 		return 0;
 
-	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init)
+	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init[session])
 		return 0;
 
 	return util_mvd_video_decoder_max_raw_image[session];
@@ -1953,7 +1957,7 @@ Result_with_string Util_mvd_video_decoder_decode(int session)
 	if(session < 0 || session >= DEF_DECODER_MAX_SESSIONS)
 		goto invalid_arg;
 
-	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init)
+	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init[session])
 		goto not_inited;
 
 	if(!util_video_decoder_packet_ready[session][0])
@@ -2454,7 +2458,7 @@ void Util_mvd_video_decoder_clear_raw_image(int session)
 	if(session < 0 || session >= DEF_DECODER_MAX_SESSIONS)
 		return;
 
-	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init)
+	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init[session])
 		return;
 
 	for(int i = 0; i < util_mvd_video_decoder_max_raw_image[session]; i++)
@@ -2495,7 +2499,7 @@ int Util_mvd_video_decoder_get_available_raw_image_num(int session)
 	if(session < 0 || session >= DEF_DECODER_MAX_SESSIONS)
 		return 0;
 
-	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init)
+	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init[session])
 		return 0;
 	else
 		return util_mvd_video_decoder_available_raw_image[session];
@@ -2672,7 +2676,7 @@ Result_with_string Util_mvd_video_decoder_get_image(u8** raw_data, double* curre
 	if(!raw_data || !current_pos || width <= 0 || height <= 0 || session < 0 || session >= DEF_DECODER_MAX_SESSIONS)
 		goto invalid_arg;
 
-	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init)
+	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init[session])
 		goto not_inited;
 
 	if(util_mvd_video_decoder_available_raw_image[session] <= 0)
@@ -2818,7 +2822,7 @@ void Util_mvd_video_decoder_skip_image(double* current_pos, int session)
 	if(!current_pos || session < 0 || session >= DEF_DECODER_MAX_SESSIONS)
 		return;
 
-	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init)
+	if(!util_decoder_opened_file[session] || !util_video_decoder_init[session][0] || !util_mvd_video_decoder_init[session])
 		return;
 
 	if(util_mvd_video_decoder_available_raw_image[session] <= 0)
@@ -2942,10 +2946,10 @@ void Util_video_decoder_exit(int session)
 
 void Util_mvd_video_decoder_exit(int session)
 {
-	if(!util_mvd_video_decoder_init)
+	if(!util_mvd_video_decoder_init[session])
 		return;
 
-	util_mvd_video_decoder_init = false;
+	util_mvd_video_decoder_init[session] = false;
 	mvdstdExit();
 	Util_safe_linear_free(util_mvd_video_decoder_packet);
 	util_mvd_video_decoder_packet = NULL;
