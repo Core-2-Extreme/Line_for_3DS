@@ -186,7 +186,8 @@
 #define DEF_ERR_DECODER_TRY_AGAIN_NO_OUTPUT 0xFFFFFFF2
 //This is different from DEF_ERR_DECODER_TRY_AGAIN_NO_OUTPUT, Video output was made at this call, try again without calling Util_decoder_ready_video_packet().
 #define DEF_ERR_DECODER_TRY_AGAIN 0xFFFFFFF1
-#define DEF_ERR_DISABLED 0xFFFFFFF0
+#define DEF_ERR_QUIRC_RETURNED_NOT_SUCCESS 0xFFFFFFF0
+#define DEF_ERR_DISABLED 0xDDDDDDDD
 
 #define DEF_ERR_OTHER_STR (std::string)"[Error] Something went wrong. "
 #define DEF_ERR_OUT_OF_MEMORY_STR (std::string)"[Error] Out of memory. "

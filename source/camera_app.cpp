@@ -13,12 +13,44 @@
 #include "system/util/file.hpp"
 #include "system/util/hid.hpp"
 #include "system/util/log.hpp"
+#include "system/util/queue.hpp"
 #include "system/util/util.hpp"
+
+extern "C"
+{
+	#include "system/util/qr.h"
+}
 
 //Include myself.
 #include "camera_app.hpp"
 
+
+typedef enum
+{
+	CAM_COMMAND_INVALID = -1,
+
+	CAM_COMMAND_MAIN_THREAD_SCAN_QR_SUCCESS_INDICATION,	//Indication that indicates QR code scan was successful.
+	CAM_COMMAND_SCAN_QR_THREAD_SCAN_QR_CODE_REQUEST,	//Request to scan and decode a QR code.
+
+	CAM_COMMAND_MAX,
+	CAM_COMMAND_FORCE_32BIT = INT32_MAX,
+} Cam_command;
+
+typedef struct
+{
+	char* decoded_data;	//Decoded data.
+} Cam_scan_qr_success_indication_data;
+
+typedef struct
+{
+	uint8_t* buffer;	//Raw picture (PIXEL_FORMAT_RGB565LE) buffer.
+	uint16_t width;		//Picture Width in px.
+	uint16_t height;	//Picture height in px.
+} Cam_scan_qr_code_request_data;
+
+
 extern "C" void memcpy_asm(u8*, u8*, int);
+
 
 bool cam_main_run = false;
 bool cam_already_init = false;
@@ -34,6 +66,7 @@ bool cam_change_lens_correction_request = false;
 bool cam_change_camera_request = false;
 bool cam_change_exposure_request = false;
 bool cam_change_noise_filter_request = false;
+bool cam_scan_qr_mode = false;
 u8* cam_encode_buffer = NULL;
 int cam_selected_menu_mode = 0;
 int cam_selected_jpg_quality = 95;
@@ -62,6 +95,7 @@ Camera_framerate cam_fps_list[13] = { CAM_FPS_15, CAM_FPS_15_TO_5, CAM_FPS_15_TO
 CAM_FPS_10, CAM_FPS_8_5, CAM_FPS_5, CAM_FPS_20, CAM_FPS_20_TO_5,
 CAM_FPS_30, CAM_FPS_30_TO_5, CAM_FPS_15_TO_10, CAM_FPS_20_TO_10, CAM_FPS_30_TO_10, };
 Camera_port cam_camera_list[3] = { CAM_PORT_OUT_LEFT, CAM_PORT_OUT_RIGHT, CAM_PORT_IN, };
+void (*cam_qr_callback)(char*) = NULL;
 std::string cam_status = "";
 std::string cam_msg[DEF_CAM_NUM_OF_MSG];
 std::string cam_resolution_list[9];
@@ -70,10 +104,13 @@ std::string cam_lens_correction_list[3];
 std::string cam_white_balance_list[6];
 std::string cam_contrast_list[11];
 std::string cam_framelate_list[15];
-Thread cam_init_thread, cam_exit_thread, cam_capture_thread, cam_encode_thread;
+Thread cam_init_thread, cam_exit_thread, cam_capture_thread, cam_encode_thread, cam_scan_qr_thread;
 Image_data cam_capture_image[2], cam_menu_button[4], cam_resolution_button[9], cam_camera_button[3], cam_fps_button[15], cam_contrast_bar,
 cam_white_balance_bar, cam_lens_correction_bar, cam_exposure_bar, cam_jpg_quality_bar, cam_png_button, cam_jpg_button, cam_noise_filter_on_button,
 cam_noise_filter_off_button, cam_shutter_sound_on_button, cam_shutter_sound_off_button;
+Queue cam_scan_qr_thread_queue = { 0, };
+Queue cam_main_thread_queue = { 0, };
+
 
 bool Cam_query_init_flag(void)
 {
@@ -361,6 +398,22 @@ Result_with_string Cam_load_msg(std::string lang)
 	return Util_load_msg("cam_" + lang + ".txt", cam_msg, DEF_CAM_NUM_OF_MSG);
 }
 
+void Cam_set_qr_scan_mode(bool enable)
+{
+	if(!cam_already_init)
+		return;
+
+	cam_scan_qr_mode = enable;
+}
+
+void Cam_set_qr_scan_callback(void (*callback)(char*))
+{
+	if(!cam_already_init)
+		return;
+
+	cam_qr_callback = callback;
+}
+
 void Cam_encode_thread(void* arg)
 {
 	Util_log_save(DEF_CAM_ENCODE_THREAD_STR, "Thread started.");
@@ -610,10 +663,36 @@ void Cam_capture_thread(void* arg)
 			else
 			{
 				Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, result.string, result.code);
-				Util_sleep(100);
+				Util_sleep(1000);
 			}
-			free(capture_buffer);
-			capture_buffer = NULL;
+
+			if (result.code == DEF_SUCCESS && cam_scan_qr_mode
+			&& !Util_queue_check_event_exist(&cam_scan_qr_thread_queue, CAM_COMMAND_SCAN_QR_THREAD_SCAN_QR_CODE_REQUEST))
+			{
+				Cam_scan_qr_code_request_data* data = (Cam_scan_qr_code_request_data*)malloc(sizeof(Cam_scan_qr_code_request_data));
+
+				if(data)
+				{
+					data->buffer = capture_buffer;
+					data->width = width;
+					data->height = height;
+
+					Util_queue_add(&cam_scan_qr_thread_queue, CAM_COMMAND_SCAN_QR_THREAD_SCAN_QR_CODE_REQUEST, data, 0, QUEUE_OPTION_NONE);
+
+					//capture_buffer will be freed in Cam_scan_qr_thread().
+					capture_buffer = NULL;
+				}
+				else
+				{
+					free(capture_buffer);
+					capture_buffer = NULL;
+				}
+			}
+			else
+			{
+				free(capture_buffer);
+				capture_buffer = NULL;
+			}
 		}
 
 		while (cam_thread_suspend)
@@ -623,6 +702,124 @@ void Cam_capture_thread(void* arg)
 	result.code = CAMU_Activate(SELECT_NONE);
 
 	Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, "Thread exit.");
+	threadExit(0);
+}
+
+void Cam_scan_qr_thread(void* arg)
+{
+	Util_log_save(DEF_CAM_SCAN_QR_THREAD_STR, "Thread started.");
+	Result_with_string result;
+
+	while (cam_thread_run)
+	{
+		void* command_data = NULL;
+		Cam_command command_id = CAM_COMMAND_INVALID;
+
+		result = Util_queue_get(&cam_scan_qr_thread_queue, (u32*)&command_id, &command_data, DEF_ACTIVE_THREAD_SLEEP_TIME);
+		if(result.code == DEF_SUCCESS)
+		{
+			switch (command_id)
+			{
+				case CAM_COMMAND_SCAN_QR_THREAD_SCAN_QR_CODE_REQUEST:
+				{
+					Color_converter_parameters parameters;
+					Cam_scan_qr_code_request_data* data = (Cam_scan_qr_code_request_data*)command_data;
+
+					if(!command_data)
+						break;
+
+					if(!cam_scan_qr_mode)
+					{
+						free(data->buffer);
+						data->buffer = NULL;
+						break;
+					}
+
+					parameters.source = data->buffer;
+					parameters.converted = NULL;
+					parameters.in_width = data->width;
+					parameters.in_height = data->height;
+					parameters.out_width = data->width;
+					parameters.out_height = data->height;
+					parameters.in_color_format = PIXEL_FORMAT_RGB565LE;
+					parameters.out_color_format = PIXEL_FORMAT_GRAY8;
+
+					result = Util_converter_convert_color(&parameters);
+					free(data->buffer);
+					data->buffer = NULL;
+
+					if(result.code == DEF_SUCCESS)
+					{
+						Util_qr_decode_parameters qr_parameters = { 0, };
+
+						Util_qr_init_decode_parameters(&qr_parameters);
+
+						qr_parameters.input = parameters.converted;
+						qr_parameters.width = parameters.out_width;
+						qr_parameters.height = parameters.out_height;
+
+						result.code = Util_qr_decode(&qr_parameters);
+						if(result.code == DEF_SUCCESS)
+						{
+							Cam_scan_qr_success_indication_data* indication_data = (Cam_scan_qr_success_indication_data*)malloc(sizeof(Cam_scan_qr_success_indication_data));
+
+							Util_log_save(DEF_CAM_SCAN_QR_THREAD_STR, qr_parameters.decoded);
+
+							//If QR code has been decoded successfully, stop QR code scan.
+							cam_scan_qr_mode = false;
+
+							if(indication_data)
+							{
+								indication_data->decoded_data = qr_parameters.decoded;
+
+								Util_queue_add(&cam_main_thread_queue, CAM_COMMAND_MAIN_THREAD_SCAN_QR_SUCCESS_INDICATION, indication_data, 0, QUEUE_OPTION_NONE);
+
+								//decoded will be freed in Cam_main().
+								qr_parameters.decoded = NULL;
+							}
+							else
+							{
+								free(qr_parameters.decoded);
+								qr_parameters.decoded = NULL;
+							}
+						}
+						else
+						{
+							free(qr_parameters.decoded);
+							qr_parameters.decoded = NULL;
+
+							if(result.code != DEF_ERR_QUIRC_RETURNED_NOT_SUCCESS)
+								Util_log_save(DEF_CAM_SCAN_QR_THREAD_STR, (std::string)"Util_qr_decode()..." + qr_parameters.error_message, result.code);
+						}
+					}
+					else
+						Util_log_save(DEF_CAM_SCAN_QR_THREAD_STR, "Util_converter_convert_color()..." + result.string + result.error_description, result.code);
+
+					free(parameters.converted);
+					parameters.converted = NULL;
+
+					break;
+				}
+
+				default:
+				{
+					//Invalid command was received.
+					char msg[64];
+					snprintf(msg, sizeof(msg), "Invalid command (%08X) was received!!!!!", command_id);
+					Util_log_save(DEF_CAM_SCAN_QR_THREAD_STR, msg);
+					break;
+				}
+			}
+		}
+
+		free(command_data);
+		command_data = NULL;
+
+		while (cam_thread_suspend)
+			Util_sleep(DEF_INACTIVE_THREAD_SLEEP_TIME);
+	}
+
+	Util_log_save(DEF_CAM_SCAN_QR_THREAD_STR, "Thread exit.");
 	threadExit(0);
 }
 
@@ -720,46 +917,53 @@ void Cam_init_thread(void* arg)
 	}
 
 	cam_status += ".";
-	log_num = Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, "Util_cam_set_resolution()...");
+	log_num = Util_log_save(DEF_CAM_INIT_STR, "Util_cam_set_resolution()...");
 	result = Util_cam_set_resolution(cam_request_resolution_mode);
 	Util_log_add(log_num, result.string, result.code);
 
 	cam_status += ".";
-	log_num = Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, "Util_cam_set_fps()...");
+	log_num = Util_log_save(DEF_CAM_INIT_STR, "Util_cam_set_fps()...");
 	result = Util_cam_set_fps(cam_request_fps_mode);
 	Util_log_add(log_num, result.string, result.code);
 
 	cam_status += ".";
-	log_num = Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, "Util_cam_set_contrast()...");
+	log_num = Util_log_save(DEF_CAM_INIT_STR, "Util_cam_set_contrast()...");
 	result = Util_cam_set_contrast(cam_request_contrast_mode);
 	Util_log_add(log_num, result.string, result.code);
 
 	cam_status += ".";
-	log_num = Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, "Util_cam_set_white_balance()...");
+	log_num = Util_log_save(DEF_CAM_INIT_STR, "Util_cam_set_white_balance()...");
 	result = Util_cam_set_white_balance(cam_request_white_balance_mode);
 	Util_log_add(log_num, result.string, result.code);
 
 	cam_status += ".";
-	log_num = Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, "Util_cam_set_lens_correction()...");
+	log_num = Util_log_save(DEF_CAM_INIT_STR, "Util_cam_set_lens_correction()...");
 	result = Util_cam_set_lens_correction(cam_request_lens_correction_mode);
 	Util_log_add(log_num, result.string, result.code);
 
 	cam_status += ".";
-	log_num = Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, "Util_cam_set_camera()...");
+	log_num = Util_log_save(DEF_CAM_INIT_STR, "Util_cam_set_camera()...");
 	result = Util_cam_set_camera(cam_request_camera_mode);
 	Util_log_add(log_num, result.string, result.code);
 
 	cam_status += ".";
-	log_num = Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, "Util_cam_set_exposure()...");
+	log_num = Util_log_save(DEF_CAM_INIT_STR, "Util_cam_set_exposure()...");
 	result = Util_cam_set_exposure(cam_request_exposure_mode);
 	Util_log_add(log_num, result.string, result.code);
 
 	cam_status += ".";
-	log_num = Util_log_save(DEF_CAM_CAPTURE_THREAD_STR, "Util_cam_set_noise_filter()...");
+	log_num = Util_log_save(DEF_CAM_INIT_STR, "Util_cam_set_noise_filter()...");
 	result = Util_cam_set_noise_filter(cam_request_noise_filter_mode);
 	Util_log_add(log_num, result.string, result.code);
 
 	cam_status += "\nInitializing variables...";
+
+	result = Util_queue_create(&cam_scan_qr_thread_queue, 25);
+	Util_log_save(DEF_CAM_INIT_STR, "Util_queue_create()..." + result.string + result.error_description, result.code);
+
+	result = Util_queue_create(&cam_main_thread_queue, 10);
+	Util_log_save(DEF_CAM_INIT_STR, "Util_queue_create()..." + result.string + result.error_description, result.code);
+
 	for (int i = 0; i < 2; i++)
 	{
 		result = Draw_texture_init(&cam_capture_image[i], 1024, 512, PIXEL_FORMAT_RGB565LE);
@@ -777,6 +981,8 @@ void Cam_init_thread(void* arg)
 		Util_err_set_error_show_flag(true);
 	}
 
+	cam_scan_qr_mode = false;
+	cam_qr_callback = NULL;
 	cam_contrast_bar.c2d = var_square_image[0];
 	cam_white_balance_bar.c2d = var_square_image[0];
 	cam_lens_correction_bar.c2d = var_square_image[0];
@@ -822,9 +1028,15 @@ void Cam_init_thread(void* arg)
 	cam_capture_thread = threadCreate(Cam_capture_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_REALTIME, 0, false);
 
 	if(var_model == CFG_MODEL_N2DSXL || var_model == CFG_MODEL_N3DS || var_model == CFG_MODEL_N3DSXL)
+	{
+		cam_scan_qr_thread = threadCreate(Cam_scan_qr_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_IDLE, 2, false);
 		cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_HIGH, 2, false);
+	}
 	else
+	{
+		cam_scan_qr_thread = threadCreate(Cam_scan_qr_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_IDLE, 0, false);
 		cam_encode_thread = threadCreate(Cam_encode_thread, (void*)(""), DEF_STACKSIZE, DEF_THREAD_PRIORITY_NORMAL, 0, false);
+	}
 
 	cam_display_img_num = -1;
 	cam_already_init = true;
@@ -857,12 +1069,17 @@ void Cam_exit_thread(void* arg)
 	cam_status += ".";
 	Util_log_save(DEF_CAM_EXIT_STR, "threadJoin()...", threadJoin(cam_capture_thread, DEF_THREAD_WAIT_TIME));
 
+	cam_status += ".";
+	Util_log_save(DEF_CAM_EXIT_STR, "threadJoin()...", threadJoin(cam_scan_qr_thread, DEF_THREAD_WAIT_TIME));
+
 	cam_status += "\nExiting camera...";
 	Util_cam_exit();
 
 	cam_status += "\nCleaning up...";
 	threadFree(cam_encode_thread);
 	threadFree(cam_capture_thread);
+	Util_queue_delete(&cam_scan_qr_thread_queue);
+	Util_queue_delete(&cam_main_thread_queue);
 
 	for (int i = 0; i < 2; i++)
 		Draw_texture_free(&cam_capture_image[i]);
@@ -1010,6 +1227,9 @@ void Cam_main(void)
 	double pos_x = 0.0;
 	double pos_y = 0.0;
 	double bar_x[4] = { 0, 0, 0, 0, };
+	void* command_data = NULL;
+	Result_with_string result;
+	Cam_command command_id = CAM_COMMAND_INVALID;
 
 	if (var_night_mode)
 	{
@@ -1036,6 +1256,13 @@ void Cam_main(void)
 					Draw_texture(&cam_capture_image[image_num], 0, 0, 400, 240);
 				else
 					Draw_texture(&cam_capture_image[image_num], 40, 0, 320, 240);
+			}
+
+			if(cam_scan_qr_mode)
+			{
+				//Display scan information.
+				Draw(cam_msg[32], 0, 25, 0.45, 0.45, DEF_DRAW_WHITE, X_ALIGN_CENTER, Y_ALIGN_TOP,
+				400, 30, BACKGROUND_UNDER_TEXT, var_square_image[0], 0xA0000000);
 			}
 
 			if(Util_log_query_log_show_flag())
@@ -1226,4 +1453,45 @@ void Cam_main(void)
 	}
 	else
 		gspWaitForVBlank();
+
+	result = Util_queue_get(&cam_main_thread_queue, (u32*)&command_id, &command_data, 0);
+	if(result.code == DEF_SUCCESS)
+	{
+		switch (command_id)
+		{
+			case CAM_COMMAND_MAIN_THREAD_SCAN_QR_SUCCESS_INDICATION:
+			{
+				Cam_scan_qr_success_indication_data* data = (Cam_scan_qr_success_indication_data*)command_data;
+
+				//Data is mandatory.
+				if(!command_data)
+				{
+					cam_qr_callback = NULL;
+					break;
+				}
+
+				//Call callback function, then free decoded_data.
+				if(cam_qr_callback)
+					cam_qr_callback(data->decoded_data);
+
+				free(data->decoded_data);
+				data->decoded_data = NULL;
+				cam_qr_callback = NULL;
+
+				break;
+			}
+
+			default:
+			{
+				//Invalid command was received.
+				char msg[64];
+				snprintf(msg, sizeof(msg), "Invalid command (%08X) was received!!!!!", command_id);
+				Util_log_save(DEF_CAM_MAIN_STR, msg);
+				break;
+			}
+		}
+	}
+
+	free(command_data);
+	command_data = NULL;
 }

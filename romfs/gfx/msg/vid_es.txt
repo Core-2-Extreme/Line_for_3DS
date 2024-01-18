@@ -42,6 +42,6 @@ modo pantalla completa</12>
 <36>Disable audio : </36>
 <37>Disable video : </37>
 <38>Disable subtitle : </38>
-<39>Downloading...</39>
+<39>Downloading...%.02fMB</39>
 <40>Restart playback threshold : %d</40>
 <41>Processing video...</41>

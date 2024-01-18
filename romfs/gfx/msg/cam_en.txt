@@ -34,3 +34,5 @@ sdmc:/Line/dcim/</28>
 B to stop</29>
 <30>Muxing...</30>
 <31>Take a picture(A)</31>
+<32>Scanning QR code...
+Press B to cancel</32>

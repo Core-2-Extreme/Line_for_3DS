@@ -13,6 +13,10 @@ void Cam_suspend(void);
 
 Result_with_string Cam_load_msg(std::string lang);
 
+void Cam_set_qr_scan_mode(bool enable);
+
+void Cam_set_qr_scan_callback(void (*callback)(char*));
+
 void Cam_init(bool draw);
 
 void Cam_exit(bool draw);

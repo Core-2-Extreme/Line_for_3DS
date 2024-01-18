@@ -122,7 +122,7 @@
 #define DEF_IMV_DL_THREAD_STR (std::string)"Imv/Download thread"
 
 //Camera
-#define DEF_CAM_NUM_OF_MSG 32
+#define DEF_CAM_NUM_OF_MSG 33
 #define DEF_CAM_NUM_OF_OPTION_MSG 50
 //#define DEF_CAM_ENABLE_ICON
 #define DEF_CAM_ENABLE_NAME
@@ -134,6 +134,7 @@
 #define DEF_CAM_EXIT_STR (std::string)"Cam/Exit"
 #define DEF_CAM_ENCODE_THREAD_STR (std::string)"Cam/Encode thread"
 #define DEF_CAM_CAPTURE_THREAD_STR (std::string)"Cam/Capture thread"
+#define DEF_CAM_SCAN_QR_THREAD_STR (std::string)"Cam/Scan thread"
 
 #define DEF_CAM_MENU_RESOLUTION 0
 #define DEF_CAM_MENU_FPS 1

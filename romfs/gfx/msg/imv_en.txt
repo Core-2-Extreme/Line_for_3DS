@@ -1,6 +1,6 @@
 <0>Reload(A)</0>
 <1>Download(B)</1>
 <2>Select file(X)</2>
-<3>Enter url(Y)</3>
+<3>Enter URL(Y)</3>
 <4>Decrease size(L)</4>
 <5>Increase size(R)</5>

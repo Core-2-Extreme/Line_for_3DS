@@ -1,0 +1,24 @@
+//How to build quirc library for 3DS
+//Note : This step is optional
+//*install devkitpro (libctru) first*
+//It works on WSL Ubuntu 20.04, is should also work on real Ubuntu.
+
+git clone https://github.com/dlbeer/quirc; cd quirc; git reset --hard 542848dd6b9b0eaa9587bbf25b9bc67bd8a71fca
+
+make libquirc.a CC=/opt/devkitpro/devkitARM/bin/arm-none-eabi-gcc CFLAGS="-O3 -Wall -march=armv6k -mfloat-abi=hard -mtune=mpcore -mtp=cp15" SDL_LIBS= SDL_CFLAGS=
+
+//"sudo make install" doesn't work.
+sudo install lib/quirc.h /opt/devkitpro/extra_lib/include
+sudo install libquirc.a /opt/devkitpro/extra_lib/lib
+
+/*
+After installing library, copy these files : 
+
+/opt/devkitpro/extra_lib/lib/libquirc.a
+/opt/devkitpro/extra_lib/include/quirc.h
+
+to : 
+
+{project_folder}/library/quirc/lib/libquirc.a
+{project_folder}/library/quirc/include/quirc.h
+*/
