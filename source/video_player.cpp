@@ -7,12 +7,12 @@
 #include "system/draw/draw.hpp"
 
 #include "system/util/converter.hpp"
+#include "system/util/curl.hpp"
 #include "system/util/decoder.hpp"
 #include "system/util/error.hpp"
 #include "system/util/explorer.hpp"
 #include "system/util/file.hpp"
 #include "system/util/hid.hpp"
-#include "system/util/httpc.hpp"
 #include "system/util/log.hpp"
 #include "system/util/speaker.hpp"
 #include "system/util/swkbd.hpp"
@@ -2326,14 +2326,14 @@ void Vid_decode_video_thread(void* arg)
 								osTickCounterUpdate(&counter);
 								if(vid_hw_decoding_mode)
 								{
-									if((int)Util_check_free_linear_space() > (1024 * 1024 * 16) + (vid_video_info.width * vid_video_info.height * 2 * 2) || Util_mvd_video_decoder_get_available_raw_image_num(0) == 0)
+									if((int)Util_check_free_linear_space() > (1024 * 1024 * 25) + (vid_video_info.width * vid_video_info.height * 2 * 2) || Util_mvd_video_decoder_get_available_raw_image_num(0) == 0)
 										result = Util_mvd_video_decoder_decode(0);
 									else
 										result.code = DEF_ERR_TRY_AGAIN;
 								}
 								else
 								{
-									if((int)Util_check_free_linear_space() > (1024 * 1024 * 19) + (vid_video_info.width * vid_video_info.height * 1.5 * 2) || Util_video_decoder_get_available_raw_image_num(packet_index, 0) == 0)
+									if((int)Util_check_free_linear_space() > (1024 * 1024 * 25) + (vid_video_info.width * vid_video_info.height * 1.5 * 2) || Util_video_decoder_get_available_raw_image_num(packet_index, 0) == 0)
 										result = Util_video_decoder_decode(packet_index, 0);
 									else
 										result.code = DEF_ERR_TRY_AGAIN;
@@ -2824,8 +2824,8 @@ void Vid_worker_thread(void* arg)
 				cache_string = date;
 			}
 
-			log_num = Util_log_save(DEF_VID_WORKER_THREAD_STR, "Util_httpc_dl_data()...");
-			result = Util_httpc_save_data(vid_url, 0x20000, (u32*)&vid_dled_size, true, 5, DEF_MAIN_DIR + "videos/", cache_string);
+			log_num = Util_log_save(DEF_VID_WORKER_THREAD_STR, "Util_curl_save_data()...");
+			result = Util_curl_save_data(vid_url, 0x20000, &vid_dled_size, true, 5, DEF_MAIN_DIR + "videos/", cache_string);
 			Util_log_add(log_num, result.string, result.code);
 
 			if(result.code == 0)
@@ -3546,6 +3546,17 @@ void Vid_main(void)
 
 				//Display current video pos.
 				bottom_left_msg += Util_convert_seconds_to_time(current_bar_pos) + "/" + Util_convert_seconds_to_time(vid_duration / 1000);
+			}
+			if(vid_dl_and_play_request)
+			{
+				char progress[128] = { 0, };
+
+				if(bottom_left_msg != "")
+					bottom_left_msg += "\n";
+
+				//Display download progress.
+				snprintf(progress, sizeof(progress), vid_msg[DEF_VID_DL_MSG].c_str(), (vid_dled_size / 1024.0 / 1024.0));
+				bottom_left_msg += progress;
 			}
 
 			if(vid_seek_request || vid_seek_adjust_request[0])

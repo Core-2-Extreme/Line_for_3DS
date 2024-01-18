@@ -7,11 +7,11 @@
 #include "system/draw/draw.hpp"
 
 #include "system/util/converter.hpp"
+#include "system/util/curl.hpp"
 #include "system/util/decoder.hpp"
 #include "system/util/error.hpp"
 #include "system/util/explorer.hpp"
 #include "system/util/hid.hpp"
-#include "system/util/httpc.hpp"
 #include "system/util/log.hpp"
 #include "system/util/speaker.hpp"
 #include "system/util/util.hpp"
@@ -209,8 +209,8 @@ void Mup_worker_thread(void* arg)
 				cache_string = date;
 			}
 
-			log_num = Util_log_save(DEF_MUP_WORKER_THREAD_STR, "Util_httpc_dl_data()...");
-			result = Util_httpc_save_data(mup_url, 0x20000, (u32*)&mup_dled_size, true, 5, DEF_MAIN_DIR + "audio/", cache_string);
+			log_num = Util_log_save(DEF_MUP_WORKER_THREAD_STR, "Util_curl_save_data()...");
+			result = Util_curl_save_data(mup_url, 0x20000, &mup_dled_size, true, 5, DEF_MAIN_DIR + "audio/", cache_string);
 			Util_log_add(log_num, result.string, result.code);
 
 			if(result.code == 0)

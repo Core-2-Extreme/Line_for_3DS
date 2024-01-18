@@ -6,9 +6,9 @@
 
 #include "system/draw/draw.hpp"
 
+#include "system/util/curl.hpp"
 #include "system/util/error.hpp"
 #include "system/util/hid.hpp"
-#include "system/util/httpc.hpp"
 #include "system/util/log.hpp"
 #include "system/util/swkbd.hpp"
 #include "system/util/util.hpp"
@@ -72,8 +72,8 @@ void Gtr_tr_thread(void* arg)
 {
 	Util_log_save(DEF_GTR_TRANSLATION_THREAD_STR, "Thread started.");
 
-	u8* httpc_buffer = NULL;
-	u32 dl_size = 0;
+	u8* buffer = NULL;
+	int dl_size = 0;
 	int log_num = 0;
 	std::string send_data = "";
 	std::string url = "https://script.google.com/macros/s/AKfycbwbL6swXIeycS-WpVBrfKLh40bXg2CAv1PdAzuIhalqq2SGrJM/exec";
@@ -83,6 +83,8 @@ void Gtr_tr_thread(void* arg)
 	{
 		if (gtr_tr_request)
 		{
+			int uploaded_size = 0;
+
 			if (gtr_current_history_num + 1 > 9)
 				gtr_current_history_num = 0;
 			else
@@ -92,12 +94,12 @@ void Gtr_tr_thread(void* arg)
 			gtr_input_text = Util_encode_to_escape(gtr_input_text);
 			send_data = "{ \"text\": \"" + gtr_input_text + "\",\"sorce\" : \"" + gtr_lang_short_list[gtr_source_lang_index] + "\",\"target\" : \"" + gtr_lang_short_list[gtr_target_lang_index] + "\" }";
 
-			log_num = Util_log_save(DEF_GTR_TRANSLATION_THREAD_STR, "Util_httpc_post_and_dl_data()...");
-			result = Util_httpc_post_and_dl_data(url, (u8*)send_data.c_str(), send_data.length(), &httpc_buffer, 0x10000, &dl_size, true, 5);
+			log_num = Util_log_save(DEF_GTR_TRANSLATION_THREAD_STR, "Util_curl_post_and_dl_data()...");
+			result = Util_curl_post_and_dl_data(url, (u8*)send_data.c_str(), send_data.length(), &buffer, 0x10000, &dl_size, &uploaded_size, true, 5);
 			Util_log_add(log_num, result.string, result.code);
 
 			if (result.code == 0)
-				gtr_history[gtr_current_history_num] = (char*)httpc_buffer;
+				gtr_history[gtr_current_history_num] = (char*)buffer;
 			else
 			{
 				gtr_history[gtr_current_history_num] = "***Translation failed.***";
@@ -105,8 +107,8 @@ void Gtr_tr_thread(void* arg)
 				Util_err_set_error_show_flag(true);
 			}
 
-			free(httpc_buffer);
-			httpc_buffer = NULL;
+			free(buffer);
+			buffer = NULL;
 			gtr_tr_request = false;
 		}
 		else

@@ -7,11 +7,11 @@
 #include "system/draw/draw.hpp"
 
 #include "system/util/converter.hpp"
+#include "system/util/curl.hpp"
 #include "system/util/decoder.hpp"
 #include "system/util/error.hpp"
 #include "system/util/explorer.hpp"
 #include "system/util/hid.hpp"
-#include "system/util/httpc.hpp"
 #include "system/util/log.hpp"
 #include "system/util/swkbd.hpp"
 #include "system/util/util.hpp"
@@ -220,7 +220,7 @@ void Imv_img_load_thread(void* arg)
 {
 	Util_log_save(DEF_IMV_LOAD_THREAD_STR, "Thread started.");
 	u8* raw_buffer = NULL;
-	u32 dled_size = 0;
+	int dled_size = 0;
 	int log_num = 0;
 	int width = 0, height = 0;
 	size_t cut_pos[2] = { 0, 0, };
@@ -250,8 +250,8 @@ void Imv_img_load_thread(void* arg)
 			if (filename.length() > 33)
 				filename = filename.substr(0, 33);
 
-			log_num = Util_log_save(DEF_IMV_LOAD_THREAD_STR, "Util_httpc_save_data()....");
-			result = Util_httpc_save_data(imv_img_url, 1024 * 256, &dled_size, true, 5, DEF_MAIN_DIR + "images/", filename + ".jpg");
+			log_num = Util_log_save(DEF_IMV_LOAD_THREAD_STR, "Util_curl_save_data()....");
+			result = Util_curl_save_data(imv_img_url, 1024 * 256, &dled_size, true, 5, DEF_MAIN_DIR + "images/", filename + ".jpg");
 			Util_log_add(log_num, result.string, result.code);
 			if (result.code == 0)
 			{
