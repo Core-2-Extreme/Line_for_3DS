@@ -452,6 +452,18 @@ enum Keyboard_button
 	KEYBOARD_BUTTON_MAX,
 };
 
+enum Json_value_type
+{
+	JSON_TYPE_INVALID = -1,
+
+	JSON_TYPE_STRING,	//Value type is "String", size will be string length without null terminator.
+	JSON_TYPE_NUMBER,	//Value type is number, size will be sizeof(double).
+	JSON_TYPE_BOOL,		//Value type is bool, size will be sizeof(bool),
+	JSON_TYPE_NULL,		//Value type is null, size will be 0 and size will be NULL,
+
+	JSON_TYPE_MAX,
+};
+
 struct Result_with_string
 {
 	std::string string = "[Success] ";
@@ -667,5 +679,17 @@ struct Queue
 	LightEvent receive_wait_event;	//If timeout is not 0, this is used to wait for new message from this queue.
 	LightEvent send_wait_event;		//If timeout is not 0, this is used to wait for available space to send data to this queue.
 };
+
+typedef struct
+{
+	void* internal_data = NULL;		//Internal data for JSON APIs.
+} Json_data;
+
+typedef struct
+{
+	u32 size = 0;								//Size of value may be zero.
+	void* value = NULL;							//Extracted value may be NULL.
+	Json_value_type type = JSON_TYPE_INVALID;	//Type of value.
+} Json_extracted_data;
 
 #endif

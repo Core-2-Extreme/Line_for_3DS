@@ -53,6 +53,7 @@
 #define DEF_ENABLE_IMAGE_ENCODER_API				1 //Enable image encoder API. This will use stb_image functions.
 #define DEF_ENABLE_EXPL_API							1 //Enable file explorer API.
 #define DEF_ENABLE_HTTPC_API						1 //Enable httpc API. This API only supports up to TLS 1.1. You can still use libctru functions if you disable this API.
+#define DEF_ENABLE_JSON_API							1 //Enable json parser API.
 #define DEF_ENABLE_MIC_API							1 //Enable mic API. You can still use libctru functions if you disable this API.
 #define DEF_ENABLE_MUXER_API						1 //Enable muxer API. This will uses ffmpeg functions.
 #define DEF_ENABLE_SPEAKER_API						1 //Enable speaker API. You can still use libctru functions if you disable this API.

@@ -187,6 +187,7 @@
 //This is different from DEF_ERR_DECODER_TRY_AGAIN_NO_OUTPUT, Video output was made at this call, try again without calling Util_decoder_ready_video_packet().
 #define DEF_ERR_DECODER_TRY_AGAIN 0xFFFFFFF1
 #define DEF_ERR_QUIRC_RETURNED_NOT_SUCCESS 0xFFFFFFF0
+#define DEF_ERR_MBEDTLS_RETURNED_NOT_SUCCESS 0xFFFFFFEF
 #define DEF_ERR_DISABLED 0xDDDDDDDD
 
 #define DEF_ERR_OTHER_STR (std::string)"[Error] Something went wrong. "
@@ -291,6 +292,24 @@
 #define DEF_HID_EXIT_STR (std::string)"Hid/Exit"
 #define DEF_HID_SCAN_THREAD_STR (std::string)"Hid/Scan thread"
 #define DEF_HID_NUM_OF_CALLBACKS 4
+
+//json
+#define DEF_JSON_KEY(key) ((std::string)"\"" + key + "\":")
+#define DEF_JSON_STRING_DATA(data) ((std::string)"\"" + data + "\"")
+#define DEF_JSON_NON_STRING_DATA(data) ((std::string)data)
+#define DEF_JSON_START_ARRAY ((std::string)"[")
+#define DEF_JSON_END_ARRAY ((std::string)"]")
+#define DEF_JSON_START_OBJECT ((std::string)"{")
+#define DEF_JSON_END_OBJECT ((std::string)"}")
+#define DEF_JSON_COMMA ((std::string)",")
+#define DEF_JSON_STRING_DATA_WITH_KEY_WITHOUT_COMMA(key, data) (DEF_JSON_KEY(key) + DEF_JSON_STRING_DATA(data))
+#define DEF_JSON_NON_STRING_DATA_WITH_KEY_WITHOUT_COMMA(key, data) (DEF_JSON_KEY(key) + DEF_JSON_NON_STRING_DATA(data))
+#define DEF_JSON_ARRAY_WITH_KEY_WITHOUT_COMMA(key, data) (DEF_JSON_KEY(key) + DEF_JSON_START_ARRAY + data + DEF_JSON_END_ARRAY)
+#define DEF_JSON_OBJECT_WITH_KEY_WITHOUT_COMMA(key, data) (DEF_JSON_KEY(key) + DEF_JSON_START_OBJECT + data + DEF_JSON_END_OBJECT)
+#define DEF_JSON_STRING_DATA_WITH_KEY(key, data) (DEF_JSON_STRING_DATA_WITH_KEY_WITHOUT_COMMA(key, data) + DEF_JSON_COMMA)
+#define DEF_JSON_NON_STRING_DATA_WITH_KEY(key, data) (DEF_JSON_NON_STRING_DATA_WITH_KEY_WITHOUT_COMMA(key, data) + DEF_JSON_COMMA)
+#define DEF_JSON_ARRAY_WITH_KEY(key, data) (DEF_JSON_ARRAY_WITH_KEY_WITHOUT_COMMA(key, data) + DEF_JSON_COMMA)
+#define DEF_JSON_OBJECT_WITH_KEY(key, data) (DEF_JSON_OBJECT_WITH_KEY_WITHOUT_COMMA(key, data) + DEF_JSON_COMMA)
 
 //log
 #define DEF_LOG_DISPLAYED_LINES 23
