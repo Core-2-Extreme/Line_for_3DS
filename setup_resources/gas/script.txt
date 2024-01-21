@@ -1,0 +1,2064 @@
+//Start of user settings.
+const APP_USER_ACCESS_TOKEN     = "Paste your LINE BOT access token here";
+const APP_USER_GOOGLE_SHEET_ID  = "Paste your Google Sheets ID here";
+const APP_USER_CLIENT_NAME      = "Your name, this name will only be shown in your 3DS";
+const APP_USER_TIMEZONE         = "Your favorite timezone, e.g. Antarctica/Syowa and Antarctica/Vostok";
+const APP_USER_TIME_FORMAT      = "Your favorite time format, e.g. yyyy/MM/dd HH:mm:ss.mmm";
+const APP_USER_PASSWORD         = "Your password, do NOT use special (non-1byte) characters";
+
+//No real need to edit below unless you want to use custom error messages.
+//Note : Additional error messages (such as a status code) may be added after this error message.
+const APP_USER_MSG_TEXT_SEND_FAILURE          = "*****The message failed to send!!!!!*****";
+const APP_USER_MSG_STICKER_SEND_FAILURE       = "*****The sticker failed to send!!!!!*****";
+const APP_USER_MSG_IMAGE_SEND_FAILURE         = "*****The image failed to send!!!!!*****";
+const APP_USER_MSG_AUDIO_SEND_FAILURE         = "*****The audio failed to send!!!!!*****";
+const APP_USER_MSG_VIDEO_SEND_FAILURE         = "*****The video failed to send!!!!!*****";
+const APP_USER_MSG_FILE_SEND_FAILURE          = "*****The file failed to send!!!!!*****";
+const APP_USER_MSG_UNSENT                     = "*****This message was unsent!!!!!*****";
+const APP_USER_MSG_GENERATE_URL_FAILURE       = "*****Couldn't generate a URL!!!!!*****";
+const APP_USER_MSG_FOLLOWED_BY_USER           = "*****You've followed!!!!!*****";
+const APP_USER_MSG_BLOCKED_BY_USER            = "*****You've blocked!!!!!*****";
+const APP_USER_MSG_JOINED_GROUP               = "*****You've joined the group!!!!!*****";
+const APP_USER_MSG_REMOVED_FROM_GROUP         = "*****You've removed from the group!!!!!*****";
+const APP_USER_MSG_MEMBER_JOINED_GROUP        = "*****New member has joined the group!!!!!*****";
+const APP_USER_MSG_MEMBER_REMOVED_FROM_GROUP  = "*****The member has left or removed from the group!!!!!*****";
+
+//Advanced user only, change below at your own risk!!!!!
+const APP_ADVANCED_MAIN_DATA_FOLDER             = "LINE_for_3DS/";
+const APP_ADVANCED_RECEIVED_IMAGES_FOLDER       = APP_ADVANCED_MAIN_DATA_FOLDER + "LINE_images/";
+const APP_ADVANCED_RECEIVED_AUDIO_FOLDER        = APP_ADVANCED_MAIN_DATA_FOLDER + "LINE_audio/";
+const APP_ADVANCED_RECEIVED_VIDEOS_FOLDER       = APP_ADVANCED_MAIN_DATA_FOLDER + "LINE_videos/";
+const APP_ADVANCED_RECEIVED_OTHER_FILES_FOLDER  = APP_ADVANCED_MAIN_DATA_FOLDER + "LINE_contents/";
+const APP_ADVANCED_SENT_IMAGES_FOLDER           = APP_ADVANCED_MAIN_DATA_FOLDER + "LINE_3ds_images/";
+const APP_ADVANCED_SENT_AUDIO_FOLDER            = APP_ADVANCED_MAIN_DATA_FOLDER + "LINE_3ds_audio/";
+const APP_ADVANCED_SENT_VIDEOS_FOLDER           = APP_ADVANCED_MAIN_DATA_FOLDER + "LINE_3ds_videos/";
+const APP_ADVANCED_SENT_OTHER_FILES_FOLDER      = APP_ADVANCED_MAIN_DATA_FOLDER + "LINE_3ds_contents/";
+const APP_ADVANCED_LOG_SEARCH_CHUNK_SIZE        = 1000;
+//Due to Google Apps Script API limit, 49.9MB is the maximum supported size.
+const APP_ADVANCED_MAX_ACCEPTABLE_IMAGE_SIZE    = (1024 * 1024 * 3);//3MB.
+const APP_ADVANCED_MAX_ACCEPTABLE_AUDIO_SIZE    = (1024 * 1024 * 10);//10MB.
+const APP_ADVANCED_MAX_ACCEPTABLE_VIDEO_SIZE    = (1024 * 1024 * 49.9);//49.9MB.
+const APP_ADVANCED_MAX_ACCEPTABLE_FILE_SIZE     = (1024 * 1024 * 49.9);//49.9MB.
+//End of user settings.
+
+//Internal data, DO NOT EDIT BELOW OR SCRIPT MAY BREAK.
+const APP_SYSTEM_GAS_VER                      = 2048;//v2.0.0 (| 6 bits | 6 bits | 4 bits |).
+const APP_SYSTEM_LOG_COLUMN_ID                = "A";
+const APP_SYSTEM_LOG_ID_COLUMN_ID             = "C";
+const APP_SYSTEM_LOG_SPEAKER_NAME_COLUMN_ID   = "D";
+const APP_SYSTEM_LOG_TIMESTAMP_COLUMN_ID      = "E";
+const APP_SYSTEM_LOG_START_OFFSET             = 4;
+const APP_SYSTEM_UNUSED_B1_CELL_ID            = "B1";//No longer used, it was LAST_ROW_CELL_ID in previous version.
+const APP_SYSTEM_ROOM_NAME_CELL_ID            = "B2";
+const APP_SYSTEM_ROOM_ICON_URL_CELL_ID        = "B3";
+const APP_SYSTEM_MAX_ACCEPTABLE_CONTENT_SIZE  = (1024 * 1024 * 49.9);//49.9MB (hard limit).
+const APP_SYSTEM_VIDEO_PREVIEW_IMAGE_URL      = "https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/" + Get_version_string() + "/setup_resources/gas/video_player_icon.png";
+
+let app_script_lock = undefined;
+let app_spreadsheet = undefined;
+
+function Test_spot()
+{
+  try
+  {
+    Logger.log(Get_version_string());
+    Logger.log(Copy_paste_checker());
+  }
+  catch(error)
+  {
+    Logger.log(error);
+  }
+}
+
+//Start of setup code.
+function Check_sheet_id()
+{
+  let is_openable = false;
+  let is_readable = false;
+  let is_writeable = false;
+  let result = { is_success : false, msg : "", };
+
+  try
+  {
+    //Check if sheet is openable.
+    let sheet_object = Sheet_get();
+    let rw_test_sheet = sheet_object.getSheetByName("__RW_TEST__");
+    let random_value = parseInt(Math.random() * 1060 * Math.random() * 9300);
+    is_openable = true;
+
+    if(rw_test_sheet === null)
+    {
+      sheet_object.insertSheet("__RW_TEST__");
+      rw_test_sheet = sheet_object.getSheetByName("__RW_TEST__");
+    }
+
+    //Check if sheet is readable.
+    if(rw_test_sheet.getRange(1, 1).getValue() > 10)
+    {
+      //Do nothing.
+    }
+    is_readable = true;
+
+    //Check if sheet is writeable.
+    rw_test_sheet.getRange(1, 1).setValue("'" + random_value);
+    if(parseInt(rw_test_sheet.getRange(1, 1).getValue()) === random_value)
+    is_writeable = true;
+
+    rw_test_sheet.getRange(2, 1).setValue("'You can safely delete this sheet.");
+
+    try
+    {
+      //Delete the test sheet.
+      sheet_object.deleteSheet(rw_test_sheet);
+    }
+    catch
+    {
+      //This may fail if only one sheet exists.
+      //Just ignore it.
+    }
+    result.is_success = true;
+  }
+  catch(error)
+  {
+    result.msg += error + "<br>";
+  }
+
+  if(!is_openable || !is_readable || !is_writeable)
+  {
+    result.is_success = false;
+
+    if(!is_openable)
+      result.msg += "Sheet is not openable!!!!!<br>";
+    if(!is_readable)
+      result.msg += "Sheet is not readable!!!!!<br>";
+    if(!is_writeable)
+      result.msg += "Sheet is not writeable!!!!!<br>";
+  }
+
+  if(result.is_success)
+    result.msg = "Success";
+
+  return result;
+}
+
+function Check_access_token()
+{
+  let result = { is_success : false, msg : "", };
+  let payload = "access_token=" + encodeURIComponent(APP_USER_ACCESS_TOKEN);
+  let parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "POST",
+    "headers" :
+    {
+      "Content-Type" : "application/x-www-form-urlencoded",
+    },
+    "payload" : payload,
+  };
+  let http_result = undefined;
+
+  //Check if access token is valid.
+  try
+  {
+    http_result = UrlFetchApp.fetch("https://api.line.me/v2/oauth/verify", parameters);
+    result.is_success = true;
+  }
+  catch(error)
+  {
+    result.msg += error + "<br>";
+  }
+
+  if(result.is_success)
+  {
+    if(http_result.getResponseCode() !== 200)
+    {
+      let http_result_json = JSON.parse(http_result.getContentText());
+
+      result.is_success = false;
+
+      //Get an error message if available.
+      if(http_result_json.error !== undefined)
+        result.msg += http_result_json.error + "<br>";
+      if(http_result_json.error_description !== undefined)
+        result.msg += http_result_json.error_description + "<br>";
+    }
+  }
+
+  if(result.is_success)
+    result.msg = "Success";
+
+  return result;
+}
+
+function Set_webhook_url()
+{
+  let result = { is_success : false, msg : "", };
+  let payload = { "endpoint" : ScriptApp.getService().getUrl(), };
+  let parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "PUT",
+    "headers" :
+    {
+      "Authorization" : "Bearer " + APP_USER_ACCESS_TOKEN,
+      "Content-Type" : "application/json",
+    },
+    "payload" : JSON.stringify(payload),
+  };
+  let http_result = "";
+
+  //Set webhook URL.
+  try
+  {
+    http_result = UrlFetchApp.fetch("https://api.line.me/v2/bot/channel/webhook/endpoint", parameters);
+    result.is_success = true;
+  }
+  catch(error)
+  {
+    result.msg += error + "<br>";
+  }
+
+  if(result.is_success)
+  {
+    if(http_result.getResponseCode() !== 200)
+    {
+      let http_result_json = JSON.parse(http_result.getContentText());
+
+      result.is_success = false;
+
+      //Get an error message if available.
+      if(http_result_json.message !== undefined)
+        result.msg += http_result_json.message + "<br>";
+    }
+  }
+
+  if(result.is_success)
+    result.msg = "Success";
+
+  return result;
+}
+
+function Check_webhook_settings()
+{
+  let result = { is_success : false, msg : "", };
+  let parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "GET",
+    "headers" :
+    {
+      "Authorization" : "Bearer " + APP_USER_ACCESS_TOKEN,
+      "Content-Type" : "application/json",
+    },
+  };
+  let http_result = "";
+
+  //Get webhook settings.
+  try
+  {
+    http_result = UrlFetchApp.fetch("https://api.line.me/v2/bot/channel/webhook/endpoint", parameters);
+    result.is_success = true;
+  }
+  catch(error)
+  {
+    result.msg += error + "<br>";
+  }
+
+  if(result.is_success)
+  {
+    let http_result_json = JSON.parse(http_result.getContentText());
+    if(http_result.getResponseCode() === 200)
+    {
+      if(http_result_json.endpoint !== undefined && http_result_json.active !== undefined)
+      {
+        if(http_result_json.endpoint !== ScriptApp.getService().getUrl())
+        {
+          result.is_success = false;
+          result.msg += "This Google Apps Script URL (" + ScriptApp.getService().getUrl() + ") and<br>";
+          result.msg += "LINE webhook URL (" + http_result_json.endpoint + ") is NOT the same!!!!!<br>";
+        }
+        if(!http_result_json.active)
+        {
+          result.is_success = false;
+          result.msg += "Use of webhook is disabled!!!!!<br>";
+          result.msg += "Enable it in LINE developer!!!!!<br>";
+        }
+      }
+      else
+      {
+        result.is_success = false;
+        result.msg += "LINE API returned success (status code 200), but mandatory response field is missing!!!!!<br>";
+      }
+    }
+    else
+    {
+      result.is_success = false;
+      //Get an error message if available.
+      if(http_result_json.message !== undefined)
+        result.msg += http_result_json.message + "<br>";
+    }
+  }
+
+  if(result.is_success)
+    result.msg = "Success";
+
+  return result;
+}
+
+function Check_time_settings()
+{
+  let result = { is_success : false, msg : "", };
+  let time = "";
+
+  try
+  {
+    time = Utilities.formatDate(new Date(), APP_USER_TIMEZONE, APP_USER_TIME_FORMAT);
+    result.is_success = true;
+  }
+  catch(error)
+  {
+    result.msg += error + "<br>";
+  }
+
+  if(result.is_success)
+  {
+    result.msg = "Success<br>";
+    result.msg += "Your time zone settings is <strong>" + APP_USER_TIMEZONE + "</strong><br>";
+    result.msg += "Current time is : <strong>" + time + "</strong><br>";
+    result.msg += "This time zone and format will be used in message logs.<br>";
+  }
+
+  return result;
+}
+
+function Move_folder(target_folder_path, new_parent_folder_path)
+{
+  let target_folder = Get_or_create_folder(target_folder_path, false);
+  let new_parent_folder = Get_or_create_folder(new_parent_folder_path, true);
+  let result = { is_success : false, msg : "", };
+
+  if(target_folder.is_success)
+  {
+    if(new_parent_folder.is_success)
+    {
+      try
+      {
+        target_folder.folder_object.moveTo(new_parent_folder.folder_object);
+        result.msg = "Success<br>";
+        result.msg += "'" + target_folder_path + "' has been moved to '" + new_parent_folder_path + target_folder_path + "' .<br>";
+        result.is_success = true;
+      }
+      catch(error)
+      {
+        result.msg += "'" + target_folder_path + "' exists, but failed to move to '" + new_parent_folder_path + target_folder_path + "' !!!!!<br>";
+        result.msg += error + "<br>";
+      }
+    }
+    else
+    {
+      result.msg += "Couldn't access '" + new_parent_folder_path + "' !!!!!<br>";
+      result.msg += new_parent_folder.msg;
+    }
+  }
+  else
+  {
+    result.msg = "Success<br>";
+    result.msg += "'" + target_folder_path + "' doesn't exist, do nothing.<br>"
+    result.is_success = true;
+  }
+
+  return result;
+}
+
+function Setup_script()
+{
+  //Run all check functions.
+  let check_sheet_result = Check_sheet_id();
+  let check_access_token_result = Check_access_token();
+  let set_webhook_result = Set_webhook_url();
+  let check_webhook_result = Check_webhook_settings();
+  let check_time_result = Check_time_settings();
+  let move_images_folder_result = Move_folder("Line_images/", APP_ADVANCED_MAIN_DATA_FOLDER);
+  let move_audio_folder_result = Move_folder("Line_audio/", APP_ADVANCED_MAIN_DATA_FOLDER);
+  let move_videos_folder_result = Move_folder("Line_videos/", APP_ADVANCED_MAIN_DATA_FOLDER);
+  let move_contents_folder_result = Move_folder("Line_contents/", APP_ADVANCED_MAIN_DATA_FOLDER);
+  let html_response = "";
+
+  //Generate an html result.
+  html_response =
+  `<div id="main">
+  <table>
+    <tbody>
+      <tr>
+        <th>Test</th>
+        <th>Result</th>
+        <th>Message</th>
+      </tr>
+      <tr class="` + (check_sheet_result.is_success ? "ok" : "ng") + `">
+        <td>Google sheet ID validation</td>
+        <td>` + (check_sheet_result.is_success ? "✔" : "✘") + `</td>
+        <td>` + check_sheet_result.msg + `</td>
+      </tr>
+      <tr class="` + (check_access_token_result.is_success ? "ok" : "ng") + `">
+        <td>Access token validation</td>
+        <td>` + (check_access_token_result.is_success ? "✔" : "✘") + `</td>
+        <td>` + check_access_token_result.msg + `</td>
+      </tr>
+      <tr class="` + (set_webhook_result.is_success ? "ok" : "ng") + `">
+        <td>Setup webhook URL</td>
+        <td>` + (set_webhook_result.is_success ? "✔" : "✘") + `</td>
+        <td>` + set_webhook_result.msg + `</td>
+      </tr>
+      <tr class="` + (check_webhook_result.is_success ? "ok" : "ng") + `">
+        <td>Webhook settings validation</td>
+        <td>` + (check_webhook_result.is_success ? "✔" : "✘") + `</td>
+        <td>` + check_webhook_result.msg + `</td>
+      </tr>
+      <tr class="` + (check_time_result.is_success ? "ok" : "ng") + `">
+        <td>Time zone and format settings validation</td>
+        <td>` + (check_time_result.is_success ? "✔" : "✘") + `</td>
+        <td>` + check_time_result.msg + `</td>
+      </tr>
+      <tr class="` + (move_images_folder_result.is_success ? "ok" : "ng") + `">
+        <td>Move old folder (Line_images)</td>
+        <td>` + (move_images_folder_result.is_success ? "✔" : "✘") + `</td>
+        <td>` + move_images_folder_result.msg + `</td>
+      </tr>
+      <tr class="` + (move_audio_folder_result.is_success ? "ok" : "ng") + `">
+        <td>Move old folder (Line_audio)</td>
+        <td>` + (move_audio_folder_result.is_success ? "✔" : "✘") + `</td>
+        <td>` + move_audio_folder_result.msg + `</td>
+      </tr>
+      <tr class="` + (move_videos_folder_result.is_success ? "ok" : "ng") + `">
+        <td>Move old folder (Line_videos)</td>
+        <td>` + (move_videos_folder_result.is_success ? "✔" : "✘") + `</td>
+        <td>` + move_videos_folder_result.msg + `</td>
+      </tr>
+      <tr class="` + (move_contents_folder_result.is_success ? "ok" : "ng") + `">
+        <td>Move old folder (Line_content)</td>
+        <td>` + (move_contents_folder_result.is_success ? "✔" : "✘") + `</td>
+        <td>` + move_contents_folder_result.msg + `</td>
+      </tr>
+    </tbody>
+  </table>`;
+
+  if(check_sheet_result.is_success && check_access_token_result.is_success &&
+  set_webhook_result.is_success && check_webhook_result.is_success &&
+  move_images_folder_result.is_success && move_audio_folder_result.is_success &&
+  move_videos_folder_result.is_success && move_contents_folder_result.is_success)
+  {
+    html_response +=
+    `<p>Looks good, continue to the next step.</p>
+    <p>Scan the QR code below on your 3DS to complete the setup.</p>
+    <p>Or if the QR code below doesn't work for some reasons (e.g. Camera is broken), see <a href="` + `https://github.com/Core-2-Extreme/Line_for_3DS/blob/` + Get_version_string() + `/SETUP.md#faq` + `" target="_blank">FAQ</a> page.<br>Your URL : <strong><code>` + ScriptApp.getService().getUrl() + `</code></strong></p>
+    <img src="https://api.qrserver.com/v1/create-qr-code/?data=` + encodeURIComponent(ScriptApp.getService().getUrl()) + `&size=256x256" width="256" height="256">`;
+  }
+  else
+  {
+    html_response +=
+    `<p>Fix the errors above and update the Google Apps Script then reload this page.</p>
+    <p>See <a href="` + `https://github.com/Core-2-Extreme/Line_for_3DS/blob/` + Get_version_string() + `/SETUP.md#faq` + `" target="_blank">FAQ</a> page for troubleshooting.</p>`;
+  }
+
+html_response +=
+`</div>
+<style>
+  body
+  {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 2px;
+  }
+
+  #main
+  {
+    text-align: center;
+    word-break: break-all;
+  }
+
+  table
+  {
+    margin-left: auto;
+    margin-right: auto;
+    border-collapse: collapse;
+  }
+
+  td, th
+  {
+    padding-left: 5px;
+    padding-right: 5px;
+    border: 1px solid #000000;
+  }
+
+  .ok
+  {
+    color: limegreen;
+  }
+
+  .ng
+  {
+    color: tomato;
+  }
+</style>`;
+
+  return html_response;
+}
+//End of setup code.
+
+
+//Start of utilities code.
+function Get_version_string()
+{
+  let version = "v";
+  version += ((APP_SYSTEM_GAS_VER & 0xFC00) >> 10) + ".";//Major version.
+  version += ((APP_SYSTEM_GAS_VER & 0x03F0) >> 4) + ".";//Minor version.
+  version += ((APP_SYSTEM_GAS_VER & 0x000F));//Patch version.
+  return version;
+}
+
+function Min(value_0, value_1)
+{
+	return (value_0 > value_1 ? value_1 : value_0);
+}
+
+function Max(value_0, value_1)
+{
+	return (value_0 > value_1 ? value_0 : value_1);
+}
+
+function Lock_init()
+{
+  app_script_lock = LockService.getScriptLock();
+}
+
+function Lock_try_lock(timeout_ms)
+{
+  if(app_script_lock === undefined)
+    Lock_init();
+
+  return app_script_lock.tryLock(timeout_ms);
+}
+
+function Lock_lock()
+{
+  if(app_script_lock === undefined)
+    Lock_init();
+
+  while(!Lock_try_lock(60000));
+}
+
+function Lock_unlock()
+{
+  if(app_script_lock === undefined)
+    Lock_init();
+
+  app_script_lock.releaseLock();
+}
+
+function Sheet_init()
+{
+  app_spreadsheet = SpreadsheetApp.openById(APP_USER_GOOGLE_SHEET_ID);
+}
+
+function Sheet_get()
+{
+  if(app_spreadsheet === undefined)
+    Sheet_init();
+
+  return app_spreadsheet;
+}
+
+function Convert_path_to_array(folder_path)
+{
+  let folder_path_array = new Array(0);
+  folder_path = folder_path.split("/", 255);
+
+  for(let i = 0; i < folder_path.length; i++)
+  {
+    if(folder_path[i] !== "")
+      folder_path_array.push(folder_path[i]);
+  }
+
+  return folder_path_array;
+}
+
+function Get_or_create_folder(folder_path, create_if_absent)
+{
+  let index = 0;
+  let folders = undefined;
+  let folder = DriveApp.getRootFolder();
+  let result = { is_success : false, msg : "", folder_object : undefined };
+
+  folder_path = Convert_path_to_array(folder_path);
+  folders = DriveApp.getRootFolder().getFoldersByName(folder_path[index]);;
+
+  while (true)
+  {
+    if(folders.hasNext())
+      folder = folders.next();//Get sub folder if it exists.
+    else if(create_if_absent)
+    {
+      try
+      {
+        //Create sub folder if it doesn't exist.
+        folder = folder.createFolder(folder_path[index]);
+      }
+      catch (error)
+      {
+        result.msg += error;
+        break;
+      }
+    }
+    else
+    {
+      result.msg += "Couldn't find the folder specified.\n(" + folder_path[index] + ")\n";
+      break;
+    }
+
+    index++;
+
+    if(folder_path.length <= index)
+    {
+      //We've found (or created) folder specified.
+      result.folder_object = folder;
+      result.is_success = true;
+      break;
+    }
+    else
+      folders = folder.getFoldersByName(folder_path[index]);
+  }
+
+  return result;
+}
+
+function Find_url(text)
+{
+  let temp_text = undefined;
+  let regex = new RegExp(/<.*_url>.*<\/.*url>/);
+  let result = { is_success : false, msg : "", extracted_url : undefined };
+
+  //Check if we URL tag.
+  //fi9k@:[dsa<image_url>https://example.comfasd98/f//fsafdsa</image_url>rehhgk76520t
+  //          ^^^^^^^^^^^                                    ^^^^^^^^^^^^
+  temp_text = regex.exec(text);
+  if(temp_text !== null)
+  {
+    regex = new RegExp(/http.*<\//);
+
+    //Check if we have http and closing tag.
+    //<image_url>https://example.comfasd98/f//fsafdsa</image_url>
+    //           ^^^^                                ^^
+    temp_text = regex.exec(temp_text[0]);
+    if(temp_text !== null)
+    {
+      temp_text = String(temp_text[0]);
+
+      //Remove extra 2 characters (so (length - 2)) and extract the URL.
+      //https://example.comfasd98/f//fsafdsa</image_url>
+      //                                    ^^
+      result.extracted_url = temp_text.substring(0, (temp_text.length - 2));
+      result.is_success = true;
+    }
+    else
+      result.msg += "Couldn't find the 'http'.\n";
+  }
+  else
+    result.msg += "Couldn't find the URL tag.\n";
+
+  return result;
+}
+//End of utilities code.
+
+
+//Start of core functions.
+function Get_log_height(sheet)
+{
+  let log_offset = Max(APP_SYSTEM_LOG_START_OFFSET, sheet.getLastRow());
+  return (log_offset - APP_SYSTEM_LOG_START_OFFSET);
+}
+
+function Get_log_offset(log_height)
+{
+  return (log_height + APP_SYSTEM_LOG_START_OFFSET);
+}
+
+function Get_logs(requested_id, client_log_height, requested_num_of_logs)
+{
+  let sheet_data_cache = undefined;
+  let unread_messages = 0;
+  let read_sheet = Sheet_get().getSheetByName(requested_id);
+  let result =
+  {
+    is_success : false,
+    msg : "",
+    room_name : "",
+    room_icon_url : "",
+    log_height : 0,
+    num_of_logs : 0,
+    logs :
+    {
+      text : [],
+      speaker : [],
+      time : [],
+    },
+  };
+
+  //Check if requested sheet exists.
+  if(!read_sheet)
+  {
+    result.msg = "No such room exists in DB.\nPlease duoble check your room ID.";
+    return result;
+  }
+
+  Lock_lock();
+
+  //Update to the newest state.
+  SpreadsheetApp.flush();
+
+  //Clean up unused data.
+  Clean_up_sheet(read_sheet);
+
+  //Read chat room name and icon URL.
+  result.room_name = Read_room_name(read_sheet);
+  result.room_icon_url = Read_room_icon_url(read_sheet);
+
+  //Check for client's log height and our log height.
+  result.log_height = Get_log_height(read_sheet);
+  unread_messages = Max((result.log_height - client_log_height), 0);
+
+  if(unread_messages != 0)
+  {
+    //Client has logs until client_log_height,
+    //so client wants to get from (client_log_height + 1).
+    let offset = (client_log_height + 1);
+    let num_of_logs = requested_num_of_logs;
+
+    //Adjust log range.
+    if(unread_messages < requested_num_of_logs)
+      num_of_logs = unread_messages;
+    else
+      offset = (result.log_height - requested_num_of_logs) + 1;
+
+    //Read logs.
+    sheet_data_cache = Read_log(read_sheet, offset, num_of_logs);
+
+    for(let i = 0; i < num_of_logs; i++)
+      result.logs.text.push(sheet_data_cache[i][0]);
+
+    sheet_data_cache = Read_log_speaker_name(read_sheet, offset, num_of_logs);
+    for(let i = 0; i < num_of_logs; i++)
+      result.logs.speaker.push(sheet_data_cache[i][0]);
+
+    sheet_data_cache = Read_log_timestamp(read_sheet, offset, num_of_logs);
+    for(let i = 0; i < num_of_logs; i++)
+      result.logs.time.push(Utilities.formatDate(new Date(parseInt(sheet_data_cache[i][0])), APP_USER_TIMEZONE, APP_USER_TIME_FORMAT));
+
+    result.num_of_logs = num_of_logs;
+  }
+  else
+    result.num_of_logs = 0;
+
+  Lock_unlock();
+
+  result.is_success = true;
+
+  return result;
+}
+
+function Save_logs(requested_id, speaker_name, text_data, log_id, timestamp, room_name, room_pic_url, num_of_logs)
+{
+  let result = { is_success : true, msg : "", };
+
+  Lock_lock();
+
+  //Save older (timestamp that has less value) one first.
+  while(true)
+  {
+    let index = -1;
+    let minimum_timestamp = Number.POSITIVE_INFINITY;
+
+    for(let i = 0; i < num_of_logs; i++)
+    {
+      if(timestamp[i] === Number.POSITIVE_INFINITY)
+        continue;//We've already saved it.
+
+      if(timestamp[i] < minimum_timestamp)
+      {
+        index = i;
+        minimum_timestamp = timestamp[i];
+      }
+    }
+
+    if(index === -1)
+      break;//Done.
+    else
+    {
+      //Update the DB.
+      let temp_result = Save_log_internal(requested_id[index], speaker_name[index], text_data[index], log_id[index], timestamp[index], room_name[index], room_pic_url[index], true);
+      timestamp[index] = Number.POSITIVE_INFINITY;
+
+      //Save the error message and continue.
+      if(!temp_result.is_success)
+      {
+        result.is_success = false;
+        result.msg += temp_result.msg;
+      }
+    }
+  }
+
+  //Flush the buffer.
+  SpreadsheetApp.flush();
+
+  Lock_unlock();
+
+  return result;
+}
+
+function Save_log(requested_id, speaker_name, text_data, log_id, timestamp, room_name, room_pic_url, write_room_info)
+{
+  let result = { is_success : false, msg : "", };
+
+  Lock_lock();
+
+  result = Save_log_internal(requested_id, speaker_name, text_data, log_id, timestamp, room_name, room_pic_url, write_room_info);
+
+  //Flush the buffer.
+  SpreadsheetApp.flush();
+
+  Lock_unlock();
+
+  return result;
+}
+
+function Save_log_internal(requested_id, speaker_name, text_data, log_id, timestamp, room_name, room_pic_url, write_room_info)
+{
+  let log_height = 1;
+  let sheet = Sheet_get();
+  let write_sheet = sheet.getSheetByName(requested_id);
+  let result = { is_success : false, msg : "", };
+
+  //Check if requested sheet exists.
+  if(!write_sheet)
+  {
+    sheet.insertSheet(requested_id);
+    write_sheet = sheet.getSheetByName(requested_id);
+
+    if(!write_sheet)
+    {
+      result.msg = "Couldn't create sheet.\nID : " + requested_id;
+      return result;
+    }
+  }
+
+  //Clean up unused data.
+  Clean_up_sheet(write_sheet);
+
+  //Check for log height.
+  log_height = Get_log_height(write_sheet);
+
+  //Convert undefined to empty string.
+  text_data = ((text_data === undefined) ? "" : text_data);
+  log_id = ((log_id === undefined) ? "" : log_id);
+  speaker_name = ((speaker_name === undefined) ? "" : speaker_name);
+  timestamp = ((timestamp === undefined) ? "" : timestamp);
+  room_name = ((room_name === undefined) ? "" : room_name);
+  room_pic_url = ((room_pic_url === undefined) ? "" : room_pic_url);
+
+  //Save requested data.
+  Write_everything(write_sheet, (log_height + 1), text_data, log_id, speaker_name, timestamp, room_name, room_pic_url, write_room_info);
+
+  result.is_success = true;
+
+  return result;
+}
+
+function Remove_log(requested_id, log_id, removed_message)
+{
+  let log_height = 1;
+  let target_log_height = -1;
+  let temp_log = "";
+  let read_sheet = Sheet_get().getSheetByName(requested_id);
+  let result = { is_success : false, msg : "", };
+  let find_url_result = undefined;
+
+  //Check if requested sheet exists.
+  if(!read_sheet)
+  {
+    result.msg = "No such room exists in DB.\nPlease duoble check your room ID.";
+    return result;
+  }
+
+  Lock_lock();
+
+  //Update to the newest state.
+  SpreadsheetApp.flush();
+
+  //Check for log height.
+  log_height = Get_log_height(read_sheet);
+
+  //Search for requested log ID.
+  for(let i = log_height; i > 0; i -= APP_ADVANCED_LOG_SEARCH_CHUNK_SIZE)
+  {
+    let amount = Min(i, APP_ADVANCED_LOG_SEARCH_CHUNK_SIZE);
+    let start_log_height = Max(1, (i - APP_ADVANCED_LOG_SEARCH_CHUNK_SIZE));
+    let log_ids = Read_log_id(read_sheet, start_log_height, amount);
+
+    for(let k = 0; k < amount; k++)
+    {
+      if(log_id === String(log_ids[k][0]))
+      {
+        //Found a requested log, convert to target log height.
+        target_log_height = (start_log_height + k);
+        break;
+      }
+    }
+
+    if(target_log_height !== -1)
+      break;
+  }
+
+  if(target_log_height === -1)
+  {
+    Lock_unlock();
+    result.msg = "No such log exists in DB.\nPlease duoble check your log ID.";
+    return result;
+  }
+
+  //This will be used later.
+  temp_log = Read_log(read_sheet, target_log_height, 1);
+
+  //Remove logs.
+  Write_log(read_sheet, target_log_height, removed_message);
+  Write_log_id(read_sheet, target_log_height, 0);
+
+  //Flush the buffer.
+  SpreadsheetApp.flush();
+  Lock_unlock();
+
+  //Check if message contains file (e.g. image, audio, video etc).
+  find_url_result = Find_url(temp_log[0][0]);
+
+  if(find_url_result.is_success)
+  {
+    //Check if detected URL is Google drive's URL.
+    let start_offset = -1;
+    let end_offset = -1;
+    let url = find_url_result.extracted_url;
+
+    //Check for "https://lh3.googleusercontent.com/d/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=w16383-h16383".
+    if(url.search("lh3.googleusercontent.com") >= 0)
+    {
+      start_offset = url.search("/d/");
+      if(start_offset >= 0)
+      {
+        //Calculate id length and start offset.
+        start_offset += 3;//Skip "/d/" itself.
+        end_offset = url.search("=");
+
+        if(end_offset < 0)
+          end_offset = url.length;
+      }
+    }
+
+    if(start_offset < 0)
+    {
+      //Check for "https://drive.google.com/uc?export=download&id=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".
+      if(url.search("drive.google.com") >= 0)
+      {
+        start_offset = url.search("id=");
+        if(start_offset >= 0)
+        {
+          //Calculate id length and start offset.
+          start_offset += 3;//Skip "id=" itself.
+          end_offset = url.length;
+        }
+      }
+    }
+
+    if(start_offset >= 0)
+    {
+      let file_id = url.substring(start_offset, end_offset);
+
+      try
+      {
+        //Try to move the file to trash.
+        DriveApp.getFileById(file_id).setTrashed(true);
+      }
+      catch(error)//Ignore the error.
+      {
+      }
+    }
+  }
+
+  result.is_success = true;
+
+  return result;
+}
+
+function Save_content(content, name, parent_folder_handle)
+{
+  let result = { is_success : false, msg : "", file_handle : undefined, };
+
+  try
+  {
+    content = content.setName(name);
+
+    result.file_handle = parent_folder_handle.createFile(content);
+    result.file_handle.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    result.is_success = true;
+  }
+  catch(error)
+  {
+    result.msg += error + "\n";
+  }
+
+  return result;
+}
+
+function Save_and_get_url(message_id, room_id, type, url)
+{
+  let content_info = undefined;
+  let content_handle = undefined;
+  let destionation_folder = undefined;
+  let result = { is_success : false, msg : "", url : undefined, };
+  let content_size = 0;
+  let max_size = 0;
+  let folder_name = "";
+
+  if(type === "image")
+  {
+    folder_name = APP_ADVANCED_RECEIVED_IMAGES_FOLDER;
+    max_size = parseInt(Min(APP_ADVANCED_MAX_ACCEPTABLE_IMAGE_SIZE, APP_SYSTEM_MAX_ACCEPTABLE_CONTENT_SIZE));
+  }
+  else if(type === "audio")
+  {
+    folder_name = APP_ADVANCED_RECEIVED_AUDIO_FOLDER;
+    max_size = parseInt(Min(APP_ADVANCED_MAX_ACCEPTABLE_AUDIO_SIZE, APP_SYSTEM_MAX_ACCEPTABLE_CONTENT_SIZE));
+  }
+  else if(type === "video")
+  {
+    folder_name = APP_ADVANCED_RECEIVED_VIDEOS_FOLDER;
+    max_size = parseInt(Min(APP_ADVANCED_MAX_ACCEPTABLE_VIDEO_SIZE, APP_SYSTEM_MAX_ACCEPTABLE_CONTENT_SIZE));
+  }
+  else
+  {
+    folder_name = APP_ADVANCED_RECEIVED_OTHER_FILES_FOLDER;
+    max_size = parseInt(Min(APP_ADVANCED_MAX_ACCEPTABLE_FILE_SIZE, APP_SYSTEM_MAX_ACCEPTABLE_CONTENT_SIZE));
+  }
+
+  //Get (or create if it doesn't exist) folder that we'll use to store the received content.
+  destionation_folder = Get_or_create_folder(folder_name + room_id, true);
+  if(!destionation_folder.is_success)
+  {
+    result.msg = destionation_folder.msg;
+    return result;
+  }
+
+  if(url !== undefined)
+  {
+    //URL is provided, download it.
+    content_info = Get_binary(url);
+  }
+  else
+  {
+    //URL is NOT provided, in that case message_id must be available.
+    if(type === "audio" || type === "video")
+    {
+      let content_status = undefined;
+
+      do
+      {
+        //Waiting for content to be available.
+        content_status = Get_content_status(message_id);
+        if(content_status.is_processing)
+          Utilities.sleep(100);
+      }
+      while(content_status.is_processing);
+    }
+
+    //Get content from LINE server.
+    content_info = Get_content(message_id);
+  }
+
+  if(!content_info.is_success)
+  {
+    result.msg = content_info.msg;
+    return result;
+  }
+
+  //Check for file size.
+  //It is not possible to know the content size before downloading it,
+  //so we need to check it after downloading it.
+  content_size = content_info.content.getBytes().length;
+  if(content_size > max_size)
+  {
+    result.msg = type + " size is too large!!!!!\n";
+    result.msg += "max : " + parseInt(max_size / 1024) + "KB, size : " + parseInt(content_size / 1024) + "KB!!!!!\n";
+    return result;
+  }
+
+  //Save it to Google drive.
+  content_handle = Save_content(content_info.content, message_id, destionation_folder.folder_object);
+  if(!content_handle.is_success)
+  {
+    result.msg = content_handle.msg;
+    return result;
+  }
+
+  if(type === "image")
+    result.url = "https://lh3.googleusercontent.com/d/" + content_handle.file_handle.getId() + "=w16383-h16383";
+  else
+    result.url = "https://drive.google.com/uc?export=download&id=" + content_handle.file_handle.getId();
+
+  result.is_success = true;
+
+  return result;
+}
+
+function Clean_up_sheet(read_sheet)
+{
+  read_sheet.getRange(APP_SYSTEM_UNUSED_B1_CELL_ID).setValue("");
+}
+
+function Write_everything(write_sheet, log_height, log_text, log_id, speaker_name, timestamp, room_name, room_icon_url, write_room_info)
+{
+  let offset = Get_log_offset(log_height);
+  let log_range = (APP_SYSTEM_LOG_COLUMN_ID + offset + ":" + APP_SYSTEM_LOG_TIMESTAMP_COLUMN_ID + offset);
+  let log_values = [ [ ("'" + log_text), "", ("'" + log_id), ("'" + speaker_name), ("'" + timestamp), ], ];
+
+  write_sheet.getRange(log_range).setValues(log_values);
+
+  if(write_room_info)
+  {
+    let room_info_range = (APP_SYSTEM_ROOM_NAME_CELL_ID + ":" + APP_SYSTEM_ROOM_ICON_URL_CELL_ID);
+    let room_info_values = [ [ ("'" + room_name), ], [ ("'" + room_icon_url), ], ];
+    write_sheet.getRange(room_info_range).setValues(room_info_values);
+  }
+}
+
+function Write_log(write_sheet, log_height, text)
+{
+  write_sheet.getRange(APP_SYSTEM_LOG_COLUMN_ID + Get_log_offset(log_height)).setValue("'" + text);
+}
+
+function Write_log_id(write_sheet, log_height, id)
+{
+  write_sheet.getRange(APP_SYSTEM_LOG_ID_COLUMN_ID + Get_log_offset(log_height)).setValue("'" + id);
+}
+
+function Write_log_speaker_name(write_sheet, log_height, name)
+{
+  write_sheet.getRange(APP_SYSTEM_LOG_SPEAKER_NAME_COLUMN_ID + Get_log_offset(log_height)).setValue("'" + name);
+}
+
+function Write_log_timestamp(write_sheet, log_height, timestamp)
+{
+  write_sheet.getRange(APP_SYSTEM_LOG_TIMESTAMP_COLUMN_ID + Get_log_offset(log_height)).setValue("'" + timestamp);
+}
+
+function Write_room_name(write_sheet, name)
+{
+  write_sheet.getRange(APP_SYSTEM_ROOM_NAME_CELL_ID).setValue("'" + name);
+}
+
+function Write_room_icon_url(write_sheet, icon_url)
+{
+  write_sheet.getRange(APP_SYSTEM_ROOM_ICON_URL_CELL_ID).setValue("'" + icon_url);
+}
+
+function Read_log(read_sheet, start_log_height, num_of_logs)
+{
+  let offset = Get_log_offset(start_log_height);
+  let range_text = APP_SYSTEM_LOG_COLUMN_ID + offset + ":" + APP_SYSTEM_LOG_COLUMN_ID + (offset + (num_of_logs - 1));
+  return read_sheet.getRange(range_text).getValues();
+}
+
+function Read_log_id(read_sheet, start_log_height, num_of_logs)
+{
+  let offset = Get_log_offset(start_log_height);
+  let range_text = APP_SYSTEM_LOG_ID_COLUMN_ID + offset + ":" + APP_SYSTEM_LOG_ID_COLUMN_ID + (offset + (num_of_logs - 1));
+  return read_sheet.getRange(range_text).getValues();
+}
+
+function Read_log_speaker_name(read_sheet, start_log_height, num_of_logs)
+{
+  let offset = Get_log_offset(start_log_height);
+  let range_text = APP_SYSTEM_LOG_SPEAKER_NAME_COLUMN_ID + offset + ":" + APP_SYSTEM_LOG_SPEAKER_NAME_COLUMN_ID + (offset + (num_of_logs - 1));
+  return read_sheet.getRange(range_text).getValues();
+}
+
+function Read_log_timestamp(read_sheet, start_log_height, num_of_logs)
+{
+  let offset = Get_log_offset(start_log_height);
+  let range_text = APP_SYSTEM_LOG_TIMESTAMP_COLUMN_ID + offset + ":" + APP_SYSTEM_LOG_TIMESTAMP_COLUMN_ID + (offset + (num_of_logs - 1));
+  return read_sheet.getRange(range_text).getValues();
+}
+
+function Read_room_name(read_sheet)
+{
+  return read_sheet.getRange(APP_SYSTEM_ROOM_NAME_CELL_ID).getValue();
+}
+
+function Read_room_icon_url(read_sheet)
+{
+  return read_sheet.getRange(APP_SYSTEM_ROOM_ICON_URL_CELL_ID).getValue();
+}
+
+function Get_user_info(user_id)
+{
+  let result = { is_success : false, msg : "", name : "", pic_url : "", };
+  let parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "GET",
+    "headers" :
+    {
+      "Authorization" : "Bearer " + APP_USER_ACCESS_TOKEN,
+      "Content-Type" : "application/json",
+    },
+  };
+
+  //Get the user information.
+  try
+  {
+    let = http_result = UrlFetchApp.fetch("https://api.line.me/v2/bot/profile/" + user_id, parameters);
+    if(http_result.getResponseCode() === 200)
+    {
+      let json_object = JSON.parse(http_result);
+
+      result.name = (json_object.displayName ? json_object.displayName : "Unknown");
+      result.pic_url = (json_object.pictureUrl ? json_object.pictureUrl : "");
+      result.is_success = true;
+    }
+    else
+      result.msg += "Status code : " + http_result.getResponseCode() + "\n";
+  }
+  catch(error)
+  {
+    result.msg += error + "\n";
+  }
+
+  return result;
+}
+
+function Get_group_info(group_id)
+{
+  let result = { is_success : false, msg : "", name : "", pic_url : "", };
+  let parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "GET",
+    "headers" :
+    {
+      "Authorization" : "Bearer " + APP_USER_ACCESS_TOKEN,
+      "Content-Type" : "application/json",
+    },
+  };
+
+  //Get the group information.
+  try
+  {
+    let = http_result = UrlFetchApp.fetch("https://api.line.me/v2/bot/group/" + group_id + "/summary", parameters);
+    if(http_result.getResponseCode() === 200)
+    {
+      let json_object = JSON.parse(http_result);
+      result.name = (json_object.groupName ? json_object.groupName : "Unknown");
+      result.pic_url = (json_object.pictureUrl ? json_object.pictureUrl : "");
+      result.is_success = true;
+    }
+    else
+      result.msg += "Status code : " + http_result.getResponseCode() + "\n";
+  }
+  catch(error)
+  {
+    result.msg += error + "\n";
+  }
+
+  return result;
+}
+
+function Get_group_member_info(group_id, user_id)
+{
+  let result = { is_success : false, msg : "", name : "", pic_url : "", };
+  let parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "GET",
+    "headers" :
+    {
+      "Authorization" : "Bearer " + APP_USER_ACCESS_TOKEN,
+      "Content-Type" : "application/json",
+    },
+  };
+
+  //Get the member information.
+  try
+  {
+    let = http_result = UrlFetchApp.fetch("https://api.line.me/v2/bot/group/" + group_id + "/member/" + user_id, parameters);
+    if(http_result.getResponseCode() === 200)
+    {
+      let json_object = JSON.parse(http_result);
+      result.name = (json_object.displayName ? json_object.displayName : "Unknown");
+      result.pic_url = (json_object.pictureUrl ? json_object.pictureUrl : "");
+      result.is_success = true;
+    }
+    else
+      result.msg += "Status code : " + http_result.getResponseCode() + "\n";
+  }
+  catch(error)
+  {
+    result.msg += error + "\n";
+  }
+
+  return result;
+}
+
+function Get_content_status(content_id)
+{
+  let result = { is_processing : false, msg : "", };
+  let parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "GET",
+    "headers" :
+    {
+      "Authorization" : "Bearer " + APP_USER_ACCESS_TOKEN,
+      "Content-Type" : "application/json",
+    },
+  };
+
+  //Get the content state.
+  try
+  {
+    let = http_result = UrlFetchApp.fetch("https://api-data.line.me/v2/bot/message/" + content_id + "/content/transcoding", parameters);
+    if(http_result.getResponseCode() === 200)
+    {
+      let json_object = JSON.parse(http_result);
+      result.is_processing = (json_object.status === "processing");
+    }
+    else//Assume content processing has failed (so it is NOT "processing").
+      result.msg += "Status code : " + http_result.getResponseCode() + "\n";
+  }
+  catch(error)
+  {
+    //Assume content processing has failed (so it is NOT "processing").
+    result.msg += error + "\n";
+  }
+
+  return result;
+}
+
+function Get_binary(url)
+{
+  let result = { is_success : false, msg : "", content : undefined, };
+  let parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "GET",
+  };
+
+  //Get the binary.
+  try
+  {
+    let = http_result = UrlFetchApp.fetch(url, parameters);
+    if(http_result.getResponseCode() === 200)
+    {
+      result.content = http_result.getBlob();
+      result.is_success = true;
+    }
+    else
+      result.msg += "Status code : " + http_result.getResponseCode() + "\n";
+  }
+  catch(error)
+  {
+    result.msg += error + "\n";
+  }
+
+  return result;
+}
+
+function Get_content(content_id)
+{
+  let result = { is_success : false, msg : "", content : undefined, };
+  let parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "GET",
+    "headers" :
+    {
+      "Authorization" : "Bearer " + APP_USER_ACCESS_TOKEN,
+      "Content-Type" : "application/json",
+    },
+  };
+
+  //Get the content.
+  try
+  {
+    let = http_result = UrlFetchApp.fetch("https://api-data.line.me/v2/bot/message/" + content_id + "/content", parameters);
+    if(http_result.getResponseCode() === 200)
+    {
+      result.content = http_result.getBlob();
+      result.is_success = true;
+    }
+    else
+      result.msg += "Status code : " + http_result.getResponseCode() + "\n";
+  }
+  catch(error)
+  {
+    result.msg += error + "\n";
+  }
+
+  return result;
+}
+
+function Send_text(requested_id, send_text, timestamp)
+{
+  let result = { is_success : false, msg : "", };
+  let payload =
+  {
+    "to" : requested_id,
+    "messages" :
+    [{
+      "type" : "text",
+      "text" : send_text,
+    }],
+    "notificationDisabled" : "false",
+  };
+  let parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "POST",
+    "headers" :
+    {
+      "Authorization" : "Bearer " + APP_USER_ACCESS_TOKEN,
+      "Content-Type" : "application/json",
+    },
+    "payload" : JSON.stringify(payload),
+  };
+
+  //Send the text.
+  try
+  {
+    let = http_result = UrlFetchApp.fetch("https://api.line.me/v2/bot/message/push/", parameters);
+    if(http_result.getResponseCode() === 200)
+      result.is_success = true;
+    else
+    {
+      let json_object = JSON.parse(http_result.getContentText());
+      let detail_length = 0;
+
+      result.msg += APP_USER_MSG_TEXT_SEND_FAILURE + "\nStatus code = " + http_result.getResponseCode() + "\n";
+      result.msg += json_object.message + "\n";
+
+      detail_length = Object.keys(json_object.details).length;
+      for(let i = 0; i < detail_length; i++)
+        result.msg += json_object.details[i].property + " : " + json_object.details[i].message + "\n";
+    }
+  }
+  catch(error)
+  {
+    result.msg += error + "\n";
+  }
+
+  //Update the DB.
+  Save_log(requested_id, APP_USER_CLIENT_NAME, send_text, 0, timestamp, undefined, undefined, false);
+
+  if(result.msg !== "")//Save error message if exists.
+    Save_log(requested_id, "System", result.msg, 0, (timestamp + 1), undefined, undefined, false);
+
+  return result;
+}
+
+function Send_sticker(requested_id, package_id, sticker_id, timestamp)
+{
+  let result = { is_success : false, msg : "", };
+  let text = "<sticker>" + sticker_id + "</sticker>";
+  let payload =
+  {
+    "to" : requested_id,
+    "messages" :
+    [{
+      "type" : "sticker",
+      "packageId" : package_id,
+      "stickerId" : sticker_id,
+    }],
+    "notificationDisabled" : "false",
+  };
+  let parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "POST",
+    "headers" :
+    {
+      "Authorization" : "Bearer " + APP_USER_ACCESS_TOKEN,
+      "Content-Type" : "application/json",
+    },
+    "payload" : JSON.stringify(payload),
+  };
+
+  //Send the sticker.
+  try
+  {
+    let = http_result = UrlFetchApp.fetch("https://api.line.me/v2/bot/message/push/", parameters);
+    if(http_result.getResponseCode() === 200)
+      result.is_success = true;
+    else
+    {
+      let json_object = JSON.parse(http_result.getContentText());
+      let detail_length = 0;
+
+      result.msg += APP_USER_MSG_STICKER_SEND_FAILURE + "\nStatus code = " + http_result.getResponseCode() + "\n";
+      result.msg += json_object.message + "\n";
+
+      detail_length = Object.keys(json_object.details).length;
+      for(let i = 0; i < detail_length; i++)
+        result.msg += json_object.details[i].property + " : " + json_object.details[i].message + "\n";
+    }
+  }
+  catch(error)
+  {
+    result.msg += error + "\n";
+  }
+
+  //Update the DB.
+  Save_log(requested_id, APP_USER_CLIENT_NAME, text, 0, timestamp, undefined, undefined, false);
+
+  if(result.msg !== "")//Save error message if exists.
+    Save_log(requested_id, "System", result.msg, 0, (timestamp + 1), undefined, undefined, false);
+
+  return result;
+}
+
+function Send_content(requested_id, type, content_url, preview_url, media_duration_ms, timestamp)
+{
+  let result = { is_success : false, msg : "", };
+  let url_message = { "type" : "text", "text" : "URL for " + type + ": " + content_url, };
+  let error_message = undefined;
+  let payload = undefined;
+  let message_payload = undefined;
+  let parameters = undefined;
+
+  //Set up the payload and error message then send it.
+  if(type === "image")
+  {
+    message_payload = [ url_message, { "type" : "image", "originalContentUrl": content_url, "previewImageUrl": preview_url, }, ];
+    error_message = APP_USER_MSG_IMAGE_SEND_FAILURE;
+  }
+  else if(type === "audio")
+  {
+    message_payload = [ url_message, { "type" : "audio", "originalContentUrl": content_url, "duration": media_duration_ms, }, ];
+    error_message = APP_USER_MSG_AUDIO_SEND_FAILURE;
+  }
+  else if(type === "video")
+  {
+    message_payload = [ url_message, { "type" : "video", "originalContentUrl": content_url, "previewImageUrl": preview_url, }, ];
+    error_message = APP_USER_MSG_VIDEO_SEND_FAILURE;
+  }
+  else
+  {
+    message_payload = [ url_message, ];
+    error_message = APP_USER_MSG_FILE_SEND_FAILURE;
+  }
+
+  payload =
+  {
+    "to" : requested_id,
+    "messages" : message_payload,
+    "notificationDisabled" : "false",
+  };
+
+  parameters =
+  {
+    "muteHttpExceptions" : true,
+    "method" : "POST",
+    "headers" :
+    {
+      "Authorization" : "Bearer " + APP_USER_ACCESS_TOKEN,
+      "Content-Type" : "application/json",
+    },
+    "payload" : JSON.stringify(payload),
+  };
+
+  //Send the content.
+  try
+  {
+    let = http_result = UrlFetchApp.fetch("https://api.line.me/v2/bot/message/push/", parameters);
+    if(http_result.getResponseCode() === 200)
+      result.is_success = true;
+    else
+    {
+      let json_object = JSON.parse(http_result.getContentText());
+      let detail_length = 0;
+
+      result.msg += error_message + "\nStatus code = " + http_result.getResponseCode() + "\n";
+      result.msg += json_object.message + "\n";
+
+      detail_length = Object.keys(json_object.details).length;
+      for(let i = 0; i < detail_length; i++)
+        result.msg += json_object.details[i].property + " : " + json_object.details[i].message + "\n";
+    }
+  }
+  catch(error)
+  {
+    result.msg += error + "\n";
+  }
+
+  //Update the DB.
+  Save_log(requested_id, APP_USER_CLIENT_NAME, ("<" + type + "_url>" + content_url + "</" + type + "_url>"), 0, timestamp, undefined, undefined, false);
+
+  if(result.msg !== "")//Save error message if exists.
+    Save_log(requested_id, "System", result.msg, 0, (timestamp + 1), undefined, undefined, false);
+
+  return result;
+}
+
+function Send_file(requested_id, file_name, file_type, base64_file_data, media_duration, timestamp)
+{
+  let result = { is_success : false, msg : "", };
+  let send_result = undefined;
+  let destionation_folder = undefined;
+  let content_handle = undefined;
+  let file_data = undefined;
+  let folder_name = "";
+
+  if(file_type === "image")
+    folder_name = APP_ADVANCED_SENT_IMAGES_FOLDER;
+  else if(file_type === "audio")
+    folder_name = APP_ADVANCED_SENT_AUDIO_FOLDER;
+  else if(file_type === "video")
+    folder_name = APP_ADVANCED_SENT_VIDEOS_FOLDER;
+  else
+    folder_name = APP_ADVANCED_SENT_OTHER_FILES_FOLDER;
+
+  //Get (or create if it doesn't exist) folder that we'll use to store the received content.
+  destionation_folder = Get_or_create_folder(folder_name + requested_id, true);
+  if(!destionation_folder.is_success)
+  {
+    result.msg = destionation_folder.msg;
+    return result;
+  }
+
+  try
+  {
+    file_data = Utilities.newBlob(Utilities.base64Decode(base64_file_data));
+  }
+  catch(error)
+  {
+    result.msg = error;
+    return result;
+  }
+
+  content_handle = Save_content(file_data, (timestamp + "_" + file_name), destionation_folder.folder_object);
+  if(!content_handle.is_success)
+  {
+    result.msg = content_handle.msg;
+    return result;
+  }
+
+  //Send the file.
+  if(file_type === "image")
+  {
+    let image_url = "https://lh3.googleusercontent.com/d/" + content_handle.file_handle.getId() + "=w16383-h16383";
+    let preview_url = "https://lh3.googleusercontent.com/d/" + content_handle.file_handle.getId() + "=w240-h240";
+    send_result = Send_content(requested_id, file_type, image_url, preview_url, undefined, timestamp);
+  }
+  else
+  {
+    let url = "https://drive.google.com/uc?export=download&id=" + content_handle.file_handle.getId();
+
+    if(file_type === "audio")
+      send_result = Send_content(requested_id, file_type, url, undefined, media_duration, timestamp);
+    else if(file_type === "video")
+      send_result = Send_content(requested_id, file_type, url, APP_SYSTEM_VIDEO_PREVIEW_IMAGE_URL, undefined, timestamp);
+    else
+      send_result = Send_content(requested_id, file_type, url, undefined, undefined, timestamp);
+  }
+
+  if(!send_result.is_success)
+  {
+    result.msg = send_result.msg;
+    return result;
+  }
+
+  result.is_success = true;
+
+  return result;
+}
+
+function Check_password(hash_string)
+{
+  let password_array = Array.from(APP_USER_PASSWORD, char => char.charCodeAt(0));
+  let sha_512_hash = undefined;
+  let correct_password_hash = new Uint8Array(32);
+  let hash_array = new Uint8Array(32);
+
+  //Also include NULL terminator.
+  password_array.push(0x00);
+  sha_512_hash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_512, password_array);
+
+  if(hash_string.length !== 64)
+    return false;//Invalid data.
+
+  for(let i = 0; i < 64; i += 2)
+    hash_array[(i / 2)] = parseInt(hash_string.substring(i, (i + 2)), 16);
+
+  //We use even index as a password hash.
+  //e.g. If SHA 512 hash is 0x00 0x11 0x22 0x33 0x44 ...
+  //Password hash will be 0x00 0x22 0x44 ...
+  for(let i = 0; i < 64; i += 2)
+    correct_password_hash[(i / 2)] = sha_512_hash[i];
+
+  //Compare them.
+  for(let i = 0; i < 32; i++)
+  {
+    if(hash_array[i] !== correct_password_hash[i])
+      return false;//Password doesn't match.
+  }
+
+  return true;
+}
+
+function Line_post_event_handler(json_object)
+{
+  let num_of_events = undefined;
+  let result = { is_success : false, msg : "", };
+  let save_data = { room_id : [], speaker : [], text : [], log_id : [], timestamp : [], room_name : [], room_pic_url : [],}
+
+  try
+  {
+    num_of_events = Object.keys(json_object.events).length;
+  }
+  catch(error)
+  {
+  }
+
+  if(num_of_events === undefined)
+  {
+    result.msg = "events is missing!!!!!";
+    return result;
+  }
+
+  for(let i = 0; i < num_of_events; i++)
+  {
+    let event = json_object.events[i];
+    let room_id = "";
+    let speaker = "Unknown";
+    let text = "";
+    let log_id = 0;
+    let timestamp = 0;
+    let room_name = "Unknown";
+    let room_pic_url = "";
+
+    if(event.type === undefined || event.source === undefined)
+      continue;
+
+    if(event.source.type === "user")
+      room_id = event.source.userId;
+    else if(event.source.type === "group")
+      room_id = event.source.groupId;
+
+    if(event.type === "unsend")
+    {
+      if(event.unsend !== undefined)
+        Remove_log(room_id, event.unsend.messageId, APP_USER_MSG_UNSENT);
+
+      continue;
+    }
+
+    timestamp = event.timestamp;
+    if(event.type === "message" || event.type === "follow" || event.type === "unfollow")
+    {
+      if(event.source.type === "user")
+      {
+        let room_data = Get_user_info(room_id);
+
+        if(room_data.is_success)
+        {
+          speaker = room_data.name;
+          room_name = room_data.name;
+          room_pic_url = room_data.pic_url;
+        }
+      }
+      else if(event.source.type === "group" && event.source.userId !== undefined)
+      {
+        let room_data = Get_group_member_info(room_id, event.source.userId);
+
+        if(room_data.is_success)
+          speaker = room_data.name;
+
+        room_data = Get_group_info(room_id);
+        if(room_data.is_success)
+        {
+          room_name = room_data.name;
+          room_pic_url = room_data.pic_url;
+        }
+      }
+
+      if(event.type === "message" && event.message !== undefined)
+      {
+        log_id = event.message.id;
+
+        if(event.message.type === "text")
+          text = event.message.text;
+        else if(event.message.type === "sticker")
+        {
+          if(event.message.stickerId !== undefined)
+            text = "<sticker>" + parseInt(event.message.stickerId) + "</sticker>";
+          else
+            text = "<sticker>0</sticker>";
+        }
+        else if(event.message.type === "image" || event.message.type === "video"
+        || event.message.type === "audio" || event.message.type === "file")
+        {
+          let content_info = Save_and_get_url(log_id, room_id, event.message.type, undefined);
+
+          if(content_info.is_success)
+            text = "<" + event.message.type + "_url>" + content_info.url + "</" + event.message.type + "_url>";
+          else
+            text = APP_USER_MSG_GENERATE_URL_FAILURE + "\ntype : " + event.message.type + "\n" + content_info.msg;
+        }
+      }
+      else if(event.type === "follow" || event.type === "unfollow")
+      {
+        if(event.type === "follow")
+          text = APP_USER_MSG_FOLLOWED_BY_USER;
+        else if(event.type === "unfollow")
+          text = APP_USER_MSG_BLOCKED_BY_USER;
+      }
+    }
+    else if(event.type === "join" || event.type === "leave"
+    || event.type === "memberJoined" || event.type === "memberLeft")
+    {
+      if(event.type === "join")
+      {
+        let room_data = Get_group_info(room_id);
+        if(room_data.is_success)
+        {
+          room_name = room_data.name;
+          room_pic_url = room_data.pic_url;
+        }
+
+        text = APP_USER_MSG_JOINED_GROUP;
+      }
+      else if(event.type === "leave")
+        text = APP_USER_MSG_REMOVED_FROM_GROUP;
+      else if(event.type === "memberJoined")
+        text = APP_USER_MSG_MEMBER_JOINED_GROUP;
+      else if(event.type === "memberLeft")
+        text = APP_USER_MSG_MEMBER_REMOVED_FROM_GROUP;
+    }
+
+    //If icon is available, save it to Google drive.
+    if(room_pic_url !== "")
+    {
+      let content_info = Save_and_get_url(0, room_id, "image", room_pic_url);
+
+      if(content_info.is_success)
+        room_pic_url = content_info.url;
+      else
+        room_pic_url = "";
+    }
+
+    if(event.type === "follow" || event.type === "join")
+    {
+      //Add room ID to "IDs room".
+      save_data.room_id.push("IDs");
+      //Set speaker name as a room name for "IDs" room.
+      save_data.speaker.push(room_name);
+      save_data.text.push("<id>" + room_id + "</id>");
+      save_data.log_id.push(log_id);
+      save_data.timestamp.push(timestamp);
+      save_data.room_name.push("IDs");
+      save_data.room_pic_url.push("");
+    }
+
+    //Write to the DB later.
+    save_data.room_id.push(room_id);
+    save_data.speaker.push(speaker);
+    save_data.text.push(text);
+    save_data.log_id.push(log_id);
+    save_data.timestamp.push(timestamp);
+    save_data.room_name.push(room_name);
+    save_data.room_pic_url.push(room_pic_url);
+  }
+
+  //Save logs.
+  Save_logs(save_data.room_id, save_data.speaker, save_data.text, save_data.log_id, save_data.timestamp, save_data.room_name, save_data.room_pic_url, save_data.room_id.length);
+
+  result.is_success = true;
+
+  return result;
+}
+
+function _3DS_post_event_handler(json_object)
+{
+  let timestamp = (new Date()).getTime();
+  let result = { is_success : false, msg : "", };
+
+  if(APP_SYSTEM_GAS_VER <= parseInt(json_object.gas_ver))
+  {
+    if(json_object.id === undefined)
+      result.msg = "id is missing!!!!!";
+    else if(json_object.type === undefined)
+      result.msg = "type is missing!!!!!";
+    else if(json_object.log_height === undefined)
+      result.msg = "log_height is missing!!!!!";
+    else if(json_object.logs === undefined)
+      result.msg = "logs is missing!!!!!";
+    else if(json_object.secret === undefined)
+      result.msg = "secret is missing!!!!!";
+    else if(!Check_password(json_object.secret))
+      result.msg = "Password is incorrect!!!!!";
+    else
+    {
+      if(json_object.type == "send_text")
+      {
+        if(json_object.message === undefined)
+          result.msg = "message is missing!!!!!";
+        else
+          result = Send_text(json_object.id, json_object.message, timestamp);
+      }
+      else if(json_object.type == "send_sticker")
+      {
+        if(json_object.package_id === undefined)
+          result.msg = "package_id is missing!!!!!";
+        else if(json_object.sticker_id === undefined)
+          result.msg = "sticker_id is missing!!!!!";
+        else
+          result = Send_sticker(json_object.id, parseInt(json_object.package_id), parseInt(json_object.sticker_id), timestamp);
+      }
+      else if(json_object.type == "send_file")
+      {
+        if(json_object.file_name === undefined)
+          result.msg = "file_name is missing!!!!!";
+        else if(json_object.file_type === undefined)
+          result.msg = "file_type is missing!!!!!";
+        else if(json_object.file_data === undefined)
+          result.msg = "file_data is missing!!!!!";
+        else if(json_object.media_duration_ms === undefined)
+          result.msg = "media_duration_ms is missing!!!!!";
+        else
+          result = Send_file(json_object.id, json_object.file_name, json_object.file_type, json_object.file_data, json_object.media_duration_ms, timestamp);
+      }
+      else
+        result.msg = "Unknown type!!!!!";
+    }
+  }
+  else
+    result.msg = "Use LINE for 3DS v2.0.0 or later!!!!!";
+
+  if(result.is_success)
+    result = Get_logs(json_object.id, json_object.log_height, json_object.logs);
+
+  return result;
+}
+//End of core functions.
+
+
+//Start of http GET handler.
+function doGet(get_data)
+{
+  let is_html = false;
+  let result = { is_success : false, msg : "", };
+  let client_gas_ver = undefined;
+  let requested_num_of_logs = undefined;
+  let client_log_height = undefined;
+  let requested_id = undefined;
+  let secret = undefined;
+  let operation_type = undefined;
+
+  try
+  {
+    client_gas_ver = get_data.parameter.gas_ver;
+    client_log_height = get_data.parameter.log_height;
+    requested_num_of_logs = get_data.parameter.logs;
+    requested_id = get_data.parameter.id;
+    secret = get_data.parameter.secret;
+    operation_type = get_data.parameter.op;
+
+    //Make sure we have integers.
+    if(client_gas_ver !== undefined)
+      client_gas_ver = parseInt(client_gas_ver);
+    if(client_log_height !== undefined)
+      client_log_height = parseInt(client_log_height);
+    if(requested_num_of_logs !== undefined)
+      requested_num_of_logs = parseInt(requested_num_of_logs);
+  }
+  catch(error)
+  {
+  }
+
+  if(client_gas_ver === undefined && client_log_height === undefined
+  && requested_num_of_logs === undefined && requested_id === undefined
+  && secret === undefined)
+  {
+    if(operation_type === undefined)
+    {
+      let url_result = { is_success : true, msg : "", url : ScriptApp.getService().getUrl() };
+      result = url_result;
+    }
+    else if(operation_type === "setup")
+    {
+      result = Setup_script();
+      is_html = true;
+    }
+    else
+      result.msg = "Unknown op!!!!!";
+  }
+  else if(APP_SYSTEM_GAS_VER <= client_gas_ver)
+  {
+    if(secret === undefined || requested_num_of_logs === undefined
+    || client_log_height === undefined || requested_id === undefined
+    || client_log_height < 0 || requested_num_of_logs <= 0 || requested_num_of_logs > 4000)
+      result.msg = "Invalid arg!!!!!";
+    else
+    {
+      if(Check_password(secret))
+        result = Get_logs(requested_id, client_log_height, requested_num_of_logs);
+      else
+        result.msg = "Password is incorrect!!!!!";
+    }
+  }
+  else
+    result.msg = "Use LINE for 3DS v2.0.0 or later!!!!!";
+
+  if(is_html)
+    return HtmlService.createHtmlOutput(result);
+  else
+    return ContentService.createTextOutput(JSON.stringify(result));
+}
+//End of http GET handler.
+
+
+//Start of http POST handler.
+function doPost(post_data)
+{
+  let json_object = undefined;
+  let result = { is_success : false, msg : "", };
+
+  try
+  {
+    json_object = JSON.parse(post_data.postData.contents);
+  }
+  catch (error)
+  {
+    result.msg = "Invalid json!!!!!";
+    return ContentService.createTextOutput(JSON.stringify(result));
+  }
+
+  if(json_object.gas_ver !== undefined)//LINE for 3DS always includes gas_ver field.
+    result = _3DS_post_event_handler(json_object);
+  else
+    result = Line_post_event_handler(json_object);
+
+  return ContentService.createTextOutput(JSON.stringify(result));
+}
+//End of http POST handler.
+
+//Start of copy & paste checker, this must be end of the file, DO NOT MOVE IT!!!!!
+function Copy_paste_checker()
+{
+  return "OK";
+}
+//End of copy & paste checker.
