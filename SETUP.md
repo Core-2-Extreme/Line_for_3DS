@@ -112,7 +112,7 @@ In this step, we'll set up `Google Sheets` (acts as a chat logs storage) and `Go
 ## Create folder and files
 
 First, let's create folder and files on your Google drive.
-1. Go to <a href="https://drive.google.com/drive/my-drive/" target="_blank">Google drive</a> and log in to your Google drive (create a Google account if you don't have it).
+1. Go to <a href="https://drive.google.com/" target="_blank">Google drive</a> and log in to your Google drive (create a Google account if you don't have it).
 2. After logging in, click on `New`.
 3. Click on `New folder` to make a new folder then name it `LINE_for_3DS`.
 4. Open `LINE_for_3DS` folder
