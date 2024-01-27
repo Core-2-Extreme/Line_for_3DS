@@ -2,14 +2,14 @@
 #define DEFINITIONS_HPP
 
 //settings
-#define DEF_MAIN_DIR (std::string)"/Line/"
+#define DEF_MAIN_DIR (std::string)"/3ds/Line/"
 #define DEF_UPDATE_DIR_PREFIX (std::string)"/3ds/Line_ver_"
 #define DEF_UPDATE_FILE_PREFIX (std::string)"Line"
 #define DEF_CHECK_INTERNET_URL (std::string)"http://connectivitycheck.gstatic.com/generate_204"
 #define DEF_SEND_APP_INFO_URL (std::string)"https://script.google.com/macros/s/AKfycbyn_blFyKWXCgJr6NIF8x6ETs7CHRN5FXKYEAAIrzV6jPYcCkI/exec"
 #define DEF_CHECK_UPDATE_URL (std::string)""
 #define DEF_HTTP_USER_AGENT (std::string)"Line for 3ds " + DEF_CURRENT_APP_VER
-#define DEF_CURRENT_APP_VER (std::string)"v2.0.0 (nightly build)"
+#define DEF_CURRENT_APP_VER (std::string)"v2.0.0"
 #define DEF_CURRENT_APP_VER_INT 2048
 #define DEF_ENABLE_LINE
 #define DEF_ENABLE_GTR
@@ -61,33 +61,27 @@
 
 //Line
 #define DEF_LINE_NUM_OF_MSG 57
-//#define DEF_LINE_ENABLE_ICON
-#define DEF_LINE_ENABLE_NAME
-#define DEF_LINE_ICON_PATH (std::string)"romfs:/"
+#define DEF_LINE_ENABLE_ICON
+// #define DEF_LINE_ENABLE_NAME
+#define DEF_LINE_ICON_PATH (std::string)"romfs:/gfx/draw/icon/line_icon.t3x"
 #define DEF_LINE_NAME (std::string)"line"
-#define DEF_LINE_VER (std::string)"v2.0.0 (nightly build)"
+#define DEF_LINE_VER (std::string)"v2.0.0"
 #define DEF_LINE_MAIN_STR (std::string)"Line/Main"
 #define DEF_LINE_INIT_STR (std::string)"Line/Init"
 #define DEF_LINE_EXIT_STR (std::string)"Line/Exit"
+#define DEF_LINE_HID_CALLBACK_STR (std::string)"Line/Hid callback"
 #define DEF_LINE_WORKER_THREAD_STR (std::string)"Line/Worker thread"
 #define DEF_LINE_LOG_THREAD_STR (std::string)"Line/Log thread"
 
-#define DEF_LINE_GAS_VER 7
-
-#define DEF_LINE_MENU_SEND 0
-#define DEF_LINE_MENU_RECEIVE 1
-#define DEF_LINE_MENU_COPY 2
-#define DEF_LINE_MENU_SEARCH 3
-#define DEF_LINE_MENU_SETTINGS 4
-#define DEF_LINE_MENU_ADVANCED 5
+#define DEF_LINE_GAS_VER 2048
 
 //Google translation
 #define DEF_GTR_NUM_OF_MSG 10
-//#define DEF_GTR_ENABLE_ICON
-#define DEF_GTR_ENABLE_NAME
-#define DEF_GTR_ICON_PATH (std::string)"romfs:/"
+#define DEF_GTR_ENABLE_ICON
+// #define DEF_GTR_ENABLE_NAME
+#define DEF_GTR_ICON_PATH (std::string)"romfs:/gfx/draw/icon/gtr_icon.t3x"
 #define DEF_GTR_NAME (std::string)"google\ntranslation"
-#define DEF_GTR_VER (std::string)"v1.1.3 (nightly build)"
+#define DEF_GTR_VER (std::string)"v1.2.0"
 #define DEF_GTR_MAIN_STR (std::string)"Gtr/Main"
 #define DEF_GTR_INIT_STR (std::string)"Gtr/Init"
 #define DEF_GTR_EXIT_STR (std::string)"Gtr/Exit"
@@ -97,11 +91,11 @@
 
 //Speedtest
 #define DEF_SPT_NUM_OF_MSG 12
-//#define DEF_SPT_ENABLE_ICON
-#define DEF_SPT_ENABLE_NAME
-#define DEF_SPT_ICON_PATH (std::string)"romfs:/"
+#define DEF_SPT_ENABLE_ICON
+// #define DEF_SPT_ENABLE_NAME
+#define DEF_SPT_ICON_PATH (std::string)"romfs:/gfx/draw/icon/spt_icon.t3x"
 #define DEF_SPT_NAME (std::string)"speedtest"
-#define DEF_SPT_VER (std::string)"v1.0.6 (nightly build)"
+#define DEF_SPT_VER (std::string)"v1.1.0"
 #define DEF_SPT_MAIN_STR (std::string)"Spt/Main"
 #define DEF_SPT_INIT_STR (std::string)"Spt/Init"
 #define DEF_SPT_EXIT_STR (std::string)"Spt/Exit"
@@ -110,11 +104,11 @@
 
 //Image viewer
 #define DEF_IMV_NUM_OF_MSG 6
-//#define DEF_IMV_ENABLE_ICON
-#define DEF_IMV_ENABLE_NAME
-#define DEF_IMV_ICON_PATH (std::string)"romfs:/"
+#define DEF_IMV_ENABLE_ICON
+// #define DEF_IMV_ENABLE_NAME
+#define DEF_IMV_ICON_PATH (std::string)"romfs:/gfx/draw/icon/imv_icon.t3x"
 #define DEF_IMV_NAME (std::string)"image\nviewer"
-#define DEF_IMV_VER (std::string)"v1.0.6 (nightly build)"
+#define DEF_IMV_VER (std::string)"v1.1.0"
 #define DEF_IMV_MAIN_STR (std::string)"Imv/Main"
 #define DEF_IMV_INIT_STR (std::string)"Imv/Init"
 #define DEF_IMV_EXIT_STR (std::string)"Imv/Exit"
@@ -125,11 +119,11 @@
 //Camera
 #define DEF_CAM_NUM_OF_MSG 33
 #define DEF_CAM_NUM_OF_OPTION_MSG 50
-//#define DEF_CAM_ENABLE_ICON
-#define DEF_CAM_ENABLE_NAME
-#define DEF_CAM_ICON_PATH (std::string)"romfs:/"
+#define DEF_CAM_ENABLE_ICON
+// #define DEF_CAM_ENABLE_NAME
+#define DEF_CAM_ICON_PATH (std::string)"romfs:/gfx/draw/icon/cam_icon.t3x"
 #define DEF_CAM_NAME (std::string)"camera"
-#define DEF_CAM_VER (std::string)"v1.1.0 (nightly build)"
+#define DEF_CAM_VER (std::string)"v1.1.0"
 #define DEF_CAM_MAIN_STR (std::string)"Cam/Main"
 #define DEF_CAM_INIT_STR (std::string)"Cam/Init"
 #define DEF_CAM_EXIT_STR (std::string)"Cam/Exit"
@@ -144,11 +138,11 @@
 
 //Mic
 #define DEF_MIC_NUM_OF_MSG 4
-//#define DEF_MIC_ENABLE_ICON
-#define DEF_MIC_ENABLE_NAME
-#define DEF_MIC_ICON_PATH (std::string)"romfs:/"
+#define DEF_MIC_ENABLE_ICON
+// #define DEF_MIC_ENABLE_NAME
+#define DEF_MIC_ICON_PATH (std::string)"romfs:/gfx/draw/icon/mic_icon.t3x"
 #define DEF_MIC_NAME (std::string)"mic"
-#define DEF_MIC_VER (std::string)"v1.1.1 (nightly build)"
+#define DEF_MIC_VER (std::string)"v1.2.0"
 #define DEF_MIC_MAIN_STR (std::string)"Mic/Main"
 #define DEF_MIC_INIT_STR (std::string)"Mic/Init"
 #define DEF_MIC_EXIT_STR (std::string)"Mic/Exit"
@@ -156,11 +150,11 @@
 
 //Music player
 #define DEF_MUP_NUM_OF_MSG 21
-//#define DEF_MUP_ENABLE_ICON
-#define DEF_MUP_ENABLE_NAME
-#define DEF_MUP_ICON_PATH (std::string)"romfs:/"
+#define DEF_MUP_ENABLE_ICON
+// #define DEF_MUP_ENABLE_NAME
+#define DEF_MUP_ICON_PATH (std::string)"romfs:/gfx/draw/icon/mup_icon.t3x"
 #define DEF_MUP_NAME (std::string)"music\nplayer"
-#define DEF_MUP_VER (std::string)"v1.1.2 (nightly build)"
+#define DEF_MUP_VER (std::string)"v1.2.0"
 #define DEF_MUP_MAIN_STR (std::string)"Mup/Main"
 #define DEF_MUP_INIT_STR (std::string)"Mup/Init"
 #define DEF_MUP_EXIT_STR (std::string)"Mup/Exit"
@@ -173,7 +167,7 @@
 //#define DEF_VID_ENABLE_NAME
 #define DEF_VID_ICON_PATH (std::string)"romfs:/gfx/draw/icon/vid_icon.t3x"
 #define DEF_VID_NAME (std::string)"Video\nplayer"
-#define DEF_VID_VER (std::string)"v1.5.3 (nightly build)"
+#define DEF_VID_VER (std::string)"v1.5.3"
 #define DEF_VID_MAIN_STR (std::string)"Vid/Main"
 #define DEF_VID_INIT_STR (std::string)"Vid/Init"
 #define DEF_VID_EXIT_STR (std::string)"Vid/Exit"

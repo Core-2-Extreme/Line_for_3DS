@@ -30,7 +30,7 @@ LINE for 3DS uses:
   * `Google Spreadsheets` for storage (chat logs).
   * `Google Apps Script` to send/receive messages to/from LINE server.
 * `3DS` (pink one) to run LINE for 3DS application.
-   ![Line_for_3DS_overview](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_for_3DS_overview.png)
+   ![Line_for_3DS_overview](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_for_3DS_overview.png)
 
 As you can see, 3DS ***never*** talks with `LINE server` directly, instead 3DS will talk with `Google Apps Script` (i.e. Google server).
 
@@ -46,7 +46,7 @@ To set up LINE for 3DS, you need
 
 If you already have LINE account, move on to the [next step](#create-your-line-bot-3ds-account).
 
-![Line_for_3DS_overview_with_circle_and_arrows_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_for_3DS_overview_with_circle_and_arrows_0.png)
+![Line_for_3DS_overview_with_circle_and_arrows_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_for_3DS_overview_with_circle_and_arrows_0.png)
 
 If you haven't installed LINE app (<a href="https://apps.apple.com/us/app/line/id443904275" target="_blank">iOS</a>, <a href="https://play.google.com/store/apps/details?id=jp.naver.line.android&hl=en&gl=US" target="_blank">Android</a>) on your phone (or Android emullator), install it first.
 1. Open LINE app and tap on `Sign up`.
@@ -55,14 +55,14 @@ If you haven't installed LINE app (<a href="https://apps.apple.com/us/app/line/i
 3. Then enter a phone number and continue or log in with Google or Apple.
 4. Set up your account (account name can be anything).
 5. Congratrations!!!!!, you've successfully made your account!!!!!
-   ![Line_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_setup_0.png)
+   ![Line_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_setup_0.png)
 
 
 # Create your LINE BOT (3DS account)
 
 Now, you have LINE account on your phone (or Android emulator), then you need to make a LINE BOT that will be your 3DS account.
 
-![Line_for_3DS_overview_with_circle_and_arrows_1](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_for_3DS_overview_with_circle_and_arrows_1.png)
+![Line_for_3DS_overview_with_circle_and_arrows_1](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_for_3DS_overview_with_circle_and_arrows_1.png)
 
 ## Create your LINE developer account
 
@@ -73,9 +73,9 @@ First, we need to make a LINE developer account.
 2. Then select `Log in with LINE account` to log in.
 3. If this is the first time to log in to LINE developer, you'll be prompted to make a business account, if so click on `Create LINE Business ID` to make it.
 4. Set up your account (developer name can be anything).
-   ![Line_developer_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_developer_setup_0.png)
+   ![Line_developer_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_developer_setup_0.png)
 5. Congratrations!!!!!, you've successfully made your LINE developer account!!!!!
-   ![Line_developer_setup_1](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_developer_setup_1.png)
+   ![Line_developer_setup_1](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_developer_setup_1.png)
 
 ## Create your LINE BOT
 
@@ -85,7 +85,7 @@ Then, let's create a LINE BOT.
 1. Click on `Create a new provider`
 2. Enter provider name (any name) and click on `Create`.
 3. Next, you need to create a BOT channel, click on `Create a Messaging API channel` (If you can't create it, see [Why Create a Messaging API channel is disabled?????](#why-create-a-messaging-api-channel-is-disabled)).
-   ![Line_bot_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_bot_setup_0.png)
+   ![Line_bot_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_bot_setup_0.png)
 4. Fill the information and continue.
    * `Country or region` : Can be anywhere.
    * `Channel icon` : Can be anything, this will be your account icon (see green square).
@@ -93,21 +93,21 @@ Then, let's create a LINE BOT.
    * `Channel description` : Can be anything.
    * `Category` : Can be anything.
    * `Subcategory` : Can be anything.
-   ![Line_bot_setup_1](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_bot_setup_1.png)
+   ![Line_bot_setup_1](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_bot_setup_1.png)
 5. Click on `Messaging API`
 6. Go to bottom of the page and click on `Issue` to generate your access token. Also you can change account settings if you want (you can do it anytime).
    * `Allow bot to join group chat` : Whether your 3DS account can join group (not DM) chat (**recommendation : enable**).
    * `Auto-reply messages` : Whether your 3DS account automatically send a reply message when it receives messages (**recommendation : disable**).
    * `Greeting messages` : Whether your 3DS account automatically send a greeting message when someone follow (add as a friend) your 3DS account (**recommendation : disable**).
 7. Congratrations!!!!!, you've successfully made your BOT account!!!!! We'll use this page later so don't close this tab.
-   ![Line_bot_setup_2](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_bot_setup_2.png)
+   ![Line_bot_setup_2](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_bot_setup_2.png)
 
 
 # Set up your Google drive
 
 In this step, we'll set up `Google Sheets` (acts as a chat logs storage) and `Google Apps Script` (acts as a server).
 
-![Line_for_3DS_overview_with_circle_and_arrows_2](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_for_3DS_overview_with_circle_and_arrows_2.png)
+![Line_for_3DS_overview_with_circle_and_arrows_2](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_for_3DS_overview_with_circle_and_arrows_2.png)
 
 ## Create folder and files
 
@@ -120,18 +120,18 @@ First, let's create folder and files on your Google drive.
 6. If you get a warning when creating Google Apps Script, click on `Create script`.
 7. Optionally, you can rename (any name) your `Google Sheets` and `Google Apps Script`.
 8. Congratrations!!!!!, you've successfully prepared your Google drive!!!!!
-   ![Google_drive_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Google_drive_setup_0.png)
+   ![Google_drive_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Google_drive_setup_0.png)
 
 ## Set up your Google Apps Script
 
 Then, let's set up your Google Apps Script.
 1. Open your `Google Apps Script` and **DELETE** ***ALL OF*** code to empty your script first.
-2. After emptying your script, **copy & paste** ***ALL OF*** <a href="https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/gas/script.txt" target="_blank">this script</a> on your `Google Apps Script` and save it (click on `save icon` or press `CTRL + S`).
+2. After emptying your script, **copy & paste** ***ALL OF*** <a href="https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/gas/script.txt" target="_blank">this script</a> on your `Google Apps Script` and save it (click on `save icon` or press `CTRL + S`).
 3. Next, check if script works fine by selecting `Test_spot` and click on `Run`.
 4. If you are prompted to review permission, grant access to your script (see [Why Google Apps Script says "authorization required" or "review permission"?????](#why-google-apps-script-says-authorization-required-or-review-permission) if you don't know how to do that).
-   ![Google_apps_script_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Google_apps_script_setup_0.png)
+   ![Google_apps_script_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Google_apps_script_setup_0.png)
 5. Then, you shoud see version number and `OK` in the log box (if you don't see log box, click on `Execution log`), if you see something else such as `ReferenceError: Copy_paste_checker is not defined` it means you haven't copy & pasted **ALL OF** script code, in that case try again from step 1.
-   ![Google_apps_script_setup_1](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Google_apps_script_setup_1.png)
+   ![Google_apps_script_setup_1](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Google_apps_script_setup_1.png)
 6. Set account information to your Google Apps Script.
    * `APP_USER_ACCESS_TOKEN` : Access token for your LINE BOT account. Go back to LINE developer tab, copy channel access token (click on `copy icon`) and paste it.
    * `APP_USER_GOOGLE_SHEET_ID` : Google sheets ID for chat logs. Go back to Google sheets tab, copy sheet ID without `/` (slash).
@@ -147,7 +147,7 @@ Then, let's set up your Google Apps Script.
 10. If you are prompted to review permission, grant access to your script (see [Why Google Apps Script says "authorization required" or "review permission"?????](#why-google-apps-script-says-authorization-required-or-review-permission) if you don't know how to do that).
 11. Click on `Copy` to copy your script URL (we'll use it in next step), finally click on `Done`.
 12. Congratrations!!!!!, you've (almost) finished setting up your Google Apps Script!!!!!
-   ![Google_apps_script_setup_2](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Google_apps_script_setup_2.png)
+   ![Google_apps_script_setup_2](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Google_apps_script_setup_2.png)
 
 ## Finalize your Google Apps Script setup
 
@@ -157,14 +157,14 @@ After deploying your script, check if everything goes fine until now first, then
 3. Go back to LINE developer tab, and click on `Use webhook` to enable it.
 4. Go back to your script tab and reload it. You should see no errors (and you should see QR code instead).
 5. Congratrations!!!!!, you've successfully configure your Google Apps Script!!!!! We'll use this page later so don't close this tab.
-   ![Google_apps_script_finalizing_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Google_apps_script_finalizing_0.png)
+   ![Google_apps_script_finalizing_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Google_apps_script_finalizing_0.png)
 
 
 # Set up your 3DS
 
 We are almost there, this is the final step of the setup.
 
-![Line_for_3DS_overview_with_circle_and_arrows_3](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_for_3DS_overview_with_circle_and_arrows_3.png)
+![Line_for_3DS_overview_with_circle_and_arrows_3](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_for_3DS_overview_with_circle_and_arrows_3.png)
 
 1. Install and open LINE for 3DS on your 3DS.
 2. Touch on LINE icon to open it.
@@ -172,7 +172,7 @@ We are almost there, this is the final step of the setup.
 4. Touch on Change GAS URL (or press `X` button) and select camera (if your camera is not working, see [How do I set up Google Apps Script URL on my 3DS if camera is not working?????](#how-do-i-set-up-google-apps-script-url-on-my-3ds-if-camera-is-not-working)).
 5. Go back to [Google Apps Script setup page (step 5)](#finalize-your-google-apps-script-setup) and scan the QR code.
 6. Be patient until `Please wait` message disappear (if you get any error messages, see [Why do I get an error message while setting Google Apps Script on my 3DS?????](#why-do-i-get-an-error-message-while-setting-google-apps-script-on-my-3ds)).
-   ![Line_for_3ds_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_for_3ds_setup_0.png)
+   ![Line_for_3ds_setup_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_for_3ds_setup_0.png)
 7. Add your BOT account (3DS account) as a friend on your LINE account (if you don't know how to do that, see [How do I (or let someone) add my 3DS account as a friend?????](#how-do-i-or-let-someone-add-my-3ds-account-as-a-friend)).
 8. Touch on `IDs` room.
 9. Touch on `Receive` then touch on `Update logs` (or press `B` button).
@@ -184,7 +184,7 @@ We are almost there, this is the final step of the setup.
 15. Touch on `Send` then touch on `Send a message` (or press `A` button) to send something from your 3DS.
 16. You should see message on both your 3DS and official LINE application.
 17. Congratrations!!!!!, you've successfully set up LINE for 3DS!!!!!
-   ![Line_for_3ds_setup_1](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_for_3ds_setup_1.png)
+   ![Line_for_3ds_setup_1](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_for_3ds_setup_1.png)
 
 
 # FAQ
@@ -198,7 +198,7 @@ To add your 3DS account as a friend, you can use either QR code or ID.
 2. Click on `Messaging API`.
    * `Scan QR code` on your device (or let someone scan it)
    * Add friend via `BOT basic ID` (include `@` mark, e.g. **@fdbnoi4**) (or let someone add it).
-   ![Line_bot_qr_and_id_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_bot_qr_and_id_0.png)
+   ![Line_bot_qr_and_id_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_bot_qr_and_id_0.png)
 
 ## How do I set up Google Apps Script URL on my 3DS if camera is not working?????
 
@@ -207,7 +207,7 @@ If you can't scan the QR code on your 3DS, you can use URL shortener such as [t.
 2. Touch on `Change GAS URL` and `keyboard`.
 3. Type your short URL and touch on `confirm`.
 4. Be patient until `Please wait` message disappear (if you get any error messages, see [Why do I get an error message while setting Google Apps Script on my 3DS?????](#why-do-i-get-an-error-message-while-setting-google-apps-script-on-my-3ds)).
-   ![Line_for_3ds_setup_short_url_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_for_3ds_setup_short_url_0.png)
+   ![Line_for_3ds_setup_short_url_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_for_3ds_setup_short_url_0.png)
 
 ## How do I check my Google Apps Script URL?????
 
@@ -217,7 +217,7 @@ If you forget your Google Apps Script URL after deploying it, you can check it w
 1. Open your Google Apps Script.
 2. Click on `Deploy` and `Manage deployments`.
 3. You should see your Google Apps Script URL under Web app section.
-   ![Google_apps_script_url_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Google_apps_script_url_0.png)
+   ![Google_apps_script_url_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Google_apps_script_url_0.png)
 
 ## Why do I get a auto reply message when sending message to my 3DS (or adding 3DS account as a friend)?????
 
@@ -227,7 +227,7 @@ You can disable them with following steps.
 1. Go to <a href="https://developers.line.biz/en/" target="_blank">LINE developer</a> and log in to your developer account.
 2. Click on `Messaging API` and scroll down.
 3. Disable `Auto-reply messages` and/or `Greeting messages` as you like.
-   ![Line_bot_auto_reply_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Line_bot_auto_reply_0.png)
+   ![Line_bot_auto_reply_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Line_bot_auto_reply_0.png)
 
 ## Why do I get an error message while setting Google Apps Script on my 3DS?????
 
@@ -267,4 +267,4 @@ If you get this message, you need to grant permissions to your Google Apps Scrip
 2. Select your Google account (select Google account that you used to create this script, otherwise it won't work as you expected)
 3. Click on `Advanced` (screenshot says `Hide advanced` because I already clicked it) and click on `Go to {Your Google Apps Script name} (unsafe)`
 4. Finally, click on `Allow` to grant permission to your script.
-   ![Google_apps_script_review_permissions_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/master/setup_resources/Google_apps_script_review_permissions_0.png)
+   ![Google_apps_script_review_permissions_0](https://raw.githubusercontent.com/Core-2-Extreme/Line_for_3DS/v2.0.0/setup_resources/Google_apps_script_review_permissions_0.png)

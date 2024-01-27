@@ -40,9 +40,9 @@ GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 GFXBUILD	:=	$(ROMFS)/gfx
 #---------------------------------------------------------------------------------
-APP_VER				:= 1
+APP_VER				:= 2048
 APP_TITLE			:= Line for 3DS
-APP_DESCRIPTION		:= Line for 3DS v2.0.0 (nightly build)
+APP_DESCRIPTION		:= Line for 3DS v2.0.0
 APP_AUTHOR			:= Core_2_Extreme
 PRODUCT_CODE		:= CTR-Line
 UNIQUE_ID			:= 0xEC950
