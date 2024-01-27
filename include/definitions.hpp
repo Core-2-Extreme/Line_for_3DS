@@ -7,7 +7,7 @@
 #define DEF_UPDATE_FILE_PREFIX (std::string)"Line"
 #define DEF_CHECK_INTERNET_URL (std::string)"http://connectivitycheck.gstatic.com/generate_204"
 #define DEF_SEND_APP_INFO_URL (std::string)"https://script.google.com/macros/s/AKfycbyn_blFyKWXCgJr6NIF8x6ETs7CHRN5FXKYEAAIrzV6jPYcCkI/exec"
-#define DEF_CHECK_UPDATE_URL (std::string)""
+#define DEF_CHECK_UPDATE_URL (std::string)"https://script.google.com/macros/s/AKfycbyzO15G2DaFX0ns7pA5sahSBj91nF7JCTxOb1CzAdtk3ofMuCMFNQyA/exec"
 #define DEF_HTTP_USER_AGENT (std::string)"Line for 3ds " + DEF_CURRENT_APP_VER
 #define DEF_CURRENT_APP_VER (std::string)"v2.0.0"
 #define DEF_CURRENT_APP_VER_INT 2048
