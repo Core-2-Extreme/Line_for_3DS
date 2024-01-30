@@ -16,8 +16,8 @@
 
 # Summary
 
-![menu](https://github.com/Core-2-Extreme/Line_for_3DS/blob/v2.0.0/screenshots/menu.png)
-![chat](https://github.com/Core-2-Extreme/Line_for_3DS/blob/v2.0.0/screenshots/chat.png)
+![menu](https://github.com/Core-2-Extreme/Line_for_3DS/blob/v2.0.0.1/screenshots/menu.png)
+![chat](https://github.com/Core-2-Extreme/Line_for_3DS/blob/v2.0.0.1/screenshots/chat.png)
 |        Feature        | Supported? | Note |
 | --------------------- | ---------- | ---- |
 | Send text             |   Yes✅   |      |
@@ -34,13 +34,13 @@
 | Receive audio         |   Yes✅   |      |
 | Receive videos        |   Yes✅   | Some videos may not be played at full speed or at all especially on OLD3DS. |
 | Direct message        |   Yes✅   |      |
-| Group chat            |   Yes✅   | If `Allow bot to join group chat` feature in LINE developer page (see [Create your LINE BOT](https://github.com/Core-2-Extreme/Line_for_3DS/blob/v2.0.0/SETUP.md#create-your-line-bot) step 6) is enabled. |
+| Group chat            |   Yes✅   | If `Allow bot to join group chat` feature in LINE developer page (see [Create your LINE BOT](https://github.com/Core-2-Extreme/Line_for_3DS/blob/v2.0.0.1/SETUP.md#create-your-line-bot) step 6) is enabled. |
 | Open chat             |   No❌    |      |
 | Voice call            |   No❌    |      |
 | Night mode            |   Yes✅   |      |
 
 # How to setup and use
-See [Setup instructions](https://github.com/Core-2-Extreme/Line_for_3DS/blob/v2.0.0/SETUP.md).
+See [Setup instructions](https://github.com/Core-2-Extreme/Line_for_3DS/blob/v2.0.0.1/SETUP.md).
 
 # Build
 You need : 
@@ -75,7 +75,7 @@ If you have older devkitpro, update it or compilation will fail.
 ## Ver 2.0.0
 * Line
   * Significant changes for internal code, so you need to setup your Google Apps Script again.
-  * [Setup instructions](https://github.com/Core-2-Extreme/Line_for_3DS/blob/v2.0.0/SETUP.md) are updated.
+  * [Setup instructions](https://github.com/Core-2-Extreme/Line_for_3DS/blob/v2.0.0.1/SETUP.md) are updated.
   * 3DS
     * Chat log wrapping feature has been improved a lot.
     * Auto update feature (for chat logs) are removed temporary.
