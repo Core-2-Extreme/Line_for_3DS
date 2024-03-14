@@ -473,7 +473,7 @@ void Cam_encode_thread(void* arg)
 			converter_parameters.in_width = cam_width_list[cam_resolution_mode];
 			converter_parameters.in_height = cam_height_list[cam_resolution_mode];
 			converter_parameters.converted = NULL;
-			converter_parameters.out_color_format = PIXEL_FORMAT_BGR888;
+			converter_parameters.out_color_format = PIXEL_FORMAT_RGB888;
 			converter_parameters.out_width = converter_parameters.in_width;
 			converter_parameters.out_height = converter_parameters.in_height;
 
